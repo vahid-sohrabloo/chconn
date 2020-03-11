@@ -268,31 +268,14 @@ func (ch *Conn) RawConn() net.Conn {
 }
 func (ch *Conn) hello() error {
 
-	if err := ch.writer.Uvarint(clientHello); err != nil {
-		return err
-	}
-	if err := ch.writer.String(ch.config.ClientName); err != nil {
-		return err
-	}
-
-	if err := ch.writer.Uvarint(DBMS_VERSION_MAJOR); err != nil {
-		return err
-	}
-	if err := ch.writer.Uvarint(DBMS_VERSION_MINOR); err != nil {
-		return err
-	}
-	if err := ch.writer.Uvarint(DBMS_VERSION_REVISION); err != nil {
-		return err
-	}
-	if err := ch.writer.String(ch.config.Database); err != nil {
-		return err
-	}
-	if err := ch.writer.String(ch.config.User); err != nil {
-		return err
-	}
-	if err := ch.writer.String(ch.config.Password); err != nil {
-		return err
-	}
+	ch.writer.Uvarint(clientHello)
+	ch.writer.String(ch.config.ClientName)
+	ch.writer.Uvarint(DBMS_VERSION_MAJOR)
+	ch.writer.Uvarint(DBMS_VERSION_MINOR)
+	ch.writer.Uvarint(DBMS_VERSION_REVISION)
+	ch.writer.String(ch.config.Database)
+	ch.writer.String(ch.config.User)
+	ch.writer.String(ch.config.Password)
 
 	if _, err := ch.writer.WriteTo(ch.conn); err != nil {
 		return err
@@ -402,21 +385,14 @@ func (ch *Conn) SendQueryWithOption(
 	}
 
 	// todo setting
-	if err := ch.writer.String(""); err != nil {
-		return err
-	}
+	ch.writer.String("")
 
-	if err := ch.writer.Uvarint(uint64(stage)); err != nil {
-		return err
-	}
+	ch.writer.Uvarint(uint64(stage))
 
 	//todo comprestion
-	if err := ch.writer.Uvarint(0); err != nil {
-		return err
-	}
-	if err := ch.writer.String(query); err != nil {
-		return err
-	}
+	ch.writer.Uvarint(0)
+
+	ch.writer.String(query)
 
 	return ch.SendData(NewBlock(), "")
 

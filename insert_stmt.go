@@ -96,81 +96,81 @@ func (s *InsertStmt) Commit(ctx context.Context) error {
 
 }
 
-func (s *InsertStmt) Int8(bufferIndex int, value int8) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int8(value)
+func (s *InsertStmt) Int8(bufferIndex int, value int8) {
+	s.Block.ColumnsBuffer[bufferIndex].Int8(value)
 }
 
-func (s *InsertStmt) Int16(bufferIndex int, value int16) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int16(value)
+func (s *InsertStmt) Int16(bufferIndex int, value int16) {
+	s.Block.ColumnsBuffer[bufferIndex].Int16(value)
 }
 
-func (s *InsertStmt) Int32(bufferIndex int, value int32) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int32(value)
+func (s *InsertStmt) Int32(bufferIndex int, value int32) {
+	s.Block.ColumnsBuffer[bufferIndex].Int32(value)
 }
 
-func (s *InsertStmt) Int64(bufferIndex int, value int64) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int64(value)
+func (s *InsertStmt) Int64(bufferIndex int, value int64) {
+	s.Block.ColumnsBuffer[bufferIndex].Int64(value)
 }
 
-func (s *InsertStmt) Uint8(bufferIndex int, value uint8) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Uint8(value)
+func (s *InsertStmt) Uint8(bufferIndex int, value uint8) {
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(value)
 }
-func (s *InsertStmt) Uint16(bufferIndex int, value uint16) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Uint16(value)
-}
-
-func (s *InsertStmt) Uint32(bufferIndex int, value uint32) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Uint32(value)
+func (s *InsertStmt) Uint16(bufferIndex int, value uint16) {
+	s.Block.ColumnsBuffer[bufferIndex].Uint16(value)
 }
 
-func (s *InsertStmt) Uint64(bufferIndex int, value uint64) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Uint64(value)
+func (s *InsertStmt) Uint32(bufferIndex int, value uint32) {
+	s.Block.ColumnsBuffer[bufferIndex].Uint32(value)
 }
 
-func (s *InsertStmt) Float32(bufferIndex int, value float32) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Float32(value)
+func (s *InsertStmt) Uint64(bufferIndex int, value uint64) {
+	s.Block.ColumnsBuffer[bufferIndex].Uint64(value)
 }
 
-func (s *InsertStmt) Float64(bufferIndex int, value float64) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Float64(value)
+func (s *InsertStmt) Float32(bufferIndex int, value float32) {
+	s.Block.ColumnsBuffer[bufferIndex].Float32(value)
 }
 
-func (s *InsertStmt) String(bufferIndex int, value string) error {
-	return s.Block.ColumnsBuffer[bufferIndex].String(value)
+func (s *InsertStmt) Float64(bufferIndex int, value float64) {
+	s.Block.ColumnsBuffer[bufferIndex].Float64(value)
 }
 
-func (s *InsertStmt) Buffer(bufferIndex int, value []byte) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Buffer(value)
+func (s *InsertStmt) String(bufferIndex int, value string) {
+	s.Block.ColumnsBuffer[bufferIndex].String(value)
 }
 
-func (s *InsertStmt) FixedString(bufferIndex int, value []byte) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Write(value)
+func (s *InsertStmt) Buffer(bufferIndex int, value []byte) {
+	s.Block.ColumnsBuffer[bufferIndex].Buffer(value)
 }
 
-func (s *InsertStmt) Decimal32(bufferIndex int, value float64, scale int) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int32(int32(value * factors10[scale]))
+func (s *InsertStmt) FixedString(bufferIndex int, value []byte) {
+	s.Block.ColumnsBuffer[bufferIndex].Write(value)
 }
 
-func (s *InsertStmt) Decimal64(bufferIndex int, value float64, scale int) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Int64(int64(value * factors10[scale]))
+func (s *InsertStmt) Decimal32(bufferIndex int, value float64, scale int) {
+	s.Block.ColumnsBuffer[bufferIndex].Int32(int32(value * factors10[scale]))
 }
 
-func (s *InsertStmt) Date(bufferIndex int, value time.Time) error {
+func (s *InsertStmt) Decimal64(bufferIndex int, value float64, scale int) {
+	s.Block.ColumnsBuffer[bufferIndex].Int64(int64(value * factors10[scale]))
+}
+
+func (s *InsertStmt) Date(bufferIndex int, value time.Time) {
 	_, offset := value.Zone()
 	timestamp := value.Unix() + int64(offset)
-	return s.Block.ColumnsBuffer[bufferIndex].Uint16(uint16(timestamp / 24 / 3600))
+	s.Block.ColumnsBuffer[bufferIndex].Uint16(uint16(timestamp / 24 / 3600))
 }
 
-func (s *InsertStmt) DateTime(bufferIndex int, value time.Time) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Uint32(uint32(value.Unix()))
+func (s *InsertStmt) DateTime(bufferIndex int, value time.Time) {
+	s.Block.ColumnsBuffer[bufferIndex].Uint32(uint32(value.Unix()))
 }
 
-func (s *InsertStmt) UUID(bufferIndex int, value [16]byte) error {
-	return s.Block.ColumnsBuffer[bufferIndex].Write(swapUUID(value[:]))
+func (s *InsertStmt) UUID(bufferIndex int, value [16]byte) {
+	s.Block.ColumnsBuffer[bufferIndex].Write(swapUUID(value[:]))
 }
 
-func (s *InsertStmt) AddOffset(bufferIndex int, value uint64) error {
-	return s.Block.ColumnsBuffer[bufferIndex].AddOffset(value)
+func (s *InsertStmt) AddLen(bufferIndex int, value uint64) {
+	s.Block.ColumnsBuffer[bufferIndex].AddLen(value)
 }
 
 func swapUUID(src []byte) []byte {
@@ -190,11 +190,231 @@ func (s *InsertStmt) IPv4(bufferIndex int, value net.IP) error {
 	if len(value) != 4 {
 		return errors.New("invalid ipv4")
 	}
-	return s.Block.ColumnsBuffer[bufferIndex].Write([]byte{value[3], value[2], value[1], value[0]})
+	s.Block.ColumnsBuffer[bufferIndex].Write([]byte{value[3], value[2], value[1], value[0]})
+	return nil
 }
 func (s *InsertStmt) IPv6(bufferIndex int, value net.IP) error {
 	if len(value) != 16 {
 		return errors.New("invalid ipv6")
 	}
-	return s.Block.ColumnsBuffer[bufferIndex].Write(value)
+	s.Block.ColumnsBuffer[bufferIndex].Write(value)
+	return nil
+}
+
+func (s *InsertStmt) Int8P(bufferIndex int, value *int8) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int8(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int8(*value)
+}
+
+func (s *InsertStmt) Int16P(bufferIndex int, value *int16) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int16(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int16(*value)
+}
+
+func (s *InsertStmt) Int32P(bufferIndex int, value *int32) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int32(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int32(*value)
+}
+
+func (s *InsertStmt) Int64P(bufferIndex int, value *int64) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int64(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int64(*value)
+}
+
+func (s *InsertStmt) Uint8P(bufferIndex int, value *uint8) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint8(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint8(*value)
+}
+func (s *InsertStmt) Uint16P(bufferIndex int, value *uint16) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint16(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint16(*value)
+}
+
+func (s *InsertStmt) Uint32P(bufferIndex int, value *uint32) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint32(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint32(*value)
+}
+
+func (s *InsertStmt) Uint64P(bufferIndex int, value *uint64) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint64(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint64(*value)
+}
+
+func (s *InsertStmt) Float32P(bufferIndex int, value *float32) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Float32(8)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Float32(*value)
+}
+
+func (s *InsertStmt) Float64P(bufferIndex int, value *float64) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Float64(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Float64(*value)
+}
+
+func (s *InsertStmt) StringP(bufferIndex int, value *string) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].String("")
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].String(*value)
+}
+
+func (s *InsertStmt) BufferP(bufferIndex int, value *[]byte) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Buffer([]byte{})
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Buffer(*value)
+}
+
+func (s *InsertStmt) FixedStringP(bufferIndex int, empty, value []byte) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Write(empty)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Write(value)
+}
+
+func (s *InsertStmt) Decimal32P(bufferIndex int, value *float64, scale int) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int32(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int32(int32(*value * factors10[scale]))
+
+}
+
+func (s *InsertStmt) Decimal64P(bufferIndex int, value *float64, scale int) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Int64(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Int64(int64(*value * factors10[scale]))
+
+}
+
+func (s *InsertStmt) DateP(bufferIndex int, value *time.Time) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint16(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	_, offset := value.Zone()
+	timestamp := value.Unix() + int64(offset)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint16(uint16(timestamp / 24 / 3600))
+}
+
+func (s *InsertStmt) DateTimeP(bufferIndex int, value *time.Time) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Uint32(0)
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Uint32(uint32(value.Unix()))
+}
+
+var emptyUUID = make([]byte, 16)
+
+func (s *InsertStmt) UUIDP(bufferIndex int, value *[16]byte) {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex+1].Write(emptyUUID[:])
+		return
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex+1].Write(swapUUID(value[:]))
+}
+
+var emptyIPV4 = make([]byte, 4)
+
+func (s *InsertStmt) IPv4P(bufferIndex int, value *net.IP) error {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex].Write(emptyIPV4)
+		return nil
+	}
+	val := *value
+	if len(val) != 4 {
+		return errors.New("invalid ipv4")
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex].Write([]byte{val[3], val[2], val[1], val[0]})
+	return nil
+}
+
+var emptyIPV6 = make([]byte, 4)
+
+func (s *InsertStmt) IPv6P(bufferIndex int, value *net.IP) error {
+	if value == nil {
+		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
+		s.Block.ColumnsBuffer[bufferIndex].Write(emptyIPV6)
+		return nil
+	}
+	if len(*value) != 16 {
+		return errors.New("invalid ipv6")
+	}
+	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
+	s.Block.ColumnsBuffer[bufferIndex].Write(*value)
+	return nil
 }

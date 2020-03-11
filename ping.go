@@ -6,9 +6,7 @@ import (
 
 func (ch *Conn) Ping(ctx context.Context) error {
 
-	if err := ch.writer.Uvarint(clientPing); err != nil {
-		return err
-	}
+	ch.writer.Uvarint(clientPing)
 	if _, err := ch.writer.WriteTo(ch.conn); err != nil {
 		return err
 	}

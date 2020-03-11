@@ -120,9 +120,7 @@ func commaOrParentheses(c rune) bool {
 }
 
 func (block *Block) write(ch *Conn) error {
-	if err := block.info.write(ch.writer); err != nil {
-		return err
-	}
+	block.info.write(ch.writer)
 	ch.writer.Uvarint(block.NumColumns)
 	ch.writer.Uvarint(block.NumRows)
 	defer func() {
@@ -170,25 +168,14 @@ func (info *blockInfo) read(r *Reader) error {
 	return nil
 }
 
-func (info *blockInfo) write(w *Writer) error {
-	if err := w.Uvarint(1); err != nil {
-		return err
-	}
-	if err := w.Bool(info.isOverflows); err != nil {
-		return err
-	}
-	if err := w.Uvarint(2); err != nil {
-		return err
-	}
+func (info *blockInfo) write(w *Writer) {
+	w.Uvarint(1)
+	w.Bool(info.isOverflows)
+	w.Uvarint(2)
 
 	if info.bucketNum == 0 {
 		info.bucketNum = -1
 	}
-	if err := w.Int32(info.bucketNum); err != nil {
-		return err
-	}
-	if err := w.Uvarint(0); err != nil {
-		return err
-	}
-	return nil
+	w.Int32(info.bucketNum)
+	w.Uvarint(0)
 }

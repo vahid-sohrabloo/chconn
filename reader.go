@@ -15,6 +15,7 @@ func NewReader(input io.Reader) *Reader {
 type Reader struct {
 	compress bool
 	input    io.Reader
+	offset   uint64
 	scratch  [binary.MaxVarintLen64]byte
 }
 
@@ -146,9 +147,16 @@ func (r *Reader) Read(buf []byte) (int, error) {
 	return r.input.Read(buf)
 }
 
-func (r *Reader) Date() (byte, error) {
-	if _, err := r.input.Read(r.scratch[:1]); err != nil {
-		return 0x0, err
+func (r *Reader) Len() (int, uint64, error) {
+	offset, err := r.Uint64()
+	if err != nil {
+		return 0, 0, err
 	}
-	return r.scratch[0], nil
+	arrLen := int(offset - r.offset)
+	r.offset = offset
+	return arrLen, offset, nil
+}
+
+func (r *Reader) ResetOffset() {
+	r.offset = 0
 }
