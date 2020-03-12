@@ -46,12 +46,13 @@ func (s *InsertStmt) Flush(ctx context.Context) error {
 		// todo send error
 	}
 
-	_, err = s.conn.Exec(ctx, s.query)
+	err = s.conn.SendQueryWithOption(ctx, s.query, "", QueryProcessingStageComplete, nil, nil)
 	if err != nil {
 		return err
 	}
-
 	// todo check response is block and block is the same old
+
+	_, err = s.conn.ReciveAndProccessData()
 
 	for range s.Block.Columns {
 
