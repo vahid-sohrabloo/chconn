@@ -267,7 +267,6 @@ func (ch *Conn) RawConn() net.Conn {
 	return ch.conn
 }
 func (ch *Conn) hello() error {
-
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
 	ch.writer.Uvarint(DBMS_VERSION_MAJOR)
@@ -306,7 +305,6 @@ func (ch *Conn) hello() error {
 	}
 
 	return nil
-
 }
 
 // IsClosed reports if the connection has been closed.
@@ -343,10 +341,6 @@ func (ch *Conn) unlock() {
 	}
 }
 
-func (ch *Conn) SendQuery(ctx context.Context, query string) error {
-	return ch.SendQueryWithOption(ctx, query, "", QueryProcessingStageComplete, nil, nil)
-}
-
 func (ch *Conn) Exec(ctx context.Context, query string) (interface{}, error) {
 	err := ch.lock()
 	if err != nil {
@@ -357,7 +351,7 @@ func (ch *Conn) Exec(ctx context.Context, query string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ch.ReciveAndProccessData()
+	return ch.reciveAndProccessData()
 }
 
 func (ch *Conn) SendQueryWithOption(
@@ -365,12 +359,11 @@ func (ch *Conn) SendQueryWithOption(
 	query string,
 	queryID string,
 	stage QueryProcessingStage,
-	settings *Setting,
+	settings []byte,
 	clientInfo *ClientInfo) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
 	if ch.ServerInfo.Revision >= DBMS_MIN_REVISION_WITH_CLIENT_INFO {
-
 		if clientInfo == nil {
 			clientInfo = &ClientInfo{}
 		}
@@ -395,7 +388,6 @@ func (ch *Conn) SendQueryWithOption(
 	ch.writer.String(query)
 
 	return ch.SendData(NewBlock(), "")
-
 }
 
 func (ch *Conn) SendData(block *Block, name string) error {
@@ -425,7 +417,7 @@ func (ch *Conn) readTableColumn() {
 	ch.reader.String()
 	ch.reader.String()
 }
-func (ch *Conn) ReciveAndProccessData() (interface{}, error) {
+func (ch *Conn) reciveAndProccessData() (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, err
@@ -441,7 +433,7 @@ func (ch *Conn) ReciveAndProccessData() (interface{}, error) {
 		}
 		return ch.ServerInfo, nil
 	case serverPong:
-		return ch.ReciveAndProccessData()
+		return ch.reciveAndProccessData()
 	case serverProfileInfo:
 		profile := NewProfile()
 
@@ -465,9 +457,9 @@ func (ch *Conn) ReciveAndProccessData() (interface{}, error) {
 	case serverTableColumns:
 		ch.readTableColumn()
 
-		return ch.ReciveAndProccessData()
+		return ch.reciveAndProccessData()
 	}
-	fmt.Println("packet not impliment", packet)
+	fmt.Println("packet not implement", packet)
 	return nil, nil
 }
 
@@ -481,7 +473,7 @@ func (ch *Conn) Insert(ctx context.Context, query string) (*InsertStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := ch.ReciveAndProccessData()
+	res, err := ch.reciveAndProccessData()
 
 	// todo check response is block
 

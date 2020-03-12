@@ -31,7 +31,7 @@ var parseConfigTests = []struct {
 			},
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "localhost",
 					Port:      9000,
 					TLSConfig: nil,
@@ -66,7 +66,7 @@ var parseConfigTests = []struct {
 			TLSConfig:     nil,
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host: "localhost",
 					Port: 9000,
 					TLSConfig: &tls.Config{
@@ -92,7 +92,7 @@ var parseConfigTests = []struct {
 			},
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "localhost",
 					Port:      9000,
 					TLSConfig: nil,
@@ -320,12 +320,12 @@ var parseConfigTests = []struct {
 			TLSConfig:     nil,
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "bar",
 					Port:      9000,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host:      "baz",
 					Port:      9000,
 					TLSConfig: nil,
@@ -346,12 +346,12 @@ var parseConfigTests = []struct {
 			TLSConfig:     nil,
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "bar",
 					Port:      2,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host:      "baz",
 					Port:      3,
 					TLSConfig: nil,
@@ -372,12 +372,12 @@ var parseConfigTests = []struct {
 			TLSConfig:     nil,
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "bar",
 					Port:      9000,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host:      "baz",
 					Port:      9000,
 					TLSConfig: nil,
@@ -398,12 +398,12 @@ var parseConfigTests = []struct {
 			ClientName:    defaultClientName,
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "bar",
 					Port:      2,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host:      "baz",
 					Port:      3,
 					TLSConfig: nil,
@@ -426,29 +426,29 @@ var parseConfigTests = []struct {
 			},
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "foo",
 					Port:      9000,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host: "bar",
 					Port: 9000,
 					TLSConfig: &tls.Config{
 						InsecureSkipVerify: true,
 					}},
-				&FallbackConfig{
+				{
 					Host:      "bar",
 					Port:      9000,
 					TLSConfig: nil,
 				},
-				&FallbackConfig{
+				{
 					Host: "baz",
 					Port: 9000,
 					TLSConfig: &tls.Config{
 						InsecureSkipVerify: true,
 					}},
-				&FallbackConfig{
+				{
 					Host:      "baz",
 					Port:      9000,
 					TLSConfig: nil,
@@ -533,7 +533,7 @@ var parseConfigEnvLibpqTests = []struct {
 			},
 			RuntimeParams: map[string]string{},
 			Fallbacks: []*FallbackConfig{
-				&FallbackConfig{
+				{
 					Host:      "123.123.123.123",
 					Port:      9000,
 					TLSConfig: nil,
@@ -567,7 +567,6 @@ var parseConfigEnvLibpqTests = []struct {
 }
 
 func TestParseConfigEnvLibpq(t *testing.T) {
-
 	chEnvvars := []string{"CHHOST", "CHPORT", "CHDATABASE", "CHUSER", "CHPASSWORD", "CHCLIENTNAME", "CHSSLMODE", "CHCONNECT_TIMEOUT"}
 
 	savedEnv := make(map[string]string)

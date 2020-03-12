@@ -144,7 +144,6 @@ func TestPoolAfterRelease(t *testing.T) {
 	conns := map[string]struct{}{}
 
 	for i := 0; i < 10; i++ {
-
 		conn, err := db.Acquire(context.Background())
 		assert.NoError(t, err)
 		conns[conn.Conn().RawConn().LocalAddr().String()] = struct{}{}
@@ -324,7 +323,7 @@ func TestPoolSelect(t *testing.T) {
 	require.NoError(t, err)
 	for stmt.Next() {
 		stmt.NextColumn()
-		err := stmt.Uint64(&[]uint64{})
+		err := stmt.Uint64All(&[]uint64{})
 		assert.NoError(t, err)
 	}
 
@@ -338,7 +337,6 @@ func TestPoolSelect(t *testing.T) {
 	stats = pool.Stat()
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
-
 }
 
 func TestPoolInsert(t *testing.T) {
@@ -379,7 +377,7 @@ func TestPoolInsert(t *testing.T) {
 	var int8Data []int8
 	for selectStmt.Next() {
 		selectStmt.NextColumn()
-		err := selectStmt.Int8(&int8Data)
+		err := selectStmt.Int8All(&int8Data)
 		require.NoError(t, err)
 	}
 	require.NoError(t, selectStmt.LastErr)
@@ -393,7 +391,6 @@ func TestPoolInsert(t *testing.T) {
 	stats = pool.Stat()
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
-
 }
 
 func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {

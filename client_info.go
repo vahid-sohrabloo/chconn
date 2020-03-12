@@ -58,7 +58,6 @@ func (c *ClientInfo) IsEmpty() bool {
 // Write Only values that are not calculated automatically or passed separately are serialized.
 // Revisions are passed to use format that server will understand or client was used.
 func (c *ClientInfo) Write(ch *Conn) error {
-
 	ch.writer.Uint8(uint8(c.QueryKind))
 	if c.IsEmpty() {
 		return nil
@@ -95,5 +94,4 @@ func (c *ClientInfo) fillOSUserHostNameAndVersionInfo() {
 	c.ClientVersionMinor = DBMS_VERSION_MINOR
 	c.ClientVersionPatch = DBMS_VERSION_PATCH
 	c.ClientRevision = DBMS_VERSION_REVISION
-
 }

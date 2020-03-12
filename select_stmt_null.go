@@ -6,7 +6,6 @@ import (
 )
 
 func (s *SelectStmt) Int8PS(num uint64, nulls []uint8, value *[]*int8) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int8()
 		if err != nil {
@@ -17,14 +16,11 @@ func (s *SelectStmt) Int8PS(num uint64, nulls []uint8, value *[]*int8) error {
 		} else {
 			*value = append(*value, nil)
 		}
-
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int16PS(num uint64, nulls []uint8, value *[]*int16) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int16()
 		if err != nil {
@@ -37,11 +33,9 @@ func (s *SelectStmt) Int16PS(num uint64, nulls []uint8, value *[]*int16) error {
 		}
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int32PS(num uint64, nulls []uint8, value *[]*int32) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int32()
 		if err != nil {
@@ -54,11 +48,9 @@ func (s *SelectStmt) Int32PS(num uint64, nulls []uint8, value *[]*int32) error {
 		}
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Decimal32PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int32()
 		if err != nil {
@@ -72,11 +64,9 @@ func (s *SelectStmt) Decimal32PS(num uint64, nulls []uint8, value *[]*float64, s
 		}
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Decimal64PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int64()
 		if err != nil {
@@ -90,11 +80,9 @@ func (s *SelectStmt) Decimal64PS(num uint64, nulls []uint8, value *[]*float64, s
 		}
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int64PS(num uint64, nulls []uint8, value *[]*int64) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int64()
 		if err != nil {
@@ -107,11 +95,9 @@ func (s *SelectStmt) Int64PS(num uint64, nulls []uint8, value *[]*int64) error {
 		}
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Uint8PS(num uint64, nulls []uint8, value *[]*uint8) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint8()
 		if err != nil {
@@ -127,7 +113,6 @@ func (s *SelectStmt) Uint8PS(num uint64, nulls []uint8, value *[]*uint8) error {
 }
 
 func (s *SelectStmt) Uint16PS(num uint64, nulls []uint8, value *[]*uint16) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint16()
 		if err != nil {
@@ -143,7 +128,6 @@ func (s *SelectStmt) Uint16PS(num uint64, nulls []uint8, value *[]*uint16) error
 }
 
 func (s *SelectStmt) Uint32PS(num uint64, nulls []uint8, value *[]*uint32) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint32()
 		if err != nil {
@@ -159,7 +143,6 @@ func (s *SelectStmt) Uint32PS(num uint64, nulls []uint8, value *[]*uint32) error
 }
 
 func (s *SelectStmt) Uint64PS(num uint64, nulls []uint8, value *[]*uint64) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint64()
 		if err != nil {
@@ -175,7 +158,6 @@ func (s *SelectStmt) Uint64PS(num uint64, nulls []uint8, value *[]*uint64) error
 }
 
 func (s *SelectStmt) Float32PS(num uint64, nulls []uint8, value *[]*float32) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Float32()
 		if err != nil {
@@ -191,7 +173,6 @@ func (s *SelectStmt) Float32PS(num uint64, nulls []uint8, value *[]*float32) err
 }
 
 func (s *SelectStmt) Float64PS(num uint64, nulls []uint8, value *[]*float64) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Float64()
 		if err != nil {
@@ -207,7 +188,6 @@ func (s *SelectStmt) Float64PS(num uint64, nulls []uint8, value *[]*float64) err
 }
 
 func (s *SelectStmt) StringPS(num uint64, nulls []uint8, value *[]*string) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.String()
 		if err != nil {
@@ -223,7 +203,6 @@ func (s *SelectStmt) StringPS(num uint64, nulls []uint8, value *[]*string) error
 }
 
 func (s *SelectStmt) ByteArrayPS(num uint64, nulls []uint8, value *[][]byte) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.ByteArray()
 		if err != nil {
@@ -239,7 +218,6 @@ func (s *SelectStmt) ByteArrayPS(num uint64, nulls []uint8, value *[][]byte) err
 }
 
 func (s *SelectStmt) FixedStringPS(num uint64, nulls []uint8, len int, value *[][]byte) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.FixedString(len)
 		if err != nil {
@@ -255,7 +233,6 @@ func (s *SelectStmt) FixedStringPS(num uint64, nulls []uint8, len int, value *[]
 }
 
 func (s *SelectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int16()
 		if err != nil {
@@ -265,7 +242,6 @@ func (s *SelectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) erro
 			timeVal := time.Unix(int64(val)*24*3600, 0)
 			*value = append(*value, &timeVal)
 		} else {
-
 			*value = append(*value, nil)
 		}
 
@@ -275,7 +251,6 @@ func (s *SelectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) erro
 }
 
 func (s *SelectStmt) DateInServerTimezonePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int16()
 		if err != nil {
@@ -292,7 +267,6 @@ func (s *SelectStmt) DateInServerTimezonePS(num uint64, nulls []uint8, value *[]
 }
 
 func (s *SelectStmt) DateTimePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint32()
 		if err != nil {
@@ -309,7 +283,6 @@ func (s *SelectStmt) DateTimePS(num uint64, nulls []uint8, value *[]*time.Time) 
 }
 
 func (s *SelectStmt) DateTimesInServerTimezonePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint32()
 		if err != nil {
@@ -345,25 +318,22 @@ func (s *SelectStmt) UUIDPS(num uint64, nulls []uint8, value *[]*[16]byte) error
 }
 
 func (s *SelectStmt) IPv4PS(num uint64, nulls []uint8, value *[]*net.IP) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.FixedString(4)
 		if err != nil {
 			return err
 		}
 		if nulls[i] == 0 {
-			ip := net.IPv4(val[3], val[2], val[1], val[0])
+			ip := net.IPv4(val[3], val[2], val[1], val[0]).To4()
 			*value = append(*value, &ip)
 		} else {
 			*value = append(*value, nil)
 		}
-		*value = append(*value)
 	}
 	return nil
 }
 
 func (s *SelectStmt) IPv6PS(num uint64, nulls []uint8, value *[]*net.IP) error {
-
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.FixedString(16)
 		if err != nil {

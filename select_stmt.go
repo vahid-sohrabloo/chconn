@@ -6,7 +6,7 @@ type SelectStmt struct {
 	query       string
 	queryID     string
 	stage       QueryProcessingStage
-	settings    *Setting
+	settings    []byte
 	clientInfo  *ClientInfo
 	LastErr     error
 	ProfileInfo *Profile
@@ -15,7 +15,7 @@ type SelectStmt struct {
 }
 
 func (s *SelectStmt) Next() bool {
-	res, err := s.conn.ReciveAndProccessData()
+	res, err := s.conn.reciveAndProccessData()
 	if err != nil {
 		// todo wrap this error
 		s.LastErr = err

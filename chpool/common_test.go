@@ -40,7 +40,7 @@ func testSelect(t *testing.T, db selecter) {
 
 	for stmt.Next() {
 		stmt.NextColumn()
-		err := stmt.Uint64(&nums)
+		err := stmt.Uint64All(&nums)
 		assert.NoError(t, err)
 	}
 

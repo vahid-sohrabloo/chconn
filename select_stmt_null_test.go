@@ -3,10 +3,13 @@ package chconn
 import (
 	"context"
 	"fmt"
+	"math"
+	"net"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,8 +45,12 @@ func TestSelectNull(t *testing.T) {
 				array  Array(Array(Nullable(UInt8))),
 				date    Nullable(Date),
 				datetime    Nullable(DateTime),
-				decimal32    Nullable(Decimal32),
-				decimal64    Nullable(Decimal64)
+				decimal32    Nullable(Decimal32(4)),
+				decimal64    Nullable(Decimal64(4)),
+				tuple Tuple(Nullable(UInt8), Nullable(String)),
+				uuid Nullable(UUID),
+				ipv4  Nullable(IPv4),
+				ipv6  Nullable(IPv6)
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -65,7 +72,13 @@ func TestSelectNull(t *testing.T) {
 				fString,
 				array,
 				date,
-				datetime
+				datetime,
+				decimal32,
+				decimal64,
+				uuid,
+				tuple,
+				ipv4,
+				ipv6
 				
 			) VALUES`)
 	require.NoError(t, err)
@@ -87,12 +100,16 @@ func TestSelectNull(t *testing.T) {
 	var arrayInsert [][][]*uint8
 	var dateInsert []*time.Time
 	var datetimeInsert []*time.Time
+	var decimalInsert []*float64
+	var uuidInsert []*[16]byte
+	var ipv4Insert []*net.IP
+	var ipv6Insert []*net.IP
+
 	now := time.Now()
 	for i := 1; i <= 10; i++ {
 		insertStmt.Block.NumRows++
 
 		if i%2 == 0 {
-
 			int8Val := int8(-1 * i)
 			insertStmt.Int8P(0, &int8Val)
 			int8Insert = append(int8Insert, &int8Val)
@@ -171,8 +188,29 @@ func TestSelectNull(t *testing.T) {
 			dt = dt.Truncate(time.Second)
 			insertStmt.DateTimeP(32, &dt)
 			datetimeInsert = append(datetimeInsert, &dt)
-		} else {
 
+			decimalVal := math.Floor(1.64*float64(i)*10000) / 10000
+			insertStmt.Decimal32P(34, &decimalVal, 4)
+			insertStmt.Decimal64P(36, &decimalVal, 4)
+			decimalInsert = append(decimalInsert, &decimalVal)
+
+			uuidVal := [16]byte(uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+			insertStmt.UUIDP(38, &uuidVal)
+			uuidInsert = append(uuidInsert, &uuidVal)
+
+			insertStmt.Uint8P(40, &uint8Val)
+			insertStmt.StringP(42, &stringVal)
+
+			ipv4Val := net.ParseIP("1.2.3.4").To4()
+			err := insertStmt.IPv4P(44, &ipv4Val)
+			require.NoError(t, err)
+			ipv4Insert = append(ipv4Insert, &ipv4Val)
+
+			ipv6Val := net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16()
+			err = insertStmt.IPv6P(46, &ipv6Val)
+			require.NoError(t, err)
+			ipv6Insert = append(ipv6Insert, &ipv6Val)
+		} else {
 			insertStmt.Int8P(0, nil)
 			int8Insert = append(int8Insert, nil)
 
@@ -235,8 +273,24 @@ func TestSelectNull(t *testing.T) {
 			insertStmt.DateTimeP(32, nil)
 			datetimeInsert = append(datetimeInsert, nil)
 
-		}
+			insertStmt.Decimal32P(34, nil, 4)
+			insertStmt.Decimal64P(36, nil, 4)
+			decimalInsert = append(decimalInsert, nil)
 
+			insertStmt.UUIDP(38, nil)
+			uuidInsert = append(uuidInsert, nil)
+
+			insertStmt.Uint8P(40, nil)
+			insertStmt.StringP(42, nil)
+
+			err := insertStmt.IPv4P(44, nil)
+			require.NoError(t, err)
+			ipv4Insert = append(ipv4Insert, nil)
+
+			err = insertStmt.IPv6P(46, nil)
+			require.NoError(t, err)
+			ipv6Insert = append(ipv6Insert, nil)
+		}
 	}
 
 	err = insertStmt.Commit(context.Background())
@@ -258,7 +312,13 @@ func TestSelectNull(t *testing.T) {
 				fString,
 				array,
 				date,
-				datetime
+				datetime,
+				decimal32,
+				decimal64,
+				uuid,
+				tuple,
+				ipv4,
+				ipv6
 	 FROM clickhouse_test_insert_null`)
 	require.NoError(t, err)
 	var int8Data []*int8
@@ -282,9 +342,15 @@ func TestSelectNull(t *testing.T) {
 	var indexNull int
 	var dateData []*time.Time
 	var datetimeData []*time.Time
+	var decimal32Data []*float64
+	var decimal64Data []*float64
+	var uuidData []*[16]byte
+	var tuple1Data []*uint8
+	var tuple2Data []*string
+	var ipv4Data []*net.IP
+	var ipv6Data []*net.IP
 
 	for selectStmt.Next() {
-
 		selectStmt.NextColumn()
 		err := selectStmt.Int8PAll(&int8Data)
 		require.NoError(t, err)
@@ -371,6 +437,32 @@ func TestSelectNull(t *testing.T) {
 		selectStmt.NextColumn()
 		err = selectStmt.DateTimePAll(&datetimeData)
 		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.Decimal32PAll(&decimal32Data, 4)
+		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.Decimal64PAll(&decimal64Data, 4)
+		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.UUIDPAll(&uuidData)
+		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.Uint8PAll(&tuple1Data)
+		require.NoError(t, err)
+		err = selectStmt.StringPAll(&tuple2Data)
+		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.IPv4PAll(&ipv4Data)
+		require.NoError(t, err)
+
+		selectStmt.NextColumn()
+		err = selectStmt.IPv6PAll(&ipv6Data)
+		require.NoError(t, err)
 	}
 
 	require.NoError(t, selectStmt.LastErr)
@@ -389,6 +481,11 @@ func TestSelectNull(t *testing.T) {
 	assert.Equal(t, fixedStringInsert, fixedStringData)
 	assert.Equal(t, arrayInsert, arrayData)
 	assert.Equal(t, dateInsert, dateData)
-	assert.Equal(t, datetimeInsert, datetimeData)
+	assert.Equal(t, decimalInsert, decimal32Data)
+	assert.Equal(t, decimalInsert, decimal64Data)
+	assert.Equal(t, uint8Data, tuple1Data)
+	assert.Equal(t, stringInsert, tuple2Data)
+	assert.Equal(t, ipv4Insert, ipv4Data)
+	assert.Equal(t, ipv6Insert, ipv6Data)
 	conn.conn.Close()
 }

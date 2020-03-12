@@ -41,7 +41,6 @@ func (block *Block) Read(ch *Conn) (err error) {
 }
 
 func (block *Block) initForInsert(ch *Conn) error {
-
 	if block.NumRows > 0 || block.NumColumns == 0 {
 		return ErrNotInsertQuery
 	}
@@ -49,7 +48,6 @@ func (block *Block) initForInsert(ch *Conn) error {
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
-
 		column, err := block.NextColumn(ch)
 		if err != nil {
 			return err
@@ -65,7 +63,6 @@ func (block *Block) readColumns(ch *Conn) error {
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
-
 		column, err := block.NextColumn(ch)
 		if err != nil {
 			return err
@@ -113,10 +110,6 @@ func (block *Block) appendBuffer(chType string, column *Column) {
 			column.NumBuffer++
 		}
 	}
-}
-
-func commaOrParentheses(c rune) bool {
-	return c == ',' || c == '('
 }
 
 func (block *Block) write(ch *Conn) error {

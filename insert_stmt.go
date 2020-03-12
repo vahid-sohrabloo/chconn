@@ -21,7 +21,7 @@ type InsertStmt struct {
 	query      string
 	queryID    string
 	stage      QueryProcessingStage
-	settings   *Setting
+	settings   []byte
 	clientInfo *ClientInfo
 }
 
@@ -37,7 +37,7 @@ func (s *InsertStmt) Flush(ctx context.Context) error {
 		return err
 	}
 
-	res, err := s.conn.ReciveAndProccessData()
+	res, err := s.conn.reciveAndProccessData()
 	if err != nil {
 		return err
 	}
@@ -52,10 +52,9 @@ func (s *InsertStmt) Flush(ctx context.Context) error {
 	}
 	// todo check response is block and block is the same old
 
-	_, err = s.conn.ReciveAndProccessData()
+	_, err = s.conn.reciveAndProccessData()
 
 	for range s.Block.Columns {
-
 		if _, err = s.conn.reader.String(); err != nil {
 			return err
 		}
@@ -68,7 +67,6 @@ func (s *InsertStmt) Flush(ctx context.Context) error {
 	}
 
 	return nil
-
 }
 
 func (s *InsertStmt) Commit(ctx context.Context) error {
@@ -84,7 +82,7 @@ func (s *InsertStmt) Commit(ctx context.Context) error {
 		return err
 	}
 
-	res, err := s.conn.ReciveAndProccessData()
+	res, err := s.conn.reciveAndProccessData()
 	if err != nil {
 		return err
 	}
@@ -94,7 +92,6 @@ func (s *InsertStmt) Commit(ctx context.Context) error {
 	}
 
 	return nil
-
 }
 
 func (s *InsertStmt) Int8(bufferIndex int, value int8) {
@@ -339,7 +336,6 @@ func (s *InsertStmt) Decimal32P(bufferIndex int, value *float64, scale int) {
 	}
 	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
 	s.Block.ColumnsBuffer[bufferIndex+1].Int32(int32(*value * factors10[scale]))
-
 }
 
 func (s *InsertStmt) Decimal64P(bufferIndex int, value *float64, scale int) {
@@ -350,7 +346,6 @@ func (s *InsertStmt) Decimal64P(bufferIndex int, value *float64, scale int) {
 	}
 	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
 	s.Block.ColumnsBuffer[bufferIndex+1].Int64(int64(*value * factors10[scale]))
-
 }
 
 func (s *InsertStmt) DateP(bufferIndex int, value *time.Time) {
@@ -383,8 +378,10 @@ func (s *InsertStmt) UUIDP(bufferIndex int, value *[16]byte) {
 		s.Block.ColumnsBuffer[bufferIndex+1].Write(emptyUUID[:])
 		return
 	}
+	// copy data to not change main value by swapUUID
+	val := *value
 	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
-	s.Block.ColumnsBuffer[bufferIndex+1].Write(swapUUID(value[:]))
+	s.Block.ColumnsBuffer[bufferIndex+1].Write(swapUUID(val[:]))
 }
 
 var emptyIPV4 = make([]byte, 4)
@@ -392,7 +389,7 @@ var emptyIPV4 = make([]byte, 4)
 func (s *InsertStmt) IPv4P(bufferIndex int, value *net.IP) error {
 	if value == nil {
 		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
-		s.Block.ColumnsBuffer[bufferIndex].Write(emptyIPV4)
+		s.Block.ColumnsBuffer[bufferIndex+1].Write(emptyIPV4)
 		return nil
 	}
 	val := *value
@@ -400,22 +397,22 @@ func (s *InsertStmt) IPv4P(bufferIndex int, value *net.IP) error {
 		return errors.New("invalid ipv4")
 	}
 	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
-	s.Block.ColumnsBuffer[bufferIndex].Write([]byte{val[3], val[2], val[1], val[0]})
+	s.Block.ColumnsBuffer[bufferIndex+1].Write([]byte{val[3], val[2], val[1], val[0]})
 	return nil
 }
 
-var emptyIPV6 = make([]byte, 4)
+var emptyIPV6 = make([]byte, 16)
 
 func (s *InsertStmt) IPv6P(bufferIndex int, value *net.IP) error {
 	if value == nil {
 		s.Block.ColumnsBuffer[bufferIndex].Uint8(1)
-		s.Block.ColumnsBuffer[bufferIndex].Write(emptyIPV6)
+		s.Block.ColumnsBuffer[bufferIndex+1].Write(emptyIPV6)
 		return nil
 	}
 	if len(*value) != 16 {
 		return errors.New("invalid ipv6")
 	}
 	s.Block.ColumnsBuffer[bufferIndex].Uint8(0)
-	s.Block.ColumnsBuffer[bufferIndex].Write(*value)
+	s.Block.ColumnsBuffer[bufferIndex+1].Write(*value)
 	return nil
 }

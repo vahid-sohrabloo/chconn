@@ -13,7 +13,6 @@ func NewProgress() *Progress {
 }
 
 func (p *Progress) Read(ch *Conn) (err error) {
-
 	if p.readRows, err = ch.reader.Uvarint(); err != nil {
 		return err
 	}

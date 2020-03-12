@@ -34,5 +34,4 @@ func (p *Profile) Read(ch *Conn) (err error) {
 		return err
 	}
 	return nil
-
 }

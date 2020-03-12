@@ -1,8 +1,8 @@
 package chconn
 
 import (
-	"time"
 	"net"
+	"time"
 )
 
 func (s *SelectStmt) Int8S(num uint64, value *[]int8) error {
@@ -18,7 +18,6 @@ func (s *SelectStmt) Int8S(num uint64, value *[]int8) error {
 		*value = append(*value, val)
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int16S(num uint64, value *[]int16) error {
@@ -34,7 +33,6 @@ func (s *SelectStmt) Int16S(num uint64, value *[]int16) error {
 		*value = append(*value, val)
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int32S(num uint64, value *[]int32) error {
@@ -50,7 +48,6 @@ func (s *SelectStmt) Int32S(num uint64, value *[]int32) error {
 		*value = append(*value, val)
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Decimal32S(num uint64, value *[]float64, scale int) error {
@@ -66,7 +63,6 @@ func (s *SelectStmt) Decimal32S(num uint64, value *[]float64, scale int) error {
 		*value = append(*value, float64(val)/factors10[scale])
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Decimal64S(num uint64, value *[]float64, scale int) error {
@@ -82,7 +78,6 @@ func (s *SelectStmt) Decimal64S(num uint64, value *[]float64, scale int) error {
 		*value = append(*value, float64(val)/factors10[scale])
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Int64S(num uint64, value *[]int64) error {
@@ -98,7 +93,6 @@ func (s *SelectStmt) Int64S(num uint64, value *[]int64) error {
 		*value = append(*value, val)
 	}
 	return nil
-
 }
 
 func (s *SelectStmt) Uint8S(num uint64, value *[]uint8) error {
@@ -323,7 +317,7 @@ func (s *SelectStmt) IPv4S(num uint64, value *[]net.IP) error {
 		if err != nil {
 			return err
 		}
-		*value = append(*value, net.IPv4(val[3], val[2], val[1], val[0]))
+		*value = append(*value, net.IPv4(val[3], val[2], val[1], val[0]).To4())
 	}
 	return nil
 }
