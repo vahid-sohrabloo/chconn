@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"fmt"
+	"io"
 	"net"
-	"strings"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
 	errors "golang.org/x/xerrors"
+
+	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
 )
 
 const (
@@ -29,16 +29,8 @@ const (
 	clientQuery = 1
 	// A block of data (compressed or not).
 	clientData = 2
-	// Cancel the query execution.
-	clientCancel = 3
 	// Check that connection to the server is alive.
 	clientPing = 4
-	// Check status of tables on the server.
-	clientTablesStatusRequest = 5
-	// Keep the connection alive
-	clientKeepAlive = 6
-	// A block of data (compressed or not).
-	clientScalar = 7
 )
 
 const (
@@ -60,43 +52,32 @@ const (
 	serverTotals = 7
 	// A block with minimums and maximums (compressed or not).
 	serverExtremes = 8
-	// A response to TablesStatus request.
-	serverTablesStatusResponse = 9
-	// System logs of the query execution
-	serverLog = 10
+
 	// Columns' description for default values calculation
 	serverTableColumns = 11
 )
 
 const (
-	DBMS_MIN_REVISION_WITH_CLIENT_INFO                               = 54032
-	DBMS_MIN_REVISION_WITH_SERVER_TIMEZONE                           = 54058
-	DBMS_MIN_REVISION_WITH_QUOTA_KEY_IN_CLIENT_INFO                  = 54060
-	DBMS_MIN_REVISION_WITH_TABLES_STATUS                             = 54226
-	DBMS_MIN_REVISION_WITH_TIME_ZONE_PARAMETER_IN_DATETIME_DATA_TYPE = 54337
-	DBMS_MIN_REVISION_WITH_SERVER_DISPLAY_NAME                       = 54372
-	DBMS_MIN_REVISION_WITH_VERSION_PATCH                             = 54401
-	DBMS_MIN_REVISION_WITH_SERVER_LOGS                               = 54406
-	DBMS_MIN_REVISION_WITH_CLIENT_SUPPORT_EMBEDDED_DATA              = 54415
-	DBMS_MIN_REVISION_WITH_CLIENT_WRITE_INFO                         = 54420
+	dbmsMinRevisionWithClientInfo           = 54032
+	dbmsMinRevisionWithServerTimezone       = 54058
+	dbmsMinRevisionWithQuotaKeyInClientInfo = 54060
+	dbmsMinRevisionWithServerDisplayName    = 54372
+	dbmsMinRevisionWithVersionPatch         = 54401
+	dbmsMinRevisionWithClientWriteInfo      = 54420
 )
 
 const (
-	DBMS_VERSION_MAJOR    = 1
-	DBMS_VERSION_MINOR    = 0
-	DBMS_VERSION_PATCH    = 0
-	DBMS_VERSION_REVISION = 54420
+	dbmsVersionMajor    = 1
+	dbmsVersionMinor    = 0
+	dbmsVersionPatch    = 0
+	dbmsVersionRevision = 54420
 )
 
 type QueryProcessingStage uint64
 
 const (
 
-	// Only read/have been read the columns specified in the query.
-	QueryProcessingStageFetchColumns QueryProcessingStage = 0
-	// Until the stage where the results of processing on different servers can be combined.
-	QueryProcessingStageWithMergeableState QueryProcessingStage = 1
-	// Completely.
+	// QueryProcessingStageComplete Completely.
 	QueryProcessingStageComplete QueryProcessingStage = 2
 )
 
@@ -106,27 +87,45 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 // LookupFunc is a function that can be used to lookup IPs addrs from host.
 type LookupFunc func(ctx context.Context, host string) (addrs []string, err error)
 
+// ReaderFunc is a function that can be used get reader for read from server
+type ReaderFunc func(io.Reader) io.Reader
+
+// WriterFunc is a function that can be used get writer to writer from server
+// Note: DO NOT Use bufio.Wriert, chconn do not support flush
+type WriterFunc func(io.Writer) io.Writer
+
 // Conn is a low-level Clickhoue connection handle. It is not safe for concurrent usage.
-type Conn struct {
-	conn              net.Conn          // the underlying TCP or unix domain socket connection
-	secretKey         uint32            // key to use to send a cancel query message to the server
+type Conn interface {
+	RawConn() net.Conn
+	Close(ctx context.Context) error
+	IsClosed() bool
+	IsBusy() bool
+	ServerInfo() ServerInfo
+	Ping(ctx context.Context) error
+	Exec(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error)
+	Insert(ctx context.Context, query string) (InsertStmt, error)
+	Select(ctx context.Context, query string) (SelectStmt, error)
+}
+type conn struct {
+	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
-	txStatus          byte
-	ServerInfo        ServerInfo
+	serverInfo        ServerInfo
+	clientInfo        *ClientInfo
 
 	config *Config
 
 	status byte // One of connStatus* constants
 
-	writer *Writer
-	reader *Reader
+	writer   *Writer
+	writerto io.Writer
+	reader   *Reader
 
 	contextWatcher *ctxwatch.ContextWatcher
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
 // to provide configuration. See documention for ParseConfig for details. ctx can be used to cancel a connect attempt.
-func Connect(ctx context.Context, connString string) (*Conn, error) {
+func Connect(ctx context.Context, connString string) (Conn, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
 		return nil, err
@@ -135,14 +134,14 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	return ConnectConfig(ctx, config)
 }
 
-// Connect establishes a connection to a PostgreSQL server using config. config must have been constructed with
+// ConnectConfig establishes a connection to a PostgreSQL server using config. config must have been constructed with
 // ParseConfig. ctx can be used to cancel a connect attempt.
 //
 // If config.Fallbacks are present they will sequentially be tried in case of error establishing network connection. An
 // authentication error will terminate the chain of attempts (like libpq:
 // https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
 // if all attempts fail the last error is returned.
-func ConnectConfig(ctx context.Context, config *Config) (conn *Conn, err error) {
+func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
@@ -169,7 +168,7 @@ func ConnectConfig(ctx context.Context, config *Config) (conn *Conn, err error) 
 	}
 
 	for _, fc := range fallbackConfigs {
-		conn, err = connect(ctx, config, fc)
+		c, err = connect(ctx, config, fc)
 		if err == nil {
 			break
 		} else if err, ok := err.(*ChError); ok {
@@ -182,31 +181,20 @@ func ConnectConfig(ctx context.Context, config *Config) (conn *Conn, err error) 
 	}
 
 	if config.AfterConnect != nil {
-		err := config.AfterConnect(ctx, conn)
+		err := config.AfterConnect(ctx, c)
 		if err != nil {
-			conn.conn.Close()
+			c.RawConn().Close()
 			return nil, &connectError{config: config, msg: "AfterConnect error", err: err}
 		}
 	}
 
-	return conn, nil
+	return c, nil
 }
 
 func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, error) {
 	var configs []*FallbackConfig
 
 	for _, fb := range fallbacks {
-		// skip resolve for unix sockets
-		if strings.HasPrefix(fb.Host, "/") {
-			configs = append(configs, &FallbackConfig{
-				Host:      fb.Host,
-				Port:      fb.Port,
-				TLSConfig: fb.TLSConfig,
-			})
-
-			continue
-		}
-
 		ips, err := lookupFn(ctx, fb.Host)
 		if err != nil {
 			return nil, err
@@ -224,101 +212,93 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 	return configs, nil
 }
 
-func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*Conn, error) {
-	conn := new(Conn)
-	conn.config = config
+func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (Conn, error) {
+	c := new(conn)
+	c.config = config
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
-	conn.conn, err = config.DialFunc(ctx, network, address)
+	c.conn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
 
-	conn.parameterStatuses = make(map[string]string)
+	c.parameterStatuses = make(map[string]string)
 
 	if fallbackConfig.TLSConfig != nil {
-		conn.conn = tls.Client(conn.conn, fallbackConfig.TLSConfig)
+		c.conn = tls.Client(c.conn, fallbackConfig.TLSConfig)
 	}
 
-	conn.status = connStatusConnecting
-	conn.contextWatcher = ctxwatch.NewContextWatcher(
-		// todo
-		func() {},
-		func() {},
+	c.status = connStatusConnecting
+	c.contextWatcher = ctxwatch.NewContextWatcher(
+		func() { c.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
+		func() { c.conn.SetDeadline(time.Time{}) },
 	)
 
-	conn.contextWatcher.Watch(ctx)
-	defer conn.contextWatcher.Unwatch()
-	conn.writer = NewWriter()
-	conn.reader = NewReader(bufio.NewReader(conn.conn))
-	conn.ServerInfo = ServerInfo{
+	c.contextWatcher.Watch(ctx)
+	defer c.contextWatcher.Unwatch()
+	c.writer = NewWriter()
+	if config.ReaderFunc != nil {
+		c.reader = NewReader(config.ReaderFunc(c.conn))
+	} else {
+		c.reader = NewReader(bufio.NewReader(c.conn))
+	}
+	if config.WriterFunc != nil {
+		c.writerto = config.WriterFunc(c.conn)
+	} else {
+		c.writerto = c.conn
+	}
+
+	c.serverInfo = ServerInfo{
 		Timezone: time.Local,
 	}
-	err = conn.hello()
+	err = c.hello()
 	if err != nil {
-		return nil, &connectError{config: config, msg: "hello error", err: err}
+		return nil, err
 	}
-	conn.status = connStatusIdle
-	return conn, nil
+	c.status = connStatusIdle
+	return c, nil
 }
 
-func (ch *Conn) RawConn() net.Conn {
+func (ch *conn) RawConn() net.Conn {
 	return ch.conn
 }
-func (ch *Conn) hello() error {
+func (ch *conn) hello() error {
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
-	ch.writer.Uvarint(DBMS_VERSION_MAJOR)
-	ch.writer.Uvarint(DBMS_VERSION_MINOR)
-	ch.writer.Uvarint(DBMS_VERSION_REVISION)
+	ch.writer.Uvarint(dbmsVersionMajor)
+	ch.writer.Uvarint(dbmsVersionMinor)
+	ch.writer.Uvarint(dbmsVersionRevision)
 	ch.writer.String(ch.config.Database)
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
 
-	if _, err := ch.writer.WriteTo(ch.conn); err != nil {
-		return err
+	if _, err := ch.writer.WriteTo(ch.writerto); err != nil {
+		return errors.Errorf("write hello: %w", err)
 	}
-	packet, err := ch.reader.Uvarint()
 
+	res, err := ch.reciveAndProccessData(emptyOnProgress)
 	if err != nil {
 		return err
 	}
-
-	switch packet {
-	case serverException:
-		err := &ChError{}
-		defer ch.conn.Close()
-		if errRead := err.read(ch.reader); errRead != nil {
-			return errRead
-		}
-		return err
-	case serverHello:
-		if err := ch.ServerInfo.Read(ch.reader); err != nil {
-			return err
-		}
-	case serverEndOfStream:
-		return nil
-	default:
-		ch.conn.Close()
-		return &unexpectedPacket{expected: serverHello, actual: packet}
+	if ch.serverInfo.Revision == 0 {
+		return &unexpectedPacket{expected: "serverHello", actual: res}
 	}
-
 	return nil
 }
 
 // IsClosed reports if the connection has been closed.
-func (ch *Conn) IsClosed() bool {
+func (ch *conn) IsClosed() bool {
 	return ch.status < connStatusIdle
 }
 
 // IsBusy reports if the connection is busy.
-func (ch *Conn) IsBusy() bool {
+func (ch *conn) IsBusy() bool {
 	return ch.status == connStatusBusy
 }
 
 // lock locks the connection.
-func (ch *Conn) lock() error {
+func (ch *conn) lock() error {
 	switch ch.status {
 	case connStatusBusy:
 		return &connLockError{status: "conn busy"} // This only should be possible in case of an application bug.
@@ -331,7 +311,7 @@ func (ch *Conn) lock() error {
 	return nil
 }
 
-func (ch *Conn) unlock() {
+func (ch *conn) unlock() {
 	switch ch.status {
 	case connStatusBusy:
 		ch.status = connStatusIdle
@@ -341,109 +321,89 @@ func (ch *Conn) unlock() {
 	}
 }
 
-func (ch *Conn) Exec(ctx context.Context, query string) (interface{}, error) {
-	err := ch.lock()
-	if err != nil {
-		return nil, err
-	}
-	defer ch.unlock()
-	err = ch.SendQueryWithOption(ctx, query, "", QueryProcessingStageComplete, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return ch.reciveAndProccessData()
-}
-
-func (ch *Conn) SendQueryWithOption(
-	ctx context.Context,
-	query string,
-	queryID string,
-	stage QueryProcessingStage,
-	settings []byte,
-	clientInfo *ClientInfo) error {
+func (ch *conn) sendQueryWithOption(
+	ctx context.Context, //nolint:unparam
+	query,
+	queryID string, //nolint:unparam
+) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
-	if ch.ServerInfo.Revision >= DBMS_MIN_REVISION_WITH_CLIENT_INFO {
-		if clientInfo == nil {
-			clientInfo = &ClientInfo{}
+	if ch.serverInfo.Revision >= dbmsMinRevisionWithClientInfo {
+		if ch.clientInfo == nil {
+			ch.clientInfo = &ClientInfo{}
 		}
-		if clientInfo.IsEmpty() {
-			clientInfo.QueryKind = QureyKindInitialQuery
-			clientInfo.fillOSUserHostNameAndVersionInfo()
-			clientInfo.ClientName = ch.config.Database + " " + ch.config.ClientName
-		} else {
-			clientInfo.QueryKind = QureyKindSecondaryQuery
-		}
-		clientInfo.Write(ch)
+
+		ch.clientInfo.fillOSUserHostNameAndVersionInfo()
+		ch.clientInfo.ClientName = ch.config.Database + " " + ch.config.ClientName
+
+		ch.clientInfo.write(ch)
 	}
 
-	// todo setting
+	// setting
 	ch.writer.String("")
 
-	ch.writer.Uvarint(uint64(stage))
+	ch.writer.Uvarint(uint64(QueryProcessingStageComplete))
 
-	//todo comprestion
+	// comprestion
 	ch.writer.Uvarint(0)
 
 	ch.writer.String(query)
 
-	return ch.SendData(NewBlock(), "")
+	return ch.sendData(newBlock())
 }
 
-func (ch *Conn) SendData(block *Block, name string) error {
+func (ch *conn) sendData(block *block) error {
 	ch.writer.Uvarint(clientData)
-	ch.writer.String(name)
-	block.write(ch)
-	_, err := ch.writer.WriteTo(ch.conn)
-	return err
+	// name
+	ch.writer.String("")
+	return block.write(ch)
 }
 
-// todo
-func (ch *Conn) Close(ctx context.Context) error {
+func (ch *conn) Close(ctx context.Context) error {
 	if ch.status == connStatusClosed {
 		return nil
 	}
 	ch.status = connStatusClosed
-	// todo
-	// if ctx != context.Background() {
-	// 	ch.contextWatcher.Watch(ctx)
-	// 	defer ch.contextWatcher.Unwatch()
-	// }
+
+	if ctx != context.Background() {
+		ch.contextWatcher.Watch(ctx)
+		defer ch.contextWatcher.Unwatch()
+	}
 	return ch.conn.Close()
 }
 
-// todo
-func (ch *Conn) readTableColumn() {
-	ch.reader.String()
-	ch.reader.String()
+func (ch *conn) readTableColumn() {
+	ch.reader.String() //nolint:errcheck
+	ch.reader.String() //nolint:errcheck
 }
-func (ch *Conn) reciveAndProccessData() (interface{}, error) {
+func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
-		return nil, err
+		return nil, &readError{"packet: read packet type", err}
 	}
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
-		block := NewBlock()
-		err := block.Read(ch)
+		block := newBlock()
+		err := block.read(ch)
 		return block, err
-	case serverHello:
-		if err := ch.ServerInfo.Read(ch.reader); err != nil {
-			return nil, err
-		}
-		return ch.ServerInfo, nil
-	case serverPong:
-		return ch.reciveAndProccessData()
 	case serverProfileInfo:
-		profile := NewProfile()
+		profile := newProfile()
 
-		err := profile.Read(ch)
+		err := profile.read(ch)
 		return profile, err
 	case serverProgress:
-		progress := NewProgress()
-
-		err := progress.Read(ch)
+		progress := newProgress()
+		err := progress.read(ch)
+		if err == nil && onProgress != nil {
+			onProgress(progress)
+			return ch.reciveAndProccessData(onProgress)
+		}
 		return progress, err
+	case serverHello:
+		err := ch.serverInfo.read(ch.reader)
+		return nil, err
+	case serverPong:
+		return &pong{}, err
 	case serverException:
 		err := &ChError{}
 		defer ch.Close(context.Background())
@@ -457,33 +417,65 @@ func (ch *Conn) reciveAndProccessData() (interface{}, error) {
 	case serverTableColumns:
 		ch.readTableColumn()
 
-		return ch.reciveAndProccessData()
+		return ch.reciveAndProccessData(onProgress)
 	}
-	fmt.Println("packet not implement", packet)
-	return nil, nil
+	return errors.New("packet not implimented"), nil
 }
 
-// Insert send query for insert and prepare insert stmt
-func (ch *Conn) Insert(ctx context.Context, query string) (*InsertStmt, error) {
+var emptyOnProgress = func(*Progress) {
+
+}
+
+func (ch *conn) Exec(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
 	}
-	err = ch.SendQueryWithOption(ctx, query, "", QueryProcessingStageComplete, nil, nil)
+	defer ch.unlock()
+
+	ch.contextWatcher.Watch(ctx)
+	defer ch.contextWatcher.Unwatch()
+
+	err = ch.sendQueryWithOption(ctx, query, "")
 	if err != nil {
 		return nil, err
 	}
-	res, err := ch.reciveAndProccessData()
+	if onProgress == nil {
+		onProgress = emptyOnProgress
+	}
 
-	// todo check response is block
+	return ch.reciveAndProccessData(onProgress)
+}
 
-	block := res.(*Block)
+// Insert send query for insert and prepare insert stmt
+func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
+	err := ch.lock()
+	if err != nil {
+		return nil, err
+	}
+	ch.contextWatcher.Watch(ctx)
+	defer ch.contextWatcher.Unwatch()
+
+	err = ch.sendQueryWithOption(ctx, query, "")
+	if err != nil {
+		return nil, err
+	}
+	res, err := ch.reciveAndProccessData(emptyOnProgress)
+
+	if err != nil {
+		return nil, err
+	}
+	block, ok := res.(*block)
+	if !ok {
+		return nil, &unexpectedPacket{expected: "serverData", actual: res}
+	}
+
 	err = block.initForInsert(ch)
 	if err != nil {
 		return nil, err
 	}
-	return &InsertStmt{
-		Block:      block,
+	return &insertStmt{
+		block:      block,
 		conn:       ch,
 		query:      query,
 		queryID:    "",
@@ -494,21 +486,23 @@ func (ch *Conn) Insert(ctx context.Context, query string) (*InsertStmt, error) {
 }
 
 // Select send query for select and prepare SelectStmt
-func (ch *Conn) Select(ctx context.Context, query string) (*SelectStmt, error) {
+func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
 	}
 
-	err = ch.SendQueryWithOption(ctx, query, "", QueryProcessingStageComplete, nil, nil)
+	ch.contextWatcher.Watch(ctx)
+	defer ch.contextWatcher.Unwatch()
+
+	err = ch.sendQueryWithOption(ctx, query, "")
 	if err != nil {
 		return nil, err
 	}
-	return &SelectStmt{
+	return &selectStmt{
 		conn:       ch,
 		query:      query,
 		queryID:    "",
-		stage:      QueryProcessingStageComplete,
 		settings:   nil,
 		clientInfo: nil,
 	}, nil

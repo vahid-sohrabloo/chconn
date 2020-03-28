@@ -2,7 +2,9 @@ package chconn
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -17,26 +19,17 @@ var parseConfigTests = []struct {
 }{
 	// Test all sslmodes
 	{
-		name:       "sslmode not set (prefer)",
+		name:       "sslmode not set (disable)",
 		connString: "clickhouse://vahid:secret@localhost:9000/mydb",
 		config: &Config{
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "localhost",
-			Port:       9000,
-			Database:   "mydb",
-			ClientName: defaultClientName,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			User:          "vahid",
+			Password:      "secret",
+			Host:          "localhost",
+			Port:          9000,
+			Database:      "mydb",
+			ClientName:    defaultClientName,
+			TLSConfig:     nil,
 			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "localhost",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
 		},
 	},
 	{
@@ -120,13 +113,15 @@ var parseConfigTests = []struct {
 		name:       "sslmode verify-ca",
 		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=verify-ca",
 		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     &tls.Config{ServerName: "localhost"},
+			User:       "vahid",
+			Password:   "secret",
+			Host:       "localhost",
+			Port:       9000,
+			ClientName: defaultClientName,
+			Database:   "mydb",
+			TLSConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 			RuntimeParams: map[string]string{},
 		},
 	},
@@ -493,8 +488,18 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 
 	if assert.Equalf(t, expected.TLSConfig == nil, actual.TLSConfig == nil, "%s - TLSConfig", testName) {
 		if expected.TLSConfig != nil {
-			assert.Equalf(t, expected.TLSConfig.InsecureSkipVerify, actual.TLSConfig.InsecureSkipVerify, "%s - TLSConfig InsecureSkipVerify", testName)
-			assert.Equalf(t, expected.TLSConfig.ServerName, actual.TLSConfig.ServerName, "%s - TLSConfig ServerName", testName)
+			assert.Equalf(t,
+				expected.TLSConfig.InsecureSkipVerify,
+				actual.TLSConfig.InsecureSkipVerify,
+				"%s - TLSConfig InsecureSkipVerify",
+				testName,
+			)
+			assert.Equalf(t,
+				expected.TLSConfig.ServerName,
+				actual.TLSConfig.ServerName,
+				"%s - TLSConfig ServerName",
+				testName,
+			)
 		}
 	}
 
@@ -503,70 +508,75 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 			assert.Equalf(t, expected.Fallbacks[i].Host, actual.Fallbacks[i].Host, "%s - Fallback %d - Host", testName, i)
 			assert.Equalf(t, expected.Fallbacks[i].Port, actual.Fallbacks[i].Port, "%s - Fallback %d - Port", testName, i)
 
-			if assert.Equalf(t, expected.Fallbacks[i].TLSConfig == nil, actual.Fallbacks[i].TLSConfig == nil, "%s - Fallback %d - TLSConfig", testName, i) {
+			if assert.Equalf(t,
+				expected.Fallbacks[i].TLSConfig == nil,
+				actual.Fallbacks[i].TLSConfig == nil,
+				"%s - Fallback %d - TLSConfig",
+				testName,
+				i,
+			) {
 				if expected.Fallbacks[i].TLSConfig != nil {
-					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.InsecureSkipVerify, actual.Fallbacks[i].TLSConfig.InsecureSkipVerify, "%s - Fallback %d - TLSConfig InsecureSkipVerify", testName)
-					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.ServerName, actual.Fallbacks[i].TLSConfig.ServerName, "%s - Fallback %d - TLSConfig ServerName", testName)
+					assert.Equalf(t,
+						expected.Fallbacks[i].TLSConfig.InsecureSkipVerify,
+						actual.Fallbacks[i].TLSConfig.InsecureSkipVerify,
+						"%s - Fallback %d - TLSConfig InsecureSkipVerify", testName,
+					)
+					assert.Equalf(t,
+						expected.Fallbacks[i].TLSConfig.ServerName,
+						actual.Fallbacks[i].TLSConfig.ServerName,
+						"%s - Fallback %d - TLSConfig ServerName",
+						testName,
+					)
 				}
 			}
 		}
 	}
 }
 
-var parseConfigEnvLibpqTests = []struct {
-	name    string
-	envvars map[string]string
-	config  *Config
-}{
-	{
-		// not testing no environment at all as that would use default host and that can vary.
-		name:    "CHHOST only",
-		envvars: map[string]string{"CHHOST": "123.123.123.123"},
-		config: &Config{
-			User:       defaultUsername,
-			Host:       "123.123.123.123",
-			Port:       9000,
-			ClientName: defaultClientName,
-			Database:   defaultDatabase,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "123.123.123.123",
-					Port:      9000,
-					TLSConfig: nil,
-				},
+func TestParseConfigEnv(t *testing.T) {
+	tests := []struct {
+		name    string
+		envvars map[string]string
+		config  *Config
+	}{
+		{
+			// not testing no environment at all as that would use default host and that can vary.
+			name:    "CHHOST only",
+			envvars: map[string]string{"CHHOST": "123.123.123.123"},
+			config: &Config{
+				User:          defaultUsername,
+				Host:          "123.123.123.123",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      defaultDatabase,
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
 			},
 		},
-	},
-	{
-		name: "All non-TLS environment",
-		envvars: map[string]string{
-			"CHHOST":            "123.123.123.123",
-			"CHPORT":            "7777",
-			"CHDATABASE":        "foo",
-			"CHUSER":            "bar",
-			"CHPASSWORD":        "baz",
-			"CHCONNECT_TIMEOUT": "10",
-			"CHSSLMODE":         "disable",
-			"CHCLIENTNAME":      "chxtest",
+		{
+			name: "All non-TLS environment",
+			envvars: map[string]string{
+				"CHHOST":            "123.123.123.123",
+				"CHPORT":            "7777",
+				"CHDATABASE":        "foo",
+				"CHUSER":            "bar",
+				"CHPASSWORD":        "baz",
+				"CHCONNECT_TIMEOUT": "10",
+				"CHSSLMODE":         "disable",
+				"CHCLIENTNAME":      "chxtest",
+			},
+			config: &Config{
+				Host:          "123.123.123.123",
+				Port:          7777,
+				Database:      "foo",
+				User:          "bar",
+				Password:      "baz",
+				TLSConfig:     nil,
+				ClientName:    "chxtest",
+				RuntimeParams: map[string]string{},
+			},
 		},
-		config: &Config{
-			Host:          "123.123.123.123",
-			Port:          7777,
-			Database:      "foo",
-			User:          "bar",
-			Password:      "baz",
-			TLSConfig:     nil,
-			ClientName:    "chxtest",
-			RuntimeParams: map[string]string{},
-		},
-	},
-}
-
-func TestParseConfigEnvLibpq(t *testing.T) {
+	}
 	chEnvvars := []string{"CHHOST", "CHPORT", "CHDATABASE", "CHUSER", "CHPASSWORD", "CHCLIENTNAME", "CHSSLMODE", "CHCONNECT_TIMEOUT"}
 
 	savedEnv := make(map[string]string)
@@ -582,7 +592,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 	}()
 
-	for i, tt := range parseConfigEnvLibpqTests {
+	for i, tt := range tests {
 		for _, n := range chEnvvars {
 			err := os.Unsetenv(n)
 			require.NoError(t, err)
@@ -599,5 +609,90 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 
 		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
+	}
+}
+
+func TestParseConfigError(t *testing.T) {
+	t.Parallel()
+
+	content := []byte("invalid tls")
+	tmpInvalidTLS, err := ioutil.TempFile("", "invalidtls")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.Remove(tmpInvalidTLS.Name()) // clean up
+
+	if _, err := tmpInvalidTLS.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpInvalidTLS.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	parseConfigErrorTests := []struct {
+		name       string
+		connString string
+		err        string
+		errUnwarp  string
+	}{
+		{
+			name:       "invalid url",
+			connString: "clickhouse://invalid\t",
+			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)",
+		}, {
+			name:       "invalid port",
+			connString: "port=invalid",
+			errUnwarp:  "strconv.ParseUint: parsing \"invalid\": invalid syntax",
+		}, {
+			name:       "invalid port range",
+			connString: "port=0",
+			err:        "cannot parse `port=0`: invalid port (outside range)",
+		}, {
+			name:       "invalid connect_timeout",
+			connString: "connect_timeout=200g",
+			err:        "cannot parse `connect_timeout=200g`: invalid connect_timeout (strconv.ParseInt: parsing \"200g\": invalid syntax)",
+		}, {
+			name:       "negative connect_timeout",
+			connString: "connect_timeout=-100",
+			err:        "cannot parse `connect_timeout=-100`: invalid connect_timeout (negative timeout)",
+		}, {
+			name:       "negative sslmode",
+			connString: "sslmode=invalid",
+			err:        "cannot parse `sslmode=invalid`: failed to configure TLS (sslmode is invalid)",
+		}, {
+			name:       "fail load sslrootcert",
+			connString: "sslrootcert=invalid_address sslmode=prefer",
+			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)",
+		}, {
+			name:       "invalid sslrootcert",
+			connString: "sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer",
+			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)",
+		}, {
+			name:       "not provide both sslcert and sskkey",
+			connString: "sslcert=invalid_address sslmode=prefer",
+			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)",
+		}, {
+			name:       "invalid sslcert",
+			connString: "sslcert=invalid_address sslkey=invalid_address sslmode=prefer",
+			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)",
+		},
+	}
+
+	for i, tt := range parseConfigErrorTests {
+		_, err := ParseConfig(tt.connString)
+		if !assert.Errorf(t, err, "Test %d (%s)", i, tt.name) {
+			continue
+		}
+		if tt.err != "" {
+			if !assert.EqualError(t, err, tt.err, "Test %d (%s)", i, tt.name) {
+				continue
+			}
+		} else {
+			if !assert.EqualErrorf(t, errors.Unwrap(err), tt.errUnwarp, "Test %d (%s)", i, tt.name) {
+				continue
+			}
+		}
+
 	}
 }

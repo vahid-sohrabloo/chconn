@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func (s *SelectStmt) Int8S(num uint64, value *[]int8) error {
+func (s *selectStmt) Int8S(num uint64, value *[]int8) error {
 	var (
 		val int8
 		err error
@@ -20,7 +20,7 @@ func (s *SelectStmt) Int8S(num uint64, value *[]int8) error {
 	return nil
 }
 
-func (s *SelectStmt) Int16S(num uint64, value *[]int16) error {
+func (s *selectStmt) Int16S(num uint64, value *[]int16) error {
 	var (
 		val int16
 		err error
@@ -35,7 +35,7 @@ func (s *SelectStmt) Int16S(num uint64, value *[]int16) error {
 	return nil
 }
 
-func (s *SelectStmt) Int32S(num uint64, value *[]int32) error {
+func (s *selectStmt) Int32S(num uint64, value *[]int32) error {
 	var (
 		val int32
 		err error
@@ -50,7 +50,7 @@ func (s *SelectStmt) Int32S(num uint64, value *[]int32) error {
 	return nil
 }
 
-func (s *SelectStmt) Decimal32S(num uint64, value *[]float64, scale int) error {
+func (s *selectStmt) Decimal32S(num uint64, value *[]float64, scale int) error {
 	var (
 		val int32
 		err error
@@ -65,7 +65,7 @@ func (s *SelectStmt) Decimal32S(num uint64, value *[]float64, scale int) error {
 	return nil
 }
 
-func (s *SelectStmt) Decimal64S(num uint64, value *[]float64, scale int) error {
+func (s *selectStmt) Decimal64S(num uint64, value *[]float64, scale int) error {
 	var (
 		val int64
 		err error
@@ -80,7 +80,7 @@ func (s *SelectStmt) Decimal64S(num uint64, value *[]float64, scale int) error {
 	return nil
 }
 
-func (s *SelectStmt) Int64S(num uint64, value *[]int64) error {
+func (s *selectStmt) Int64S(num uint64, value *[]int64) error {
 	var (
 		val int64
 		err error
@@ -95,7 +95,7 @@ func (s *SelectStmt) Int64S(num uint64, value *[]int64) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint8S(num uint64, value *[]uint8) error {
+func (s *selectStmt) Uint8S(num uint64, value *[]uint8) error {
 	var (
 		val uint8
 		err error
@@ -110,7 +110,7 @@ func (s *SelectStmt) Uint8S(num uint64, value *[]uint8) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint16S(num uint64, value *[]uint16) error {
+func (s *selectStmt) Uint16S(num uint64, value *[]uint16) error {
 	var (
 		val uint16
 		err error
@@ -125,7 +125,7 @@ func (s *SelectStmt) Uint16S(num uint64, value *[]uint16) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint32S(num uint64, value *[]uint32) error {
+func (s *selectStmt) Uint32S(num uint64, value *[]uint32) error {
 	var (
 		val uint32
 		err error
@@ -140,7 +140,7 @@ func (s *SelectStmt) Uint32S(num uint64, value *[]uint32) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint64S(num uint64, value *[]uint64) error {
+func (s *selectStmt) Uint64S(num uint64, value *[]uint64) error {
 	var (
 		val uint64
 		err error
@@ -155,7 +155,7 @@ func (s *SelectStmt) Uint64S(num uint64, value *[]uint64) error {
 	return nil
 }
 
-func (s *SelectStmt) Float32S(num uint64, value *[]float32) error {
+func (s *selectStmt) Float32S(num uint64, value *[]float32) error {
 	var (
 		val float32
 		err error
@@ -170,7 +170,7 @@ func (s *SelectStmt) Float32S(num uint64, value *[]float32) error {
 	return nil
 }
 
-func (s *SelectStmt) Float64S(num uint64, value *[]float64) error {
+func (s *selectStmt) Float64S(num uint64, value *[]float64) error {
 	var (
 		val float64
 		err error
@@ -185,7 +185,7 @@ func (s *SelectStmt) Float64S(num uint64, value *[]float64) error {
 	return nil
 }
 
-func (s *SelectStmt) StringS(num uint64, value *[]string) error {
+func (s *selectStmt) StringS(num uint64, value *[]string) error {
 	var (
 		val string
 		err error
@@ -200,7 +200,7 @@ func (s *SelectStmt) StringS(num uint64, value *[]string) error {
 	return nil
 }
 
-func (s *SelectStmt) ByteArrayS(num uint64, value *[][]byte) error {
+func (s *selectStmt) ByteArrayS(num uint64, value *[][]byte) error {
 	var (
 		val []byte
 		err error
@@ -215,13 +215,13 @@ func (s *SelectStmt) ByteArrayS(num uint64, value *[][]byte) error {
 	return nil
 }
 
-func (s *SelectStmt) FixedStringS(num uint64, len int, value *[][]byte) error {
+func (s *selectStmt) FixedStringS(num uint64, value *[][]byte, strlen int) error {
 	var (
 		val []byte
 		err error
 	)
 	for i := uint64(0); i < num; i++ {
-		val, err = s.conn.reader.FixedString(len)
+		val, err = s.conn.reader.FixedString(strlen)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (s *SelectStmt) FixedStringS(num uint64, len int, value *[][]byte) error {
 	return nil
 }
 
-func (s *SelectStmt) DateS(num uint64, value *[]time.Time) error {
+func (s *selectStmt) DateS(num uint64, value *[]time.Time) error {
 	var (
 		val int16
 		err error
@@ -245,22 +245,7 @@ func (s *SelectStmt) DateS(num uint64, value *[]time.Time) error {
 	return nil
 }
 
-func (s *SelectStmt) DateInServerTimezoneS(num uint64, value *[]time.Time) error {
-	var (
-		val int16
-		err error
-	)
-	for i := uint64(0); i < num; i++ {
-		val, err = s.conn.reader.Int16()
-		if err != nil {
-			return err
-		}
-		*value = append(*value, time.Unix(int64(val)*24*3600, 0).In(s.conn.ServerInfo.Timezone))
-	}
-	return nil
-}
-
-func (s *SelectStmt) DateTimeS(num uint64, value *[]time.Time) error {
+func (s *selectStmt) DateTimeS(num uint64, value *[]time.Time) error {
 	var (
 		val uint32
 		err error
@@ -275,22 +260,7 @@ func (s *SelectStmt) DateTimeS(num uint64, value *[]time.Time) error {
 	return nil
 }
 
-func (s *SelectStmt) DateTimesInServerTimezoneS(num uint64, value *[]time.Time) error {
-	var (
-		val uint32
-		err error
-	)
-	for i := uint64(0); i < num; i++ {
-		val, err = s.conn.reader.Uint32()
-		if err != nil {
-			return err
-		}
-		*value = append(*value, time.Unix(int64(val), 0).In(s.conn.ServerInfo.Timezone))
-	}
-	return nil
-}
-
-func (s *SelectStmt) UUIDS(num uint64, value *[][16]byte) error {
+func (s *selectStmt) UUIDS(num uint64, value *[][16]byte) error {
 	var (
 		val [16]byte
 		err error
@@ -307,7 +277,7 @@ func (s *SelectStmt) UUIDS(num uint64, value *[][16]byte) error {
 	return nil
 }
 
-func (s *SelectStmt) IPv4S(num uint64, value *[]net.IP) error {
+func (s *selectStmt) IPv4S(num uint64, value *[]net.IP) error {
 	var (
 		val []byte
 		err error
@@ -322,7 +292,7 @@ func (s *SelectStmt) IPv4S(num uint64, value *[]net.IP) error {
 	return nil
 }
 
-func (s *SelectStmt) IPv6S(num uint64, value *[]net.IP) error {
+func (s *selectStmt) IPv6S(num uint64, value *[]net.IP) error {
 	var (
 		val []byte
 		err error
@@ -337,7 +307,7 @@ func (s *SelectStmt) IPv6S(num uint64, value *[]net.IP) error {
 	return nil
 }
 
-func (s *SelectStmt) LenS(num uint64, value *[]int) (lastOffset uint64, err error) {
+func (s *selectStmt) LenS(num uint64, value *[]int) (lastOffset uint64, err error) {
 	var (
 		val int
 	)
@@ -352,75 +322,70 @@ func (s *SelectStmt) LenS(num uint64, value *[]int) (lastOffset uint64, err erro
 	return lastOffset, nil
 }
 
-func (s *SelectStmt) Int8All(value *[]int8) error {
-	return s.Int8S(s.Block.NumRows, value)
+func (s *selectStmt) Int8All(value *[]int8) error {
+	return s.Int8S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Int16All(value *[]int16) error {
-	return s.Int16S(s.Block.NumRows, value)
+func (s *selectStmt) Int16All(value *[]int16) error {
+	return s.Int16S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Int32All(value *[]int32) error {
-	return s.Int32S(s.Block.NumRows, value)
-}
-
-func (s *SelectStmt) Decimal32All(value *[]float64, scale int) error {
-	return s.Decimal32S(s.Block.NumRows, value, scale)
+func (s *selectStmt) Int32All(value *[]int32) error {
+	return s.Int32S(s.block.NumRows, value)
 }
 
-func (s *SelectStmt) Decimal64All(value *[]float64, scale int) error {
-	return s.Decimal64S(s.Block.NumRows, value, scale)
+func (s *selectStmt) Decimal32All(value *[]float64, scale int) error {
+	return s.Decimal32S(s.block.NumRows, value, scale)
 }
 
-func (s *SelectStmt) Int64All(value *[]int64) error {
-	return s.Int64S(s.Block.NumRows, value)
+func (s *selectStmt) Decimal64All(value *[]float64, scale int) error {
+	return s.Decimal64S(s.block.NumRows, value, scale)
 }
-func (s *SelectStmt) Uint8All(value *[]uint8) error {
-	return s.Uint8S(s.Block.NumRows, value)
+
+func (s *selectStmt) Int64All(value *[]int64) error {
+	return s.Int64S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Uint16All(value *[]uint16) error {
-	return s.Uint16S(s.Block.NumRows, value)
+func (s *selectStmt) Uint8All(value *[]uint8) error {
+	return s.Uint8S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Uint32All(value *[]uint32) error {
-	return s.Uint32S(s.Block.NumRows, value)
+func (s *selectStmt) Uint16All(value *[]uint16) error {
+	return s.Uint16S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Uint64All(value *[]uint64) error {
-	return s.Uint64S(s.Block.NumRows, value)
+func (s *selectStmt) Uint32All(value *[]uint32) error {
+	return s.Uint32S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Float32All(value *[]float32) error {
-	return s.Float32S(s.Block.NumRows, value)
+func (s *selectStmt) Uint64All(value *[]uint64) error {
+	return s.Uint64S(s.block.NumRows, value)
 }
-func (s *SelectStmt) Float64All(value *[]float64) error {
-	return s.Float64S(s.Block.NumRows, value)
+func (s *selectStmt) Float32All(value *[]float32) error {
+	return s.Float32S(s.block.NumRows, value)
 }
-func (s *SelectStmt) StringAll(value *[]string) error {
-	return s.StringS(s.Block.NumRows, value)
+func (s *selectStmt) Float64All(value *[]float64) error {
+	return s.Float64S(s.block.NumRows, value)
 }
-func (s *SelectStmt) ByteArrayAll(value *[][]byte) error {
-	return s.ByteArrayS(s.Block.NumRows, value)
+func (s *selectStmt) StringAll(value *[]string) error {
+	return s.StringS(s.block.NumRows, value)
 }
-func (s *SelectStmt) FixedStringAll(len int, value *[][]byte) error {
-	return s.FixedStringS(s.Block.NumRows, len, value)
+func (s *selectStmt) ByteArrayAll(value *[][]byte) error {
+	return s.ByteArrayS(s.block.NumRows, value)
 }
-func (s *SelectStmt) DateAll(value *[]time.Time) error {
-	return s.DateS(s.Block.NumRows, value)
+func (s *selectStmt) FixedStringAll(value *[][]byte, strlen int) error {
+	return s.FixedStringS(s.block.NumRows, value, strlen)
 }
-func (s *SelectStmt) DateInServerTimezoneAll(value *[]time.Time) error {
-	return s.DateInServerTimezoneS(s.Block.NumRows, value)
+func (s *selectStmt) DateAll(value *[]time.Time) error {
+	return s.DateS(s.block.NumRows, value)
 }
-func (s *SelectStmt) DateTimeAll(value *[]time.Time) error {
-	return s.DateTimeS(s.Block.NumRows, value)
+func (s *selectStmt) DateTimeAll(value *[]time.Time) error {
+	return s.DateTimeS(s.block.NumRows, value)
 }
-func (s *SelectStmt) DateTimeInServerTimezoneAll(value *[]time.Time) error {
-	return s.DateTimesInServerTimezoneS(s.Block.NumRows, value)
+
+func (s *selectStmt) UUIDAll(value *[][16]byte) error {
+	return s.UUIDS(s.block.NumRows, value)
 }
-func (s *SelectStmt) UUIDAll(value *[][16]byte) error {
-	return s.UUIDS(s.Block.NumRows, value)
+func (s *selectStmt) IPv4All(value *[]net.IP) error {
+	return s.IPv4S(s.block.NumRows, value)
 }
-func (s *SelectStmt) IPv4All(value *[]net.IP) error {
-	return s.IPv4S(s.Block.NumRows, value)
+func (s *selectStmt) IPv6All(value *[]net.IP) error {
+	return s.IPv6S(s.block.NumRows, value)
 }
-func (s *SelectStmt) IPv6All(value *[]net.IP) error {
-	return s.IPv6S(s.Block.NumRows, value)
-}
-func (s *SelectStmt) LenAll(value *[]int) (uint64, error) {
-	return s.LenS(s.Block.NumRows, value)
+func (s *selectStmt) LenAll(value *[]int) (uint64, error) {
+	return s.LenS(s.block.NumRows, value)
 }

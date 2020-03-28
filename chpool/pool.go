@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/puddle"
-	"github.com/pkg/errors"
 	"github.com/vahid-sohrabloo/chconn"
+	errors "golang.org/x/xerrors"
 )
 
 var defaultMaxConns = int32(4)
@@ -18,15 +18,13 @@ var defaultMaxConnIdleTime = time.Minute * 30
 var defaultHealthCheckPeriod = time.Minute
 
 type connResource struct {
-	conn  *chconn.Conn
-	conns []Conn
-	// poolRows  []poolRow
-	// poolRowss []poolRows
+	conn  chconn.Conn
+	conns []conn
 }
 
-func (cr *connResource) getConn(p *Pool, res *puddle.Resource) *Conn {
+func (cr *connResource) getConn(p *pool, res *puddle.Resource) Conn {
 	if len(cr.conns) == 0 {
-		cr.conns = make([]Conn, 128)
+		cr.conns = make([]conn, 128)
 	}
 
 	c := &cr.conns[len(cr.conns)-1]
@@ -38,39 +36,20 @@ func (cr *connResource) getConn(p *Pool, res *puddle.Resource) *Conn {
 	return c
 }
 
-// func (cr *connResource) getPoolRow(c *Conn, r pgx.Row) *poolRow {
-// 	if len(cr.poolRows) == 0 {
-// 		cr.poolRows = make([]poolRow, 128)
-// 	}
-
-// 	pr := &cr.poolRows[len(cr.poolRows)-1]
-// 	cr.poolRows = cr.poolRows[0 : len(cr.poolRows)-1]
-
-// 	pr.c = c
-// 	pr.r = r
-
-// 	return pr
-// }
-
-// func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
-// 	if len(cr.poolRowss) == 0 {
-// 		cr.poolRowss = make([]poolRows, 128)
-// 	}
-
-// 	pr := &cr.poolRowss[len(cr.poolRowss)-1]
-// 	cr.poolRowss = cr.poolRowss[0 : len(cr.poolRowss)-1]
-
-// 	pr.c = c
-// 	pr.r = r
-
-// 	return pr
-// }
-
-type Pool struct {
+type Pool interface {
+	Close()
+	Acquire(ctx context.Context) (Conn, error)
+	AcquireAllIdle(ctx context.Context) []Conn
+	Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
+	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
+	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	Stat() *Stat
+}
+type pool struct {
 	p                 *puddle.Pool
-	afterConnect      func(context.Context, *chconn.Conn) error
-	beforeAcquire     func(context.Context, *chconn.Conn) bool
-	afterRelease      func(*chconn.Conn) bool
+	afterConnect      func(context.Context, chconn.Conn) error
+	beforeAcquire     func(context.Context, chconn.Conn) bool
+	afterRelease      func(chconn.Conn) bool
 	minConns          int32
 	maxConnLifetime   time.Duration
 	maxConnIdleTime   time.Duration
@@ -84,16 +63,16 @@ type Config struct {
 	Config *chconn.Config
 
 	// AfterConnect is called after a connection is established, but before it is added to the pool.
-	AfterConnect func(context.Context, *chconn.Conn) error
+	AfterConnect func(context.Context, chconn.Conn) error
 
 	// BeforeAcquire is called before before a connection is acquired from the pool. It must return true to allow the
 	// acquision or false to indicate that the connection should be destroyed and a different connection should be
 	// acquired.
-	BeforeAcquire func(context.Context, *chconn.Conn) bool
+	BeforeAcquire func(context.Context, chconn.Conn) bool
 
 	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
 	// return the connection to the pool or false to destroy the connection.
-	AfterRelease func(*chconn.Conn) bool
+	AfterRelease func(chconn.Conn) bool
 
 	// MaxConnLifetime is the duration since creation after which a connection will be automatically closed.
 	MaxConnLifetime time.Duration
@@ -116,7 +95,7 @@ type Config struct {
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. See ParseConfig for information on connString format.
-func Connect(ctx context.Context, connString string) (*Pool, error) {
+func Connect(ctx context.Context, connString string) (Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
 		return nil, err
@@ -127,14 +106,14 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 
 // ConnectConfig creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. config must have been created by ParseConfig.
-func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
+func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
 	}
 
-	p := &Pool{
+	p := &pool{
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
@@ -147,24 +126,22 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) {
-			conn, err := chconn.ConnectConfig(ctx, config.Config)
+			c, err := chconn.ConnectConfig(ctx, config.Config)
 			if err != nil {
 				return nil, err
 			}
 
 			if p.afterConnect != nil {
-				err = p.afterConnect(ctx, conn)
+				err = p.afterConnect(ctx, c)
 				if err != nil {
-					conn.Close(ctx)
+					c.Close(ctx)
 					return nil, err
 				}
 			}
 
 			cr := &connResource{
-				conn:  conn,
-				conns: make([]Conn, 64),
-				// poolRows:  make([]poolRow, 64),
-				// poolRowss: make([]poolRows, 64),
+				conn:  c,
+				conns: make([]conn, 64),
 			}
 
 			return cr, nil
@@ -204,10 +181,10 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 // See Config for definitions of these arguments.
 //
 //   # Example DSN
-//   user=jack password=secret host=زا.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//   user=jack password=secret host=clickhouse.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
 //   # Example URL
-//   postgres://jack:secret@زا.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
+//   clickhouse://jack:secret@ch.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	chConfig, err := chconn.ParseConfig(connString)
 	if err != nil {
@@ -285,12 +262,12 @@ func ParseConfig(connString string) (*Config, error) {
 
 // Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 // to pool and closed.
-func (p *Pool) Close() {
+func (p *pool) Close() {
 	close(p.closeChan)
 	p.p.Close()
 }
 
-func (p *Pool) backgroundHealthCheck() {
+func (p *pool) backgroundHealthCheck() {
 	ticker := time.NewTicker(p.healthCheckPeriod)
 
 	for {
@@ -305,7 +282,7 @@ func (p *Pool) backgroundHealthCheck() {
 	}
 }
 
-func (p *Pool) checkIdleConnsHealth() {
+func (p *pool) checkIdleConnsHealth() {
 	resources := p.p.AcquireAllIdle()
 
 	now := time.Now()
@@ -320,17 +297,17 @@ func (p *Pool) checkIdleConnsHealth() {
 	}
 }
 
-func (p *Pool) checkMinConns() {
+func (p *pool) checkMinConns() {
 	for i := p.minConns - p.Stat().TotalConns(); i > 0; i-- {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
-			p.p.CreateResource(ctx)
+			p.p.CreateResource(ctx) //nolint:errcheck
 		}()
 	}
 }
 
-func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
+func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
 		if err != nil {
@@ -348,9 +325,9 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
-func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
+func (p *pool) AcquireAllIdle(ctx context.Context) []Conn {
 	resources := p.p.AcquireAllIdle()
-	conns := make([]*Conn, 0, len(resources))
+	conns := make([]Conn, 0, len(resources))
 	for _, res := range resources {
 		cr := res.Value().(*connResource)
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
@@ -363,21 +340,21 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	return conns
 }
 
-func (p *Pool) Stat() *Stat {
+func (p *pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
 }
 
-func (p *Pool) Exec(ctx context.Context, sql string) (interface{}, error) {
+func (p *pool) Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Release()
 
-	return c.Exec(ctx, sql)
+	return c.Exec(ctx, sql, onProgress)
 }
 
-func (p *Pool) Select(ctx context.Context, query string) (*SelectStmt, error) {
+func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -392,7 +369,7 @@ func (p *Pool) Select(ctx context.Context, query string) (*SelectStmt, error) {
 	return s, nil
 }
 
-func (p *Pool) Insert(ctx context.Context, query string) (*InsertStmt, error) {
+func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err

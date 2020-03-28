@@ -9,29 +9,29 @@ type Profile struct {
 	CalculatedRowsBeforeLimit bool
 }
 
-func NewProfile() *Profile {
+func newProfile() *Profile {
 	return &Profile{}
 }
 
-func (p *Profile) Read(ch *Conn) (err error) {
+func (p *Profile) read(ch *conn) (err error) {
 	if p.Rows, err = ch.reader.Uvarint(); err != nil {
-		return err
+		return &readError{"profile: read Rows", err}
 	}
 	if p.Blocks, err = ch.reader.Uvarint(); err != nil {
-		return err
+		return &readError{"profile: read Blocks", err}
 	}
 	if p.Bytes, err = ch.reader.Uvarint(); err != nil {
-		return err
+		return &readError{"profile: read Bytes", err}
 	}
 
 	if p.AppliedLimit, err = ch.reader.Bool(); err != nil {
-		return err
+		return &readError{"profile: read AppliedLimit", err}
 	}
 	if p.RowsBeforeLimit, err = ch.reader.Uvarint(); err != nil {
-		return err
+		return &readError{"profile: read RowsBeforeLimit", err}
 	}
 	if p.CalculatedRowsBeforeLimit, err = ch.reader.Bool(); err != nil {
-		return err
+		return &readError{"profile: read CalculatedRowsBeforeLimit", err}
 	}
 	return nil
 }

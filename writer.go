@@ -27,12 +27,6 @@ func (w *Writer) Uvarint(v uint64) {
 	w.Write(w.scratch[:ln])
 }
 
-// Varint write a int64 into writer and get error
-func (w *Writer) Varint(v int64) {
-	ln := binary.PutVarint(w.scratch[:binary.MaxVarintLen64], v)
-	w.Write(w.scratch[:ln])
-}
-
 func (w *Writer) Bool(v bool) {
 	if v {
 		w.Uint8(1)

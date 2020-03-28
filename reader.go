@@ -13,10 +13,9 @@ func NewReader(input io.Reader) *Reader {
 }
 
 type Reader struct {
-	compress bool
-	input    io.Reader
-	offset   uint64
-	scratch  [binary.MaxVarintLen64]byte
+	input   io.Reader
+	offset  uint64
+	scratch [binary.MaxVarintLen64]byte
 }
 
 func (r *Reader) Bool() (bool, error) {
@@ -108,12 +107,10 @@ func (r *Reader) Float64() (float64, error) {
 	return math.Float64frombits(v), nil
 }
 
-func (r *Reader) FixedString(len int) ([]byte, error) {
-	buf := make([]byte, len)
-	if _, err := r.Read(buf); err != nil {
-		return nil, err
-	}
-	return buf, nil
+func (r *Reader) FixedString(strlen int) ([]byte, error) {
+	buf := make([]byte, strlen)
+	_, err := r.Read(buf)
+	return buf, err
 }
 
 func (r *Reader) String() (string, error) {
@@ -138,7 +135,7 @@ func (r *Reader) ByteArray() ([]byte, error) {
 
 func (r *Reader) ReadByte() (byte, error) {
 	if _, err := r.input.Read(r.scratch[:1]); err != nil {
-		return 0x0, err
+		return 0, err
 	}
 	return r.scratch[0], nil
 }
@@ -147,7 +144,7 @@ func (r *Reader) Read(buf []byte) (int, error) {
 	return r.input.Read(buf)
 }
 
-func (r *Reader) Len() (int, uint64, error) {
+func (r *Reader) Len() (arrayLen int, lastOffset uint64, err error) {
 	offset, err := r.Uint64()
 	if err != nil {
 		return 0, 0, err

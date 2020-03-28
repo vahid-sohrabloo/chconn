@@ -2,11 +2,11 @@ linters-settings:
   dupl:
     threshold: 100
   funlen:
-    lines: 100
+    lines: 150
     statements: 50
   goconst:
-    min-len: 2
-    min-occurrences: 2
+    min-len: 4
+    min-occurrences: 4
   gocritic:
     enabled-tags:
       - diagnostic
@@ -26,11 +26,6 @@ linters-settings:
     local-prefixes: github.com/golangci/golangci-lint
   golint:
     min-confidence: 0
-  gomnd:
-    settings:
-      mnd:
-        # don't include the "operation" and "assign"
-        checks: argument,case,condition,return
   lll:
     line-length: 140
   maligned:
@@ -53,11 +48,9 @@ linters:
     - gochecknoinits
     - goconst
     - gocritic
-    - gocyclo
     - gofmt
     - goimports
     - golint
-    - gomnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -83,6 +76,8 @@ linters:
   # - gochecknoglobals
   # - gocognit
   # - godox
+  # - gocyclo
+  # - gomnd
   # - maligned
   # - prealloc
 
@@ -92,13 +87,12 @@ issues:
     - path: _test\.go
       linters:
         - gomnd
+        - gosec
+        - funlen
 
 run:
   skip-dirs:
-    - test/testdata_etc
-    - internal/cache
-    - internal/renameio
-    - internal/robustio
+    
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration

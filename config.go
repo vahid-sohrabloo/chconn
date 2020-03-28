@@ -21,22 +21,25 @@ const defaultDatabase = "default"
 const defaultDBPort = "9000"
 const defaultClientName = "chx"
 
-type AfterConnectFunc func(ctx context.Context, conn *Conn) error
-type ValidateConnectFunc func(ctx context.Context, conn *Conn) error
+type AfterConnectFunc func(ctx context.Context, conn Conn) error
+type ValidateConnectFunc func(ctx context.Context, conn Conn) error
 
 // Config is the settings used to establish a connection to a ClickHouse server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port          uint16
-	Database      string
-	User          string
-	Password      string
-	ClientName    string            // e.g. net.Resolver.LookupHost
-	TLSConfig     *tls.Config       // nil disables TLS
-	DialFunc      DialFunc          // e.g. net.Dialer.DialContext
-	LookupFunc    LookupFunc        // e.g. net.Resolver.LookupHost
-	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	Host       string // host (e.g. localhost)
+	Port       uint16
+	Database   string
+	User       string
+	Password   string
+	ClientName string      // e.g. net.Resolver.LookupHost
+	TLSConfig  *tls.Config // nil disables TLS
+	DialFunc   DialFunc    // e.g. net.Dialer.DialContext
+	LookupFunc LookupFunc  // e.g. net.Resolver.LookupHost
+	ReaderFunc ReaderFunc  // e.g. bufio.Reader
+	WriterFunc WriterFunc
+	// Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	RuntimeParams map[string]string
 
 	Fallbacks []*FallbackConfig
 
@@ -55,7 +58,7 @@ type Config struct {
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
 // network connection. It is used for TLS fallback such as sslmode=prefer and high availability (HA) connections.
 type FallbackConfig struct {
-	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	Host      string // host (e.g. localhost)
 	Port      uint16
 	TLSConfig *tls.Config // nil disables TLS
 }
@@ -68,25 +71,73 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 	return
 }
 
-// todo comment
+// ParseConfig builds a []*Config with default values and use CH* Env.
+//
+//   # Example DSN
+//   user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
+//
+//   # Example URL
+//   clickhouse://jack:secret@ch.example.com:9000/mydb?sslmode=verify-ca
+//
+// ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
+// values that will be tried in order. This can be used as part of a high availability system.
+//
+//   # Example URL
+//   clickhouse://vahid:secret@foo.example.com:9000,bar.example.com:9000/mydb
+//
+// ParseConfig currently recognizes the following environment variable and their parameter key word equivalents passed
+// via database URL or DSN:
+//
+//   CHHOST
+//   CHPORT
+//   CHDATABASE
+//   CHUSER
+//   CHPASSWORD
+//   CHCLIENTNAME
+//   CHCONNECT_TIMEOUT
+//   CHSSLMODE
+//   CHSSLKEY
+//   CHSSLCERT
+//   CHSSLROOTCERT
+//
+// Important TLS Security Notes:
+//
+// ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to "prefer" behavior if
+// not set.
+//
+// See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
+// security each sslmode provides.
+//
+// "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
+// security guarantees than it would with libpq. Do not rely on this behavior as it
+// may be possible to match libpq in the future. If you need full security use
+// "verify-full".
+//
+//
+// If a host name resolves into multiple addresses chconn will only try the first.
+//
 func ParseConfig(connString string) (*Config, error) {
-	settings := defaultSettings()
-	addEnvSettings(settings)
+	defaultSettings := defaultSettings()
+	envSettings := parseEnvSettings()
 
+	connStringSettings := make(map[string]string)
 	if connString != "" {
+		var err error
 		// connString may be a database URL or a DSN
 		if strings.HasPrefix(connString, "clickhouse://") {
-			err := addURLSettings(settings, connString)
+			connStringSettings, err = parseURLSettings(connString)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
 			}
 		} else {
-			err := addDSNSettings(settings, connString)
+			connStringSettings, err = parseDSNSettings(connString)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to parse as DSN", err: err}
 			}
 		}
 	}
+
+	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
 
 	config := &Config{
 		createdByParseConfig: true,
@@ -111,20 +162,17 @@ func ParseConfig(connString string) (*Config, error) {
 	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
-		"host":                 struct{}{},
-		"port":                 struct{}{},
-		"database":             struct{}{},
-		"user":                 struct{}{},
-		"password":             struct{}{},
-		"passfile":             struct{}{},
-		"connect_timeout":      struct{}{},
-		"sslmode":              struct{}{},
-		"client_name":          struct{}{},
-		"sslkey":               struct{}{},
-		"sslcert":              struct{}{},
-		"sslrootcert":          struct{}{},
-		"target_session_attrs": struct{}{},
-		"min_read_buffer_size": struct{}{},
+		"host":            {},
+		"port":            {},
+		"database":        {},
+		"user":            {},
+		"password":        {},
+		"connect_timeout": {},
+		"sslmode":         {},
+		"client_name":     {},
+		"sslkey":          {},
+		"sslcert":         {},
+		"sslrootcert":     {},
 	}
 
 	for k, v := range settings {
@@ -188,7 +236,21 @@ func defaultSettings() map[string]string {
 	return settings
 }
 
-func addEnvSettings(settings map[string]string) {
+func mergeSettings(settingSets ...map[string]string) map[string]string {
+	settings := make(map[string]string)
+
+	for _, s2 := range settingSets {
+		for k, v := range s2 {
+			settings[k] = v
+		}
+	}
+
+	return settings
+}
+
+func parseEnvSettings() map[string]string {
+	settings := make(map[string]string)
+
 	nameMap := map[string]string{
 		"CHHOST":            "host",
 		"CHPORT":            "port",
@@ -209,17 +271,21 @@ func addEnvSettings(settings map[string]string) {
 			settings[realname] = value
 		}
 	}
+
+	return settings
 }
 
-func addURLSettings(settings map[string]string, connString string) error {
-	url, err := url.Parse(connString)
+func parseURLSettings(connString string) (map[string]string, error) {
+	settings := make(map[string]string)
+
+	urlConn, err := url.Parse(connString)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if url.User != nil {
-		settings["user"] = url.User.Username()
-		if password, present := url.User.Password(); present {
+	if urlConn.User != nil {
+		settings["user"] = urlConn.User.Username()
+		if password, present := urlConn.User.Password(); present {
 			settings["password"] = password
 		}
 	}
@@ -227,7 +293,7 @@ func addURLSettings(settings map[string]string, connString string) error {
 	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
 	var hosts []string
 	var ports []string
-	for _, host := range strings.Split(url.Host, ",") {
+	for _, host := range strings.Split(urlConn.Host, ",") {
 		parts := strings.SplitN(host, ":", 2)
 		if parts[0] != "" {
 			hosts = append(hosts, parts[0])
@@ -243,21 +309,23 @@ func addURLSettings(settings map[string]string, connString string) error {
 		settings["port"] = strings.Join(ports, ",")
 	}
 
-	database := strings.TrimLeft(url.Path, "/")
+	database := strings.TrimLeft(urlConn.Path, "/")
 	if database != "" {
 		settings["database"] = database
 	}
 
-	for k, v := range url.Query() {
+	for k, v := range urlConn.Query() {
 		settings[k] = v[0]
 	}
 
-	return nil
+	return settings, nil
 }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
-func addDSNSettings(settings map[string]string, s string) error {
+func parseDSNSettings(s string) (map[string]string, error) {
+	settings := make(map[string]string)
+
 	nameMap := map[string]string{
 		"dbname": "database",
 	}
@@ -266,7 +334,7 @@ func addDSNSettings(settings map[string]string, s string) error {
 		var key, val string
 		eqIdx := strings.IndexRune(s, '=')
 		if eqIdx < 0 {
-			return errors.New("invalid dsn")
+			return nil, errors.New("invalid dsn")
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
@@ -299,7 +367,7 @@ func addDSNSettings(settings map[string]string, s string) error {
 				}
 			}
 			if end == len(s) {
-				return errors.New("unterminated quoted string in connection info string")
+				return nil, errors.New("unterminated quoted string in connection info string")
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
 			if end == len(s) {
@@ -316,14 +384,7 @@ func addDSNSettings(settings map[string]string, s string) error {
 		settings[key] = val
 	}
 
-	return nil
-}
-
-type chTLSArgs struct {
-	sslMode     string
-	sslRootCert string
-	sslCert     string
-	sslKey      string
+	return settings, nil
 }
 
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
@@ -336,9 +397,8 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	sslcert := settings["sslcert"]
 	sslkey := settings["sslkey"]
 
-	// Match libpq default behavior
 	if sslmode == "" {
-		sslmode = "prefer"
+		sslmode = "disable"
 	}
 
 	tlsConfig := &tls.Config{}
@@ -350,7 +410,41 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		tlsConfig.InsecureSkipVerify = true
 	case "require":
 		tlsConfig.InsecureSkipVerify = sslrootcert == ""
-	case "verify-ca", "verify-full":
+	case "verify-ca":
+		// Don't perform the default certificate verification because it
+		// will verify the hostname. Instead, verify the server's
+		// certificate chain ourselves in VerifyPeerCertificate and
+		// ignore the server name. This emulates libpq's verify-ca
+		// behavior.
+		//
+		// See https://github.com/golang/go/issues/21971#issuecomment-332693931
+		// and https://pkg.go.dev/crypto/tls?tab=doc#example-Config-VerifyPeerCertificate
+		// for more info.
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
+			certs := make([]*x509.Certificate, len(certificates))
+			for i, asn1Data := range certificates {
+				cert, err := x509.ParseCertificate(asn1Data)
+				if err != nil {
+					return errors.New("failed to parse certificate from server: " + err.Error())
+				}
+				certs[i] = cert
+			}
+
+			// Leave DNSName empty to skip hostname verification.
+			opts := x509.VerifyOptions{
+				Roots:         tlsConfig.RootCAs,
+				Intermediates: x509.NewCertPool(),
+			}
+			// Skip the first cert because it's the leaf. All others
+			// are intermediates.
+			for _, cert := range certs[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := certs[0].Verify(opts)
+			return err
+		}
+	case "verify-full":
 		tlsConfig.ServerName = host
 	default:
 		return nil, errors.New("sslmode is invalid")
@@ -366,7 +460,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		}
 
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.Errorf("unable to add CA to cert pool: %w", err)
+			return nil, errors.New("unable to add CA to cert pool")
 		}
 
 		tlsConfig.RootCAs = caCertPool

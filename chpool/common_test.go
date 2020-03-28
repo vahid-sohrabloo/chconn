@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vahid-sohrabloo/chconn"
 )
 
 // Conn.Release is an asynchronous process that returns immediately. There is no signal when the actual work is
@@ -17,17 +18,17 @@ func waitForReleaseToComplete() {
 }
 
 type execer interface {
-	Exec(ctx context.Context, sql string) (interface{}, error)
+	Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
 }
 
 func testExec(t *testing.T, db execer) {
-	results, err := db.Exec(context.Background(), "SET enable_http_compression=1")
+	results, err := db.Exec(context.Background(), "SET enable_http_compression=1", nil)
 	require.NoError(t, err)
 	assert.EqualValues(t, nil, results)
 }
 
 type selecter interface {
-	Select(ctx context.Context, sql string) (*SelectStmt, error)
+	Select(ctx context.Context, sql string) (chconn.SelectStmt, error)
 }
 
 func testSelect(t *testing.T, db selecter) {
@@ -39,8 +40,9 @@ func testSelect(t *testing.T, db selecter) {
 	require.NoError(t, err)
 
 	for stmt.Next() {
-		stmt.NextColumn()
-		err := stmt.Uint64All(&nums)
+		_, err := stmt.NextColumn()
+		assert.NoError(t, err)
+		err = stmt.Uint64All(&nums)
 		assert.NoError(t, err)
 	}
 

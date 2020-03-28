@@ -4,32 +4,22 @@ import (
 	"context"
 )
 
-func (ch *Conn) Ping(ctx context.Context) error {
+type pong struct{}
+
+func (ch *conn) Ping(ctx context.Context) error {
+	ch.contextWatcher.Watch(ctx)
+	defer ch.contextWatcher.Unwatch()
 	ch.writer.Uvarint(clientPing)
-	if _, err := ch.writer.WriteTo(ch.conn); err != nil {
-		return err
+	if _, err := ch.writer.WriteTo(ch.writerto); err != nil {
+		return &writeError{"ping: write packet type", err}
 	}
 
-	packet, err := ch.reader.Uvarint()
+	res, err := ch.reciveAndProccessData(emptyOnProgress)
 	if err != nil {
 		return err
 	}
-
-	// Could receive late packets with progress. TODO: Maybe possible to fix.
-	for packet == serverProgress {
-		progress := NewProgress()
-		if err = progress.Read(ch); err != nil {
-			return err
-		}
-
-		packet, err = ch.reader.Uvarint()
-		if err != nil {
-			return err
-		}
-	}
-
-	if packet != serverPong {
-		return &unexpectedPacket{expected: serverHello, actual: packet}
+	if _, ok := res.(*pong); !ok {
+		return &unexpectedPacket{expected: "serverPong", actual: res}
 	}
 
 	return nil

@@ -9,18 +9,24 @@ import (
 )
 
 // Conn is an acquired *pgx.Conn from a Pool.
-type Conn struct {
+type Conn interface {
+	Release()
+	Exec(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error)
+	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
+	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	Conn() chconn.Conn
+}
+type conn struct {
 	res *puddle.Resource
-	p   *Pool
+	p   *pool
 }
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
-func (c *Conn) Release() {
+func (c *conn) Release() {
 	if c.res == nil {
 		return
 	}
-
 	conn := c.Conn()
 	res := c.res
 	c.res = nil
@@ -45,67 +51,35 @@ func (c *Conn) Release() {
 	}()
 }
 
-func (c *Conn) Exec(ctx context.Context, query string) (interface{}, error) {
-	return c.Conn().Exec(ctx, query)
+func (c *conn) Exec(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error) {
+	return c.Conn().Exec(ctx, query, onProgress)
 }
-func (c *Conn) Select(ctx context.Context, query string) (*SelectStmt, error) {
+func (c *conn) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
 	s, err := c.Conn().Select(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	return &SelectStmt{
+	return &selectStmt{
 		SelectStmt: s,
 		conn:       c,
 	}, nil
 }
 
-func (c *Conn) Insert(ctx context.Context, query string) (*InsertStmt, error) {
+func (c *conn) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
 	s, err := c.Conn().Insert(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	return &InsertStmt{
+	return &insertStmt{
 		InsertStmt: s,
 		conn:       c,
 	}, nil
 }
 
-// func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
-// 	return c.Conn().Query(ctx, sql, args...)
-// }
-
-// func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
-// 	return c.Conn().QueryRow(ctx, sql, args...)
-// }
-
-// func (c *Conn) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
-// 	return c.Conn().SendBatch(ctx, b)
-// }
-
-// func (c *Conn) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
-// 	return c.Conn().CopyFrom(ctx, tableName, columnNames, rowSrc)
-// }
-
-// func (c *Conn) Begin(ctx context.Context) (pgx.Tx, error) {
-// 	return c.Conn().Begin(ctx)
-// }
-
-// func (c *Conn) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
-// 	return c.Conn().BeginTx(ctx, txOptions)
-// }
-
-func (c *Conn) Conn() *chconn.Conn {
+func (c *conn) Conn() chconn.Conn {
 	return c.connResource().conn
 }
 
-func (c *Conn) connResource() *connResource {
+func (c *conn) connResource() *connResource {
 	return c.res.Value().(*connResource)
 }
-
-// func (c *Conn) getPoolRow(r pgx.Row) *poolRow {
-// 	return c.connResource().getPoolRow(c, r)
-// }
-
-// func (c *Conn) getPoolRows(r pgx.Rows) *poolRows {
-// 	return c.connResource().getPoolRows(c, r)
-// }

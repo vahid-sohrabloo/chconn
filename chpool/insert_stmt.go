@@ -6,12 +6,12 @@ import (
 	"github.com/vahid-sohrabloo/chconn"
 )
 
-type InsertStmt struct {
-	*chconn.InsertStmt
-	conn *Conn
+type insertStmt struct {
+	chconn.InsertStmt
+	conn Conn
 }
 
-func (s *InsertStmt) Commit(ctx context.Context) error {
+func (s *insertStmt) Commit(ctx context.Context) error {
 	defer s.conn.Release()
 	return s.InsertStmt.Commit(ctx)
 }

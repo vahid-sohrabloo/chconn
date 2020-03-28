@@ -1,35 +1,35 @@
 package chconn
 
 type Progress struct {
-	readRows     uint64
-	readbytes    uint64
-	totalRows    uint64
-	writerRows   uint64
-	writtenBytes uint64
+	ReadRows     uint64
+	Readbytes    uint64
+	TotalRows    uint64
+	WriterRows   uint64
+	WrittenBytes uint64
 }
 
-func NewProgress() *Progress {
+func newProgress() *Progress {
 	return &Progress{}
 }
 
-func (p *Progress) Read(ch *Conn) (err error) {
-	if p.readRows, err = ch.reader.Uvarint(); err != nil {
-		return err
+func (p *Progress) read(ch *conn) (err error) {
+	if p.ReadRows, err = ch.reader.Uvarint(); err != nil {
+		return &readError{"progress: read ReadRows", err}
 	}
-	if p.readbytes, err = ch.reader.Uvarint(); err != nil {
-		return err
-	}
-
-	if p.totalRows, err = ch.reader.Uvarint(); err != nil {
-		return err
+	if p.Readbytes, err = ch.reader.Uvarint(); err != nil {
+		return &readError{"progress: read Readbytes", err}
 	}
 
-	if ch.ServerInfo.Revision >= DBMS_MIN_REVISION_WITH_CLIENT_WRITE_INFO {
-		if p.writerRows, err = ch.reader.Uvarint(); err != nil {
-			return err
+	if p.TotalRows, err = ch.reader.Uvarint(); err != nil {
+		return &readError{"progress: read TotalRows", err}
+	}
+
+	if ch.serverInfo.Revision >= dbmsMinRevisionWithClientWriteInfo {
+		if p.WriterRows, err = ch.reader.Uvarint(); err != nil {
+			return &readError{"progress: read WriterRows", err}
 		}
-		if p.writtenBytes, err = ch.reader.Uvarint(); err != nil {
-			return err
+		if p.WrittenBytes, err = ch.reader.Uvarint(); err != nil {
+			return &readError{"progress: read WrittenBytes", err}
 		}
 	}
 

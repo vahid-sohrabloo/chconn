@@ -59,6 +59,7 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
+//nolint:govet
 func TestContextWatcherStress(t *testing.T) {
 	var cancelFuncCalls int64
 	var cleanupFuncCalls int64
@@ -78,7 +79,8 @@ func TestContextWatcherStress(t *testing.T) {
 			cancel()
 		}
 
-		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen. This gives us a better mix.
+		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen.
+		// This gives us a better mix.
 		if i%3 == 0 {
 			time.Sleep(time.Nanosecond)
 		}

@@ -1,10 +1,10 @@
 package chconn
 
 import (
-	"fmt"
 	"strings"
 )
 
+// Column contain detail of clickhouse column with Buffer index and needed buffer
 type Column struct {
 	ChType      string
 	Name        string
@@ -12,58 +12,62 @@ type Column struct {
 	NumBuffer   int
 }
 
-type Block struct {
+type block struct {
 	Columns       []*Column
 	ColumnsBuffer []*Writer
 	NumRows       uint64
-	readRows      uint64
 	NumColumns    uint64
 	info          blockInfo
 }
 
-func NewBlock() *Block {
-	return &Block{}
+func newBlock() *block {
+	return &block{}
 }
 
-func (block *Block) Read(ch *Conn) (err error) {
-	if err = block.info.read(ch.reader); err != nil {
+func (block *block) read(ch *conn) error {
+	var err error
+	err = block.info.read(ch.reader)
+	if err != nil {
 		return err
 	}
 
-	if block.NumColumns, err = ch.reader.Uvarint(); err != nil {
-		return err
+	block.NumColumns, err = ch.reader.Uvarint()
+	if err != nil {
+		return &readError{"block: read NumColumns", err}
 	}
 
-	if block.NumRows, err = ch.reader.Uvarint(); err != nil {
-		return err
+	block.NumRows, err = ch.reader.Uvarint()
+	if err != nil {
+		return &readError{"block: read NumRows", err}
 	}
 	return nil
 }
 
-func (block *Block) initForInsert(ch *Conn) error {
-	if block.NumRows > 0 || block.NumColumns == 0 {
-		return ErrNotInsertQuery
-	}
+func (block *block) initForInsert(ch *conn) error {
 
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
-		column, err := block.NextColumn(ch)
+		column, err := block.nextColumn(ch)
 		if err != nil {
 			return err
 		}
 		column.BufferIndex = len(block.ColumnsBuffer)
 		block.appendBuffer(column.ChType, column)
+		// write header
+		block.ColumnsBuffer[column.BufferIndex].String(column.Name)
+		block.ColumnsBuffer[column.BufferIndex].String(column.ChType)
 		block.Columns[i] = column
 	}
+
 	return nil
 }
 
-func (block *Block) readColumns(ch *Conn) error {
+func (block *block) readColumns(ch *conn) error {
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
-		column, err := block.NextColumn(ch)
+		column, err := block.nextColumn(ch)
 		if err != nil {
 			return err
 		}
@@ -72,60 +76,159 @@ func (block *Block) readColumns(ch *Conn) error {
 	return nil
 }
 
-func (block *Block) NextColumn(ch *Conn) (*Column, error) {
+func (block *block) nextColumn(ch *conn) (*Column, error) {
 	column := &Column{}
 	var err error
 	if column.Name, err = ch.reader.String(); err != nil {
-		return nil, fmt.Errorf("block: read column name: %w", err)
+		return nil, &readError{"block: read column name", err}
 	}
 	if column.ChType, err = ch.reader.String(); err != nil {
-		return column, fmt.Errorf("block: read column type: %w", err)
+		return column, &readError{"block: read column type", err}
 	}
 	return column, nil
 }
-func (block *Block) appendBuffer(chType string, column *Column) {
-	if strings.HasPrefix(chType, "SimpleAggregateFunction") || strings.HasPrefix(chType, "AggregateFunction") {
-		return
-	}
-	block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
-	column.NumBuffer++
-	var findSimpleAggregateFunction bool
-	for i, char := range chType {
-		if char == ',' || (char == '(' && chType[i-1] != 'g' && chType[i-1] != '2' && chType[i-1] != '4') {
-			//skip tuple
-			if i-5 >= 0 && chType[i-5:i] == "Tuple" {
-				continue
-			}
 
-			// skip SimpleAggregateFunction
-			if i-23 >= 0 && chType[i-23:i] == "SimpleAggregateFunction" {
-				findSimpleAggregateFunction = true
-				continue
-			}
-			if findSimpleAggregateFunction {
-				findSimpleAggregateFunction = false
-				continue
-			}
-			block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
-			column.NumBuffer++
-		}
-	}
+var preCachedNeedBuffer = map[string]int{
+	"Int8":               1,
+	"Int16":              1,
+	"Int32":              1,
+	"Int64":              1,
+	"UInt8":              1,
+	"UInt16":             1,
+	"UInt32":             1,
+	"UInt64":             1,
+	"Float32":            1,
+	"Float64":            1,
+	"String":             1,
+	"Date":               1,
+	"DateTime":           1,
+	"UUID":               1,
+	"IPv4":               1,
+	"IPv6":               1,
+	"Array(Int8)":        2,
+	"Array(Int16)":       2,
+	"Array(Int32)":       2,
+	"Array(Int64)":       2,
+	"Array(UInt8)":       2,
+	"Array(UInt16)":      2,
+	"Array(UInt32)":      2,
+	"Array(UInt64)":      2,
+	"Array(Float32)":     2,
+	"Array(Float64)":     2,
+	"Array(String)":      2,
+	"Array(Date)":        2,
+	"Array(DateTime)":    2,
+	"Array(UUID)":        2,
+	"Array(IPv4)":        2,
+	"Array(IPv6)":        2,
+	"Nullable(Int8)":     2,
+	"Nullable(Int16)":    2,
+	"Nullable(Int32)":    2,
+	"Nullable(Int64)":    2,
+	"Nullable(UInt8)":    2,
+	"Nullable(UInt16)":   2,
+	"Nullable(UInt32)":   2,
+	"Nullable(UInt64)":   2,
+	"Nullable(Float32)":  2,
+	"Nullable(Float64)":  2,
+	"Nullable(String)":   2,
+	"Nullable(Date)":     2,
+	"Nullable(DateTime)": 2,
+	"Nullable(UUID)":     2,
+	"Nullable(IPv4)":     2,
+	"Nullable(IPv6)":     2,
 }
 
-func (block *Block) write(ch *Conn) error {
+func (block *block) appendBuffer(chType string, column *Column) {
+
+	if numBuffer, ok := preCachedNeedBuffer[chType]; ok {
+		column.NumBuffer += numBuffer
+		for i := 0; i < numBuffer; i++ {
+			block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		}
+		return
+	}
+
+	if strings.HasPrefix(chType, "FixedString") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		return
+	}
+
+	if strings.HasPrefix(chType, "Decimal") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		return
+	}
+
+	if strings.HasPrefix(chType, "Date") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		return
+	}
+
+	if strings.HasPrefix(chType, "Array") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		// get chtype between `Array(` and `)`
+		block.appendBuffer(chType[6:len(chType)-1], column)
+		return
+	}
+	if strings.HasPrefix(chType, "Nullable") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		// get chtype between `Nullable(` and `)`
+		block.appendBuffer(chType[9:len(chType)-1], column)
+		return
+	}
+
+	if strings.HasPrefix(chType, "Tuple") {
+		var openFunc int
+		cur := 6
+		// for between `Tuple(` and `)`
+		for i, char := range chType[6 : len(chType)-1] {
+			if char == ',' {
+				if openFunc == 0 {
+					block.appendBuffer(chType[cur:i+6], column)
+					cur = i + 6
+				}
+				continue
+			}
+			if char == '(' {
+				openFunc++
+				continue
+			}
+			if char == ')' {
+				openFunc--
+				continue
+			}
+		}
+		block.appendBuffer(chType[cur+2:len(chType)-1], column)
+		return
+	}
+
+	panic("NOT Supported " + chType)
+
+}
+
+func (block *block) write(ch *conn) error {
 	block.info.write(ch.writer)
 	ch.writer.Uvarint(block.NumColumns)
 	ch.writer.Uvarint(block.NumRows)
+	_, err := ch.writer.WriteTo(ch.writerto)
+	if err != nil {
+		//todo change to write error
+		return &writeError{"block: write block info", err}
+	}
 	defer func() {
 		block.NumRows = 0
 	}()
 	var bufferIndex int
 	for _, column := range block.Columns {
-		ch.writer.String(column.Name)
-		ch.writer.String(column.ChType)
 		for i := 0; i < column.NumBuffer; i++ {
-			if _, err := block.ColumnsBuffer[bufferIndex].WriteTo(ch.writer.output); err != nil {
-				return err
+			if _, err := block.ColumnsBuffer[bufferIndex].WriteTo(ch.writerto); err != nil {
+				//todo change to write error
+				return &writeError{"block: write block data for column " + column.Name, err}
 			}
 			bufferIndex++
 		}
@@ -144,19 +247,19 @@ type blockInfo struct {
 func (info *blockInfo) read(r *Reader) error {
 	var err error
 	if info.field1, err = r.Uvarint(); err != nil {
-		return err
+		return &readError{"block: read field1", err}
 	}
 	if info.isOverflows, err = r.Bool(); err != nil {
-		return err
+		return &readError{"block: read isOverflows", err}
 	}
 	if info.field2, err = r.Uvarint(); err != nil {
-		return err
+		return &readError{"block: read field2", err}
 	}
 	if info.bucketNum, err = r.Int32(); err != nil {
-		return err
+		return &readError{"block: read bucketNum", err}
 	}
 	if info.num3, err = r.Uvarint(); err != nil {
-		return err
+		return &readError{"block: read num3", err}
 	}
 	return nil
 }

@@ -1,34 +1,9 @@
 package chconn
 
 import (
-	"context"
 	"fmt"
-	"net"
 	"strings"
-
-	errors "golang.org/x/xerrors"
 )
-
-var ErrNotInsertQuery = errors.New("only insert query allowed")
-
-// SafeToRetry checks if the err is guaranteed to have occurred before sending any data to the server.
-func SafeToRetry(err error) bool {
-	if e, ok := err.(interface{ SafeToRetry() bool }); ok {
-		return e.SafeToRetry()
-	}
-	return false
-}
-
-// Timeout checks if err was was caused by a timeout. To be specific, it is true if err is or was caused by a
-// context.Canceled, context.Canceled or an implementer of net.Error where Timeout() is true.
-func Timeout(err error) bool {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-
-	var netErr net.Error
-	return errors.As(err, &netErr) && netErr.Timeout()
-}
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
@@ -45,20 +20,20 @@ func (e *ChError) read(r *Reader) error {
 		hasNested bool
 	)
 	if e.Code, err = r.Int32(); err != nil {
-		return err
+		return &readError{"ChError: read code", err}
 	}
 	if e.Name, err = r.String(); err != nil {
-		return err
+		return &readError{"ChError: read name", err}
 	}
 	if e.Message, err = r.String(); err != nil {
-		return err
+		return &readError{"ChError: read message", err}
 	}
 	e.Message = strings.TrimSpace(strings.TrimPrefix(e.Message, e.Name+":"))
 	if e.StackTrace, err = r.String(); err != nil {
-		return err
+		return &readError{"ChError: read StackTrace", err}
 	}
 	if hasNested, err = r.Bool(); err != nil {
-		return err
+		return &readError{"ChError: read hasNested", err}
 	}
 	if hasNested {
 		nestedErr := &ChError{}
@@ -83,21 +58,12 @@ func (e *ChError) Error() string {
 }
 
 type unexpectedPacket struct {
-	expected uint64
-	actual   uint64
-}
-
-func (e *unexpectedPacket) Error() string {
-	return fmt.Sprintf("Unexpected packet from server  (expected %d got %d )", e.expected, e.actual)
-}
-
-type unexpectedMessage struct {
 	expected string
 	actual   interface{}
 }
 
-func (e *unexpectedMessage) Error() string {
-	return fmt.Sprintf("Unexpected packet from server  (expected %s got %#v )", e.expected, e.actual)
+func (e *unexpectedPacket) Error() string {
+	return fmt.Sprintf("Unexpected packet from server (expected %s got %#v)", e.expected, e.actual)
 }
 
 type connectError struct {
@@ -123,10 +89,6 @@ type connLockError struct {
 	status string
 }
 
-func (e *connLockError) SafeToRetry() bool {
-	return true // a lock failure by definition happens before the connection is used.
-}
-
 func (e *connLockError) Error() string {
 	return e.status
 }
@@ -138,12 +100,35 @@ type parseConfigError struct {
 }
 
 func (e *parseConfigError) Error() string {
-	if e.err == nil {
-		return fmt.Sprintf("cannot parse `%s`: %s", e.connString, e.msg)
-	}
 	return fmt.Sprintf("cannot parse `%s`: %s (%s)", e.connString, e.msg, e.err.Error())
 }
 
 func (e *parseConfigError) Unwrap() error {
+	return e.err
+}
+
+type readError struct {
+	msg string
+	err error
+}
+
+func (e *readError) Error() string {
+	return fmt.Sprintf("%s (%s)", e.msg, e.err.Error())
+}
+
+func (e *readError) Unwrap() error {
+	return e.err
+}
+
+type writeError struct {
+	msg string
+	err error
+}
+
+func (e *writeError) Error() string {
+	return fmt.Sprintf("%s (%s)", e.msg, e.err.Error())
+}
+
+func (e *writeError) Unwrap() error {
 	return e.err
 }

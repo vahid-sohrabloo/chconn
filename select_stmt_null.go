@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func (s *SelectStmt) Int8PS(num uint64, nulls []uint8, value *[]*int8) error {
+func (s *selectStmt) Int8PS(num uint64, nulls []uint8, value *[]*int8) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int8()
 		if err != nil {
@@ -20,7 +20,7 @@ func (s *SelectStmt) Int8PS(num uint64, nulls []uint8, value *[]*int8) error {
 	return nil
 }
 
-func (s *SelectStmt) Int16PS(num uint64, nulls []uint8, value *[]*int16) error {
+func (s *selectStmt) Int16PS(num uint64, nulls []uint8, value *[]*int16) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int16()
 		if err != nil {
@@ -35,7 +35,7 @@ func (s *SelectStmt) Int16PS(num uint64, nulls []uint8, value *[]*int16) error {
 	return nil
 }
 
-func (s *SelectStmt) Int32PS(num uint64, nulls []uint8, value *[]*int32) error {
+func (s *selectStmt) Int32PS(num uint64, nulls []uint8, value *[]*int32) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int32()
 		if err != nil {
@@ -50,7 +50,7 @@ func (s *SelectStmt) Int32PS(num uint64, nulls []uint8, value *[]*int32) error {
 	return nil
 }
 
-func (s *SelectStmt) Decimal32PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
+func (s *selectStmt) Decimal32PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int32()
 		if err != nil {
@@ -66,7 +66,7 @@ func (s *SelectStmt) Decimal32PS(num uint64, nulls []uint8, value *[]*float64, s
 	return nil
 }
 
-func (s *SelectStmt) Decimal64PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
+func (s *selectStmt) Decimal64PS(num uint64, nulls []uint8, value *[]*float64, scale int) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int64()
 		if err != nil {
@@ -82,7 +82,7 @@ func (s *SelectStmt) Decimal64PS(num uint64, nulls []uint8, value *[]*float64, s
 	return nil
 }
 
-func (s *SelectStmt) Int64PS(num uint64, nulls []uint8, value *[]*int64) error {
+func (s *selectStmt) Int64PS(num uint64, nulls []uint8, value *[]*int64) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int64()
 		if err != nil {
@@ -97,7 +97,7 @@ func (s *SelectStmt) Int64PS(num uint64, nulls []uint8, value *[]*int64) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint8PS(num uint64, nulls []uint8, value *[]*uint8) error {
+func (s *selectStmt) Uint8PS(num uint64, nulls []uint8, value *[]*uint8) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint8()
 		if err != nil {
@@ -112,7 +112,7 @@ func (s *SelectStmt) Uint8PS(num uint64, nulls []uint8, value *[]*uint8) error {
 	return nil
 }
 
-func (s *SelectStmt) Uint16PS(num uint64, nulls []uint8, value *[]*uint16) error {
+func (s *selectStmt) Uint16PS(num uint64, nulls []uint8, value *[]*uint16) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint16()
 		if err != nil {
@@ -127,7 +127,7 @@ func (s *SelectStmt) Uint16PS(num uint64, nulls []uint8, value *[]*uint16) error
 	return nil
 }
 
-func (s *SelectStmt) Uint32PS(num uint64, nulls []uint8, value *[]*uint32) error {
+func (s *selectStmt) Uint32PS(num uint64, nulls []uint8, value *[]*uint32) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint32()
 		if err != nil {
@@ -142,7 +142,7 @@ func (s *SelectStmt) Uint32PS(num uint64, nulls []uint8, value *[]*uint32) error
 	return nil
 }
 
-func (s *SelectStmt) Uint64PS(num uint64, nulls []uint8, value *[]*uint64) error {
+func (s *selectStmt) Uint64PS(num uint64, nulls []uint8, value *[]*uint64) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint64()
 		if err != nil {
@@ -157,7 +157,7 @@ func (s *SelectStmt) Uint64PS(num uint64, nulls []uint8, value *[]*uint64) error
 	return nil
 }
 
-func (s *SelectStmt) Float32PS(num uint64, nulls []uint8, value *[]*float32) error {
+func (s *selectStmt) Float32PS(num uint64, nulls []uint8, value *[]*float32) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Float32()
 		if err != nil {
@@ -172,7 +172,7 @@ func (s *SelectStmt) Float32PS(num uint64, nulls []uint8, value *[]*float32) err
 	return nil
 }
 
-func (s *SelectStmt) Float64PS(num uint64, nulls []uint8, value *[]*float64) error {
+func (s *selectStmt) Float64PS(num uint64, nulls []uint8, value *[]*float64) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Float64()
 		if err != nil {
@@ -187,7 +187,7 @@ func (s *SelectStmt) Float64PS(num uint64, nulls []uint8, value *[]*float64) err
 	return nil
 }
 
-func (s *SelectStmt) StringPS(num uint64, nulls []uint8, value *[]*string) error {
+func (s *selectStmt) StringPS(num uint64, nulls []uint8, value *[]*string) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.String()
 		if err != nil {
@@ -202,7 +202,7 @@ func (s *SelectStmt) StringPS(num uint64, nulls []uint8, value *[]*string) error
 	return nil
 }
 
-func (s *SelectStmt) ByteArrayPS(num uint64, nulls []uint8, value *[][]byte) error {
+func (s *selectStmt) ByteArrayPS(num uint64, nulls []uint8, value *[][]byte) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.ByteArray()
 		if err != nil {
@@ -217,9 +217,9 @@ func (s *SelectStmt) ByteArrayPS(num uint64, nulls []uint8, value *[][]byte) err
 	return nil
 }
 
-func (s *SelectStmt) FixedStringPS(num uint64, nulls []uint8, len int, value *[][]byte) error {
+func (s *selectStmt) FixedStringPS(num uint64, nulls []uint8, value *[][]byte, strlen int) error {
 	for i := uint64(0); i < num; i++ {
-		val, err := s.conn.reader.FixedString(len)
+		val, err := s.conn.reader.FixedString(strlen)
 		if err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func (s *SelectStmt) FixedStringPS(num uint64, nulls []uint8, len int, value *[]
 	return nil
 }
 
-func (s *SelectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) error {
+func (s *selectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Int16()
 		if err != nil {
@@ -244,29 +244,11 @@ func (s *SelectStmt) DatePS(num uint64, nulls []uint8, value *[]*time.Time) erro
 		} else {
 			*value = append(*value, nil)
 		}
-
-		*value = append(*value)
 	}
 	return nil
 }
 
-func (s *SelectStmt) DateInServerTimezonePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-	for i := uint64(0); i < num; i++ {
-		val, err := s.conn.reader.Int16()
-		if err != nil {
-			return err
-		}
-		if nulls[i] == 0 {
-			timeVal := time.Unix(int64(val)*24*3600, 0).In(s.conn.ServerInfo.Timezone)
-			*value = append(*value, &timeVal)
-		} else {
-			*value = append(*value, nil)
-		}
-	}
-	return nil
-}
-
-func (s *SelectStmt) DateTimePS(num uint64, nulls []uint8, value *[]*time.Time) error {
+func (s *selectStmt) DateTimePS(num uint64, nulls []uint8, value *[]*time.Time) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.Uint32()
 		if err != nil {
@@ -282,23 +264,7 @@ func (s *SelectStmt) DateTimePS(num uint64, nulls []uint8, value *[]*time.Time) 
 	return nil
 }
 
-func (s *SelectStmt) DateTimesInServerTimezonePS(num uint64, nulls []uint8, value *[]*time.Time) error {
-	for i := uint64(0); i < num; i++ {
-		val, err := s.conn.reader.Uint32()
-		if err != nil {
-			return err
-		}
-		if nulls[i] == 0 {
-			timeVal := time.Unix(int64(val), 0).In(s.conn.ServerInfo.Timezone)
-			*value = append(*value, &timeVal)
-		} else {
-			*value = append(*value, nil)
-		}
-	}
-	return nil
-}
-
-func (s *SelectStmt) UUIDPS(num uint64, nulls []uint8, value *[]*[16]byte) error {
+func (s *selectStmt) UUIDPS(num uint64, nulls []uint8, value *[]*[16]byte) error {
 	var err error
 	uuidData := make([]byte, 16)
 	for i := uint64(0); i < num; i++ {
@@ -317,7 +283,7 @@ func (s *SelectStmt) UUIDPS(num uint64, nulls []uint8, value *[]*[16]byte) error
 	return nil
 }
 
-func (s *SelectStmt) IPv4PS(num uint64, nulls []uint8, value *[]*net.IP) error {
+func (s *selectStmt) IPv4PS(num uint64, nulls []uint8, value *[]*net.IP) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.FixedString(4)
 		if err != nil {
@@ -333,7 +299,7 @@ func (s *SelectStmt) IPv4PS(num uint64, nulls []uint8, value *[]*net.IP) error {
 	return nil
 }
 
-func (s *SelectStmt) IPv6PS(num uint64, nulls []uint8, value *[]*net.IP) error {
+func (s *selectStmt) IPv6PS(num uint64, nulls []uint8, value *[]*net.IP) error {
 	for i := uint64(0); i < num; i++ {
 		val, err := s.conn.reader.FixedString(16)
 		if err != nil {
@@ -349,162 +315,149 @@ func (s *SelectStmt) IPv6PS(num uint64, nulls []uint8, value *[]*net.IP) error {
 	return nil
 }
 
-func (s *SelectStmt) Int8PAll(value *[]*int8) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Int8PAll(value *[]*int8) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Int8PS(s.Block.NumRows, nulls, value)
+	return s.Int8PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Int16PAll(value *[]*int16) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Int16PAll(value *[]*int16) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Int16PS(s.Block.NumRows, nulls, value)
+	return s.Int16PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Int32PAll(value *[]*int32) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Int32PAll(value *[]*int32) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Int32PS(s.Block.NumRows, nulls, value)
+	return s.Int32PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Decimal32PAll(value *[]*float64, scale int) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Decimal32PAll(value *[]*float64, scale int) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Decimal32PS(s.Block.NumRows, nulls, value, scale)
+	return s.Decimal32PS(s.block.NumRows, nulls, value, scale)
 }
-func (s *SelectStmt) Decimal64PAll(value *[]*float64, scale int) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Decimal64PAll(value *[]*float64, scale int) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Decimal64PS(s.Block.NumRows, nulls, value, scale)
+	return s.Decimal64PS(s.block.NumRows, nulls, value, scale)
 }
-func (s *SelectStmt) Int64PAll(value *[]*int64) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Int64PAll(value *[]*int64) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Int64PS(s.Block.NumRows, nulls, value)
+	return s.Int64PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Uint8PAll(value *[]*uint8) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Uint8PAll(value *[]*uint8) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Uint8PS(s.Block.NumRows, nulls, value)
+	return s.Uint8PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Uint16PAll(value *[]*uint16) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Uint16PAll(value *[]*uint16) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Uint16PS(s.Block.NumRows, nulls, value)
+	return s.Uint16PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Uint32PAll(value *[]*uint32) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Uint32PAll(value *[]*uint32) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Uint32PS(s.Block.NumRows, nulls, value)
+	return s.Uint32PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Uint64PAll(value *[]*uint64) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Uint64PAll(value *[]*uint64) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Uint64PS(s.Block.NumRows, nulls, value)
+	return s.Uint64PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Float32PAll(value *[]*float32) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Float32PAll(value *[]*float32) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Float32PS(s.Block.NumRows, nulls, value)
+	return s.Float32PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) Float64PAll(value *[]*float64) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) Float64PAll(value *[]*float64) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.Float64PS(s.Block.NumRows, nulls, value)
+	return s.Float64PS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) StringPAll(value *[]*string) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) StringPAll(value *[]*string) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.StringPS(s.Block.NumRows, nulls, value)
+	return s.StringPS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) ByteArrayPAll(value *[][]byte) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) ByteArrayPAll(value *[][]byte) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.ByteArrayPS(s.Block.NumRows, nulls, value)
+	return s.ByteArrayPS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) FixedStringPAll(len int, value *[][]byte) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) FixedStringPAll(value *[][]byte, strlen int) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.FixedStringPS(s.Block.NumRows, nulls, len, value)
+	return s.FixedStringPS(s.block.NumRows, nulls, value, strlen)
 }
-func (s *SelectStmt) DatePAll(value *[]*time.Time) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) DatePAll(value *[]*time.Time) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.DatePS(s.Block.NumRows, nulls, value)
+	return s.DatePS(s.block.NumRows, nulls, value)
 }
-func (s *SelectStmt) DateInServerTimezonePAll(value *[]*time.Time) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) DateTimePAll(value *[]*time.Time) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
 	if err != nil {
-		return err
+		return &readError{"selectStmt PALL: read nulls", err}
 	}
-	return s.DateInServerTimezonePS(s.Block.NumRows, nulls, value)
-}
-func (s *SelectStmt) DateTimePAll(value *[]*time.Time) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
-	if err != nil {
-		return err
-	}
-	return s.DateTimePS(s.Block.NumRows, nulls, value)
-}
-func (s *SelectStmt) DateTimesInServerTimezonePAll(value *[]*time.Time) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
-	if err != nil {
-		return err
-	}
-	return s.DateTimesInServerTimezonePS(s.Block.NumRows, nulls, value)
-}
-func (s *SelectStmt) UUIDPAll(value *[]*[16]byte) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
-	if err != nil {
-		return err
-	}
-	return s.UUIDPS(s.Block.NumRows, nulls, value)
-}
-func (s *SelectStmt) IPv4PAll(value *[]*net.IP) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
-	if err != nil {
-		return err
-	}
-	return s.IPv4PS(s.Block.NumRows, nulls, value)
-}
-func (s *SelectStmt) IPv6PAll(value *[]*net.IP) error {
-	nulls, err := s.GetNullS(s.Block.NumRows)
-	if err != nil {
-		return err
-	}
-	return s.IPv6PS(s.Block.NumRows, nulls, value)
+	return s.DateTimePS(s.block.NumRows, nulls, value)
 }
 
-func (s *SelectStmt) GetNullS(num uint64) ([]uint8, error) {
+func (s *selectStmt) UUIDPAll(value *[]*[16]byte) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
+	if err != nil {
+		return &readError{"selectStmt PALL: read nulls", err}
+	}
+	return s.UUIDPS(s.block.NumRows, nulls, value)
+}
+func (s *selectStmt) IPv4PAll(value *[]*net.IP) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
+	if err != nil {
+		return &readError{"selectStmt PALL: read nulls", err}
+	}
+	return s.IPv4PS(s.block.NumRows, nulls, value)
+}
+func (s *selectStmt) IPv6PAll(value *[]*net.IP) error {
+	nulls, err := s.GetNullS(s.block.NumRows)
+	if err != nil {
+		return &readError{"selectStmt PALL: read nulls", err}
+	}
+	return s.IPv6PS(s.block.NumRows, nulls, value)
+}
+
+func (s *selectStmt) GetNullS(num uint64) ([]uint8, error) {
 	if int(num) > cap(s.nulls) {
 		s.nulls = make([]uint8, 0, num)
 	}
@@ -516,6 +469,6 @@ func (s *SelectStmt) GetNullS(num uint64) ([]uint8, error) {
 	return s.nulls[:num], nil
 }
 
-func (s *SelectStmt) GetNullSAll() ([]uint8, error) {
-	return s.GetNullS(s.Block.NumRows)
+func (s *selectStmt) GetNullSAll() ([]uint8, error) {
+	return s.GetNullS(s.block.NumRows)
 }

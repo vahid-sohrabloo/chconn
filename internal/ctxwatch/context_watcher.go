@@ -17,7 +17,7 @@ type ContextWatcher struct {
 // NewContextWatcher returns a ContextWatcher. onCancel will be called when a watched context is canceled.
 // OnUnwatchAfterCancel will be called when Unwatch is called and the watched context had already been canceled and
 // onCancel called.
-func NewContextWatcher(onCancel func(), onUnwatchAfterCancel func()) *ContextWatcher {
+func NewContextWatcher(onCancel, onUnwatchAfterCancel func()) *ContextWatcher {
 	cw := &ContextWatcher{
 		onCancel:             onCancel,
 		onUnwatchAfterCancel: onUnwatchAfterCancel,

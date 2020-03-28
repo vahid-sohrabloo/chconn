@@ -3,8 +3,9 @@ module github.com/vahid-sohrabloo/chconn
 go 1.13
 
 require (
-	github.com/davecgh/go-spew v1.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/google/uuid v1.1.1
+	github.com/jackc/pgconn v1.4.0 // indirect
 	github.com/jackc/puddle v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.5.1

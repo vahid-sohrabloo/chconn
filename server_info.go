@@ -15,37 +15,37 @@ type ServerInfo struct {
 	Timezone           *time.Location
 }
 
-func (srv *ServerInfo) Read(r *Reader) (err error) {
+func (srv *ServerInfo) read(r *Reader) (err error) {
 	if srv.Name, err = r.String(); err != nil {
-		return fmt.Errorf("could not read server name: %v", err)
+		return &readError{"ServerInfo: could not read server name", err}
 	}
 	if srv.MajorVersion, err = r.Uvarint(); err != nil {
-		return fmt.Errorf("could not read server major version: %v", err)
+		return &readError{"ServerInfo: could not read server major version", err}
 	}
 	if srv.MinorVersion, err = r.Uvarint(); err != nil {
-		return fmt.Errorf("could not read server minor version: %v", err)
+		return &readError{"ServerInfo: could not read server minor version", err}
 	}
 	if srv.Revision, err = r.Uvarint(); err != nil {
-		return fmt.Errorf("could not read server revision: %v", err)
+		return &readError{"ServerInfo: could not read server revision", err}
 	}
-	if srv.Revision >= DBMS_MIN_REVISION_WITH_SERVER_TIMEZONE {
+	if srv.Revision >= dbmsMinRevisionWithServerTimezone {
 		var timezone string
 		timezone, err = r.String()
 		if err != nil {
-			return fmt.Errorf("could not read server timezone: %v", err)
+			return &readError{"ServerInfo: could not read server timezone", err}
 		}
 		if srv.Timezone, err = time.LoadLocation(timezone); err != nil {
-			return fmt.Errorf("could not load time location: %v", err)
+			return &readError{"ServerInfo: could not load time location", err}
 		}
 	}
-	if srv.Revision >= DBMS_MIN_REVISION_WITH_SERVER_DISPLAY_NAME {
+	if srv.Revision >= dbmsMinRevisionWithServerDisplayName {
 		if srv.ServerDisplayName, err = r.String(); err != nil {
-			return fmt.Errorf("could not read server name: %v", err)
+			return &readError{"ServerInfo: could not read server display name", err}
 		}
 	}
-	if srv.Revision >= DBMS_MIN_REVISION_WITH_VERSION_PATCH {
+	if srv.Revision >= dbmsMinRevisionWithVersionPatch {
 		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
-			return fmt.Errorf("could not read server major version: %v", err)
+			return &readError{"ServerInfo: could not read server version patch", err}
 		}
 	}
 	return nil
@@ -60,4 +60,8 @@ func (srv ServerInfo) String() string {
 		srv.Timezone,
 		srv.ServerDisplayName,
 		srv.ServerVersionPatch)
+}
+
+func (c *conn) ServerInfo() ServerInfo {
+	return c.serverInfo
 }

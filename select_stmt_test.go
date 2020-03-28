@@ -16,7 +16,40 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func TestSelectSlice(t *testing.T) {
+func TestSelectError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	// test lock error
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	c.(*conn).status = connStatusUninitialized
+	res, err := c.Select(context.Background(), "select * from system.numbers limit 5")
+	require.Nil(t, res)
+	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
+	c.Close(context.Background())
+
+	//test
+	config.WriterFunc = func(w io.Writer) io.Writer {
+		return &writerErrorHelper{
+			err:         errors.New("timeout"),
+			w:           w,
+			numberValid: 1,
+		}
+	}
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	res, err = c.Select(context.Background(), "select * from system.numbers limit 5")
+	require.EqualError(t, err, "block: write block info (timeout)")
+	require.Nil(t, res)
+}
+
+func TestSelect(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -24,10 +57,10 @@ func TestSelectSlice(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert`, nil)
 	require.NoError(t, err)
 	require.Nil(t, res)
-	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_slice (
+	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert (
 				int8  Int8,
 				int16 Int16,
 				int32 Int32,
@@ -41,7 +74,7 @@ func TestSelectSlice(t *testing.T) {
 				string  String,
 				string2  String,
 				fString FixedString(2),
-				array Array(Array(UInt8)) ,
+				array Array(UInt8),
 				date    Date,
 				datetime DateTime,
 				decimal32 Decimal32(4),
@@ -55,7 +88,7 @@ func TestSelectSlice(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	insertStmt, err := conn.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_slice (
+	insertStmt, err := conn.Insert(context.Background(), `INSERT INTO clickhouse_test_insert (
 				int8,
 				int16,
 				int32,
@@ -95,7 +128,7 @@ func TestSelectSlice(t *testing.T) {
 	var stringInsert []string
 	var byteInsert [][]byte
 	var fixedStringInsert [][]byte
-	var arrayInsert [][][]uint8
+	var arrayInsert [][]uint8
 	var dateInsert []time.Time
 	var decimalInsert []float64
 	var datetimeInsert []time.Time
@@ -130,23 +163,16 @@ func TestSelectSlice(t *testing.T) {
 		insertStmt.Buffer(11, []byte{10, 20, 30, 40})
 		fixedStringInsert = append(fixedStringInsert, []byte("01"))
 		insertStmt.FixedString(12, []byte("01"))
-		array := [][]uint8{
-			{
-				1, 2, 3, 4,
-			}, {
-				5, 6, 7, 8, 9,
-			},
+		array := []uint8{
+			1, 2, 3, 4,
 		}
 		insertStmt.AddLen(13, uint64(len(array)))
 		for _, a := range array {
-			insertStmt.AddLen(14, uint64(len(a)))
-			for _, u8 := range a {
-				insertStmt.Uint8(15, u8)
-			}
+			insertStmt.Uint8(14, a)
 		}
 		arrayInsert = append(arrayInsert, array)
 		d := now.AddDate(0, 0, i)
-		insertStmt.Date(16, d)
+		insertStmt.Date(15, d)
 		dateInsert = append(dateInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -157,7 +183,7 @@ func TestSelectSlice(t *testing.T) {
 			0,
 			time.UTC,
 		).In(time.Local))
-		insertStmt.DateTime(17, d)
+		insertStmt.DateTime(16, d)
 		datetimeInsert = append(datetimeInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -169,21 +195,21 @@ func TestSelectSlice(t *testing.T) {
 			time.Local,
 		))
 
-		insertStmt.Decimal32(18, 1.64*float64(i), 4)
-		insertStmt.Decimal64(19, 1.64*float64(i), 4)
+		insertStmt.Decimal32(17, 1.64*float64(i), 4)
+		insertStmt.Decimal64(18, 1.64*float64(i), 4)
 		decimalInsert = append(decimalInsert, math.Floor(1.64*float64(i)*10000)/10000)
 
-		insertStmt.UUID(20, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+		insertStmt.UUID(19, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 		uuidInsert = append(uuidInsert, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		insertStmt.Uint8(21, uint8(1*i))
-		insertStmt.String(22, fmt.Sprintf("string %d", i))
+		insertStmt.Uint8(20, uint8(1*i))
+		insertStmt.String(21, fmt.Sprintf("string %d", i))
 
-		err := insertStmt.IPv4(23, net.ParseIP("1.2.3.4").To4())
+		err := insertStmt.IPv4(22, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 		ipv4Insert = append(ipv4Insert, net.ParseIP("1.2.3.4").To4())
 
-		err = insertStmt.IPv6(24, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		err = insertStmt.IPv6(23, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 		ipv6Insert = append(ipv6Insert, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 	}
@@ -214,7 +240,7 @@ func TestSelectSlice(t *testing.T) {
 				tuple,
 				ipv4,
 				ipv6
-	 FROM clickhouse_test_insert_slice`)
+	 FROM clickhouse_test_insert`)
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16
@@ -229,11 +255,8 @@ func TestSelectSlice(t *testing.T) {
 	var stringData []string
 	var byteData [][]byte
 	var fixedStringData [][]byte
-	var arrayData [][][]uint8
+	var arrayData [][]uint8
 	var len1 []int
-	var len2 []int
-	var index1 int
-	var index2 int
 	var dateData []time.Time
 	var datetimeData []time.Time
 	var decimal32Data []float64
@@ -245,6 +268,7 @@ func TestSelectSlice(t *testing.T) {
 	var ipv6Data []net.IP
 
 	require.True(t, conn.IsBusy())
+
 	defer func() {
 		selectStmt.Close()
 		require.False(t, conn.IsBusy())
@@ -252,122 +276,193 @@ func TestSelectSlice(t *testing.T) {
 	for selectStmt.Next() {
 		_, err := selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Int8All(&int8Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Int8()
+			require.NoError(t, err)
+			int8Data = append(int8Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Int16All(&int16Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Int16()
+			require.NoError(t, err)
+			int16Data = append(int16Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Int32All(&int32Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Int32()
+			require.NoError(t, err)
+			int32Data = append(int32Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Int64All(&int64Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Int64()
+			require.NoError(t, err)
+			int64Data = append(int64Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Uint8All(&uint8Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Uint8()
+			require.NoError(t, err)
+			uint8Data = append(uint8Data, val)
+		}
+
+		_, err = selectStmt.NextColumn()
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Uint16()
+			require.NoError(t, err)
+			uint16Data = append(uint16Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Uint16All(&uint16Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Uint32()
+			require.NoError(t, err)
+			uint32Data = append(uint32Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Uint32All(&uint32Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Uint64()
+			require.NoError(t, err)
+			uint64Data = append(uint64Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Uint64All(&uint64Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Float32()
+			require.NoError(t, err)
+			float32Data = append(float32Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Float32All(&float32Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Float64()
+			require.NoError(t, err)
+			float64Data = append(float64Data, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Float64All(&float64Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.String()
+			require.NoError(t, err)
+			stringData = append(stringData, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.StringAll(&stringData)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.ByteArray()
+			require.NoError(t, err)
+			byteData = append(byteData, val)
+		}
+
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.ByteArrayAll(&byteData)
-		require.NoError(t, err)
-		_, err = selectStmt.NextColumn()
-		require.NoError(t, err)
-		err = selectStmt.FixedStringAll(&fixedStringData, 2)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.FixedString(2)
+			require.NoError(t, err)
+			fixedStringData = append(fixedStringData, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
 		// clear array
 		len1 = len1[:0]
 		// get array lens
-		lastOffset, err := selectStmt.LenAll(&len1)
+		_, err = selectStmt.LenAll(&len1)
 		require.NoError(t, err)
-		// get second dimension by last offset from prev array
-		_, err = selectStmt.LenS(lastOffset, &len2)
-		require.NoError(t, err)
-		index1 = 0
-		index2 = 0
-		for index1 < len(len1) {
-			arr1 := make([][]uint8, len1[index1])
-			for i := range arr1 {
-				arr1[i] = make([]uint8, 0, len2[index2])
-				err = selectStmt.Uint8S(uint64(len2[index2]), &arr1[i])
+
+		for _, l := range len1 {
+			arr := make([]uint8, l)
+			for i := 0; i < l; i++ {
+				val, err := selectStmt.Uint8()
 				require.NoError(t, err)
-				index2++
+				arr[i] = val
 			}
-			index1++
-			arrayData = append(arrayData, arr1)
+			arrayData = append(arrayData, arr)
 		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.DateAll(&dateData)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Date()
+			require.NoError(t, err)
+			dateData = append(dateData, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.DateTimeAll(&datetimeData)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.DateTime()
+			require.NoError(t, err)
+			datetimeData = append(datetimeData, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Decimal32All(&decimal32Data, 4)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Decimal32(4)
+			require.NoError(t, err)
+			decimal32Data = append(decimal32Data, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Decimal64All(&decimal64Data, 4)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Decimal64(4)
+			require.NoError(t, err)
+			decimal64Data = append(decimal64Data, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.UUIDAll(&uuidData)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.UUID()
+			require.NoError(t, err)
+			uuidData = append(uuidData, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.Uint8All(&tuple1Data)
-		require.NoError(t, err)
-		err = selectStmt.StringAll(&tuple2Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.Uint8()
+			require.NoError(t, err)
+			tuple1Data = append(tuple1Data, val)
+		}
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.String()
+			require.NoError(t, err)
+			tuple2Data = append(tuple2Data, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.IPv4All(&ipv4Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.IPv4()
+			require.NoError(t, err)
+			ipv4Data = append(ipv4Data, val)
+		}
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		err = selectStmt.IPv6All(&ipv6Data)
-		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, err := selectStmt.IPv6()
+			require.NoError(t, err)
+			ipv6Data = append(ipv6Data, val)
+		}
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -397,7 +492,7 @@ func TestSelectSlice(t *testing.T) {
 	conn.RawConn().Close()
 }
 
-func TestSelectSliceReadError(t *testing.T) {
+func TestSelectReadError(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -405,10 +500,10 @@ func TestSelectSliceReadError(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice_read_error`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_read_error`, nil)
 	require.NoError(t, err)
 	require.Nil(t, res)
-	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_slice_read_error (
+	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_read_error (
 				int8  Int8,
 				int16 Int16,
 				int32 Int32,
@@ -428,14 +523,13 @@ func TestSelectSliceReadError(t *testing.T) {
 				decimal64 Decimal64(4),
 				uuid UUID,
 				ipv4  IPv4,
-				ipv6  IPv6,
-				array Array(Int8)
+				ipv6  IPv6
 			) Engine=Memory`, nil)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	insertStmt, err := conn.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_slice_read_error (
+	insertStmt, err := conn.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_read_error (
 				int8,
 				int16,
 				int32,
@@ -455,8 +549,7 @@ func TestSelectSliceReadError(t *testing.T) {
 				decimal64,
 				uuid,
 				ipv4,
-				ipv6,
-				array
+				ipv6
 			) VALUES`)
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -492,11 +585,6 @@ func TestSelectSliceReadError(t *testing.T) {
 
 		err = insertStmt.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
-
-		//array
-		insertStmt.AddLen(20, 2)
-		insertStmt.Int8(21, 1)
-		insertStmt.Int8(21, 2)
 	}
 
 	err = insertStmt.Commit(context.Background())
@@ -506,155 +594,147 @@ func TestSelectSliceReadError(t *testing.T) {
 
 	tests := []struct {
 		colName     string
-		readFunc    func(SelectStmt) error
+		readFunc    func(SelectStmt) (interface{}, error)
 		wantErr     string
 		numberValid int
 	}{
 		{
 			colName: "int8",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Int8All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Int8()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "int16",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Int16All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Int16()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "int32",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Int32All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Int32()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "int64",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Int64All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Int64()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "uint8",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Uint8All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Uint8()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "uint16",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Uint16All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Uint16()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "uint32",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Uint32All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Uint32()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "uint64",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Uint64All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Uint64()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "float32",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Float32All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Float32()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "float64",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Float64All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Float64()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "string",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.StringAll(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.String()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "string2",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.ByteArrayAll(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.ByteArray()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "fString",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.FixedStringAll(nil, 2)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.FixedString(2)
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "date",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.DateAll(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Date()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "datetime",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.DateTimeAll(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.DateTime()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "decimal32",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Decimal32All(nil, 4)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Decimal32(4)
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "decimal64",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.Decimal64All(nil, 4)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.Decimal64(4)
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "uuid",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.UUIDAll(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.UUID()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "ipv4",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.IPv4All(nil)
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.IPv4()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
 		}, {
 			colName: "ipv6",
-			readFunc: func(stmt SelectStmt) error {
-				return stmt.IPv6All(nil)
-			},
-			wantErr:     "timeout",
-			numberValid: startValidReader,
-		}, {
-			colName: "array",
-			readFunc: func(stmt SelectStmt) error {
-				_, err := stmt.LenAll(nil)
-				return err
+			readFunc: func(stmt SelectStmt) (interface{}, error) {
+				return stmt.IPv6()
 			},
 			wantErr:     "timeout",
 			numberValid: startValidReader,
@@ -678,13 +758,13 @@ func TestSelectSliceReadError(t *testing.T) {
 
 			selectStmt, err := c.Select(context.Background(), `SELECT 
 				`+tt.colName+`
-	 				FROM clickhouse_test_insert_slice_read_error limit 1`)
+	 FROM clickhouse_test_insert_read_error limit 1`)
 			require.NoError(t, err)
 			defer selectStmt.Close()
 			assert.True(t, selectStmt.Next())
 			require.NoError(t, selectStmt.Err())
 			_, err = selectStmt.NextColumn()
-			err = tt.readFunc(selectStmt)
+			_, err = tt.readFunc(selectStmt)
 			require.EqualError(t, err, tt.wantErr)
 
 		})
