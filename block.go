@@ -44,7 +44,6 @@ func (block *block) read(ch *conn) error {
 }
 
 func (block *block) initForInsert(ch *conn) error {
-
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
@@ -140,7 +139,6 @@ var preCachedNeedBuffer = map[string]int{
 }
 
 func (block *block) appendBuffer(chType string, column *Column) {
-
 	if numBuffer, ok := preCachedNeedBuffer[chType]; ok {
 		column.NumBuffer += numBuffer
 		for i := 0; i < numBuffer; i++ {
@@ -208,7 +206,6 @@ func (block *block) appendBuffer(chType string, column *Column) {
 	}
 
 	panic("NOT Supported " + chType)
-
 }
 
 func (block *block) write(ch *conn) error {
@@ -217,7 +214,6 @@ func (block *block) write(ch *conn) error {
 	ch.writer.Uvarint(block.NumRows)
 	_, err := ch.writer.WriteTo(ch.writerto)
 	if err != nil {
-		//todo change to write error
 		return &writeError{"block: write block info", err}
 	}
 	defer func() {
@@ -227,7 +223,6 @@ func (block *block) write(ch *conn) error {
 	for _, column := range block.Columns {
 		for i := 0; i < column.NumBuffer; i++ {
 			if _, err := block.ColumnsBuffer[bufferIndex].WriteTo(ch.writerto); err != nil {
-				//todo change to write error
 				return &writeError{"block: write block data for column " + column.Name, err}
 			}
 			bufferIndex++

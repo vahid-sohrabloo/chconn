@@ -62,6 +62,6 @@ func (srv ServerInfo) String() string {
 		srv.ServerVersionPatch)
 }
 
-func (c *conn) ServerInfo() ServerInfo {
-	return c.serverInfo
+func (ch *conn) ServerInfo() ServerInfo {
+	return ch.serverInfo
 }

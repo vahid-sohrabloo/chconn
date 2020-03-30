@@ -29,9 +29,6 @@ func TestPingWriteError(t *testing.T) {
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
 
-	c, err := ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-
 	config.WriterFunc = func(w io.Writer) io.Writer {
 		return &writerErrorHelper{
 			err:         errors.New("timeout"),
@@ -39,7 +36,7 @@ func TestPingWriteError(t *testing.T) {
 			numberValid: 1,
 		}
 	}
-	c, err = ConnectConfig(context.Background(), config)
+	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	err = c.Ping(context.Background())
 	require.EqualError(t, err, "ping: write packet type (timeout)")

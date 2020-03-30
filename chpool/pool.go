@@ -40,8 +40,15 @@ type Pool interface {
 	Close()
 	Acquire(ctx context.Context) (Conn, error)
 	AcquireAllIdle(ctx context.Context) []Conn
-	Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
+	Exec(ctx context.Context, sql string) (interface{}, error)
+	ExecCallback(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
 	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
+	SelectCallback(
+		ctx context.Context,
+		query string,
+		onProgress func(*chconn.Progress),
+		onProfile func(*chconn.Profile),
+	) (chconn.SelectStmt, error)
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
 	Stat() *Stat
 }
@@ -302,7 +309,7 @@ func (p *pool) checkMinConns() {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
-			p.p.CreateResource(ctx) //nolint:errcheck
+			p.p.CreateResource(ctx) //nolint:errcheck not needed
 		}()
 	}
 }
@@ -344,23 +351,34 @@ func (p *pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
 }
 
-func (p *pool) Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error) {
+func (p *pool) Exec(ctx context.Context, sql string) (interface{}, error) {
+	return p.ExecCallback(ctx, sql, nil)
+}
+func (p *pool) ExecCallback(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Release()
 
-	return c.Exec(ctx, sql, onProgress)
+	return c.ExecCallback(ctx, sql, onProgress)
 }
 
 func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
+	return p.SelectCallback(ctx, query, nil, nil)
+}
+func (p *pool) SelectCallback(
+	ctx context.Context,
+	query string,
+	onProgress func(*chconn.Progress),
+	onProfile func(*chconn.Profile),
+) (chconn.SelectStmt, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := c.Select(ctx, query)
+	s, err := c.SelectCallback(ctx, query, onProgress, onProfile)
 	if err != nil {
 		c.Release()
 		return nil, err

@@ -24,7 +24,7 @@ func TestSelectNull(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_null`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_null`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_null (
@@ -51,7 +51,7 @@ func TestSelectNull(t *testing.T) {
 				uuid Nullable(UUID),
 				ipv4  Nullable(IPv4),
 				ipv6  Nullable(IPv6)
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -535,7 +535,7 @@ func TestSelectNullReadError(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_null_read_error`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_null_read_error`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_null_read_error (
@@ -559,7 +559,7 @@ func TestSelectNullReadError(t *testing.T) {
 				uuid Nullable(UUID),
 				ipv4  Nullable(IPv4),
 				ipv6  Nullable(IPv6)
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -618,7 +618,6 @@ func TestSelectNullReadError(t *testing.T) {
 
 		err = insertStmt.IPv6P(38, nil)
 		require.NoError(t, err)
-
 	}
 
 	err = insertStmt.Commit(context.Background())
@@ -949,10 +948,9 @@ func TestSelectNullReadError(t *testing.T) {
 			assert.True(t, selectStmt.Next())
 			require.NoError(t, selectStmt.Err())
 			_, err = selectStmt.NextColumn()
+			require.NoError(t, err)
 			err = tt.readFunc(selectStmt)
 			require.EqualError(t, err, tt.wantErr)
-
 		})
 	}
-
 }

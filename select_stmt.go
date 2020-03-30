@@ -125,6 +125,8 @@ type selectStmt struct {
 	queryID     string
 	settings    []byte
 	clientInfo  *ClientInfo
+	onProgress  func(*Progress)
+	onProfile   func(*Profile)
 	lastErr     error
 	ProfileInfo *Profile
 	Progress    *Progress
@@ -156,10 +158,16 @@ func (s *selectStmt) Next() bool {
 
 	if profile, ok := res.(*Profile); ok {
 		s.ProfileInfo = profile
+		if s.onProfile != nil {
+			s.onProfile(profile)
+		}
 		return s.Next()
 	}
 	if progress, ok := res.(*Progress); ok {
 		s.Progress = progress
+		if s.onProgress != nil {
+			s.onProgress(progress)
+		}
 		return s.Next()
 	}
 
@@ -169,7 +177,6 @@ func (s *selectStmt) Next() bool {
 
 	s.lastErr = &unexpectedPacket{expected: "serverData", actual: res}
 	return false
-
 }
 
 func (s *selectStmt) RowsInBlock() uint64 {
@@ -297,5 +304,4 @@ func (s *selectStmt) IPv6() (net.IP, error) {
 
 	val, err = s.conn.reader.FixedString(16)
 	return net.IP(val), err
-
 }

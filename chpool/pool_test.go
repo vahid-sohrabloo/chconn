@@ -23,20 +23,23 @@ func TestConnect(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := ParseConfig("pool_max_conns=42 pool_min_conns=1 pool_max_conn_lifetime=30s pool_max_conn_idle_time=31s pool_health_check_period=32s")
+	config, err := ParseConfig(`pool_max_conns=42
+								pool_min_conns=1
+								pool_max_conn_lifetime=30s
+								pool_max_conn_idle_time=31s
+								pool_health_check_period=32s`)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
 	assert.EqualValues(t, 42, config.MaxConns)
-	assert.EqualValues(t, time.Duration(time.Second*30), config.MaxConnLifetime)
-	assert.EqualValues(t, time.Duration(time.Second*31), config.MaxConnIdleTime)
-	assert.EqualValues(t, time.Duration(time.Second*32), config.HealthCheckPeriod)
+	assert.EqualValues(t, time.Second*30, config.MaxConnLifetime)
+	assert.EqualValues(t, time.Second*31, config.MaxConnIdleTime)
+	assert.EqualValues(t, time.Second*32, config.HealthCheckPeriod)
 
 	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conns")
 	assert.NotContains(t, config.Config.RuntimeParams, "pool_min_conns")
 	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conn_lifetime")
 	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conn_idle_time")
 	assert.NotContains(t, config.Config.RuntimeParams, "pool_health_check_period")
-
 }
 
 func TestConnectCancel(t *testing.T) {
@@ -80,7 +83,7 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	config := &Config{}
 
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() {
-		ConnectConfig(context.Background(), config) //nolint:errcheck
+		ConnectConfig(context.Background(), config) //nolint:errcheck not needed
 	})
 }
 
@@ -254,7 +257,7 @@ func TestConnReleaseClosesBusyConn(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 
-	_, err = c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 10;")
+	_, err = c.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 10;", nil, nil)
 	require.NoError(t, err)
 
 	c.Release()
@@ -347,7 +350,7 @@ func TestPoolExecError(t *testing.T) {
 
 	pool.Close()
 
-	results, err := pool.Exec(context.Background(), "SET enable_http_compression=1", nil)
+	results, err := pool.Exec(context.Background(), "SET enable_http_compression=1")
 	if assert.Error(t, err) {
 		assert.Equal(t, "closed pool", err.Error())
 	}
@@ -389,7 +392,7 @@ func TestPoolSelect(t *testing.T) {
 	// more coverage
 
 	assert.EqualValues(t, 3, stats.AcquireCount())
-	assert.GreaterOrEqual(t, int64(time.Duration(time.Second)), int64(stats.AcquireDuration()))
+	assert.GreaterOrEqual(t, int64(time.Second), int64(stats.AcquireDuration()))
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 0, stats.CanceledAcquireCount())
 	assert.EqualValues(t, 0, stats.ConstructingConns())
@@ -423,7 +426,6 @@ func TestPoolSelectError(t *testing.T) {
 	}
 
 	require.Nil(t, stmt)
-
 }
 func TestPoolAcquireSelectError(t *testing.T) {
 	t.Parallel()
@@ -438,11 +440,11 @@ func TestPoolAcquireSelectError(t *testing.T) {
 
 	// Test expected pool behavior
 	conn, err := pool.Acquire(context.Background())
+	require.NoError(t, err)
 	conn.Conn().RawConn().Close()
-	_, err = conn.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
+	_, err = conn.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", nil, nil)
 	conn.Release()
 	require.Error(t, err)
-
 }
 
 func TestPoolInsert(t *testing.T) {
@@ -452,12 +454,12 @@ func TestPoolInsert(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	res, err := pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`, nil)
+	res, err := pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = pool.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_pool (
 				int8  Int8
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -540,7 +542,7 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	pid := c.Conn().RawConn().LocalAddr().String()
 
-	stmt, err := c.Select(ctx, "SELECT * FROM system.numbers2 LIMIT 5;")
+	stmt, err := c.SelectCallback(ctx, "SELECT * FROM system.numbers2 LIMIT 5;", nil, nil)
 	assert.NoError(t, err)
 	assert.False(t, stmt.Next())
 	assert.Error(t, stmt.Err())

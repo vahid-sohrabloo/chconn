@@ -11,8 +11,13 @@ import (
 // Conn is an acquired *pgx.Conn from a Pool.
 type Conn interface {
 	Release()
-	Exec(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error)
-	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
+	ExecCallback(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error)
+	SelectCallback(
+		ctx context.Context,
+		query string,
+		onProgress func(*chconn.Progress),
+		onProfile func(*chconn.Profile),
+	) (chconn.SelectStmt, error)
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
 	Conn() chconn.Conn
 }
@@ -51,11 +56,16 @@ func (c *conn) Release() {
 	}()
 }
 
-func (c *conn) Exec(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error) {
-	return c.Conn().Exec(ctx, query, onProgress)
+func (c *conn) ExecCallback(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error) {
+	return c.Conn().ExecCallback(ctx, query, onProgress)
 }
-func (c *conn) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
-	s, err := c.Conn().Select(ctx, query)
+func (c *conn) SelectCallback(
+	ctx context.Context,
+	query string,
+	onProgress func(*chconn.Progress),
+	onProfile func(*chconn.Profile),
+) (chconn.SelectStmt, error) {
+	s, err := c.Conn().SelectCallback(ctx, query, onProgress, onProfile)
 	if err != nil {
 		return nil, err
 	}

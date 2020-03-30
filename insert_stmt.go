@@ -207,7 +207,6 @@ func (s *insertStmt) Date(bufferIndex int, value time.Time) {
 }
 
 func (s *insertStmt) DateTime(bufferIndex int, value time.Time) {
-
 	s.block.ColumnsBuffer[bufferIndex].Uint32(uint32(value.Unix()))
 }
 

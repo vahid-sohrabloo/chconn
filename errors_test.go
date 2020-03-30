@@ -54,13 +54,12 @@ func TestChErrorReadError(t *testing.T) {
 
 			c, err := ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			_, err = c.Exec(context.Background(), "SELECT * FROM invalid_table LIMIT 5;", nil)
+			_, err = c.Exec(context.Background(), "SELECT * FROM invalid_table LIMIT 5;")
 			require.Error(t, err)
 			readErr, ok := err.(*readError)
 			require.True(t, ok)
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
-
 		})
 	}
 }

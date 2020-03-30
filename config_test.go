@@ -639,7 +639,7 @@ func TestParseConfigError(t *testing.T) {
 		{
 			name:       "invalid url",
 			connString: "clickhouse://invalid\t",
-			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)",
+			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)", //nolint:lll not needed
 		}, {
 			name:       "invalid port",
 			connString: "port=invalid",
@@ -663,19 +663,19 @@ func TestParseConfigError(t *testing.T) {
 		}, {
 			name:       "fail load sslrootcert",
 			connString: "sslrootcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)",
+			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)", //nolint:lll not needed
 		}, {
 			name:       "invalid sslrootcert",
 			connString: "sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer",
-			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)",
+			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)", //nolint:lll not needed
 		}, {
 			name:       "not provide both sslcert and sskkey",
 			connString: "sslcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)",
+			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)", //nolint:lll not needed
 		}, {
 			name:       "invalid sslcert",
 			connString: "sslcert=invalid_address sslkey=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)",
+			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)", //nolint:lll not needed
 		},
 	}
 
@@ -693,6 +693,5 @@ func TestParseConfigError(t *testing.T) {
 				continue
 			}
 		}
-
 	}
 }

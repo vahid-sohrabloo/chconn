@@ -390,6 +390,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
+//nolint:funlen no way to decrease func len
 func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	host := settings["host"]
 	sslmode := settings["sslmode"]
@@ -397,19 +398,52 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	sslcert := settings["sslcert"]
 	sslkey := settings["sslkey"]
 
-	if sslmode == "" {
-		sslmode = "disable"
+	if sslmode == "" || sslmode == "disable" {
+		return []*tls.Config{nil}, nil
 	}
 
 	tlsConfig := &tls.Config{}
 
+	if sslrootcert != "" {
+		caCertPool := x509.NewCertPool()
+
+		caPath := sslrootcert
+		caCert, err := ioutil.ReadFile(caPath)
+		if err != nil {
+			return nil, errors.Errorf("unable to read CA file: %w", err)
+		}
+
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, errors.New("unable to add CA to cert pool")
+		}
+
+		tlsConfig.RootCAs = caCertPool
+		tlsConfig.ClientCAs = caCertPool
+	}
+
+	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
+		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
+	}
+
+	if sslcert != "" && sslkey != "" {
+		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
+		if err != nil {
+			return nil, errors.Errorf("unable to read cert: %w", err)
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	switch sslmode {
-	case "disable":
-		return []*tls.Config{nil}, nil
-	case "allow", "prefer":
+	case "allow":
 		tlsConfig.InsecureSkipVerify = true
+		return []*tls.Config{nil, tlsConfig}, nil
+	case "prefer":
+		tlsConfig.InsecureSkipVerify = true
+		return []*tls.Config{tlsConfig, nil}, nil
 	case "require":
 		tlsConfig.InsecureSkipVerify = sslrootcert == ""
+		return []*tls.Config{tlsConfig}, nil
 	case "verify-ca":
 		// Don't perform the default certificate verification because it
 		// will verify the hostname. Instead, verify the server's
@@ -444,52 +478,13 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 			_, err := certs[0].Verify(opts)
 			return err
 		}
+		return []*tls.Config{tlsConfig}, nil
 	case "verify-full":
 		tlsConfig.ServerName = host
-	default:
-		return nil, errors.New("sslmode is invalid")
-	}
-
-	if sslrootcert != "" {
-		caCertPool := x509.NewCertPool()
-
-		caPath := sslrootcert
-		caCert, err := ioutil.ReadFile(caPath)
-		if err != nil {
-			return nil, errors.Errorf("unable to read CA file: %w", err)
-		}
-
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("unable to add CA to cert pool")
-		}
-
-		tlsConfig.RootCAs = caCertPool
-		tlsConfig.ClientCAs = caCertPool
-	}
-
-	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
-	}
-
-	if sslcert != "" && sslkey != "" {
-		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
-		if err != nil {
-			return nil, errors.Errorf("unable to read cert: %w", err)
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	switch sslmode {
-	case "allow":
-		return []*tls.Config{nil, tlsConfig}, nil
-	case "prefer":
-		return []*tls.Config{tlsConfig, nil}, nil
-	case "require", "verify-ca", "verify-full":
 		return []*tls.Config{tlsConfig}, nil
-	default:
-		panic("BUG: bad sslmode should already have been caught")
 	}
+
+	return nil, errors.New("sslmode is invalid")
 }
 
 func parsePort(s string) (uint16, error) {

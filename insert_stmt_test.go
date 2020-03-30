@@ -27,6 +27,7 @@ func TestInsertError(t *testing.T) {
 	c.(*conn).status = connStatusUninitialized
 	res, err := c.Insert(context.Background(), "insert into system.numbers VALUES")
 	require.Nil(t, res)
+	require.EqualError(t, err, "conn uninitialized")
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 	c.Close(context.Background())
 
@@ -64,11 +65,11 @@ func TestInsertError(t *testing.T) {
 	// test read column error
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error`, nil)
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error`)
 	require.NoError(t, err)
 	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_error (
 				int8  Int8
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 
@@ -86,7 +87,6 @@ func TestInsertError(t *testing.T) {
 			) VALUES`)
 	require.EqualError(t, err, "block: read column name (timeout)")
 	require.Nil(t, res)
-
 }
 
 func TestInsertWriteFlushError(t *testing.T) {
@@ -123,11 +123,12 @@ func TestInsertWriteFlushError(t *testing.T) {
 			c, err := ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
 
-			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`, nil)
+			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`)
 			require.NoError(t, err)
 			_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_write_error (
 				int8  Int8
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
+			require.NoError(t, err)
 
 			c.Close(context.Background())
 
@@ -152,7 +153,6 @@ func TestInsertWriteFlushError(t *testing.T) {
 			require.Equal(t, writeErr.msg, tt.wantErr)
 			require.EqualError(t, writeErr.Unwrap(), "timeout")
 			c.Close(context.Background())
-
 		})
 	}
 }
@@ -187,11 +187,12 @@ func TestInsertReadFlushError(t *testing.T) {
 			c, err := ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
 
-			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`, nil)
+			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`)
 			require.NoError(t, err)
 			_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_write_error (
 				int8  Int8
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
+			require.NoError(t, err)
 
 			c.Close(context.Background())
 
@@ -216,13 +217,11 @@ func TestInsertReadFlushError(t *testing.T) {
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
 			c.Close(context.Background())
-
 		})
 	}
 }
 
 func TestInsertIPError(t *testing.T) {
-
 	stmt := &insertStmt{
 		block:      nil,
 		conn:       nil,
@@ -237,5 +236,4 @@ func TestInsertIPError(t *testing.T) {
 	assert.EqualError(t, stmt.IPv6(0, invalidIP), "invalid ipv6")
 	assert.EqualError(t, stmt.IPv4P(0, &invalidIP), "invalid ipv4")
 	assert.EqualError(t, stmt.IPv6P(0, &invalidIP), "invalid ipv6")
-
 }

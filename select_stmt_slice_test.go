@@ -24,7 +24,7 @@ func TestSelectSlice(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_slice (
@@ -50,7 +50,7 @@ func TestSelectSlice(t *testing.T) {
 				tuple Tuple(UInt8, String),
 				ipv4  IPv4,
 				ipv6  IPv6
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -191,7 +191,7 @@ func TestSelectSlice(t *testing.T) {
 	err = insertStmt.Commit(context.Background())
 	require.NoError(t, err)
 
-	selectStmt, err := conn.Select(context.Background(), `SELECT 
+	selectStmt, err := conn.SelectCallback(context.Background(), `SELECT 
 				int8,
 				int16,
 				int32,
@@ -214,7 +214,7 @@ func TestSelectSlice(t *testing.T) {
 				tuple,
 				ipv4,
 				ipv6
-	 FROM clickhouse_test_insert_slice`)
+	 FROM clickhouse_test_insert_slice`, func(*Progress) {}, func(*Profile) {})
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16
@@ -405,7 +405,7 @@ func TestSelectSliceReadError(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice_read_error`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_slice_read_error`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_slice_read_error (
@@ -430,7 +430,7 @@ func TestSelectSliceReadError(t *testing.T) {
 				ipv4  IPv4,
 				ipv6  IPv6,
 				array Array(Int8)
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -493,7 +493,7 @@ func TestSelectSliceReadError(t *testing.T) {
 		err = insertStmt.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 
-		//array
+		// array
 		insertStmt.AddLen(20, 2)
 		insertStmt.Int8(21, 1)
 		insertStmt.Int8(21, 2)
@@ -684,10 +684,9 @@ func TestSelectSliceReadError(t *testing.T) {
 			assert.True(t, selectStmt.Next())
 			require.NoError(t, selectStmt.Err())
 			_, err = selectStmt.NextColumn()
+			require.Error(t, err)
 			err = tt.readFunc(selectStmt)
 			require.EqualError(t, err, tt.wantErr)
-
 		})
 	}
-
 }

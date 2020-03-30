@@ -18,11 +18,11 @@ func waitForReleaseToComplete() {
 }
 
 type execer interface {
-	Exec(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
+	Exec(ctx context.Context, sql string) (interface{}, error)
 }
 
 func testExec(t *testing.T, db execer) {
-	results, err := db.Exec(context.Background(), "SET enable_http_compression=1", nil)
+	results, err := db.Exec(context.Background(), "SET enable_http_compression=1")
 	require.NoError(t, err)
 	assert.EqualValues(t, nil, results)
 }

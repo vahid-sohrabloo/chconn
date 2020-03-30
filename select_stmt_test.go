@@ -31,10 +31,10 @@ func TestSelectError(t *testing.T) {
 	c.(*conn).status = connStatusUninitialized
 	res, err := c.Select(context.Background(), "select * from system.numbers limit 5")
 	require.Nil(t, res)
+	require.EqualError(t, err, "conn uninitialized")
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 	c.Close(context.Background())
 
-	//test
 	config.WriterFunc = func(w io.Writer) io.Writer {
 		return &writerErrorHelper{
 			err:         errors.New("timeout"),
@@ -57,7 +57,7 @@ func TestSelect(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert (
@@ -83,7 +83,7 @@ func TestSelect(t *testing.T) {
 				tuple Tuple(UInt8, String),
 				ipv4  IPv4,
 				ipv6  IPv6
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -315,6 +315,7 @@ func TestSelect(t *testing.T) {
 		}
 
 		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
 		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
 			val, err := selectStmt.Uint16()
 			require.NoError(t, err)
@@ -500,7 +501,7 @@ func TestSelectReadError(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_read_error`, nil)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_read_error`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_read_error (
@@ -524,7 +525,7 @@ func TestSelectReadError(t *testing.T) {
 				uuid UUID,
 				ipv4  IPv4,
 				ipv6  IPv6
-			) Engine=Memory`, nil)
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -764,10 +765,9 @@ func TestSelectReadError(t *testing.T) {
 			assert.True(t, selectStmt.Next())
 			require.NoError(t, selectStmt.Err())
 			_, err = selectStmt.NextColumn()
+			require.Error(t, err)
 			_, err = tt.readFunc(selectStmt)
 			require.EqualError(t, err, tt.wantErr)
-
 		})
 	}
-
 }

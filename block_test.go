@@ -36,7 +36,7 @@ func TestBlockReadError(t *testing.T) {
 			wantErr:     "block: read bucketNum",
 			numberValid: startValidReader + 3,
 		}, {
-			// beacuse varint need two read
+			// because varint need two read
 			name:        "block: read num3",
 			wantErr:     "block: read num3",
 			numberValid: startValidReader + 4,
@@ -85,7 +85,6 @@ func TestBlockReadError(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
-
 		})
 	}
 }

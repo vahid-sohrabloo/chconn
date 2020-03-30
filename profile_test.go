@@ -70,7 +70,6 @@ func TestProfileReadError(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
-
 		})
 	}
 }

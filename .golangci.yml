@@ -18,7 +18,6 @@ linters-settings:
       - dupImport # https://github.com/go-critic/go-critic/issues/845
       - ifElseChain
       - octalLiteral
-      - whyNoLint
       - wrapperFunc
   gocyclo:
     min-complexity: 15
@@ -88,7 +87,9 @@ issues:
       linters:
         - gomnd
         - gosec
+        - scopelint
         - funlen
+        - dupl
 
 run:
   skip-dirs:

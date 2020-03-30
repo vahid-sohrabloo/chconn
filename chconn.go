@@ -102,9 +102,11 @@ type Conn interface {
 	IsBusy() bool
 	ServerInfo() ServerInfo
 	Ping(ctx context.Context) error
-	Exec(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error)
+	Exec(ctx context.Context, query string) (interface{}, error)
+	ExecCallback(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error)
 	Insert(ctx context.Context, query string) (InsertStmt, error)
 	Select(ctx context.Context, query string) (SelectStmt, error)
+	SelectCallback(ctx context.Context, query string, onProgress func(*Progress), onProfile func(*Profile)) (SelectStmt, error)
 }
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
@@ -231,8 +233,12 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.status = connStatusConnecting
 	c.contextWatcher = ctxwatch.NewContextWatcher(
-		func() { c.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
-		func() { c.conn.SetDeadline(time.Time{}) },
+		func() {
+			c.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) //nolint:errcheck not need
+		},
+		func() {
+			c.conn.SetDeadline(time.Time{}) //nolint:errcheck not need
+		},
 	)
 
 	c.contextWatcher.Watch(ctx)
@@ -322,9 +328,9 @@ func (ch *conn) unlock() {
 }
 
 func (ch *conn) sendQueryWithOption(
-	ctx context.Context, //nolint:unparam
+	ctx context.Context, //nolint:unparam may be used later
 	query,
-	queryID string, //nolint:unparam
+	queryID string, //nolint:unparam may be used later
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -373,8 +379,8 @@ func (ch *conn) Close(ctx context.Context) error {
 }
 
 func (ch *conn) readTableColumn() {
-	ch.reader.String() //nolint:errcheck
-	ch.reader.String() //nolint:errcheck
+	ch.reader.String() //nolint:errcheck not needed
+	ch.reader.String() //nolint:errcheck not needed
 }
 func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
@@ -419,14 +425,18 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 
 		return ch.reciveAndProccessData(onProgress)
 	}
-	return errors.New("packet not implimented"), nil
+	return errors.New("packet not implemented"), nil
 }
 
 var emptyOnProgress = func(*Progress) {
 
 }
 
-func (ch *conn) Exec(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
+	return ch.ExecCallback(ctx, query, nil)
+}
+
+func (ch *conn) ExecCallback(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -487,6 +497,16 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 
 // Select send query for select and prepare SelectStmt
 func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
+	return ch.SelectCallback(ctx, query, nil, nil)
+}
+
+// Select send query for select and prepare SelectStmt on register  on progress and on profile callback
+func (ch *conn) SelectCallback(
+	ctx context.Context,
+	query string,
+	onProgress func(*Progress),
+	onProfile func(*Profile),
+) (SelectStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -502,6 +522,8 @@ func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
 	return &selectStmt{
 		conn:       ch,
 		query:      query,
+		onProgress: onProgress,
+		onProfile:  onProfile,
 		queryID:    "",
 		settings:   nil,
 		clientInfo: nil,
