@@ -151,6 +151,11 @@ func TestTlsPreferConnect(t *testing.T) {
 
 	connString := os.Getenv("CHX_TEST_TCP_TLS_CONN_STRING")
 
+	if connString == "" {
+		t.Skip("please set CHX_TEST_TCP_TLS_CONN_STRING env")
+		return
+	}
+
 	conn, err := Connect(context.Background(), connString)
 
 	require.NoError(t, err)

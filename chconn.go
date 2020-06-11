@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -425,7 +426,7 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 
 		return ch.reciveAndProccessData(onProgress)
 	}
-	return errors.New("packet not implemented"), nil
+	return fmt.Errorf("packet not implemented: %d", packet), nil
 }
 
 var emptyOnProgress = func(*Progress) {

@@ -176,7 +176,7 @@ func TestInsertReadFlushError(t *testing.T) {
 		}, {
 			name:        "write block info",
 			wantErr:     "block: read column name",
-			numberValid: startValid + 16,
+			numberValid: startValid + 14,
 		},
 	}
 	for _, tt := range tests {

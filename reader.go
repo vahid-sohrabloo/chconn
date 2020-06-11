@@ -71,21 +71,22 @@ func (r *Reader) Uint8() (uint8, error) {
 }
 
 func (r *Reader) Uint16() (uint16, error) {
-	if _, err := r.input.Read(r.scratch[:2]); err != nil {
+	if _, err := io.ReadFull(r.input, r.scratch[:2]); err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint16(r.scratch[:2]), nil
 }
 
 func (r *Reader) Uint32() (uint32, error) {
-	if _, err := r.input.Read(r.scratch[:4]); err != nil {
+	if _, err := io.ReadFull(r.input, r.scratch[:4]); err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint32(r.scratch[:4]), nil
 }
 
 func (r *Reader) Uint64() (uint64, error) {
-	if _, err := r.input.Read(r.scratch[:8]); err != nil {
+
+	if _, err := io.ReadFull(r.input, r.scratch[:8]); err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint64(r.scratch[:8]), nil
@@ -109,7 +110,8 @@ func (r *Reader) Float64() (float64, error) {
 
 func (r *Reader) FixedString(strlen int) ([]byte, error) {
 	buf := make([]byte, strlen)
-	_, err := r.Read(buf)
+
+	_, err := io.ReadFull(r, buf)
 	return buf, err
 }
 
@@ -141,7 +143,7 @@ func (r *Reader) ReadByte() (byte, error) {
 }
 
 func (r *Reader) Read(buf []byte) (int, error) {
-	return r.input.Read(buf)
+	return io.ReadFull(r.input, buf)
 }
 
 func (r *Reader) Len() (arrayLen int, lastOffset uint64, err error) {
