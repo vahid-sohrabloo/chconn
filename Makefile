@@ -1,14 +1,18 @@
 # A Self-Documenting Makefile: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 
-OS = $(shell uname)
-
-# Project variables
+OS = $(shell uname | tr A-Z a-z)
+export PATH := $(abspath bin/):${PATH}
 
 # Build variables
 BUILD_DIR ?= build
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git symbolic-ref -q --short HEAD)
 COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
-BUILD_DATE ?= $(shell date +%FT%T%z)
+DATE_FMT = +%FT%T%z
+ifdef SOURCE_DATE_EPOCH
+    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
+else
+    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
+endif
 LDFLAGS += -X main.version=${VERSION} -X main.commitHash=${COMMIT_HASH} -X main.buildDate=${BUILD_DATE}
 export CGO_ENABLED ?= 1
 ifeq (${VERBOSE}, 1)
@@ -18,23 +22,93 @@ endif
 TEST_FORMAT = short-verbose
 endif
 
-# Docker variables
-DOCKER_TAG ?= ${VERSION}
+# Project variables
 
 # Dependency versions
-GOTESTSUM_VERSION = 0.4.1
-GOLANGCI_VERSION = 1.23.8
+GOTESTSUM_VERSION = 0.5.1
+GOLANGCI_VERSION = 1.28.3
+BUF_VERSION = 0.11.0
 
-GOLANG_VERSION = 1.13
+GOLANG_VERSION = 1.14
 
 # Add the ability to override some variables
 # Use with care
 -include override.mk
 
+.PHONY: up
+up: start config.toml ## Set up the development environment
+
+.PHONY: down
+down: clear ## Destroy the development environment
+	docker-compose down --volumes --remove-orphans --rmi local
+	rm -rf var/docker/volumes/*
+
+.PHONY: reset
+reset: down up ## Reset the development environment
+
+.PHONY: clear
+clear: ## Clear the working area and the project
+	rm -rf bin/
+
+docker-compose.override.yml:
+	cp docker-compose.override.yml.dist docker-compose.override.yml
+
+.PHONY: start
+start: docker-compose.override.yml ## Start docker development environment
+	@ if [ docker-compose.override.yml -ot docker-compose.override.yml.dist ]; then diff -u docker-compose.override.yml docker-compose.override.yml.dist || (echo "!!! The distributed docker-compose.override.yml example changed. Please update your file accordingly (or at least touch it). !!!" && false); fi
+	docker-compose up -d
+
+.PHONY: stop
+stop: ## Stop docker development environment
+	docker-compose stop
+
+config.toml:
+	sed 's/production/development/g; s/debug = false/debug = true/g; s/shutdownTimeout = "15s"/shutdownTimeout = "0s"/g; s/format = "json"/format = "logfmt"/g; s/level = "info"/level = "debug"/g; s/addr = ":10000"/addr = "127.0.0.1:10000"/g; s/httpAddr = ":8000"/httpAddr = "127.0.0.1:8000"/g; s/grpcAddr = ":8001"/grpcAddr = "127.0.0.1:8001"/g' config.toml.dist > config.toml
+
+.PHONY: run-%
+run-%: build-%
+	${BUILD_DIR}/$*
+
+.PHONY: run
+run: $(patsubst cmd/%,run-%,$(wildcard cmd/*)) ## Build and execute a binary
 
 .PHONY: clean
 clean: ## Clean builds
 	rm -rf ${BUILD_DIR}/
+	rm -rf cmd/*/pkged.go
+
+.PHONY: goversion
+goversion:
+ifneq (${IGNORE_GOLANG_VERSION_REQ}, 1)
+	@printf "${GOLANG_VERSION}\n$$(go version | awk '{sub(/^go/, "", $$3);print $$3}')" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -g | head -1 | grep -q -E "^${GOLANG_VERSION}$$" || (printf "Required Go version is ${GOLANG_VERSION}\nInstalled: `go version`" && exit 1)
+endif
+
+.PHONY: build-%
+build-%: goversion
+ifeq (${VERBOSE}, 1)
+	go env
+endif
+
+	go build ${GOARGS} -tags "${GOTAGS}" -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/$* ./cmd/$*
+
+.PHONY: build
+build: goversion ## Build all binaries
+ifeq (${VERBOSE}, 1)
+	go env
+endif
+
+	@mkdir -p ${BUILD_DIR}
+	go build ${GOARGS} -tags "${GOTAGS}" -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/ ./cmd/...
+
+.PHONY: build-release
+build-release:
+	@${MAKE} LDFLAGS="-w ${LDFLAGS}" GOARGS="${GOARGS} -trimpath" BUILD_DIR="${BUILD_DIR}/release" build
+
+.PHONY: build-debug
+build-debug: ## Build all binaries with remote debugging capabilities
+	@${MAKE} GOARGS="${GOARGS} -gcflags \"all=-N -l\"" BUILD_DIR="${BUILD_DIR}/debug" build
+
+
 
 .PHONY: check
 check: test-all lint ## Run tests and linters
@@ -43,12 +117,7 @@ bin/gotestsum: bin/gotestsum-${GOTESTSUM_VERSION}
 	@ln -sf gotestsum-${GOTESTSUM_VERSION} bin/gotestsum
 bin/gotestsum-${GOTESTSUM_VERSION}:
 	@mkdir -p bin
-ifeq (${OS}, Darwin)
-	curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_darwin_amd64.tar.gz | tar -zOxf - gotestsum > ./bin/gotestsum-${GOTESTSUM_VERSION} && chmod +x ./bin/gotestsum-${GOTESTSUM_VERSION}
-endif
-ifeq (${OS}, Linux)
-	curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz | tar -zOxf - gotestsum > ./bin/gotestsum-${GOTESTSUM_VERSION} && chmod +x ./bin/gotestsum-${GOTESTSUM_VERSION}
-endif
+	curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_${OS}_amd64.tar.gz | tar -zOxf - gotestsum > ./bin/gotestsum-${GOTESTSUM_VERSION} && chmod +x ./bin/gotestsum-${GOTESTSUM_VERSION}
 
 TEST_PKGS ?= ./...
 TEST_REPORT_NAME ?= results.xml
@@ -58,7 +127,7 @@ test: TEST_FORMAT ?= standard-quiet
 test: SHELL = /bin/bash
 test: bin/gotestsum ## Run tests
 	@mkdir -p ${BUILD_DIR}/test_results/${TEST_REPORT}
-	bin/gotestsum --no-summary=skipped --junitfile ${BUILD_DIR}/test_results/${TEST_REPORT}/${TEST_REPORT_NAME} --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	bin/gotestsum --no-summary=skipped --junitfile ${BUILD_DIR}/test_results/${TEST_REPORT}/${TEST_REPORT_NAME} --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
 	@go tool cover -func=coverage.out
 	@rm coverage.out
 
@@ -66,9 +135,7 @@ test: bin/gotestsum ## Run tests
 
 .PHONY: test-all
 test-all: ## Run all tests
-	@${MAKE} GOARGS="${GOARGS} -run .\* -race" TEST_REPORT=all test
-
-
+	@${MAKE} GOARGS="${GOARGS} -run .\* " TEST_REPORT=all test
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
@@ -91,16 +158,8 @@ lint: bin/golangci-lint ## Run linter
 lint-fix: bin/golangci-lint ## Run linter
 	bin/golangci-lint run --deadline=20m --concurrency 1 --fix
 
-bin/gobin: bin/gobin-${GOBIN_VERSION}
-	@ln -sf gobin-${GOBIN_VERSION} bin/gobin
-bin/gobin-${GOBIN_VERSION}:
-	@mkdir -p bin
-ifeq (${OS}, Darwin)
-	curl -L https://github.com/myitcv/gobin/releases/download/v${GOBIN_VERSION}/darwin-amd64 > ./bin/gobin-${GOBIN_VERSION} && chmod +x ./bin/gobin-${GOBIN_VERSION}
-endif
-ifeq (${OS}, Linux)
-	curl -L https://github.com/myitcv/gobin/releases/download/v${GOBIN_VERSION}/linux-amd64 > ./bin/gobin-${GOBIN_VERSION} && chmod +x ./bin/gobin-${GOBIN_VERSION}
-endif
+
+
 
 release-%: TAG_PREFIX = v
 release-%:

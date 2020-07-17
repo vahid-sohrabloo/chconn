@@ -59,6 +59,7 @@ type InsertStmt interface {
 	UUIDP(bufferIndex int, value *[16]byte)
 	IPv4P(bufferIndex int, value *net.IP) error
 	IPv6P(bufferIndex int, value *net.IP) error
+	AddStringLowCardinality(bufferIndex int, value string)
 	AddRow(num uint64)
 }
 type insertStmt struct {
@@ -67,7 +68,7 @@ type insertStmt struct {
 	query      string
 	queryID    string
 	stage      QueryProcessingStage
-	settings   []byte
+	settings   *Settings
 	clientInfo *ClientInfo
 }
 
@@ -77,7 +78,7 @@ func (s *insertStmt) commit() error {
 		return err
 	}
 
-	err = s.conn.sendData(newBlock())
+	err = s.conn.sendData(newBlock(s.settings))
 
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 		return err
 	}
 
-	err = s.conn.sendQueryWithOption(ctx, s.query, "")
+	err = s.conn.sendQueryWithOption(ctx, s.query, "", s.settings)
 	if err != nil {
 		return err
 	}
@@ -129,6 +130,9 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 		// write header
 		s.block.ColumnsBuffer[column.BufferIndex].String(column.Name)
 		s.block.ColumnsBuffer[column.BufferIndex].String(column.ChType)
+		if column.HasVersion {
+			s.block.ColumnsBuffer[column.BufferIndex].Int64(1)
+		}
 	}
 
 	return nil
@@ -462,6 +466,10 @@ func (s *insertStmt) IPv6P(bufferIndex int, value *net.IP) error {
 	s.block.ColumnsBuffer[bufferIndex].Uint8(0)
 	s.block.ColumnsBuffer[bufferIndex+1].Write(*value)
 	return nil
+}
+
+func (s *insertStmt) AddStringLowCardinality(bufferIndex int, value string) {
+	s.block.ColumnsBuffer[bufferIndex].AddStringLowCardinality(value)
 }
 
 func (s *insertStmt) AddRow(num uint64) {

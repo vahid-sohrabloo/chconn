@@ -389,3 +389,68 @@ func (s *selectStmt) IPv6All(value *[]net.IP) error {
 func (s *selectStmt) LenAll(value *[]int) (uint64, error) {
 	return s.LenS(s.block.NumRows, value)
 }
+
+//nolint:gocyclo // fix it later
+func (s *selectStmt) LowCardinalityString(values *[]string) error {
+	serializationType, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+	intType := serializationType & 0xf
+
+	dictionarySize, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+
+	dictionary := make([]string, 0, dictionarySize)
+	err = s.StringS(dictionarySize, &dictionary)
+	if err != nil {
+		return err
+	}
+
+	indicesSize, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+
+	switch intType {
+	case 0:
+		var val uint8
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint8()
+			if err != nil {
+				return err
+			}
+			*values = append(*values, dictionary[int(val)])
+		}
+	case 1:
+		var val uint16
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint16()
+			if err != nil {
+				return err
+			}
+			*values = append(*values, dictionary[int(val)])
+		}
+	case 2:
+		var val uint32
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint32()
+			if err != nil {
+				return err
+			}
+			*values = append(*values, dictionary[int(val)])
+		}
+	case 3:
+		var val uint64
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint64()
+			if err != nil {
+				return err
+			}
+			*values = append(*values, dictionary[int(val)])
+		}
+	}
+	return nil
+}

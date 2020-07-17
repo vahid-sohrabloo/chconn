@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net"
 	"time"
@@ -74,6 +73,18 @@ const (
 	dbmsVersionRevision = 54420
 )
 
+const (
+	// Need to read additional keys.
+	// Additional keys are stored before indexes as value N and N keys
+	// after them.
+	hasAdditionalKeysBit = 1 << 9
+	// Need to update dictionary.
+	// It means that previous granule has different dictionary.
+	needUpdateDictionary = 1 << 10
+
+	serializationType = hasAdditionalKeysBit | needUpdateDictionary
+)
+
 type QueryProcessingStage uint64
 
 const (
@@ -82,7 +93,7 @@ const (
 	QueryProcessingStageComplete QueryProcessingStage = 2
 )
 
-// DialFunc is a function that can be used to connect to a PostgreSQL server.
+// DialFunc is a function that can be used to connect to a ClickHouse server.
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // LookupFunc is a function that can be used to lookup IPs addrs from host.
@@ -104,10 +115,18 @@ type Conn interface {
 	ServerInfo() ServerInfo
 	Ping(ctx context.Context) error
 	Exec(ctx context.Context, query string) (interface{}, error)
-	ExecCallback(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error)
+	ExecWithSetting(ctx context.Context, query string, setting *Settings) (interface{}, error)
+	ExecCallback(ctx context.Context, query string, setting *Settings, onProgress func(*Progress)) (interface{}, error)
 	Insert(ctx context.Context, query string) (InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, setting *Settings) (InsertStmt, error)
 	Select(ctx context.Context, query string) (SelectStmt, error)
-	SelectCallback(ctx context.Context, query string, onProgress func(*Progress), onProfile func(*Profile)) (SelectStmt, error)
+	SelectWithSetting(ctx context.Context, query string, setting *Settings) (SelectStmt, error)
+	SelectCallback(
+		ctx context.Context,
+		query string,
+		setting *Settings,
+		onProgress func(*Progress),
+		onProfile func(*Profile)) (SelectStmt, error)
 }
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
@@ -126,7 +145,7 @@ type conn struct {
 	contextWatcher *ctxwatch.ContextWatcher
 }
 
-// Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
+// Connect establishes a connection to a ClickHouse server using the environment and connString (in URL or DSN format)
 // to provide configuration. See documention for ParseConfig for details. ctx can be used to cancel a connect attempt.
 func Connect(ctx context.Context, connString string) (Conn, error) {
 	config, err := ParseConfig(connString)
@@ -137,18 +156,24 @@ func Connect(ctx context.Context, connString string) (Conn, error) {
 	return ConnectConfig(ctx, config)
 }
 
-// ConnectConfig establishes a connection to a PostgreSQL server using config. config must have been constructed with
+// ConnectConfig establishes a connection to a ClickHouse server using config. config must have been constructed with
 // ParseConfig. ctx can be used to cancel a connect attempt.
 //
 // If config.Fallbacks are present they will sequentially be tried in case of error establishing network connection. An
 // authentication error will terminate the chain of attempts (like libpq:
-// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
+// https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
 // if all attempts fail the last error is returned.
 func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
+	}
+
+	if config.ConnectTimeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, config.ConnectTimeout)
+		defer cancel()
 	}
 
 	// Simplify usage by treating primary config and fallbacks the same.
@@ -235,10 +260,10 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	c.status = connStatusConnecting
 	c.contextWatcher = ctxwatch.NewContextWatcher(
 		func() {
-			c.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) //nolint:errcheck not need
+			c.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) //nolint:errcheck //no need
 		},
 		func() {
-			c.conn.SetDeadline(time.Time{}) //nolint:errcheck not need
+			c.conn.SetDeadline(time.Time{}) //nolint:errcheck //no need
 		},
 	)
 
@@ -329,9 +354,10 @@ func (ch *conn) unlock() {
 }
 
 func (ch *conn) sendQueryWithOption(
-	ctx context.Context, //nolint:unparam may be used later
+	ctx context.Context, //nolint:unparam //maybe use later
 	query,
-	queryID string, //nolint:unparam may be used later
+	queryID string, //nolint:unparam //maybe use later
+	setting *Settings,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -347,6 +373,11 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	// setting
+	if setting != nil {
+		//nolint:errcheck // no need for bytes.Buffer
+		setting.WriteTo(ch.writer.output)
+	}
+
 	ch.writer.String("")
 
 	ch.writer.Uvarint(uint64(QueryProcessingStageComplete))
@@ -356,7 +387,7 @@ func (ch *conn) sendQueryWithOption(
 
 	ch.writer.String(query)
 
-	return ch.sendData(newBlock())
+	return ch.sendData(newBlock(setting))
 }
 
 func (ch *conn) sendData(block *block) error {
@@ -380,8 +411,8 @@ func (ch *conn) Close(ctx context.Context) error {
 }
 
 func (ch *conn) readTableColumn() {
-	ch.reader.String() //nolint:errcheck not needed
-	ch.reader.String() //nolint:errcheck not needed
+	ch.reader.String() //nolint:errcheck //no needed
+	ch.reader.String() //nolint:errcheck //no needed
 }
 func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
@@ -390,24 +421,24 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 	}
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
-		block := newBlock()
-		err := block.read(ch)
+		block := newBlock(nil)
+		err = block.read(ch)
 		return block, err
 	case serverProfileInfo:
 		profile := newProfile()
 
-		err := profile.read(ch)
+		err = profile.read(ch)
 		return profile, err
 	case serverProgress:
 		progress := newProgress()
-		err := progress.read(ch)
+		err = progress.read(ch)
 		if err == nil && onProgress != nil {
 			onProgress(progress)
 			return ch.reciveAndProccessData(onProgress)
 		}
 		return progress, err
 	case serverHello:
-		err := ch.serverInfo.read(ch.reader)
+		err = ch.serverInfo.read(ch.reader)
 		return nil, err
 	case serverPong:
 		return &pong{}, err
@@ -426,7 +457,7 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 
 		return ch.reciveAndProccessData(onProgress)
 	}
-	return fmt.Errorf("packet not implemented: %d", packet), nil
+	return nil, &notImplementedPacket{packet: packet}
 }
 
 var emptyOnProgress = func(*Progress) {
@@ -434,10 +465,19 @@ var emptyOnProgress = func(*Progress) {
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, nil)
+	return ch.ExecCallback(ctx, query, nil, nil)
 }
 
-func (ch *conn) ExecCallback(ctx context.Context, query string, onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) ExecWithSetting(ctx context.Context, query string, setting *Settings) (interface{}, error) {
+	return ch.ExecCallback(ctx, query, setting, nil)
+}
+
+func (ch *conn) ExecCallback(
+	ctx context.Context,
+	query string,
+	setting *Settings,
+	onProgress func(*Progress),
+) (interface{}, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -447,7 +487,7 @@ func (ch *conn) ExecCallback(ctx context.Context, query string, onProgress func(
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "")
+	err = ch.sendQueryWithOption(ctx, query, "", setting)
 	if err != nil {
 		return nil, err
 	}
@@ -460,6 +500,11 @@ func (ch *conn) ExecCallback(ctx context.Context, query string, onProgress func(
 
 // Insert send query for insert and prepare insert stmt
 func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
+	return ch.InsertWithSetting(ctx, query, nil)
+}
+
+// Insert send query for insert and prepare insert stmt with setting option
+func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Settings) (InsertStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -467,7 +512,7 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "")
+	err = ch.sendQueryWithOption(ctx, query, "", setting)
 	if err != nil {
 		return nil, err
 	}
@@ -480,6 +525,7 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 	if !ok {
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
+	block.setting = setting
 
 	err = block.initForInsert(ch)
 	if err != nil {
@@ -491,20 +537,26 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 		query:      query,
 		queryID:    "",
 		stage:      QueryProcessingStageComplete,
-		settings:   nil,
+		settings:   setting,
 		clientInfo: nil,
 	}, nil
 }
 
 // Select send query for select and prepare SelectStmt
 func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, nil, nil)
+	return ch.SelectCallback(ctx, query, nil, nil, nil)
+}
+
+// Select send query for select and prepare SelectStmt with settion option
+func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *Settings) (SelectStmt, error) {
+	return ch.SelectCallback(ctx, query, setting, nil, nil)
 }
 
 // Select send query for select and prepare SelectStmt on register  on progress and on profile callback
 func (ch *conn) SelectCallback(
 	ctx context.Context,
 	query string,
+	setting *Settings,
 	onProgress func(*Progress),
 	onProfile func(*Profile),
 ) (SelectStmt, error) {
@@ -516,7 +568,7 @@ func (ch *conn) SelectCallback(
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "")
+	err = ch.sendQueryWithOption(ctx, query, "", setting)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +578,7 @@ func (ch *conn) SelectCallback(
 		onProgress: onProgress,
 		onProfile:  onProfile,
 		queryID:    "",
-		settings:   nil,
+		setting:    setting,
 		clientInfo: nil,
 	}, nil
 }

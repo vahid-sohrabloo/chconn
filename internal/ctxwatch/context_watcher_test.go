@@ -59,7 +59,7 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
-//nolint:govet for test
+//nolint:govet //for test
 func TestContextWatcherStress(t *testing.T) {
 	var cancelFuncCalls int64
 	var cleanupFuncCalls int64

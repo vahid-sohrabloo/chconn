@@ -32,6 +32,7 @@ type SelectStmt interface {
 	UUID() ([16]byte, error)
 	IPv4() (net.IP, error)
 	IPv6() (net.IP, error)
+
 	Int8S(num uint64, value *[]int8) error
 	Int16S(num uint64, value *[]int16) error
 	Int32S(num uint64, value *[]int32) error
@@ -117,13 +118,13 @@ type SelectStmt interface {
 	IPv6PAll(value *[]*net.IP) error
 	GetNullS(num uint64) ([]uint8, error)
 	GetNullSAll() ([]uint8, error)
+	LowCardinalityString(values *[]string) error
 }
 type selectStmt struct {
 	block       *block
 	conn        *conn
 	query       string
 	queryID     string
-	settings    []byte
 	clientInfo  *ClientInfo
 	onProgress  func(*Progress)
 	onProfile   func(*Profile)
@@ -131,6 +132,7 @@ type selectStmt struct {
 	ProfileInfo *Profile
 	Progress    *Progress
 	nulls       []uint8
+	setting     *Settings
 	closed      bool
 }
 
@@ -152,6 +154,7 @@ func (s *selectStmt) Next() bool {
 			}
 			return s.Next()
 		}
+		block.setting = s.setting
 		s.block = block
 		return true
 	}

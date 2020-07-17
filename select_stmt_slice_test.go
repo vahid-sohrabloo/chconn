@@ -49,7 +49,9 @@ func TestSelectSlice(t *testing.T) {
 				uuid UUID,
 				tuple Tuple(UInt8, String),
 				ipv4  IPv4,
-				ipv6  IPv6
+				ipv6  IPv6,
+				sLowCardinality LowCardinality(String),
+				asLowCardinality Array(LowCardinality(String))
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -77,7 +79,9 @@ func TestSelectSlice(t *testing.T) {
 				uuid,
 				tuple,
 				ipv4,
-				ipv6
+				ipv6,
+				sLowCardinality,
+				asLowCardinality
 			) VALUES`)
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -102,6 +106,8 @@ func TestSelectSlice(t *testing.T) {
 	var uuidInsert [][16]byte
 	var ipv4Insert []net.IP
 	var ipv6Insert []net.IP
+	var sLowCardinalityInsert []string
+	var asLowCardinalityInsert [][]string
 	for i := 1; i <= 10; i++ {
 		insertStmt.AddRow(1)
 		int8Insert = append(int8Insert, int8(-1*i))
@@ -179,13 +185,31 @@ func TestSelectSlice(t *testing.T) {
 		insertStmt.Uint8(21, uint8(1*i))
 		insertStmt.String(22, fmt.Sprintf("string %d", i))
 
-		err := insertStmt.IPv4(23, net.ParseIP("1.2.3.4").To4())
+		err = insertStmt.IPv4(23, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 		ipv4Insert = append(ipv4Insert, net.ParseIP("1.2.3.4").To4())
 
 		err = insertStmt.IPv6(24, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 		ipv6Insert = append(ipv6Insert, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+
+		if i%2 == 0 {
+			insertStmt.AddStringLowCardinality(25, "string 1")
+			sLowCardinalityInsert = append(sLowCardinalityInsert, "string 1")
+		} else {
+			insertStmt.AddStringLowCardinality(25, "string 2")
+			sLowCardinalityInsert = append(sLowCardinalityInsert, "string 2")
+		}
+		arrayString := []string{
+
+			"string 1",
+			"string 2",
+		}
+		insertStmt.AddLen(26, uint64(len(arrayString)))
+		for _, s := range arrayString {
+			insertStmt.AddStringLowCardinality(27, s)
+		}
+		asLowCardinalityInsert = append(asLowCardinalityInsert, arrayString)
 	}
 
 	err = insertStmt.Commit(context.Background())
@@ -213,8 +237,10 @@ func TestSelectSlice(t *testing.T) {
 				uuid,
 				tuple,
 				ipv4,
-				ipv6
-	 FROM clickhouse_test_insert_slice`, func(*Progress) {}, func(*Profile) {})
+				ipv6,
+				sLowCardinality,
+				asLowCardinality
+	 FROM clickhouse_test_insert_slice`, nil, func(*Progress) {}, func(*Profile) {})
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16
@@ -234,6 +260,7 @@ func TestSelectSlice(t *testing.T) {
 	var len2 []int
 	var index1 int
 	var index2 int
+
 	var dateData []time.Time
 	var datetimeData []time.Time
 	var decimal32Data []float64
@@ -243,6 +270,10 @@ func TestSelectSlice(t *testing.T) {
 	var tuple2Data []string
 	var ipv4Data []net.IP
 	var ipv6Data []net.IP
+	var sLowCardinalityData []string
+	// start offset from 1 to better calc in foreach
+	var lenAsLowCardinality []int
+	var asLowCardinalityData [][]string
 
 	require.True(t, conn.IsBusy())
 	defer func() {
@@ -368,6 +399,36 @@ func TestSelectSlice(t *testing.T) {
 		require.NoError(t, err)
 		err = selectStmt.IPv6All(&ipv6Data)
 		require.NoError(t, err)
+
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+		// version
+		_, err = selectStmt.Uint64()
+		require.NoError(t, err)
+		err = selectStmt.LowCardinalityString(&sLowCardinalityData)
+		require.NoError(t, err)
+
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+		// version
+		_, err = selectStmt.Uint64()
+		require.NoError(t, err)
+
+		lenAsLowCardinality = lenAsLowCardinality[:0]
+		lastOffset, err = selectStmt.LenAll(&lenAsLowCardinality)
+		require.NoError(t, err)
+		allAsLowCardinalityData := make([]string, 0, lastOffset)
+		err = selectStmt.LowCardinalityString(&allAsLowCardinalityData)
+		require.NoError(t, err)
+		indexAll := 0
+		for _, l := range lenAsLowCardinality {
+			stringArray := make([]string, l)
+			for index := range stringArray {
+				stringArray[index] = allAsLowCardinalityData[indexAll]
+				indexAll++
+			}
+			asLowCardinalityData = append(asLowCardinalityData, stringArray)
+		}
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -394,6 +455,8 @@ func TestSelectSlice(t *testing.T) {
 	assert.Equal(t, stringInsert, tuple2Data)
 	assert.Equal(t, ipv4Insert, ipv4Data)
 	assert.Equal(t, ipv6Insert, ipv6Data)
+	assert.Equal(t, sLowCardinalityInsert, sLowCardinalityData)
+	assert.Equal(t, asLowCardinalityInsert, asLowCardinalityData)
 	conn.RawConn().Close()
 }
 
@@ -487,7 +550,7 @@ func TestSelectSliceReadError(t *testing.T) {
 
 		insertStmt.UUID(17, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		err := insertStmt.IPv4(18, net.ParseIP("1.2.3.4").To4())
+		err = insertStmt.IPv4(18, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 
 		err = insertStmt.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())

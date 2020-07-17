@@ -10,6 +10,7 @@ type Column struct {
 	Name        string
 	BufferIndex int
 	NumBuffer   int
+	HasVersion  bool
 }
 
 type block struct {
@@ -17,11 +18,14 @@ type block struct {
 	ColumnsBuffer []*Writer
 	NumRows       uint64
 	NumColumns    uint64
+	setting       *Settings
 	info          blockInfo
 }
 
-func newBlock() *block {
-	return &block{}
+func newBlock(setting *Settings) *block {
+	return &block{
+		setting: setting,
+	}
 }
 
 func (block *block) read(ch *conn) error {
@@ -51,11 +55,15 @@ func (block *block) initForInsert(ch *conn) error {
 		if err != nil {
 			return err
 		}
+
 		column.BufferIndex = len(block.ColumnsBuffer)
 		block.appendBuffer(column.ChType, column)
 		// write header
 		block.ColumnsBuffer[column.BufferIndex].String(column.Name)
 		block.ColumnsBuffer[column.BufferIndex].String(column.ChType)
+		if column.HasVersion {
+			block.ColumnsBuffer[column.BufferIndex].Int64(1)
+		}
 		block.Columns[i] = column
 	}
 
@@ -165,6 +173,13 @@ func (block *block) appendBuffer(chType string, column *Column) {
 		return
 	}
 
+	if strings.HasPrefix(chType, "LowCardinality") {
+		column.HasVersion = true
+		// get chtype between `LowCardinality(` and `)`
+		block.appendBuffer(chType[15:len(chType)-1], column)
+		return
+	}
+
 	if strings.HasPrefix(chType, "Array") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
@@ -222,6 +237,9 @@ func (block *block) write(ch *conn) error {
 	var bufferIndex int
 	for _, column := range block.Columns {
 		for i := 0; i < column.NumBuffer; i++ {
+			if block.ColumnsBuffer[bufferIndex].isLowCardinality {
+				block.ColumnsBuffer[bufferIndex].FlushStringLowCardinality()
+			}
 			if _, err := block.ColumnsBuffer[bufferIndex].WriteTo(ch.writerto); err != nil {
 				return &writeError{"block: write block data for column " + column.Name, err}
 			}

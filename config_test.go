@@ -1,12 +1,14 @@
 package chconn
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -141,15 +143,16 @@ var parseConfigTests = []struct {
 	},
 	{
 		name:       "database url everything",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable&client_name=chxtest&extradata=test",
+		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable&client_name=chxtest&extradata=test&connect_timeout=5",
 		config: &Config{
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "localhost",
-			Port:       9000,
-			Database:   "mydb",
-			TLSConfig:  nil,
-			ClientName: "chxtest",
+			User:           "vahid",
+			Password:       "secret",
+			Host:           "localhost",
+			Port:           9000,
+			Database:       "mydb",
+			TLSConfig:      nil,
+			ConnectTimeout: 5 * time.Second,
+			ClientName:     "chxtest",
 			RuntimeParams: map[string]string{
 				"extradata": "test",
 			},
@@ -209,17 +212,57 @@ var parseConfigTests = []struct {
 		},
 	},
 	{
-		name:       "DSN everything",
-		connString: "user=vahid password=secret host=localhost port=9000 dbname=mydb sslmode=disable client_name=chxtest",
+		name:       "database url IPv4 with port",
+		connString: "clickhouse://vahid@127.0.0.1:5433/mydb?sslmode=disable",
 		config: &Config{
 			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
+			Host:          "127.0.0.1",
+			ClientName:    defaultClientName,
+			Port:          5433,
 			Database:      "mydb",
 			TLSConfig:     nil,
-			ClientName:    "chxtest",
 			RuntimeParams: map[string]string{},
+		},
+	},
+	{
+		name:       "database url IPv6 with port",
+		connString: "clickhouse://vahid@[2001:db8::1]:5433/mydb?sslmode=disable",
+		config: &Config{
+			User:          "vahid",
+			Host:          "2001:db8::1",
+			Port:          5433,
+			ClientName:    defaultClientName,
+			Database:      "mydb",
+			TLSConfig:     nil,
+			RuntimeParams: map[string]string{},
+		},
+	},
+	{
+		name:       "database url IPv6 no port",
+		connString: "clickhouse://vahid@[2001:db8::1]/mydb?sslmode=disable",
+		config: &Config{
+			User:          "vahid",
+			Host:          "2001:db8::1",
+			Port:          9000,
+			Database:      "mydb",
+			ClientName:    defaultClientName,
+			TLSConfig:     nil,
+			RuntimeParams: map[string]string{},
+		},
+	},
+	{
+		name:       "DSN everything",
+		connString: "user=vahid password=secret host=localhost port=9000 dbname=mydb sslmode=disable client_name=chxtest connect_timeout=5",
+		config: &Config{
+			User:           "vahid",
+			Password:       "secret",
+			Host:           "localhost",
+			Port:           9000,
+			Database:       "mydb",
+			TLSConfig:      nil,
+			ClientName:     "chxtest",
+			ConnectTimeout: 5 * time.Second,
+			RuntimeParams:  map[string]string{},
 		},
 	},
 	{
@@ -466,6 +509,42 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestConfigCopyReturnsEqualConfig(t *testing.T) {
+	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&search_path=myschema&connect_timeout=5"
+	original, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
+}
+
+func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
+	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&search_path=myschema&connect_timeout=5"
+	original, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
+
+	copied.Port = uint16(5433)
+	copied.RuntimeParams["foo"] = "bar"
+
+	assert.Equal(t, uint16(9000), original.Port)
+	assert.Equal(t, "", original.RuntimeParams["foo"])
+}
+
+func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	original, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assert.NotPanics(t, func() {
+		_, err = ConnectConfig(context.Background(), copied)
+	})
+	assert.NoError(t, err)
+}
+
 func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string) {
 	if !assert.NotNil(t, expected) {
 		return
@@ -479,6 +558,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)
 	assert.Equalf(t, expected.User, actual.User, "%s - User", testName)
 	assert.Equalf(t, expected.Password, actual.Password, "%s - Password", testName)
+	assert.Equalf(t, expected.ConnectTimeout, actual.ConnectTimeout, "%s - ConnectTimeout", testName)
 	assert.Equalf(t, expected.ClientName, actual.ClientName, "%s - Client Name", testName)
 	assert.Equalf(t, expected.RuntimeParams, actual.RuntimeParams, "%s - RuntimeParams", testName)
 
@@ -566,14 +646,15 @@ func TestParseConfigEnv(t *testing.T) {
 				"CHCLIENTNAME":      "chxtest",
 			},
 			config: &Config{
-				Host:          "123.123.123.123",
-				Port:          7777,
-				Database:      "foo",
-				User:          "bar",
-				Password:      "baz",
-				TLSConfig:     nil,
-				ClientName:    "chxtest",
-				RuntimeParams: map[string]string{},
+				Host:           "123.123.123.123",
+				Port:           7777,
+				Database:       "foo",
+				User:           "bar",
+				Password:       "baz",
+				TLSConfig:      nil,
+				ClientName:     "chxtest",
+				ConnectTimeout: 10 * time.Second,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 	}
@@ -583,6 +664,7 @@ func TestParseConfigEnv(t *testing.T) {
 	for _, n := range chEnvvars {
 		savedEnv[n] = os.Getenv(n)
 	}
+
 	defer func() {
 		for k, v := range savedEnv {
 			err := os.Setenv(k, v)
@@ -639,7 +721,7 @@ func TestParseConfigError(t *testing.T) {
 		{
 			name:       "invalid url",
 			connString: "clickhouse://invalid\t",
-			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)", //nolint:lll not needed
+			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)", //nolint:lll //can't change line lengh
 		}, {
 			name:       "invalid port",
 			connString: "port=invalid",
@@ -663,19 +745,19 @@ func TestParseConfigError(t *testing.T) {
 		}, {
 			name:       "fail load sslrootcert",
 			connString: "sslrootcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)", //nolint:lll not needed
+			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)", //nolint:lll //can't change line lengh
 		}, {
 			name:       "invalid sslrootcert",
 			connString: "sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer",
-			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)", //nolint:lll not needed
+			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)", //nolint:lll //can't change line lengh
 		}, {
 			name:       "not provide both sslcert and sskkey",
 			connString: "sslcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)", //nolint:lll not needed
+			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)", //nolint:lll //can't change line lengh
 		}, {
 			name:       "invalid sslcert",
 			connString: "sslcert=invalid_address sslkey=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)", //nolint:lll not needed
+			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)", //nolint:lll //can't change line lengh
 		},
 	}
 

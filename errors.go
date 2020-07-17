@@ -2,6 +2,8 @@ package chconn
 
 import (
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -66,6 +68,14 @@ func (e *unexpectedPacket) Error() string {
 	return fmt.Sprintf("Unexpected packet from server (expected %s got %#v)", e.expected, e.actual)
 }
 
+type notImplementedPacket struct {
+	packet uint64
+}
+
+func (e *notImplementedPacket) Error() string {
+	return fmt.Sprintf("packet not implemented: %d", e.packet)
+}
+
 type connectError struct {
 	config *Config
 	msg    string
@@ -100,7 +110,11 @@ type parseConfigError struct {
 }
 
 func (e *parseConfigError) Error() string {
-	return fmt.Sprintf("cannot parse `%s`: %s (%s)", e.connString, e.msg, e.err.Error())
+	connString := redactPW(e.connString)
+	if e.err == nil {
+		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
+	}
+	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, e.err.Error())
 }
 
 func (e *parseConfigError) Unwrap() error {
@@ -131,4 +145,27 @@ func (e *writeError) Error() string {
 
 func (e *writeError) Unwrap() error {
 	return e.err
+}
+
+func redactPW(connString string) string {
+	if strings.HasPrefix(connString, "clickhouse://") {
+		if u, err := url.Parse(connString); err == nil {
+			return redactURL(u)
+		}
+	}
+	quotedDSN := regexp.MustCompile(`password='[^']*'`)
+	connString = quotedDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	plainDSN := regexp.MustCompile(`password=[^ ]*`)
+	connString = plainDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	return connString
+}
+
+func redactURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	if _, pwSet := u.User.Password(); pwSet {
+		u.User = url.UserPassword(u.User.Username(), "xxxxx")
+	}
+	return u.String()
 }

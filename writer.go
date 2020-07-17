@@ -16,9 +16,13 @@ func NewWriter() *Writer {
 }
 
 type Writer struct {
-	output  *bytes.Buffer
-	offset  uint64
-	scratch [binary.MaxVarintLen64]byte
+	output                *bytes.Buffer
+	offset                uint64
+	isLowCardinality      bool
+	keyStringDictionaryLC map[string]int
+	keyLC                 []int
+	stringDictionaryLC    []string
+	scratch               [binary.MaxVarintLen64]byte
 }
 
 // Uvarint write a uint64 into writer and get error
@@ -94,6 +98,50 @@ func (w *Writer) AddLen(v uint64) {
 	w.Uint64(w.offset)
 }
 
+func (w *Writer) AddStringLowCardinality(v string) {
+	w.isLowCardinality = true
+	if w.keyStringDictionaryLC == nil {
+		w.keyStringDictionaryLC = make(map[string]int)
+	}
+
+	key, ok := w.keyStringDictionaryLC[v]
+	if !ok {
+		key = len(w.keyStringDictionaryLC)
+		w.keyStringDictionaryLC[v] = key
+		w.stringDictionaryLC = append(w.stringDictionaryLC, v)
+	}
+	w.keyLC = append(w.keyLC, key)
+}
+
+func (w *Writer) FlushStringLowCardinality() {
+	intType := int(math.Log2(float64(len(w.stringDictionaryLC))) / 8)
+	stype := serializationType | intType
+	w.Int64(int64(stype))
+	w.Int64(int64(len(w.stringDictionaryLC)))
+	for _, val := range w.stringDictionaryLC {
+		w.String(val)
+	}
+	w.Int64(int64(len(w.keyLC)))
+	switch intType {
+	case 0:
+		for _, val := range w.keyLC {
+			w.Uint8(uint8(val))
+		}
+	case 1:
+		for _, val := range w.keyLC {
+			w.Uint16(uint16(val))
+		}
+	case 2:
+		for _, val := range w.keyLC {
+			w.Uint32(uint32(val))
+		}
+	case 3:
+		for _, val := range w.keyLC {
+			w.Uint64(uint64(val))
+		}
+	}
+}
+
 func (w *Writer) String(v string) {
 	str := str2Bytes(v)
 	w.Uvarint(uint64(len(str)))
@@ -115,6 +163,14 @@ func (w *Writer) WriteTo(wt io.Writer) (int64, error) {
 
 func (w *Writer) Reset() {
 	w.offset = 0
+	if w.stringDictionaryLC != nil {
+		w.stringDictionaryLC = w.stringDictionaryLC[:0]
+	}
+	if w.keyStringDictionaryLC != nil {
+		w.keyStringDictionaryLC = nil
+	}
+
+	w.keyLC = w.keyLC[:0]
 	w.output.Reset()
 }
 

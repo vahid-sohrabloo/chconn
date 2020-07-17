@@ -8,17 +8,22 @@ import (
 	"github.com/vahid-sohrabloo/chconn"
 )
 
-// Conn is an acquired *pgx.Conn from a Pool.
+// Conn is an acquired *chconn.Conn from a Pool.
 type Conn interface {
 	Release()
-	ExecCallback(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error)
+	ExecCallback(
+		ctx context.Context,
+		query string,
+		setting *chconn.Settings,
+		onProgress func(*chconn.Progress)) (interface{}, error)
 	SelectCallback(
 		ctx context.Context,
 		query string,
+		setting *chconn.Settings,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
-	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
 	Conn() chconn.Conn
 }
 type conn struct {
@@ -56,16 +61,21 @@ func (c *conn) Release() {
 	}()
 }
 
-func (c *conn) ExecCallback(ctx context.Context, query string, onProgress func(*chconn.Progress)) (interface{}, error) {
-	return c.Conn().ExecCallback(ctx, query, onProgress)
+func (c *conn) ExecCallback(
+	ctx context.Context,
+	query string,
+	setting *chconn.Settings,
+	onProgress func(*chconn.Progress)) (interface{}, error) {
+	return c.Conn().ExecCallback(ctx, query, setting, onProgress)
 }
 func (c *conn) SelectCallback(
 	ctx context.Context,
 	query string,
+	setting *chconn.Settings,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
-	s, err := c.Conn().SelectCallback(ctx, query, onProgress, onProfile)
+	s, err := c.Conn().SelectCallback(ctx, query, setting, onProgress, onProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +85,8 @@ func (c *conn) SelectCallback(
 	}, nil
 }
 
-func (c *conn) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
-	s, err := c.Conn().Insert(ctx, query)
+func (c *conn) InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error) {
+	s, err := c.Conn().InsertWithSetting(ctx, query, setting)
 	if err != nil {
 		return nil, err
 	}

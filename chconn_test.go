@@ -187,7 +187,7 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	config := &Config{}
 
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() {
-		ConnectConfig(context.Background(), config) //nolint:errcheck not needed
+		ConnectConfig(context.Background(), config)
 	})
 }
 

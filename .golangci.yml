@@ -1,12 +1,14 @@
 linters-settings:
   dupl:
     threshold: 100
+  exhaustive:
+    default-signifies-exhaustive: false
   funlen:
-    lines: 150
+    lines: 130
     statements: 50
   goconst:
-    min-len: 4
-    min-occurrences: 4
+    min-len: 2
+    min-occurrences: 2
   gocritic:
     enabled-tags:
       - diagnostic
@@ -18,6 +20,7 @@ linters-settings:
       - dupImport # https://github.com/go-critic/go-critic/issues/845
       - ifElseChain
       - octalLiteral
+      - whyNoLint
       - wrapperFunc
   gocyclo:
     min-complexity: 15
@@ -25,12 +28,24 @@ linters-settings:
     local-prefixes: github.com/golangci/golangci-lint
   golint:
     min-confidence: 0
+  gomnd:
+    settings:
+      mnd:
+        # don't include the "operation" and "assign"
+        checks: argument,case,condition,return
+  govet:
+    check-shadowing: true
   lll:
     line-length: 140
   maligned:
     suggest-new: true
   misspell:
     locale: US
+  nolintlint:
+    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
+    allow-unused: false # report any unused nolint directives
+    require-explanation: false # don't require an explanation for nolint directives
+    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
@@ -43,10 +58,12 @@ linters:
     - dogsled
     - dupl
     - errcheck
+    - exhaustive
     - funlen
     - gochecknoinits
     - goconst
     - gocritic
+    - gocyclo
     - gofmt
     - goimports
     - golint
@@ -59,6 +76,8 @@ linters:
     - lll
     - misspell
     - nakedret
+    - noctx
+    - nolintlint
     - rowserrcheck
     - scopelint
     - staticcheck
@@ -70,26 +89,35 @@ linters:
     - unused
     - varcheck
     - whitespace
+    - goerr113
 
   # don't enable:
+  # - asciicheck
   # - gochecknoglobals
   # - gocognit
-  # - godox
-  # - gocyclo
-  # - gomnd
-  # - maligned
+  # - gomnd add later
+  # - godot 
+  # - godox add later
+  # - nestif
   # - prealloc
+  # - testpackage
+  # - wsl
+  # - maligned
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
-        - gosec
+        - goconst
         - scopelint
-        - funlen
         - dupl
+        - funlen
+        - gocyclo
+        - gosec
+        - goerr113
+        - maligned
+        - errcheck
 
 run:
   skip-dirs:

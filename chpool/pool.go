@@ -41,15 +41,19 @@ type Pool interface {
 	Acquire(ctx context.Context) (Conn, error)
 	AcquireAllIdle(ctx context.Context) []Conn
 	Exec(ctx context.Context, sql string) (interface{}, error)
-	ExecCallback(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error)
+	ExecWithSetting(ctx context.Context, query string, setting *chconn.Settings) (interface{}, error)
+	ExecCallback(ctx context.Context, sql string, setting *chconn.Settings, onProgress func(*chconn.Progress)) (interface{}, error)
 	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
+	SelectWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.SelectStmt, error)
 	SelectCallback(
 		ctx context.Context,
 		query string,
+		setting *chconn.Settings,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
 	Stat() *Stat
 }
 type pool struct {
@@ -155,8 +159,8 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 		},
 		func(value interface{}) {
 			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				value.(*connResource).conn.Close(ctx)
+				ctxDestructor, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				value.(*connResource).conn.Close(ctxDestructor)
 				cancel()
 			}()
 		},
@@ -176,7 +180,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString. It parses connString with the same behavior as pgx.ParseConfig with the
+// ParseConfig builds a Config from connString. It parses connString with the same behavior as chconn.ParseConfig with the
 // addition of the following variables:
 //
 // pool_max_conns: integer greater than 0
@@ -309,7 +313,7 @@ func (p *pool) checkMinConns() {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
-			p.p.CreateResource(ctx) //nolint:errcheck not needed
+			p.p.CreateResource(ctx) //nolint:errcheck //no needed
 		}()
 	}
 }
@@ -352,24 +356,39 @@ func (p *pool) Stat() *Stat {
 }
 
 func (p *pool) Exec(ctx context.Context, sql string) (interface{}, error) {
-	return p.ExecCallback(ctx, sql, nil)
+	return p.ExecCallback(ctx, sql, nil, nil)
 }
-func (p *pool) ExecCallback(ctx context.Context, sql string, onProgress func(*chconn.Progress)) (interface{}, error) {
+
+func (p *pool) ExecWithSetting(ctx context.Context, sql string, setting *chconn.Settings) (interface{}, error) {
+	return p.ExecCallback(ctx, sql, setting, nil)
+}
+
+func (p *pool) ExecCallback(
+	ctx context.Context,
+	sql string,
+	setting *chconn.Settings,
+	onProgress func(*chconn.Progress)) (interface{}, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Release()
 
-	return c.ExecCallback(ctx, sql, onProgress)
+	return c.ExecCallback(ctx, sql, setting, onProgress)
 }
 
 func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
-	return p.SelectCallback(ctx, query, nil, nil)
+	return p.SelectCallback(ctx, query, nil, nil, nil)
 }
+
+func (p *pool) SelectWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.SelectStmt, error) {
+	return p.SelectCallback(ctx, query, setting, nil, nil)
+}
+
 func (p *pool) SelectCallback(
 	ctx context.Context,
 	query string,
+	setting *chconn.Settings,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
@@ -378,7 +397,7 @@ func (p *pool) SelectCallback(
 		return nil, err
 	}
 
-	s, err := c.SelectCallback(ctx, query, onProgress, onProfile)
+	s, err := c.SelectCallback(ctx, query, setting, onProgress, onProfile)
 	if err != nil {
 		c.Release()
 		return nil, err
@@ -388,12 +407,16 @@ func (p *pool) SelectCallback(
 }
 
 func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
+	return p.InsertWithSetting(ctx, query, nil)
+}
+
+func (p *pool) InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := c.Insert(ctx, query)
+	s, err := c.InsertWithSetting(ctx, query, setting)
 	if err != nil {
 		c.Release()
 		return nil, err

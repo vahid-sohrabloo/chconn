@@ -85,7 +85,6 @@ func (r *Reader) Uint32() (uint32, error) {
 }
 
 func (r *Reader) Uint64() (uint64, error) {
-
 	if _, err := io.ReadFull(r.input, r.scratch[:8]); err != nil {
 		return 0, err
 	}

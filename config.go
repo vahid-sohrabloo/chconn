@@ -27,17 +27,18 @@ type ValidateConnectFunc func(ctx context.Context, conn Conn) error
 // Config is the settings used to establish a connection to a ClickHouse server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host       string // host (e.g. localhost)
-	Port       uint16
-	Database   string
-	User       string
-	Password   string
-	ClientName string      // e.g. net.Resolver.LookupHost
-	TLSConfig  *tls.Config // nil disables TLS
-	DialFunc   DialFunc    // e.g. net.Dialer.DialContext
-	LookupFunc LookupFunc  // e.g. net.Resolver.LookupHost
-	ReaderFunc ReaderFunc  // e.g. bufio.Reader
-	WriterFunc WriterFunc
+	Host           string // host (e.g. localhost)
+	Port           uint16
+	Database       string
+	User           string
+	Password       string
+	ClientName     string      // e.g. net.Resolver.LookupHost
+	TLSConfig      *tls.Config // nil disables TLS
+	DialFunc       DialFunc    // e.g. net.Dialer.DialContext
+	ConnectTimeout time.Duration
+	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
+	ReaderFunc     ReaderFunc // e.g. bufio.Reader
+	WriterFunc     WriterFunc
 	// Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	RuntimeParams map[string]string
 
@@ -53,6 +54,35 @@ type Config struct {
 	AfterConnect AfterConnectFunc
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+}
+
+// Copy returns a deep copy of the config that is safe to use and modify.
+// The only exception is the TLSConfig field:
+// according to the tls.Config docs it must not be modified after creation.
+func (c *Config) Copy() *Config {
+	newConf := new(Config)
+	*newConf = *c
+	if newConf.TLSConfig != nil {
+		newConf.TLSConfig = c.TLSConfig.Clone()
+	}
+	if newConf.RuntimeParams != nil {
+		newConf.RuntimeParams = make(map[string]string, len(c.RuntimeParams))
+		for k, v := range c.RuntimeParams {
+			newConf.RuntimeParams[k] = v
+		}
+	}
+	if newConf.Fallbacks != nil {
+		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
+		for i, fallback := range c.Fallbacks {
+			newFallback := new(FallbackConfig)
+			*newFallback = *fallback
+			if newFallback.TLSConfig != nil {
+				newFallback.TLSConfig = fallback.TLSConfig.Clone()
+			}
+			newConf.Fallbacks[i] = newFallback
+		}
+	}
+	return newConf
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
@@ -100,18 +130,20 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //   CHSSLCERT
 //   CHSSLROOTCERT
 //
-// Important TLS Security Notes:
+// Important Security Notes:
 //
-// ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to "prefer" behavior if
+// ParseConfig tries to match libpq behavior with regard to CHSSLMODE. This includes defaulting to "prefer" behavior if
 // not set.
 //
-// See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
+// See http://www.postgresql.org/docs/12/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
 // security each sslmode provides.
 //
-// "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
-// security guarantees than it would with libpq. Do not rely on this behavior as it
-// may be possible to match libpq in the future. If you need full security use
-// "verify-full".
+// The sslmode "prefer" (the default), sslmode "allow", and multiple hosts are implemented via the Fallbacks field of
+// the Config struct. If TLSConfig is manually changed it will not affect the fallbacks. For example, in the case of
+// sslmode "prefer" this means it will first try the main Config settings which use TLS, then it will try the fallback
+// which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config is manually
+// changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
+// TLCConfig.
 //
 //
 // If a host name resolves into multiple addresses chconn will only try the first.
@@ -148,12 +180,13 @@ func ParseConfig(connString string) (*Config, error) {
 		ClientName:           settings["client_name"],
 	}
 
-	if connectTimeout, present := settings["connect_timeout"]; present {
-		dialFunc, err := makeConnectTimeoutDialFunc(connectTimeout)
+	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
+		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
 			return nil, &parseConfigError{connString: connString, msg: "invalid connect_timeout", err: err}
 		}
-		config.DialFunc = dialFunc
+		config.ConnectTimeout = connectTimeout
+		config.DialFunc = makeConnectTimeoutDialFunc(connectTimeout)
 	} else {
 		defaultDialer := makeDefaultDialer()
 		config.DialFunc = defaultDialer.DialContext
@@ -203,6 +236,7 @@ func ParseConfig(connString string) (*Config, error) {
 		var tlsConfigs []*tls.Config
 
 		tlsConfigs, err = configTLS(settings)
+
 		if err != nil {
 			return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
 		}
@@ -219,6 +253,7 @@ func ParseConfig(connString string) (*Config, error) {
 	config.Host = fallbacks[0].Host
 	config.Port = fallbacks[0].Port
 	config.TLSConfig = fallbacks[0].TLSConfig
+
 	config.Fallbacks = fallbacks[1:]
 
 	return config, nil
@@ -294,13 +329,19 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	var hosts []string
 	var ports []string
 	for _, host := range strings.Split(urlConn.Host, ",") {
-		parts := strings.SplitN(host, ":", 2)
-		if parts[0] != "" {
-			hosts = append(hosts, parts[0])
+		if host == "" {
+			continue
 		}
-		if len(parts) == 2 {
-			ports = append(ports, parts[1])
+		if isIPOnly(host) {
+			hosts = append(hosts, strings.Trim(host, "[]"))
+			continue
 		}
+		h, p, err := net.SplitHostPort(host)
+		if err != nil {
+			return nil, errors.Errorf("failed to split host:port in '%s', err: %w", host, err)
+		}
+		hosts = append(hosts, h)
+		ports = append(ports, p)
 	}
 	if len(hosts) > 0 {
 		settings["host"] = strings.Join(hosts, ",")
@@ -319,6 +360,10 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	return settings, nil
+}
+
+func isIPOnly(host string) bool {
+	return net.ParseIP(strings.Trim(host, "[]")) != nil || !strings.Contains(host, ":")
 }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
@@ -398,52 +443,24 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	sslcert := settings["sslcert"]
 	sslkey := settings["sslkey"]
 
+	// in clickhouse default non tls connection accepted and  tls connection listen on another port
 	if sslmode == "" || sslmode == "disable" {
 		return []*tls.Config{nil}, nil
 	}
 
 	tlsConfig := &tls.Config{}
 
-	if sslrootcert != "" {
-		caCertPool := x509.NewCertPool()
-
-		caPath := sslrootcert
-		caCert, err := ioutil.ReadFile(caPath)
-		if err != nil {
-			return nil, errors.Errorf("unable to read CA file: %w", err)
-		}
-
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("unable to add CA to cert pool")
-		}
-
-		tlsConfig.RootCAs = caCertPool
-		tlsConfig.ClientCAs = caCertPool
-	}
-
-	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
-	}
-
-	if sslcert != "" && sslkey != "" {
-		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
-		if err != nil {
-			return nil, errors.Errorf("unable to read cert: %w", err)
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
 	switch sslmode {
-	case "allow":
+	case "allow", "prefer":
 		tlsConfig.InsecureSkipVerify = true
-		return []*tls.Config{nil, tlsConfig}, nil
-	case "prefer":
-		tlsConfig.InsecureSkipVerify = true
-		return []*tls.Config{tlsConfig, nil}, nil
 	case "require":
-		tlsConfig.InsecureSkipVerify = sslrootcert == ""
-		return []*tls.Config{tlsConfig}, nil
+		if sslrootcert != "" {
+			goto nextCase
+		}
+		tlsConfig.InsecureSkipVerify = true
+		break
+	nextCase:
+		fallthrough
 	case "verify-ca":
 		// Don't perform the default certificate verification because it
 		// will verify the hostname. Instead, verify the server's
@@ -478,13 +495,52 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 			_, err := certs[0].Verify(opts)
 			return err
 		}
-		return []*tls.Config{tlsConfig}, nil
 	case "verify-full":
 		tlsConfig.ServerName = host
-		return []*tls.Config{tlsConfig}, nil
+	default:
+		return nil, errors.New("sslmode is invalid")
 	}
 
-	return nil, errors.New("sslmode is invalid")
+	if sslrootcert != "" {
+		caCertPool := x509.NewCertPool()
+
+		caPath := sslrootcert
+		caCert, err := ioutil.ReadFile(caPath)
+		if err != nil {
+			return nil, errors.Errorf("unable to read CA file: %w", err)
+		}
+
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, errors.New("unable to add CA to cert pool")
+		}
+
+		tlsConfig.RootCAs = caCertPool
+		tlsConfig.ClientCAs = caCertPool
+	}
+
+	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
+		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
+	}
+
+	if sslcert != "" && sslkey != "" {
+		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
+		if err != nil {
+			return nil, errors.Errorf("unable to read cert: %w", err)
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	switch sslmode {
+	case "allow":
+		return []*tls.Config{nil, tlsConfig}, nil
+	case "prefer":
+		return []*tls.Config{tlsConfig, nil}, nil
+	case "require", "verify-ca", "verify-full":
+		return []*tls.Config{tlsConfig}, nil
+	default:
+		panic("BUG: bad sslmode should already have been caught")
+	}
 }
 
 func parsePort(s string) (uint16, error) {
@@ -506,16 +562,19 @@ func makeDefaultResolver() *net.Resolver {
 	return net.DefaultResolver
 }
 
-func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
+func parseConnectTimeoutSetting(s string) (time.Duration, error) {
 	timeout, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if timeout < 0 {
-		return nil, errors.New("negative timeout")
+		return 0, errors.New("negative timeout")
 	}
+	return time.Duration(timeout) * time.Second, nil
+}
 
+func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 	d := makeDefaultDialer()
-	d.Timeout = time.Duration(timeout) * time.Second
-	return d.DialContext, nil
+	d.Timeout = timeout
+	return d.DialContext
 }

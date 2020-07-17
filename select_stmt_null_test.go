@@ -202,7 +202,7 @@ func TestSelectNull(t *testing.T) {
 			insertStmt.StringP(42, &stringVal)
 
 			ipv4Val := net.ParseIP("1.2.3.4").To4()
-			err := insertStmt.IPv4P(44, &ipv4Val)
+			err = insertStmt.IPv4P(44, &ipv4Val)
 			require.NoError(t, err)
 			ipv4Insert = append(ipv4Insert, &ipv4Val)
 
@@ -284,7 +284,7 @@ func TestSelectNull(t *testing.T) {
 			insertStmt.Uint8P(40, nil)
 			insertStmt.StringP(42, nil)
 
-			err := insertStmt.IPv4P(44, nil)
+			err = insertStmt.IPv4P(44, nil)
 			require.NoError(t, err)
 			ipv4Insert = append(ipv4Insert, nil)
 
@@ -613,7 +613,7 @@ func TestSelectNullReadError(t *testing.T) {
 
 		insertStmt.UUIDP(34, nil)
 
-		err := insertStmt.IPv4P(36, nil)
+		err = insertStmt.IPv4P(36, nil)
 		require.NoError(t, err)
 
 		err = insertStmt.IPv6P(38, nil)
