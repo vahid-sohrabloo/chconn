@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"io"
+	"strconv"
 	"time"
 )
 
@@ -32,15 +33,22 @@ func (s *Settings) WriteTo(wt io.Writer) (int, error) {
 		s.dirty = false
 		for key, v := range s.configs {
 			s.w.String(key)
+			// flag
+			s.w.Uint8(0)
 			switch val := v.(type) {
 			case uint64:
-				s.w.Uint64(val)
+				s.w.String(strconv.FormatUint(val, 10))
 			case int64:
-				s.w.Int64(val)
+				s.w.String(strconv.FormatInt(val, 10))
 			case string:
 				s.w.String(val)
 			case bool:
-				s.w.Bool(val)
+				if val {
+					s.w.String("1")
+				} else {
+					s.w.String("0")
+				}
+
 			case byte:
 				s.w.String(string(val))
 			default:
