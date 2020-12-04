@@ -34,8 +34,8 @@ type Config struct {
 	Password       string
 	ClientName     string      // e.g. net.Resolver.LookupHost
 	TLSConfig      *tls.Config // nil disables TLS
-	DialFunc       DialFunc    // e.g. net.Dialer.DialContext
 	ConnectTimeout time.Duration
+	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
 	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
 	ReaderFunc     ReaderFunc // e.g. bufio.Reader
 	WriterFunc     WriterFunc
@@ -253,7 +253,6 @@ func ParseConfig(connString string) (*Config, error) {
 	config.Host = fallbacks[0].Host
 	config.Port = fallbacks[0].Port
 	config.TLSConfig = fallbacks[0].TLSConfig
-
 	config.Fallbacks = fallbacks[1:]
 
 	return config, nil
@@ -384,7 +383,8 @@ func parseDSNSettings(s string) (map[string]string, error) {
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
 		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
-		if s[0] != '\'' {
+		if s == "" {
+		} else if s[0] != '\'' {
 			end := 0
 			for ; end < len(s); end++ {
 				if asciiSpace[s[end]] == 1 {
@@ -392,6 +392,9 @@ func parseDSNSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					if end == len(s) {
+						return nil, errors.New("invalid backslash")
+					}
 				}
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
@@ -424,6 +427,10 @@ func parseDSNSettings(s string) (map[string]string, error) {
 
 		if k, ok := nameMap[key]; ok {
 			key = k
+		}
+
+		if key == "" {
+			return nil, errors.New("invalid dsn")
 		}
 
 		settings[key] = val

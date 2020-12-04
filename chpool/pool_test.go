@@ -35,11 +35,11 @@ func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	assert.EqualValues(t, time.Second*31, config.MaxConnIdleTime)
 	assert.EqualValues(t, time.Second*32, config.HealthCheckPeriod)
 
-	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conns")
-	assert.NotContains(t, config.Config.RuntimeParams, "pool_min_conns")
-	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conn_lifetime")
-	assert.NotContains(t, config.Config.RuntimeParams, "pool_max_conn_idle_time")
-	assert.NotContains(t, config.Config.RuntimeParams, "pool_health_check_period")
+	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_max_conns")
+	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_min_conns")
+	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_max_conn_lifetime")
+	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_max_conn_idle_time")
+	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_health_check_period")
 }
 
 func TestConnectCancel(t *testing.T) {
@@ -626,15 +626,15 @@ func TestParseConfigError(t *testing.T) {
 		}, {
 			name:       "invalid pool_max_conn_lifetime",
 			connString: "pool_max_conn_lifetime=invalid",
-			err:        "invalid pool_max_conn_lifetime: time: invalid duration invalid",
+			err:        "invalid pool_max_conn_lifetime: time: invalid duration \"invalid\"",
 		}, {
 			name:       "invalid pool_max_conn_idle_time",
 			connString: "pool_max_conn_idle_time=invalid",
-			err:        "invalid pool_max_conn_idle_time: time: invalid duration invalid",
+			err:        "invalid pool_max_conn_idle_time: time: invalid duration \"invalid\"",
 		}, {
 			name:       "invalid pool_health_check_period",
 			connString: "pool_health_check_period=invalid",
-			err:        "invalid pool_health_check_period: time: invalid duration invalid",
+			err:        "invalid pool_health_check_period: time: invalid duration \"invalid\"",
 		},
 	}
 

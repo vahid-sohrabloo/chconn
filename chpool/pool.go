@@ -58,6 +58,7 @@ type Pool interface {
 }
 type pool struct {
 	p                 *puddle.Pool
+	config            *Config
 	afterConnect      func(context.Context, chconn.Conn) error
 	beforeAcquire     func(context.Context, chconn.Conn) bool
 	afterRelease      func(chconn.Conn) bool
@@ -71,7 +72,7 @@ type pool struct {
 // Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
 // modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Config *chconn.Config
+	ConnConfig *chconn.Config
 
 	// AfterConnect is called after a connection is established, but before it is added to the pool.
 	AfterConnect func(context.Context, chconn.Conn) error
@@ -101,7 +102,22 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
+	// If set to true, pool doesn't do any I/O operation on initialization.
+	// And connects to the server only when the pool starts to be used.
+	// The default is false.
+	LazyConnect bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+}
+
+// Copy returns a deep copy of the config that is safe to use and modify.
+// The only exception is the tls.Config:
+// according to the tls.Config docs it must not be modified after creation.
+func (c *Config) Copy() *Config {
+	newConfig := new(Config)
+	*newConfig = *c
+	newConfig.ConnConfig = c.ConnConfig.Copy()
+	return newConfig
 }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -125,6 +141,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 	}
 
 	p := &pool{
+		config:            config,
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
@@ -137,7 +154,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) {
-			c, err := chconn.ConnectConfig(ctx, config.Config)
+			c, err := chconn.ConnectConfig(ctx, config.ConnConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -158,25 +175,25 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 			return cr, nil
 		},
 		func(value interface{}) {
-			go func() {
-				ctxDestructor, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				value.(*connResource).conn.Close(ctxDestructor)
-				cancel()
-			}()
+			ctxDestroy, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			conn := value.(*connResource).conn
+			conn.Close(ctxDestroy)
+			cancel()
 		},
 		config.MaxConns,
 	)
 
 	go p.backgroundHealthCheck()
 
-	// Initially establish one connection
-	res, err := p.p.Acquire(ctx)
-	if err != nil {
-		p.p.Close()
-		return nil, err
+	if !config.LazyConnect {
+		// Initially establish one connection
+		res, err := p.p.Acquire(ctx)
+		if err != nil {
+			p.p.Close()
+			return nil, err
+		}
+		res.Release()
 	}
-	res.Release()
-
 	return p, nil
 }
 
@@ -203,12 +220,12 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	config := &Config{
-		Config:               chConfig,
+		ConnConfig:           chConfig,
 		createdByParseConfig: true,
 	}
 
-	if s, ok := config.Config.RuntimeParams["pool_max_conns"]; ok {
-		delete(config.Config.RuntimeParams, "pool_max_conns")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_max_conns"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_max_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return nil, errors.Errorf("cannot parse pool_max_conns: %w", err)
@@ -224,8 +241,8 @@ func ParseConfig(connString string) (*Config, error) {
 		}
 	}
 
-	if s, ok := config.Config.RuntimeParams["pool_min_conns"]; ok {
-		delete(config.Config.RuntimeParams, "pool_min_conns")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_min_conns"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_min_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return nil, errors.Errorf("cannot parse pool_min_conns: %w", err)
@@ -235,8 +252,8 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MinConns = defaultMinConns
 	}
 
-	if s, ok := config.Config.RuntimeParams["pool_max_conn_lifetime"]; ok {
-		delete(config.Config.RuntimeParams, "pool_max_conn_lifetime")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_max_conn_lifetime"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_max_conn_lifetime")
 		d, err := time.ParseDuration(s)
 		if err != nil {
 			return nil, errors.Errorf("invalid pool_max_conn_lifetime: %w", err)
@@ -246,8 +263,8 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConnLifetime = defaultMaxConnLifetime
 	}
 
-	if s, ok := config.Config.RuntimeParams["pool_max_conn_idle_time"]; ok {
-		delete(config.Config.RuntimeParams, "pool_max_conn_idle_time")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_max_conn_idle_time"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_max_conn_idle_time")
 		d, err := time.ParseDuration(s)
 		if err != nil {
 			return nil, errors.Errorf("invalid pool_max_conn_idle_time: %w", err)
@@ -257,8 +274,8 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConnIdleTime = defaultMaxConnIdleTime
 	}
 
-	if s, ok := config.Config.RuntimeParams["pool_health_check_period"]; ok {
-		delete(config.Config.RuntimeParams, "pool_health_check_period")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_health_check_period"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_health_check_period")
 		d, err := time.ParseDuration(s)
 		if err != nil {
 			return nil, errors.Errorf("invalid pool_health_check_period: %w", err)
@@ -350,6 +367,9 @@ func (p *pool) AcquireAllIdle(ctx context.Context) []Conn {
 
 	return conns
 }
+
+// Config returns a copy of config that was used to initialize this pool.
+func (p *pool) Config() *Config { return p.config.Copy() }
 
 func (p *pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}

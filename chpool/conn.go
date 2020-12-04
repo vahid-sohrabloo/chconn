@@ -37,6 +37,7 @@ func (c *conn) Release() {
 	if c.res == nil {
 		return
 	}
+
 	conn := c.Conn()
 	res := c.res
 	c.res = nil
