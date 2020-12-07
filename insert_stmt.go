@@ -75,7 +75,10 @@ type insertStmt struct {
 func (s *insertStmt) commit() error {
 	err := s.conn.sendData(s.block)
 	if err != nil {
-		return err
+		return &InsertError{
+			err:   err,
+			Block: s.block,
+		}
 	}
 
 	err = s.conn.sendData(newBlock(s.settings))

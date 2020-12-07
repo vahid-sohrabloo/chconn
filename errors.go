@@ -169,3 +169,17 @@ func redactURL(u *url.URL) string {
 	}
 	return u.String()
 }
+
+// InsertError represents an error when insert error
+type InsertError struct {
+	Block *block
+	err   error
+}
+
+func (e *InsertError) Error() string {
+	return fmt.Sprintf("failed to insert data : %s", e.err.Error())
+}
+
+func (e *InsertError) Unwrap() error {
+	return e.err
+}

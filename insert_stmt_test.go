@@ -148,7 +148,15 @@ func TestInsertWriteFlushError(t *testing.T) {
 			stmt.Int8(0, 1)
 			err = stmt.Flush(context.Background())
 			require.Error(t, err)
-			writeErr, ok := err.(*writeError)
+			insertErr, ok := err.(*InsertError)
+			var writeErr *writeError
+			if ok {
+				writeErr, ok = insertErr.Unwrap().(*writeError)
+				require.True(t, ok)
+			} else {
+				writeErr, ok = err.(*writeError)
+				require.True(t, ok)
+			}
 			require.True(t, ok)
 			require.Equal(t, writeErr.msg, tt.wantErr)
 			require.EqualError(t, writeErr.Unwrap(), "timeout")
