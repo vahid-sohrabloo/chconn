@@ -111,13 +111,25 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var blockData *block
+	for {
+		// todo check response block is the same old
+		res, err := s.conn.reciveAndProccessData(emptyOnProgress)
+		if err != nil {
+			return err
+		}
+		if b, ok := res.(*block); ok {
+			blockData = b
+			break
+		}
 
-	// todo check response block is the same old
-	res, err := s.conn.reciveAndProccessData(emptyOnProgress)
-	if err != nil {
-		return err
-	}
-	if _, ok := res.(*block); !ok {
+		if _, ok := res.(*Profile); ok {
+			continue
+		}
+		if _, ok := res.(*Progress); ok {
+			continue
+		}
+
 		return &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
@@ -126,7 +138,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	}
 
 	for _, column := range s.block.Columns {
-		_, err = res.(*block).nextColumn(s.conn)
+		_, err = blockData.nextColumn(s.conn)
 		if err != nil {
 			return err
 		}

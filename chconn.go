@@ -516,23 +516,41 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Se
 	if err != nil {
 		return nil, err
 	}
-	res, err := ch.reciveAndProccessData(emptyOnProgress)
+
+	var blockData *block
+	for {
+		// todo check response block is the same old
+		res, err := ch.reciveAndProccessData(emptyOnProgress)
+		if err != nil {
+			return nil, err
+		}
+		if b, ok := res.(*block); ok {
+			blockData = b
+			break
+		}
+
+		if _, ok := res.(*Profile); ok {
+			continue
+		}
+		if _, ok := res.(*Progress); ok {
+			continue
+		}
+
+		return nil, &unexpectedPacket{expected: "serverData", actual: res}
+	}
 
 	if err != nil {
 		return nil, err
 	}
-	block, ok := res.(*block)
-	if !ok {
-		return nil, &unexpectedPacket{expected: "serverData", actual: res}
-	}
-	block.setting = setting
 
-	err = block.initForInsert(ch)
+	blockData.setting = setting
+
+	err = blockData.initForInsert(ch)
 	if err != nil {
 		return nil, err
 	}
 	return &insertStmt{
-		block:      block,
+		block:      blockData,
 		conn:       ch,
 		query:      query,
 		queryID:    "",
