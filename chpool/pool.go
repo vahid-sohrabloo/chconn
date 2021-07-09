@@ -2,13 +2,13 @@ package chpool
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/jackc/puddle"
 	"github.com/vahid-sohrabloo/chconn"
-	errors "golang.org/x/xerrors"
 )
 
 var defaultMaxConns = int32(4)
@@ -228,10 +228,11 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(config.ConnConfig.RuntimeParams, "pool_max_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, errors.Errorf("cannot parse pool_max_conns: %w", err)
+			return nil, fmt.Errorf("cannot parse pool_max_conns: %w", err)
 		}
 		if n < 1 {
-			return nil, errors.Errorf("pool_max_conns too small: %d", n)
+			//nolint:goerr113
+			return nil, fmt.Errorf("pool_max_conns too small: %d", n)
 		}
 		config.MaxConns = int32(n)
 	} else {
@@ -245,7 +246,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(config.ConnConfig.RuntimeParams, "pool_min_conns")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, errors.Errorf("cannot parse pool_min_conns: %w", err)
+			return nil, fmt.Errorf("cannot parse pool_min_conns: %w", err)
 		}
 		config.MinConns = int32(n)
 	} else {
@@ -256,7 +257,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(config.ConnConfig.RuntimeParams, "pool_max_conn_lifetime")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, errors.Errorf("invalid pool_max_conn_lifetime: %w", err)
+			return nil, fmt.Errorf("invalid pool_max_conn_lifetime: %w", err)
 		}
 		config.MaxConnLifetime = d
 	} else {
@@ -267,7 +268,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(config.ConnConfig.RuntimeParams, "pool_max_conn_idle_time")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, errors.Errorf("invalid pool_max_conn_idle_time: %w", err)
+			return nil, fmt.Errorf("invalid pool_max_conn_idle_time: %w", err)
 		}
 		config.MaxConnIdleTime = d
 	} else {
@@ -278,7 +279,7 @@ func ParseConfig(connString string) (*Config, error) {
 		delete(config.ConnConfig.RuntimeParams, "pool_health_check_period")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, errors.Errorf("invalid pool_health_check_period: %w", err)
+			return nil, fmt.Errorf("invalid pool_health_check_period: %w", err)
 		}
 		config.HealthCheckPeriod = d
 	} else {

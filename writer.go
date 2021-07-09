@@ -16,13 +16,14 @@ func NewWriter() *Writer {
 }
 
 type Writer struct {
-	output                *bytes.Buffer
-	offset                uint64
-	isLowCardinality      bool
-	keyStringDictionaryLC map[string]int
-	keyLC                 []int
-	stringDictionaryLC    []string
-	scratch               [binary.MaxVarintLen64]byte
+	output                  *bytes.Buffer
+	offset                  uint64
+	isLowCardinality        bool
+	keyLC                   []int
+	keyStringDictionaryLC   map[string]int
+	stringDictionaryLC      []string
+	fixedStringDictionaryLC [][]byte
+	scratch                 [binary.MaxVarintLen64]byte
 }
 
 // Uvarint write a uint64 into writer and get error
@@ -113,14 +114,41 @@ func (w *Writer) AddStringLowCardinality(v string) {
 	w.keyLC = append(w.keyLC, key)
 }
 
-func (w *Writer) FlushStringLowCardinality() {
-	intType := int(math.Log2(float64(len(w.stringDictionaryLC))) / 8)
-	stype := serializationType | intType
-	w.Int64(int64(stype))
-	w.Int64(int64(len(w.stringDictionaryLC)))
-	for _, val := range w.stringDictionaryLC {
-		w.String(val)
+func (w *Writer) AddFixedStringLowCardinality(v []byte) {
+	w.isLowCardinality = true
+	if w.keyStringDictionaryLC == nil {
+		w.keyStringDictionaryLC = make(map[string]int)
 	}
+
+	key, ok := w.keyStringDictionaryLC[string(v)]
+	if !ok {
+		key = len(w.keyStringDictionaryLC)
+		w.keyStringDictionaryLC[string(v)] = key
+		w.fixedStringDictionaryLC = append(w.fixedStringDictionaryLC, v)
+	}
+	w.keyLC = append(w.keyLC, key)
+}
+
+func (w *Writer) FlushLowCardinality() {
+	var intType int
+	if len(w.stringDictionaryLC) > 0 {
+		intType = int(math.Log2(float64(len(w.stringDictionaryLC))) / 8)
+		stype := serializationType | intType
+		w.Int64(int64(stype))
+		w.Int64(int64(len(w.stringDictionaryLC)))
+		for _, val := range w.stringDictionaryLC {
+			w.String(val)
+		}
+	} else {
+		intType = int(math.Log2(float64(len(w.fixedStringDictionaryLC))) / 8)
+		stype := serializationType | intType
+		w.Int64(int64(stype))
+		w.Int64(int64(len(w.fixedStringDictionaryLC)))
+		for _, val := range w.fixedStringDictionaryLC {
+			w.Write(val)
+		}
+	}
+
 	w.Int64(int64(len(w.keyLC)))
 	switch intType {
 	case 0:
@@ -165,6 +193,9 @@ func (w *Writer) Reset() {
 	w.offset = 0
 	if w.stringDictionaryLC != nil {
 		w.stringDictionaryLC = w.stringDictionaryLC[:0]
+	}
+	if w.fixedStringDictionaryLC != nil {
+		w.fixedStringDictionaryLC = w.fixedStringDictionaryLC[:0]
 	}
 	if w.keyStringDictionaryLC != nil {
 		w.keyStringDictionaryLC = nil

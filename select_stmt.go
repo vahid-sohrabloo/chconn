@@ -119,6 +119,7 @@ type SelectStmt interface {
 	GetNullS(num uint64) ([]uint8, error)
 	GetNullSAll() ([]uint8, error)
 	LowCardinalityString(values *[]string) error
+	LowCardinalityFixedString(values *[][]byte, length int) error
 }
 type selectStmt struct {
 	block       *block

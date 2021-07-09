@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"time"
-
-	errors "golang.org/x/xerrors"
 
 	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
 )
@@ -192,7 +191,7 @@ func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 	}
 
 	if len(fallbackConfigs) == 0 {
-		return nil, &connectError{config: config, msg: "hostname resolving error", err: errors.New("ip addr wasn't found")}
+		return nil, &connectError{config: config, msg: "hostname resolving error", err: ErrIPNotFound}
 	}
 
 	for _, fc := range fallbackConfigs {
@@ -211,6 +210,7 @@ func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 	if config.AfterConnect != nil {
 		err := config.AfterConnect(ctx, c)
 		if err != nil {
+			//nolint:errcheck
 			c.RawConn().Close()
 			return nil, &connectError{config: config, msg: "AfterConnect error", err: err}
 		}
@@ -306,7 +306,7 @@ func (ch *conn) hello() error {
 	ch.writer.String(ch.config.Password)
 
 	if _, err := ch.writer.WriteTo(ch.writerto); err != nil {
-		return errors.Errorf("write hello: %w", err)
+		return fmt.Errorf("write hello: %w", err)
 	}
 
 	res, err := ch.reciveAndProccessData(emptyOnProgress)
@@ -520,7 +520,8 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Se
 	var blockData *block
 	for {
 		// todo check response block is the same old
-		res, err := ch.reciveAndProccessData(emptyOnProgress)
+		var res interface{}
+		res, err = ch.reciveAndProccessData(emptyOnProgress)
 		if err != nil {
 			return nil, err
 		}

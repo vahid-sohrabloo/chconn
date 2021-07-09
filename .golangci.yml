@@ -1,14 +1,12 @@
 linters-settings:
   dupl:
     threshold: 100
-  exhaustive:
-    default-signifies-exhaustive: false
   funlen:
     lines: 130
-    statements: 50
+    statements: 60
   goconst:
     min-len: 2
-    min-occurrences: 2
+    min-occurrences: 3
   gocritic:
     enabled-tags:
       - diagnostic
@@ -23,16 +21,16 @@ linters-settings:
       - whyNoLint
       - wrapperFunc
   gocyclo:
-    min-complexity: 15
+    min-complexity: 17
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
-  golint:
-    min-confidence: 0
   gomnd:
     settings:
       mnd:
         # don't include the "operation" and "assign"
         checks: argument,case,condition,return
+        ignored-numbers: 1000000
+
   govet:
     check-shadowing: true
   lll:
@@ -48,8 +46,6 @@ linters-settings:
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
 
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
   disable-all: true
   enable:
     - bodyclose
@@ -58,6 +54,7 @@ linters:
     - dogsled
     - dupl
     - errcheck
+    - exportloopref
     - exhaustive
     - funlen
     - gochecknoinits
@@ -66,20 +63,17 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - lll
     - misspell
     - nakedret
     - noctx
     - nolintlint
     - rowserrcheck
-    - scopelint
     - staticcheck
     - structcheck
     - stylecheck
@@ -93,16 +87,20 @@ linters:
 
   # don't enable:
   # - asciicheck
+  # - scopelint
   # - gochecknoglobals
   # - gocognit
-  # - gomnd add later
-  # - godot 
-  # - godox add later
+  # - godot
+  # - godox
+  # - interfacer
+  # - maligned
   # - nestif
   # - prealloc
   # - testpackage
+  # - revive
   # - wsl
-  # - maligned
+  # - gomnd
+
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
@@ -110,7 +108,6 @@ issues:
     - path: _test\.go
       linters:
         - goconst
-        - scopelint
         - dupl
         - funlen
         - gocyclo

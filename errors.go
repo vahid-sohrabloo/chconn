@@ -1,11 +1,45 @@
 package chconn
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 )
+
+// ErrInvalidIPv4 when invalid ipv4 provided
+var ErrInvalidIPv4 = errors.New("invalid ipv4")
+
+// ErrInvalidIPv6 when invalid ipv4 provided
+var ErrInvalidIPv6 = errors.New("invalid ipv6")
+
+// ErrNegativeTimeout when negative timeout provided
+var ErrNegativeTimeout = errors.New("negative timeout")
+
+// ErrPortInvalid when privide out of range port
+var ErrPortInvalid = errors.New("outside range")
+
+// ErrSSLModeInvalid when privide invalid ssl mode
+var ErrSSLModeInvalid = errors.New("sslmode is invalid")
+
+// ErrAddCA when can't add ca
+var ErrAddCA = errors.New("unable to add CA to cert pool")
+
+// ErrMissCertReqirement when sslcert or sslkey not provided
+var ErrMissCertReqirement = errors.New(`both "sslcert" and "sslkey" are required`)
+
+// ErrInvalidDSN for invalid dsn
+var ErrInvalidDSN = errors.New("invalid dsn")
+
+// ErrInvalidBackSlash invalid backslash in dsn
+var ErrInvalidBackSlash = errors.New("invalid backslash")
+
+// ErrInvalidquoted invalid quoted in dsn
+var ErrInvalidquoted = errors.New("unterminated quoted string in connection info string")
+
+// ErrIPNotFound when can't found ip in connecting
+var ErrIPNotFound = errors.New("ip addr wasn't found")
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {

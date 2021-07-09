@@ -2,12 +2,12 @@ package chconn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestServerInfoError(t *testing.T) {

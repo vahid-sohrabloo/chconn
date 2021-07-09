@@ -146,6 +146,7 @@ var preCachedNeedBuffer = map[string]int{
 	"Nullable(IPv6)":     2,
 }
 
+//nolint:gocyclo
 func (block *block) appendBuffer(chType string, column *Column) {
 	if numBuffer, ok := preCachedNeedBuffer[chType]; ok {
 		column.NumBuffer += numBuffer
@@ -155,39 +156,39 @@ func (block *block) appendBuffer(chType string, column *Column) {
 		return
 	}
 
-	if strings.HasPrefix(chType, "FixedString") {
+	if strings.HasPrefix(chType, "FixedString(") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
 		return
 	}
 
-	if strings.HasPrefix(chType, "Decimal") {
+	if strings.HasPrefix(chType, "Decimal(") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
 		return
 	}
 
-	if strings.HasPrefix(chType, "Date") {
+	if strings.HasPrefix(chType, "Date(") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
 		return
 	}
 
-	if strings.HasPrefix(chType, "LowCardinality") {
+	if strings.HasPrefix(chType, "LowCardinality(") {
 		column.HasVersion = true
 		// get chtype between `LowCardinality(` and `)`
 		block.appendBuffer(chType[15:len(chType)-1], column)
 		return
 	}
 
-	if strings.HasPrefix(chType, "Array") {
+	if strings.HasPrefix(chType, "Array(") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
 		// get chtype between `Array(` and `)`
 		block.appendBuffer(chType[6:len(chType)-1], column)
 		return
 	}
-	if strings.HasPrefix(chType, "Nullable") {
+	if strings.HasPrefix(chType, "Nullable(") {
 		column.NumBuffer++
 		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
 		// get chtype between `Nullable(` and `)`
@@ -195,7 +196,7 @@ func (block *block) appendBuffer(chType string, column *Column) {
 		return
 	}
 
-	if strings.HasPrefix(chType, "Tuple") {
+	if strings.HasPrefix(chType, "Tuple(") {
 		var openFunc int
 		cur := 6
 		// for between `Tuple(` and `)`
@@ -220,7 +221,28 @@ func (block *block) appendBuffer(chType string, column *Column) {
 		return
 	}
 
+	if strings.HasPrefix(chType, "Enum8(") || strings.HasPrefix(chType, "Enum16(") {
+		column.NumBuffer++
+		block.ColumnsBuffer = append(block.ColumnsBuffer, NewWriter())
+		return
+	}
+
+	if strings.HasPrefix(chType, "SimpleAggregateFunction(") {
+		column.NumBuffer++
+		block.appendBuffer(getNestedType(chType[24:]), column)
+		return
+	}
+
 	panic("NOT Supported " + chType)
+}
+
+func getNestedType(chType string) string {
+	for i, v := range chType {
+		if v == ',' {
+			return chType[i+2 : len(chType)-1]
+		}
+	}
+	panic("Cannot found  netsted type of " + chType)
 }
 
 func (block *block) write(ch *conn) error {
@@ -238,7 +260,7 @@ func (block *block) write(ch *conn) error {
 	for _, column := range block.Columns {
 		for i := 0; i < column.NumBuffer; i++ {
 			if block.ColumnsBuffer[bufferIndex].isLowCardinality {
-				block.ColumnsBuffer[bufferIndex].FlushStringLowCardinality()
+				block.ColumnsBuffer[bufferIndex].FlushLowCardinality()
 			}
 			if _, err := block.ColumnsBuffer[bufferIndex].WriteTo(ch.writerto); err != nil {
 				return &writeError{"block: write block data for column " + column.Name, err}

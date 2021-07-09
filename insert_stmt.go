@@ -4,8 +4,6 @@ import (
 	"context"
 	"net"
 	"time"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Table of powers of 10 for fast casting from floating types to decimal type
@@ -60,7 +58,9 @@ type InsertStmt interface {
 	IPv4P(bufferIndex int, value *net.IP) error
 	IPv6P(bufferIndex int, value *net.IP) error
 	AddStringLowCardinality(bufferIndex int, value string)
+	AddFixedStringLowCardinality(bufferIndex int, value []byte)
 	AddRow(num uint64)
+	GetBlock() *block
 }
 type insertStmt struct {
 	block      *block
@@ -114,7 +114,8 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	var blockData *block
 	for {
 		// todo check response block is the same old
-		res, err := s.conn.reciveAndProccessData(emptyOnProgress)
+		var res interface{}
+		res, err = s.conn.reciveAndProccessData(emptyOnProgress)
 		if err != nil {
 			return err
 		}
@@ -252,14 +253,14 @@ func swapUUID(src []byte) []byte {
 
 func (s *insertStmt) IPv4(bufferIndex int, value net.IP) error {
 	if len(value) != 4 {
-		return errors.New("invalid ipv4")
+		return ErrInvalidIPv4
 	}
 	s.block.ColumnsBuffer[bufferIndex].Write([]byte{value[3], value[2], value[1], value[0]})
 	return nil
 }
 func (s *insertStmt) IPv6(bufferIndex int, value net.IP) error {
 	if len(value) != 16 {
-		return errors.New("invalid ipv6")
+		return ErrInvalidIPv6
 	}
 	s.block.ColumnsBuffer[bufferIndex].Write(value)
 	return nil
@@ -460,7 +461,7 @@ func (s *insertStmt) IPv4P(bufferIndex int, value *net.IP) error {
 	}
 	val := *value
 	if len(val) != 4 {
-		return errors.New("invalid ipv4")
+		return ErrInvalidIPv4
 	}
 	s.block.ColumnsBuffer[bufferIndex].Uint8(0)
 	s.block.ColumnsBuffer[bufferIndex+1].Write([]byte{val[3], val[2], val[1], val[0]})
@@ -476,7 +477,7 @@ func (s *insertStmt) IPv6P(bufferIndex int, value *net.IP) error {
 		return nil
 	}
 	if len(*value) != 16 {
-		return errors.New("invalid ipv6")
+		return ErrInvalidIPv6
 	}
 	s.block.ColumnsBuffer[bufferIndex].Uint8(0)
 	s.block.ColumnsBuffer[bufferIndex+1].Write(*value)
@@ -487,6 +488,14 @@ func (s *insertStmt) AddStringLowCardinality(bufferIndex int, value string) {
 	s.block.ColumnsBuffer[bufferIndex].AddStringLowCardinality(value)
 }
 
+func (s *insertStmt) AddFixedStringLowCardinality(bufferIndex int, value []byte) {
+	s.block.ColumnsBuffer[bufferIndex].AddFixedStringLowCardinality(value)
+}
+
 func (s *insertStmt) AddRow(num uint64) {
 	s.block.NumRows += num
+}
+
+func (s *insertStmt) GetBlock() *block {
+	return s.block
 }

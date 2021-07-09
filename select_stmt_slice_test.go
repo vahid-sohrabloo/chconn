@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -13,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestSelectSlice(t *testing.T) {
@@ -51,7 +51,8 @@ func TestSelectSlice(t *testing.T) {
 				ipv4  IPv4,
 				ipv6  IPv6,
 				sLowCardinality LowCardinality(String),
-				asLowCardinality Array(LowCardinality(String))
+				asLowCardinality Array(LowCardinality(String)),
+				sfLowCardinality LowCardinality(FixedString(10))
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -81,6 +82,7 @@ func TestSelectSlice(t *testing.T) {
 				ipv4,
 				ipv6,
 				sLowCardinality,
+				sfLowCardinality,
 				asLowCardinality
 			) VALUES`)
 	require.NoError(t, err)
@@ -108,6 +110,7 @@ func TestSelectSlice(t *testing.T) {
 	var ipv6Insert []net.IP
 	var sLowCardinalityInsert []string
 	var asLowCardinalityInsert [][]string
+	var sfLowCardinalityInsert [][]byte
 	for i := 1; i <= 10; i++ {
 		insertStmt.AddRow(1)
 		int8Insert = append(int8Insert, int8(-1*i))
@@ -200,15 +203,25 @@ func TestSelectSlice(t *testing.T) {
 			insertStmt.AddStringLowCardinality(25, "string 2")
 			sLowCardinalityInsert = append(sLowCardinalityInsert, "string 2")
 		}
+
+		if i%2 == 0 {
+			insertStmt.AddFixedStringLowCardinality(26, []byte("0123456789"))
+			sfLowCardinalityInsert = append(sfLowCardinalityInsert, []byte("0123456789"))
+		} else {
+			insertStmt.AddFixedStringLowCardinality(26, []byte("0987654321"))
+			sfLowCardinalityInsert = append(sfLowCardinalityInsert, []byte("0987654321"))
+		}
+
 		arrayString := []string{
 
 			"string 1",
 			"string 2",
 		}
-		insertStmt.AddLen(26, uint64(len(arrayString)))
+		insertStmt.AddLen(27, uint64(len(arrayString)))
 		for _, s := range arrayString {
-			insertStmt.AddStringLowCardinality(27, s)
+			insertStmt.AddStringLowCardinality(28, s)
 		}
+
 		asLowCardinalityInsert = append(asLowCardinalityInsert, arrayString)
 	}
 
@@ -239,7 +252,9 @@ func TestSelectSlice(t *testing.T) {
 				ipv4,
 				ipv6,
 				sLowCardinality,
-				asLowCardinality
+				asLowCardinality,
+				sfLowCardinality
+
 	 FROM clickhouse_test_insert_slice`, nil, func(*Progress) {}, func(*Profile) {})
 	require.NoError(t, err)
 	var int8Data []int8
@@ -271,6 +286,7 @@ func TestSelectSlice(t *testing.T) {
 	var ipv4Data []net.IP
 	var ipv6Data []net.IP
 	var sLowCardinalityData []string
+	var sfLowCardinalityData [][]byte
 	// start offset from 1 to better calc in foreach
 	var lenAsLowCardinality []int
 	var asLowCardinalityData [][]string
@@ -429,6 +445,14 @@ func TestSelectSlice(t *testing.T) {
 			}
 			asLowCardinalityData = append(asLowCardinalityData, stringArray)
 		}
+
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+		// version
+		_, err = selectStmt.Uint64()
+		require.NoError(t, err)
+		err = selectStmt.LowCardinalityFixedString(&sfLowCardinalityData, 10)
+		require.NoError(t, err)
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -457,6 +481,7 @@ func TestSelectSlice(t *testing.T) {
 	assert.Equal(t, ipv6Insert, ipv6Data)
 	assert.Equal(t, sLowCardinalityInsert, sLowCardinalityData)
 	assert.Equal(t, asLowCardinalityInsert, asLowCardinalityData)
+	assert.Equal(t, sfLowCardinalityInsert, sfLowCardinalityData)
 	conn.RawConn().Close()
 }
 

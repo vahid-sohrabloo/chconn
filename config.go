@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"net"
@@ -12,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	errors "golang.org/x/xerrors"
 )
 
 const defaultUsername = "default"
@@ -337,7 +336,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		}
 		h, p, err := net.SplitHostPort(host)
 		if err != nil {
-			return nil, errors.Errorf("failed to split host:port in '%s', err: %w", host, err)
+			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
 		}
 		hosts = append(hosts, h)
 		ports = append(ports, p)
@@ -378,7 +377,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 		var key, val string
 		eqIdx := strings.IndexRune(s, '=')
 		if eqIdx < 0 {
-			return nil, errors.New("invalid dsn")
+			return nil, ErrInvalidDSN
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
@@ -393,7 +392,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 				if s[end] == '\\' {
 					end++
 					if end == len(s) {
-						return nil, errors.New("invalid backslash")
+						return nil, ErrInvalidBackSlash
 					}
 				}
 			}
@@ -415,7 +414,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 				}
 			}
 			if end == len(s) {
-				return nil, errors.New("unterminated quoted string in connection info string")
+				return nil, ErrInvalidquoted
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
 			if end == len(s) {
@@ -430,7 +429,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 		}
 
 		if key == "" {
-			return nil, errors.New("invalid dsn")
+			return nil, ErrInvalidDSN
 		}
 
 		settings[key] = val
@@ -442,7 +441,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
-//nolint:funlen no way to decrease func len
+//nolint:funlen,gocyclo
 func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	host := settings["host"]
 	sslmode := settings["sslmode"]
@@ -455,6 +454,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		return []*tls.Config{nil}, nil
 	}
 
+	//nolint:gosec // it change by config
 	tlsConfig := &tls.Config{}
 
 	switch sslmode {
@@ -484,7 +484,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 			for i, asn1Data := range certificates {
 				cert, err := x509.ParseCertificate(asn1Data)
 				if err != nil {
-					return errors.New("failed to parse certificate from server: " + err.Error())
+					return fmt.Errorf("failed to parse certificate from server: %w", err)
 				}
 				certs[i] = cert
 			}
@@ -505,7 +505,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	case "verify-full":
 		tlsConfig.ServerName = host
 	default:
-		return nil, errors.New("sslmode is invalid")
+		return nil, ErrSSLModeInvalid
 	}
 
 	if sslrootcert != "" {
@@ -514,11 +514,11 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		caPath := sslrootcert
 		caCert, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return nil, errors.Errorf("unable to read CA file: %w", err)
+			return nil, fmt.Errorf("unable to read CA file: %w", err)
 		}
 
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("unable to add CA to cert pool")
+			return nil, ErrAddCA
 		}
 
 		tlsConfig.RootCAs = caCertPool
@@ -526,13 +526,13 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	}
 
 	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
+		return nil, ErrMissCertReqirement
 	}
 
 	if sslcert != "" && sslkey != "" {
 		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
 		if err != nil {
-			return nil, errors.Errorf("unable to read cert: %w", err)
+			return nil, fmt.Errorf("unable to read cert: %w", err)
 		}
 
 		tlsConfig.Certificates = []tls.Certificate{cert}
@@ -556,7 +556,7 @@ func parsePort(s string) (uint16, error) {
 		return 0, err
 	}
 	if port < 1 || port > math.MaxUint16 {
-		return 0, errors.New("outside range")
+		return 0, ErrPortInvalid
 	}
 	return uint16(port), nil
 }
@@ -575,7 +575,7 @@ func parseConnectTimeoutSetting(s string) (time.Duration, error) {
 		return 0, err
 	}
 	if timeout < 0 {
-		return 0, errors.New("negative timeout")
+		return 0, ErrNegativeTimeout
 	}
 	return time.Duration(timeout) * time.Second, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -398,7 +399,11 @@ func TestPoolSelect(t *testing.T) {
 	assert.EqualValues(t, 0, stats.ConstructingConns())
 	assert.EqualValues(t, 1, stats.EmptyAcquireCount())
 	assert.EqualValues(t, 1, stats.IdleConns())
-	assert.EqualValues(t, 4, stats.MaxConns())
+	maxConns := defaultMaxConns
+	if numCPU := int32(runtime.NumCPU()); numCPU > maxConns {
+		maxConns = numCPU
+	}
+	assert.EqualValues(t, maxConns, stats.MaxConns())
 }
 
 func TestPoolSelectError(t *testing.T) {
@@ -511,7 +516,7 @@ func TestPoolInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	if assert.Error(t, err) {
-		assert.Equal(t, " DB::Exception (60): Table default.not_found_table doesn't exist.", err.Error())
+		assert.Equal(t, " DB::Exception (60): Table default.not_found_table doesn't exist", err.Error())
 	}
 	require.Nil(t, insertStmt)
 

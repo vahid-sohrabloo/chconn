@@ -2,13 +2,13 @@ package chconn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestProfileReadError(t *testing.T) {

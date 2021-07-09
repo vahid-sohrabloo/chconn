@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestInsertError(t *testing.T) {
