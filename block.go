@@ -228,7 +228,6 @@ func (block *block) appendBuffer(chType string, column *Column) {
 	}
 
 	if strings.HasPrefix(chType, "SimpleAggregateFunction(") {
-		column.NumBuffer++
 		block.appendBuffer(getNestedType(chType[24:]), column)
 		return
 	}
