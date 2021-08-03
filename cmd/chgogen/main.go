@@ -59,7 +59,8 @@ func main() {
 
 	f.Func().
 		Id("New" + *structName + "Writer").
-		Params(jen.Id("stmt").Op("*").Qual("github.com/vahid-sorahbloo/chconn", "InsertWriter")).
+		Params().
+		Params(jen.Op("*").Qual("github.com/vahid-sorahbloo/chconn", "InsertWriter")).
 		Block(
 			jen.Return(jen.Qual("github.com/vahid-sorahbloo/chconn", "NewInsertWriter").Call(jen.Lit(offset))),
 		).Line()
