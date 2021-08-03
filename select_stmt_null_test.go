@@ -107,59 +107,60 @@ func TestSelectNull(t *testing.T) {
 	var ipv6Insert []*net.IP
 
 	now := time.Now()
+	writer := insertStmt.Writer()
 	for i := 1; i <= 10; i++ {
-		insertStmt.AddRow(1)
+		writer.AddRow(1)
 		if i%2 == 0 {
 			int8Val := int8(-1 * i)
-			insertStmt.Int8P(0, &int8Val)
+			writer.Int8P(0, &int8Val)
 			int8Insert = append(int8Insert, &int8Val)
 
 			int16Val := int16(-2 * i)
-			insertStmt.Int16P(2, &int16Val)
+			writer.Int16P(2, &int16Val)
 			int16Insert = append(int16Insert, &int16Val)
 
 			int32Val := int32(-4 * i)
-			insertStmt.Int32P(4, &int32Val)
+			writer.Int32P(4, &int32Val)
 			int32Insert = append(int32Insert, &int32Val)
 
 			int64Val := int64(-8 * i)
-			insertStmt.Int64P(6, &int64Val)
+			writer.Int64P(6, &int64Val)
 			int64Insert = append(int64Insert, &int64Val)
 
 			uint8Val := uint8(1 * i)
-			insertStmt.Uint8P(8, &uint8Val)
+			writer.Uint8P(8, &uint8Val)
 			uint8Insert = append(uint8Insert, &uint8Val)
 
 			uint16Val := uint16(2 * i)
-			insertStmt.Uint16P(10, &uint16Val)
+			writer.Uint16P(10, &uint16Val)
 			uint16Insert = append(uint16Insert, &uint16Val)
 
 			uint32Val := uint32(4 * i)
-			insertStmt.Uint32P(12, &uint32Val)
+			writer.Uint32P(12, &uint32Val)
 			uint32Insert = append(uint32Insert, &uint32Val)
 
 			uint64Val := uint64(8 * i)
-			insertStmt.Uint64P(14, &uint64Val)
+			writer.Uint64P(14, &uint64Val)
 			uint64Insert = append(uint64Insert, &uint64Val)
 
 			float32Val := 1.32 * float32(i)
-			insertStmt.Float32P(16, &float32Val)
+			writer.Float32P(16, &float32Val)
 			float32Insert = append(float32Insert, &float32Val)
 
 			float64Val := 1.64 * float64(i)
-			insertStmt.Float64P(18, &float64Val)
+			writer.Float64P(18, &float64Val)
 			float64Insert = append(float64Insert, &float64Val)
 
 			stringVal := fmt.Sprintf("string %d", i)
-			insertStmt.StringP(20, &stringVal)
+			writer.StringP(20, &stringVal)
 			stringInsert = append(stringInsert, &stringVal)
 
 			bufferVal := []byte{10, 20, 30, 40}
-			insertStmt.BufferP(22, &bufferVal)
+			writer.BufferP(22, &bufferVal)
 			byteInsert = append(byteInsert, bufferVal)
 
 			fixedStringVal := []byte("01")
-			insertStmt.FixedStringP(24, []byte{0, 0}, fixedStringVal)
+			writer.FixedStringP(24, []byte{0, 0}, fixedStringVal)
 			fixedStringInsert = append(fixedStringInsert, fixedStringVal)
 
 			array := [][]*uint8{
@@ -170,85 +171,85 @@ func TestSelectNull(t *testing.T) {
 				},
 			}
 
-			insertStmt.AddLen(26, uint64(len(array)))
+			writer.AddLen(26, uint64(len(array)))
 			for _, a := range array {
-				insertStmt.AddLen(27, uint64(len(a)))
+				writer.AddLen(27, uint64(len(a)))
 				for _, u8 := range a {
-					insertStmt.Uint8P(28, u8)
+					writer.Uint8P(28, u8)
 				}
 			}
 			arrayInsert = append(arrayInsert, array)
 
 			d := now.AddDate(0, 0, i)
 			d = d.Truncate(time.Hour * 24)
-			insertStmt.DateP(30, &d)
+			writer.DateP(30, &d)
 			dateInsert = append(dateInsert, &d)
 
 			dt := now.AddDate(0, 0, i)
 			dt = dt.Truncate(time.Second)
-			insertStmt.DateTimeP(32, &dt)
+			writer.DateTimeP(32, &dt)
 			datetimeInsert = append(datetimeInsert, &dt)
 
 			decimalVal := math.Floor(1.64*float64(i)*10000) / 10000
-			insertStmt.Decimal32P(34, &decimalVal, 4)
-			insertStmt.Decimal64P(36, &decimalVal, 4)
+			writer.Decimal32P(34, &decimalVal, 4)
+			writer.Decimal64P(36, &decimalVal, 4)
 			decimalInsert = append(decimalInsert, &decimalVal)
 
 			uuidVal := [16]byte(uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
-			insertStmt.UUIDP(38, &uuidVal)
+			writer.UUIDP(38, &uuidVal)
 			uuidInsert = append(uuidInsert, &uuidVal)
 
-			insertStmt.Uint8P(40, &uint8Val)
-			insertStmt.StringP(42, &stringVal)
+			writer.Uint8P(40, &uint8Val)
+			writer.StringP(42, &stringVal)
 
 			ipv4Val := net.ParseIP("1.2.3.4").To4()
-			err = insertStmt.IPv4P(44, &ipv4Val)
+			err = writer.IPv4P(44, &ipv4Val)
 			require.NoError(t, err)
 			ipv4Insert = append(ipv4Insert, &ipv4Val)
 
 			ipv6Val := net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16()
-			err = insertStmt.IPv6P(46, &ipv6Val)
+			err = writer.IPv6P(46, &ipv6Val)
 			require.NoError(t, err)
 			ipv6Insert = append(ipv6Insert, &ipv6Val)
-			insertStmt.Int8(48, int8(i))
+			writer.Int8(48, int8(i))
 		} else {
-			insertStmt.Int8P(0, nil)
+			writer.Int8P(0, nil)
 			int8Insert = append(int8Insert, nil)
 
-			insertStmt.Int16P(2, nil)
+			writer.Int16P(2, nil)
 			int16Insert = append(int16Insert, nil)
 
-			insertStmt.Int32P(4, nil)
+			writer.Int32P(4, nil)
 			int32Insert = append(int32Insert, nil)
 
-			insertStmt.Int64P(6, nil)
+			writer.Int64P(6, nil)
 			int64Insert = append(int64Insert, nil)
 
-			insertStmt.Uint8P(8, nil)
+			writer.Uint8P(8, nil)
 			uint8Insert = append(uint8Insert, nil)
 
-			insertStmt.Uint16P(10, nil)
+			writer.Uint16P(10, nil)
 			uint16Insert = append(uint16Insert, nil)
 
-			insertStmt.Uint32P(12, nil)
+			writer.Uint32P(12, nil)
 			uint32Insert = append(uint32Insert, nil)
 
-			insertStmt.Uint64P(14, nil)
+			writer.Uint64P(14, nil)
 			uint64Insert = append(uint64Insert, nil)
 
-			insertStmt.Float32P(16, nil)
+			writer.Float32P(16, nil)
 			float32Insert = append(float32Insert, nil)
 
-			insertStmt.Float64P(18, nil)
+			writer.Float64P(18, nil)
 			float64Insert = append(float64Insert, nil)
 
-			insertStmt.StringP(20, nil)
+			writer.StringP(20, nil)
 			stringInsert = append(stringInsert, nil)
 
-			insertStmt.BufferP(22, nil)
+			writer.BufferP(22, nil)
 			byteInsert = append(byteInsert, nil)
 
-			insertStmt.FixedStringP(24, []byte{0, 0}, nil)
+			writer.FixedStringP(24, []byte{0, 0}, nil)
 			fixedStringInsert = append(fixedStringInsert, nil)
 
 			uint8Val := uint8(1 * i)
@@ -259,47 +260,43 @@ func TestSelectNull(t *testing.T) {
 					nil, &uint8Val, nil, &uint8Val, nil,
 				},
 			}
-			insertStmt.AddLen(26, uint64(len(array)))
+			writer.AddLen(26, uint64(len(array)))
 			for _, a := range array {
-				insertStmt.AddLen(27, uint64(len(a)))
+				writer.AddLen(27, uint64(len(a)))
 				for _, u8 := range a {
-					insertStmt.Uint8P(28, u8)
+					writer.Uint8P(28, u8)
 				}
 			}
 			arrayInsert = append(arrayInsert, array)
 
-			insertStmt.DateP(30, nil)
+			writer.DateP(30, nil)
 			dateInsert = append(dateInsert, nil)
 
-			insertStmt.DateTimeP(32, nil)
+			writer.DateTimeP(32, nil)
 			datetimeInsert = append(datetimeInsert, nil)
 
-			insertStmt.Decimal32P(34, nil, 4)
-			insertStmt.Decimal64P(36, nil, 4)
+			writer.Decimal32P(34, nil, 4)
+			writer.Decimal64P(36, nil, 4)
 			decimalInsert = append(decimalInsert, nil)
 
-			insertStmt.UUIDP(38, nil)
+			writer.UUIDP(38, nil)
 			uuidInsert = append(uuidInsert, nil)
 
-			insertStmt.Uint8P(40, nil)
-			insertStmt.StringP(42, nil)
+			writer.Uint8P(40, nil)
+			writer.StringP(42, nil)
 
-			err = insertStmt.IPv4P(44, nil)
+			err = writer.IPv4P(44, nil)
 			require.NoError(t, err)
 			ipv4Insert = append(ipv4Insert, nil)
 
-			err = insertStmt.IPv6P(46, nil)
+			err = writer.IPv6P(46, nil)
 			require.NoError(t, err)
 			ipv6Insert = append(ipv6Insert, nil)
-			insertStmt.Int8(48, int8(i))
-			if i == 5 {
-				err = insertStmt.Flush(context.Background())
-				require.NoError(t, err)
-			}
+			writer.Int8(48, int8(i))
 		}
 	}
 
-	err = insertStmt.Commit(context.Background())
+	err = insertStmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
 
 	selectStmt, err := conn.Select(context.Background(), `SELECT 
@@ -588,39 +585,39 @@ func TestSelectNullReadError(t *testing.T) {
 			) VALUES`)
 	require.NoError(t, err)
 	require.Nil(t, res)
-
+	writer := insertStmt.Writer()
 	for i := 1; i <= 1; i++ {
-		insertStmt.AddRow(1)
-		insertStmt.Int8P(0, nil)
-		insertStmt.Int16P(2, nil)
-		insertStmt.Int32P(4, nil)
-		insertStmt.Int64P(6, nil)
-		insertStmt.Uint8P(8, nil)
-		insertStmt.Uint16P(10, nil)
-		insertStmt.Uint32P(12, nil)
-		insertStmt.Uint64P(14, nil)
-		insertStmt.Float32P(16, nil)
-		insertStmt.Float64P(18, nil)
-		insertStmt.StringP(20, nil)
-		insertStmt.BufferP(22, nil)
-		insertStmt.FixedStringP(24, []byte{0, 0}, nil)
+		writer.AddRow(1)
+		writer.Int8P(0, nil)
+		writer.Int16P(2, nil)
+		writer.Int32P(4, nil)
+		writer.Int64P(6, nil)
+		writer.Uint8P(8, nil)
+		writer.Uint16P(10, nil)
+		writer.Uint32P(12, nil)
+		writer.Uint64P(14, nil)
+		writer.Float32P(16, nil)
+		writer.Float64P(18, nil)
+		writer.StringP(20, nil)
+		writer.BufferP(22, nil)
+		writer.FixedStringP(24, []byte{0, 0}, nil)
 
-		insertStmt.DateP(26, nil)
-		insertStmt.DateTimeP(28, nil)
+		writer.DateP(26, nil)
+		writer.DateTimeP(28, nil)
 
-		insertStmt.Decimal32P(30, nil, 4)
-		insertStmt.Decimal64P(32, nil, 4)
+		writer.Decimal32P(30, nil, 4)
+		writer.Decimal64P(32, nil, 4)
 
-		insertStmt.UUIDP(34, nil)
+		writer.UUIDP(34, nil)
 
-		err = insertStmt.IPv4P(36, nil)
+		err = writer.IPv4P(36, nil)
 		require.NoError(t, err)
 
-		err = insertStmt.IPv6P(38, nil)
+		err = writer.IPv6P(38, nil)
 		require.NoError(t, err)
 	}
 
-	err = insertStmt.Commit(context.Background())
+	err = insertStmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
 
 	startValidReader := 40

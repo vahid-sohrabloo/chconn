@@ -133,7 +133,6 @@ type selectStmt struct {
 	ProfileInfo *Profile
 	Progress    *Progress
 	nulls       []uint8
-	setting     *Settings
 	closed      bool
 }
 
@@ -155,7 +154,6 @@ func (s *selectStmt) Next() bool {
 			}
 			return s.Next()
 		}
-		block.setting = s.setting
 		s.block = block
 		return true
 	}

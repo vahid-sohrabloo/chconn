@@ -25,6 +25,7 @@ type Conn interface {
 	) (chconn.SelectStmt, error)
 	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
 	Conn() chconn.Conn
+	Ping(ctx context.Context) error
 }
 type conn struct {
 	res *puddle.Resource
@@ -69,6 +70,11 @@ func (c *conn) ExecCallback(
 	onProgress func(*chconn.Progress)) (interface{}, error) {
 	return c.Conn().ExecCallback(ctx, query, setting, onProgress)
 }
+
+func (c *conn) Ping(ctx context.Context) error {
+	return c.Conn().Ping(ctx)
+}
+
 func (c *conn) SelectCallback(
 	ctx context.Context,
 	query string,

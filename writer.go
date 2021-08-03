@@ -129,7 +129,7 @@ func (w *Writer) AddFixedStringLowCardinality(v []byte) {
 	w.keyLC = append(w.keyLC, key)
 }
 
-func (w *Writer) FlushLowCardinality() {
+func (w *Writer) flushLowCardinality() {
 	var intType int
 	if len(w.stringDictionaryLC) > 0 {
 		intType = int(math.Log2(float64(len(w.stringDictionaryLC))) / 8)
@@ -185,8 +185,22 @@ func (w *Writer) Write(b []byte) {
 	w.output.Write(b)
 }
 
+// ReadFrom reads data from r until EOF and appends it to the buffer
+// NOTE: after use this function  you can't add any LowCardinality data
+func (w *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+	return w.output.ReadFrom(r)
+}
+
 func (w *Writer) WriteTo(wt io.Writer) (int64, error) {
 	return w.output.WriteTo(wt)
+}
+
+func (w *Writer) Bytes() []byte {
+	if w.isLowCardinality {
+		w.flushLowCardinality()
+		w.isLowCardinality = false
+	}
+	return w.output.Bytes()
 }
 
 func (w *Writer) Reset() {

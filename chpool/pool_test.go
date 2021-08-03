@@ -474,12 +474,13 @@ func TestPoolInsert(t *testing.T) {
 			) VALUES`)
 	require.NoError(t, err)
 	require.Nil(t, res)
+	writer := insertStmt.Writer()
 	for i := 1; i <= 10; i++ {
-		insertStmt.AddRow(1)
-		insertStmt.Int8(0, int8(-1*i))
+		writer.AddRow(1)
+		writer.Int8(0, int8(-1*i))
 	}
 
-	err = insertStmt.Commit(context.Background())
+	err = insertStmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
 
 	selectStmt, err := pool.Select(context.Background(), `SELECT 

@@ -509,6 +509,23 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+
+func TestParseConfigDSNWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
+	_, err := ParseConfig("host= user= password= port= database=")
+	require.NoError(t, err)
+}
+
+func TestParseConfigDSNLeadingEqual(t *testing.T) {
+	_, err := ParseConfig("= user=vahid")
+	require.Error(t, err)
+}
+
+func TestParseConfigDSNTrailingBackslash(t *testing.T) {
+	_, err := ParseConfig(`x=x\`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid backslash")
+}
+
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&search_path=myschema&connect_timeout=5"
 	original, err := ParseConfig(connString)
@@ -651,9 +668,9 @@ func TestParseConfigEnv(t *testing.T) {
 				Database:       "foo",
 				User:           "bar",
 				Password:       "baz",
+				ConnectTimeout: 10 * time.Second,
 				TLSConfig:      nil,
 				ClientName:     "chxtest",
-				ConnectTimeout: 10 * time.Second,
 				RuntimeParams:  map[string]string{},
 			},
 		},

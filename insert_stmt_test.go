@@ -67,9 +67,11 @@ func TestInsertError(t *testing.T) {
 	require.NoError(t, err)
 	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error`)
 	require.NoError(t, err)
-	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_error (
+	setting := NewSettings()
+	setting.JoinUseNulls(false)
+	_, err = c.ExecWithSetting(context.Background(), `CREATE TABLE clickhouse_test_insert_error (
 				int8  Int8
-			) Engine=Memory`)
+			) Engine=Memory`, setting)
 
 	require.NoError(t, err)
 
@@ -89,156 +91,8 @@ func TestInsertError(t *testing.T) {
 	require.Nil(t, res)
 }
 
-func TestInsertWriteFlushError(t *testing.T) {
-	startValid := 2
-
-	tests := []struct {
-		name        string
-		wantErr     string
-		numberValid int
-	}{
-		{
-			name:        "write block info",
-			wantErr:     "block: write block info",
-			numberValid: startValid,
-		}, {
-			name:        "write block info",
-			wantErr:     "block: write block data for column int8",
-			numberValid: startValid + 1,
-		}, {
-			name:        "write block info step 2",
-			wantErr:     "block: write block info",
-			numberValid: startValid + 2,
-		}, {
-			name:        "write block info step 3",
-			wantErr:     "block: write block info",
-			numberValid: startValid + 3,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
-			require.NoError(t, err)
-
-			c, err := ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-
-			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`)
-			require.NoError(t, err)
-			_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_write_error (
-				int8  Int8
-			) Engine=Memory`)
-			require.NoError(t, err)
-
-			c.Close(context.Background())
-
-			config.WriterFunc = func(w io.Writer) io.Writer {
-				return &writerErrorHelper{
-					err:         errors.New("timeout"),
-					w:           w,
-					numberValid: tt.numberValid,
-				}
-			}
-
-			c, err = ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			stmt, err := c.Insert(context.Background(), "insert into clickhouse_test_insert_write_error (int8) values ")
-			require.NoError(t, err)
-			stmt.AddRow(1)
-			stmt.Int8(0, 1)
-			err = stmt.Flush(context.Background())
-			require.Error(t, err)
-			insertErr, ok := err.(*InsertError)
-			var writeErr *writeError
-			if ok {
-				writeErr, ok = insertErr.Unwrap().(*writeError)
-				require.True(t, ok)
-			} else {
-				writeErr, ok = err.(*writeError)
-				require.True(t, ok)
-			}
-			require.True(t, ok)
-			require.Equal(t, writeErr.msg, tt.wantErr)
-			require.EqualError(t, writeErr.Unwrap(), "timeout")
-			c.Close(context.Background())
-		})
-	}
-}
-
-func TestInsertReadFlushError(t *testing.T) {
-	startValid := 31
-
-	tests := []struct {
-		name        string
-		wantErr     string
-		numberValid int
-	}{
-		{
-			name:        "write block info",
-			wantErr:     "packet: read packet type",
-			numberValid: startValid,
-		}, {
-			name:        "write block info step 2",
-			wantErr:     "packet: read packet type",
-			numberValid: startValid + 1,
-		}, {
-			name:        "write block info",
-			wantErr:     "block: read column name",
-			numberValid: startValid + 14,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
-			require.NoError(t, err)
-
-			c, err := ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-
-			_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_write_error`)
-			require.NoError(t, err)
-			_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_write_error (
-				int8  Int8
-			) Engine=Memory`)
-			require.NoError(t, err)
-
-			c.Close(context.Background())
-
-			config.ReaderFunc = func(r io.Reader) io.Reader {
-				return &readErrorHelper{
-					err:         errors.New("timeout"),
-					r:           r,
-					numberValid: tt.numberValid,
-				}
-			}
-
-			c, err = ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			stmt, err := c.Insert(context.Background(), "insert into clickhouse_test_insert_write_error (int8) values ")
-			require.NoError(t, err)
-			stmt.AddRow(1)
-			stmt.Int8(0, 1)
-			err = stmt.Flush(context.Background())
-			require.Error(t, err)
-			readErr, ok := err.(*readError)
-			require.True(t, ok)
-			require.Equal(t, readErr.msg, tt.wantErr)
-			require.EqualError(t, readErr.Unwrap(), "timeout")
-			c.Close(context.Background())
-		})
-	}
-}
-
 func TestInsertIPError(t *testing.T) {
-	stmt := &insertStmt{
-		block:      nil,
-		conn:       nil,
-		query:      "",
-		queryID:    "",
-		stage:      QueryProcessingStageComplete,
-		settings:   nil,
-		clientInfo: nil,
-	}
+	stmt := &InsertWriter{}
 	invalidIP := net.IP([]byte{1})
 	assert.EqualError(t, stmt.IPv4(0, invalidIP), "invalid ipv4")
 	assert.EqualError(t, stmt.IPv6(0, invalidIP), "invalid ipv6")

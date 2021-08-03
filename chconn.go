@@ -102,7 +102,7 @@ type LookupFunc func(ctx context.Context, host string) (addrs []string, err erro
 type ReaderFunc func(io.Reader) io.Reader
 
 // WriterFunc is a function that can be used get writer to writer from server
-// Note: DO NOT Use bufio.Wriert, chconn do not support flush
+// Note: DO NOT Use bufio.Writer, chconn do not support flush
 type WriterFunc func(io.Writer) io.Writer
 
 // Conn is a low-level Clickhoue connection handle. It is not safe for concurrent usage.
@@ -354,9 +354,9 @@ func (ch *conn) unlock() {
 }
 
 func (ch *conn) sendQueryWithOption(
-	ctx context.Context, //nolint:unparam //maybe use later
+	ctx context.Context, //nolint:unparam
 	query,
-	queryID string, //nolint:unparam //maybe use later
+	queryID string,
 	setting *Settings,
 ) error {
 	ch.writer.Uvarint(clientQuery)
@@ -387,14 +387,14 @@ func (ch *conn) sendQueryWithOption(
 
 	ch.writer.String(query)
 
-	return ch.sendData(newBlock(setting))
+	return ch.sendData(newBlock(), 0)
 }
 
-func (ch *conn) sendData(block *block) error {
+func (ch *conn) sendData(block *block, numRows uint64) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")
-	return block.write(ch)
+	return block.writeHeader(ch, numRows)
 }
 
 func (ch *conn) Close(ctx context.Context) error {
@@ -421,7 +421,7 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 	}
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
-		block := newBlock(nil)
+		block := newBlock()
 		err = block.read(ch)
 		return block, err
 	case serverProfileInfo:
@@ -544,8 +544,6 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Se
 		return nil, err
 	}
 
-	blockData.setting = setting
-
 	err = blockData.initForInsert(ch)
 	if err != nil {
 		return nil, err
@@ -597,7 +595,6 @@ func (ch *conn) SelectCallback(
 		onProgress: onProgress,
 		onProfile:  onProfile,
 		queryID:    "",
-		setting:    setting,
 		clientInfo: nil,
 	}, nil
 }

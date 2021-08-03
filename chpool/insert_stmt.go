@@ -11,15 +11,7 @@ type insertStmt struct {
 	conn Conn
 }
 
-func (s *insertStmt) Commit(ctx context.Context) error {
+func (s *insertStmt) Commit(ctx context.Context, writer *chconn.InsertWriter) error {
 	defer s.conn.Release()
-	return s.InsertStmt.Commit(ctx)
-}
-
-func (s *insertStmt) Flush(ctx context.Context) error {
-	err := s.InsertStmt.Flush(ctx)
-	if err != nil {
-		s.conn.Release()
-	}
-	return err
+	return s.InsertStmt.Commit(ctx, writer)
 }

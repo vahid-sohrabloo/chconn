@@ -76,13 +76,15 @@ func TestSelect(t *testing.T) {
 				fString FixedString(2),
 				array Array(UInt8),
 				date    Date,
-				datetime DateTime,
+				datetime DateTime('Iran'),
 				decimal32 Decimal32(4),
 				decimal64 Decimal64(4),
 				uuid UUID,
 				tuple Tuple(UInt8, String),
 				ipv4  IPv4,
-				ipv6  IPv6
+				ipv6  IPv6,
+				enum8 Enum8('hello' = 1, 'world' = 2),
+				enum16 Enum16('hello' = 1, 'world' = 2)
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -110,7 +112,9 @@ func TestSelect(t *testing.T) {
 				uuid,
 				tuple,
 				ipv4,
-				ipv6
+				ipv6,
+				enum8,
+				enum16
 			) VALUES`)
 
 	require.NoError(t, err)
@@ -136,45 +140,47 @@ func TestSelect(t *testing.T) {
 	var uuidInsert [][16]byte
 	var ipv4Insert []net.IP
 	var ipv6Insert []net.IP
-
+	var enum8Insert []int8
+	var enum16Insert []int16
+	writer := insertstmt.Writer()
 	for i := 1; i <= 10; i++ {
-		insertstmt.AddRow(1)
+		writer.AddRow(1)
 		int8Insert = append(int8Insert, int8(-1*i))
-		insertstmt.Int8(0, int8(-1*i))
+		writer.Int8(0, int8(-1*i))
 		int16Insert = append(int16Insert, int16(-2*i))
-		insertstmt.Int16(1, int16(-2*i))
+		writer.Int16(1, int16(-2*i))
 		int32Insert = append(int32Insert, int32(-4*i))
-		insertstmt.Int32(2, int32(-4*i))
+		writer.Int32(2, int32(-4*i))
 		int64Insert = append(int64Insert, int64(-8*i))
-		insertstmt.Int64(3, int64(-8*i))
+		writer.Int64(3, int64(-8*i))
 		uint8Insert = append(uint8Insert, uint8(1*i))
-		insertstmt.Uint8(4, uint8(1*i))
+		writer.Uint8(4, uint8(1*i))
 		uint16Insert = append(uint16Insert, uint16(2*i))
-		insertstmt.Uint16(5, uint16(2*i))
+		writer.Uint16(5, uint16(2*i))
 		uint32Insert = append(uint32Insert, uint32(4*i))
-		insertstmt.Uint32(6, uint32(4*i))
+		writer.Uint32(6, uint32(4*i))
 		uint64Insert = append(uint64Insert, uint64(8*i))
-		insertstmt.Uint64(7, uint64(8*i))
+		writer.Uint64(7, uint64(8*i))
 		float32Insert = append(float32Insert, 1.32*float32(i))
-		insertstmt.Float32(8, 1.32*float32(i))
+		writer.Float32(8, 1.32*float32(i))
 		float64Insert = append(float64Insert, 1.64*float64(i))
-		insertstmt.Float64(9, 1.64*float64(i))
+		writer.Float64(9, 1.64*float64(i))
 		stringInsert = append(stringInsert, fmt.Sprintf("string %d", i))
-		insertstmt.String(10, fmt.Sprintf("string %d", i))
+		writer.String(10, fmt.Sprintf("string %d", i))
 		byteInsert = append(byteInsert, []byte{10, 20, 30, 40})
-		insertstmt.Buffer(11, []byte{10, 20, 30, 40})
+		writer.Buffer(11, []byte{10, 20, 30, 40})
 		fixedStringInsert = append(fixedStringInsert, []byte("01"))
-		insertstmt.FixedString(12, []byte("01"))
+		writer.FixedString(12, []byte("01"))
 		array := []uint8{
 			1, 2, 3, 4,
 		}
-		insertstmt.AddLen(13, uint64(len(array)))
+		writer.AddLen(13, uint64(len(array)))
 		for _, a := range array {
-			insertstmt.Uint8(14, a)
+			writer.Uint8(14, a)
 		}
 		arrayInsert = append(arrayInsert, array)
 		d := now.AddDate(0, 0, i)
-		insertstmt.Date(15, d)
+		writer.Date(15, d)
 		dateInsert = append(dateInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -185,7 +191,7 @@ func TestSelect(t *testing.T) {
 			0,
 			time.UTC,
 		).In(time.Local))
-		insertstmt.DateTime(16, d)
+		writer.DateTime(16, d)
 		datetimeInsert = append(datetimeInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -197,29 +203,41 @@ func TestSelect(t *testing.T) {
 			time.Local,
 		))
 
-		insertstmt.Decimal32(17, 1.64*float64(i), 4)
-		insertstmt.Decimal64(18, 1.64*float64(i), 4)
+		writer.Decimal32(17, 1.64*float64(i), 4)
+		writer.Decimal64(18, 1.64*float64(i), 4)
 		decimalInsert = append(decimalInsert, math.Floor(1.64*float64(i)*10000)/10000)
 
-		insertstmt.UUID(19, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+		writer.UUID(19, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 		uuidInsert = append(uuidInsert, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		insertstmt.Uint8(20, uint8(1*i))
-		insertstmt.String(21, fmt.Sprintf("string %d", i))
+		writer.Uint8(20, uint8(1*i))
+		writer.String(21, fmt.Sprintf("string %d", i))
 
-		err = insertstmt.IPv4(22, net.ParseIP("1.2.3.4").To4())
+		err = writer.IPv4(22, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 		ipv4Insert = append(ipv4Insert, net.ParseIP("1.2.3.4").To4())
 
-		err = insertstmt.IPv6(23, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		err = writer.IPv6(23, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 		ipv6Insert = append(ipv6Insert, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		if i%2 == 0 {
+			enum8Insert = append(enum8Insert, 1)
+			writer.Int8(24, 1)
+			enum16Insert = append(enum16Insert, 1)
+			writer.Int16(25, 1)
+		} else {
+			enum8Insert = append(enum8Insert, 2)
+			writer.Int8(24, 2)
+			enum16Insert = append(enum16Insert, 2)
+			writer.Int16(25, 2)
+		}
 	}
 
-	err = insertstmt.Commit(context.Background())
+	err = insertstmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
-
-	selectStmt, err := conn.Select(context.Background(), `SELECT 
+	setting := NewSettings()
+	setting.LogQueries(false)
+	selectStmt, err := conn.SelectWithSetting(context.Background(), `SELECT 
 				int8,
 				int16,
 				int32,
@@ -241,8 +259,10 @@ func TestSelect(t *testing.T) {
 				uuid,
 				tuple,
 				ipv4,
-				ipv6
-	 FROM clickhouse_test_insert`)
+				ipv6,
+				enum8,
+				enum16
+	 FROM clickhouse_test_insert`, setting)
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16
@@ -268,6 +288,8 @@ func TestSelect(t *testing.T) {
 	var tuple2Data []string
 	var ipv4Data []net.IP
 	var ipv6Data []net.IP
+	var enum8Data []int8
+	var enum16Data []int16
 	require.True(t, conn.IsBusy())
 
 	defer func() {
@@ -465,8 +487,22 @@ func TestSelect(t *testing.T) {
 			require.NoError(t, errRead)
 			ipv6Data = append(ipv6Data, val)
 		}
-	}
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, errRead := selectStmt.Int8()
+			require.NoError(t, errRead)
+			enum8Data = append(enum8Data, val)
+		}
 
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+		for i := uint64(0); i < selectStmt.RowsInBlock(); i++ {
+			val, errRead := selectStmt.Int16()
+			require.NoError(t, errRead)
+			enum16Data = append(enum16Data, val)
+		}
+	}
 	require.NoError(t, selectStmt.Err())
 	assert.Equal(t, int8Insert, int8Data)
 	assert.Equal(t, int16Insert, int16Data)
@@ -491,6 +527,8 @@ func TestSelect(t *testing.T) {
 	assert.Equal(t, stringInsert, tuple2Data)
 	assert.Equal(t, ipv4Insert, ipv4Data)
 	assert.Equal(t, ipv6Insert, ipv6Data)
+	assert.Equal(t, enum8Insert, enum8Data)
+	assert.Equal(t, enum16Insert, enum16Data)
 	conn.RawConn().Close()
 }
 
@@ -556,41 +594,43 @@ func TestSelectReadError(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 	now := time.Now()
-
+	writer := insertstmt.Writer()
 	for i := 1; i <= 1; i++ {
-		insertstmt.AddRow(1)
-		insertstmt.Int8(0, int8(-1*i))
-		insertstmt.Int16(1, int16(-2*i))
-		insertstmt.Int32(2, int32(-4*i))
-		insertstmt.Int64(3, int64(-8*i))
-		insertstmt.Uint8(4, uint8(1*i))
-		insertstmt.Uint16(5, uint16(2*i))
-		insertstmt.Uint32(6, uint32(4*i))
-		insertstmt.Uint64(7, uint64(8*i))
-		insertstmt.Float32(8, 1.32*float32(i))
-		insertstmt.Float64(9, 1.64*float64(i))
-		insertstmt.String(10, fmt.Sprintf("string %d", i))
-		insertstmt.Buffer(11, []byte{10, 20, 30, 40})
-		insertstmt.FixedString(12, []byte("01"))
+		writer.AddRow(1)
+		writer.Int8(0, int8(-1*i))
+		writer.Int16(1, int16(-2*i))
+		writer.Int32(2, int32(-4*i))
+		writer.Int64(3, int64(-8*i))
+		writer.Uint8(4, uint8(1*i))
+		writer.Uint16(5, uint16(2*i))
+		writer.Uint32(6, uint32(4*i))
+		writer.Uint64(7, uint64(8*i))
+		writer.Float32(8, 1.32*float32(i))
+		writer.Float64(9, 1.64*float64(i))
+		writer.String(10, fmt.Sprintf("string %d", i))
+		writer.Buffer(11, []byte{10, 20, 30, 40})
+		writer.FixedString(12, []byte("01"))
 
 		d := now.AddDate(0, 0, i)
-		insertstmt.Date(13, d)
-		insertstmt.DateTime(14, d)
+		writer.Date(13, d)
+		writer.DateTime(14, d)
 
-		insertstmt.Decimal32(15, 1.64*float64(i), 4)
-		insertstmt.Decimal64(16, 1.64*float64(i), 4)
+		writer.Decimal32(15, 1.64*float64(i), 4)
+		writer.Decimal64(16, 1.64*float64(i), 4)
 
-		insertstmt.UUID(17, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+		writer.UUID(17, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		err = insertstmt.IPv4(18, net.ParseIP("1.2.3.4").To4())
+		err = writer.IPv4(18, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 
-		err = insertstmt.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		err = writer.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 	}
 
-	err = insertstmt.Commit(context.Background())
+	err = insertstmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
+
+	writer.Reset()
 
 	startValidReader := 38
 
@@ -771,4 +811,73 @@ func TestSelectReadError(t *testing.T) {
 			require.EqualError(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestSelectSimpleAggregateFunction(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_simple_agg`)
+	require.NoError(t, err)
+	require.Nil(t, res)
+	res, err = conn.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_simple_agg (
+		id UInt64,
+		val SimpleAggregateFunction(sum, Double)
+		) ENGINE=AggregatingMergeTree ORDER BY id;`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_simple_agg (
+				id,
+				val
+			) VALUES`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	writer := insertstmt.Writer()
+	writer.AddRow(1)
+	writer.Uint64(0, 1)
+	writer.Float64(1, 2)
+	err = insertstmt.Commit(context.Background(), writer)
+	require.NoError(t, err)
+	writer.Reset()
+
+	selectStmt, err := conn.Select(context.Background(), `SELECT 
+				id,val
+	 FROM clickhouse_test_insert_simple_agg`)
+	require.NoError(t, err)
+
+	require.True(t, conn.IsBusy())
+
+	defer func() {
+		selectStmt.Close()
+		require.False(t, conn.IsBusy())
+	}()
+	for selectStmt.Next() {
+		assert.Equal(t, selectStmt.RowsInBlock(), uint64(1))
+
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+
+		id, errRead := selectStmt.Uint64()
+		require.NoError(t, errRead)
+		assert.Equal(t, id, uint64(1))
+
+		_, err = selectStmt.NextColumn()
+		require.NoError(t, err)
+
+		val, errRead := selectStmt.Float64()
+		require.NoError(t, errRead)
+		assert.Equal(t, val, float64(2))
+	}
+
+	require.NoError(t, selectStmt.Err())
+
+	conn.RawConn().Close()
 }

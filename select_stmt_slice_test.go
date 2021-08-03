@@ -111,34 +111,35 @@ func TestSelectSlice(t *testing.T) {
 	var sLowCardinalityInsert []string
 	var asLowCardinalityInsert [][]string
 	var sfLowCardinalityInsert [][]byte
+	writer := insertStmt.Writer()
 	for i := 1; i <= 10; i++ {
-		insertStmt.AddRow(1)
+		writer.AddRow(1)
 		int8Insert = append(int8Insert, int8(-1*i))
-		insertStmt.Int8(0, int8(-1*i))
+		writer.Int8(0, int8(-1*i))
 		int16Insert = append(int16Insert, int16(-2*i))
-		insertStmt.Int16(1, int16(-2*i))
+		writer.Int16(1, int16(-2*i))
 		int32Insert = append(int32Insert, int32(-4*i))
-		insertStmt.Int32(2, int32(-4*i))
+		writer.Int32(2, int32(-4*i))
 		int64Insert = append(int64Insert, int64(-8*i))
-		insertStmt.Int64(3, int64(-8*i))
+		writer.Int64(3, int64(-8*i))
 		uint8Insert = append(uint8Insert, uint8(1*i))
-		insertStmt.Uint8(4, uint8(1*i))
+		writer.Uint8(4, uint8(1*i))
 		uint16Insert = append(uint16Insert, uint16(2*i))
-		insertStmt.Uint16(5, uint16(2*i))
+		writer.Uint16(5, uint16(2*i))
 		uint32Insert = append(uint32Insert, uint32(4*i))
-		insertStmt.Uint32(6, uint32(4*i))
+		writer.Uint32(6, uint32(4*i))
 		uint64Insert = append(uint64Insert, uint64(8*i))
-		insertStmt.Uint64(7, uint64(8*i))
+		writer.Uint64(7, uint64(8*i))
 		float32Insert = append(float32Insert, 1.32*float32(i))
-		insertStmt.Float32(8, 1.32*float32(i))
+		writer.Float32(8, 1.32*float32(i))
 		float64Insert = append(float64Insert, 1.64*float64(i))
-		insertStmt.Float64(9, 1.64*float64(i))
+		writer.Float64(9, 1.64*float64(i))
 		stringInsert = append(stringInsert, fmt.Sprintf("string %d", i))
-		insertStmt.String(10, fmt.Sprintf("string %d", i))
+		writer.String(10, fmt.Sprintf("string %d", i))
 		byteInsert = append(byteInsert, []byte{10, 20, 30, 40})
-		insertStmt.Buffer(11, []byte{10, 20, 30, 40})
+		writer.Buffer(11, []byte{10, 20, 30, 40})
 		fixedStringInsert = append(fixedStringInsert, []byte("01"))
-		insertStmt.FixedString(12, []byte("01"))
+		writer.FixedString(12, []byte("01"))
 		array := [][]uint8{
 			{
 				1, 2, 3, 4,
@@ -146,16 +147,16 @@ func TestSelectSlice(t *testing.T) {
 				5, 6, 7, 8, 9,
 			},
 		}
-		insertStmt.AddLen(13, uint64(len(array)))
+		writer.AddLen(13, uint64(len(array)))
 		for _, a := range array {
-			insertStmt.AddLen(14, uint64(len(a)))
+			writer.AddLen(14, uint64(len(a)))
 			for _, u8 := range a {
-				insertStmt.Uint8(15, u8)
+				writer.Uint8(15, u8)
 			}
 		}
 		arrayInsert = append(arrayInsert, array)
 		d := now.AddDate(0, 0, i)
-		insertStmt.Date(16, d)
+		writer.Date(16, d)
 		dateInsert = append(dateInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -166,7 +167,7 @@ func TestSelectSlice(t *testing.T) {
 			0,
 			time.UTC,
 		).In(time.Local))
-		insertStmt.DateTime(17, d)
+		writer.DateTime(17, d)
 		datetimeInsert = append(datetimeInsert, time.Date(
 			d.Year(),
 			d.Month(),
@@ -178,37 +179,37 @@ func TestSelectSlice(t *testing.T) {
 			time.Local,
 		))
 
-		insertStmt.Decimal32(18, 1.64*float64(i), 4)
-		insertStmt.Decimal64(19, 1.64*float64(i), 4)
+		writer.Decimal32(18, 1.64*float64(i), 4)
+		writer.Decimal64(19, 1.64*float64(i), 4)
 		decimalInsert = append(decimalInsert, math.Floor(1.64*float64(i)*10000)/10000)
 
-		insertStmt.UUID(20, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+		writer.UUID(20, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 		uuidInsert = append(uuidInsert, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		insertStmt.Uint8(21, uint8(1*i))
-		insertStmt.String(22, fmt.Sprintf("string %d", i))
+		writer.Uint8(21, uint8(1*i))
+		writer.String(22, fmt.Sprintf("string %d", i))
 
-		err = insertStmt.IPv4(23, net.ParseIP("1.2.3.4").To4())
+		err = writer.IPv4(23, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 		ipv4Insert = append(ipv4Insert, net.ParseIP("1.2.3.4").To4())
 
-		err = insertStmt.IPv6(24, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		err = writer.IPv6(24, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 		ipv6Insert = append(ipv6Insert, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 
 		if i%2 == 0 {
-			insertStmt.AddStringLowCardinality(25, "string 1")
+			writer.AddStringLowCardinality(25, "string 1")
 			sLowCardinalityInsert = append(sLowCardinalityInsert, "string 1")
 		} else {
-			insertStmt.AddStringLowCardinality(25, "string 2")
+			writer.AddStringLowCardinality(25, "string 2")
 			sLowCardinalityInsert = append(sLowCardinalityInsert, "string 2")
 		}
 
 		if i%2 == 0 {
-			insertStmt.AddFixedStringLowCardinality(26, []byte("0123456789"))
+			writer.AddFixedStringLowCardinality(26, []byte("0123456789"))
 			sfLowCardinalityInsert = append(sfLowCardinalityInsert, []byte("0123456789"))
 		} else {
-			insertStmt.AddFixedStringLowCardinality(26, []byte("0987654321"))
+			writer.AddFixedStringLowCardinality(26, []byte("0987654321"))
 			sfLowCardinalityInsert = append(sfLowCardinalityInsert, []byte("0987654321"))
 		}
 
@@ -217,15 +218,16 @@ func TestSelectSlice(t *testing.T) {
 			"string 1",
 			"string 2",
 		}
-		insertStmt.AddLen(27, uint64(len(arrayString)))
+		writer.AddLen(27, uint64(len(arrayString)))
 		for _, s := range arrayString {
-			insertStmt.AddStringLowCardinality(28, s)
+			writer.AddStringLowCardinality(28, s)
 		}
 
 		asLowCardinalityInsert = append(asLowCardinalityInsert, arrayString)
 	}
 
-	err = insertStmt.Commit(context.Background())
+	err = insertStmt.Commit(context.Background(), writer)
+	writer.Reset()
 	require.NoError(t, err)
 
 	selectStmt, err := conn.SelectCallback(context.Background(), `SELECT 
@@ -549,45 +551,46 @@ func TestSelectSliceReadError(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 	now := time.Now()
+	writer := insertStmt.Writer()
 
 	for i := 1; i <= 1; i++ {
-		insertStmt.AddRow(1)
-		insertStmt.Int8(0, int8(-1*i))
-		insertStmt.Int16(1, int16(-2*i))
-		insertStmt.Int32(2, int32(-4*i))
-		insertStmt.Int64(3, int64(-8*i))
-		insertStmt.Uint8(4, uint8(1*i))
-		insertStmt.Uint16(5, uint16(2*i))
-		insertStmt.Uint32(6, uint32(4*i))
-		insertStmt.Uint64(7, uint64(8*i))
-		insertStmt.Float32(8, 1.32*float32(i))
-		insertStmt.Float64(9, 1.64*float64(i))
-		insertStmt.String(10, fmt.Sprintf("string %d", i))
-		insertStmt.Buffer(11, []byte{10, 20, 30, 40})
-		insertStmt.FixedString(12, []byte("01"))
+		writer.AddRow(1)
+		writer.Int8(0, int8(-1*i))
+		writer.Int16(1, int16(-2*i))
+		writer.Int32(2, int32(-4*i))
+		writer.Int64(3, int64(-8*i))
+		writer.Uint8(4, uint8(1*i))
+		writer.Uint16(5, uint16(2*i))
+		writer.Uint32(6, uint32(4*i))
+		writer.Uint64(7, uint64(8*i))
+		writer.Float32(8, 1.32*float32(i))
+		writer.Float64(9, 1.64*float64(i))
+		writer.String(10, fmt.Sprintf("string %d", i))
+		writer.Buffer(11, []byte{10, 20, 30, 40})
+		writer.FixedString(12, []byte("01"))
 
 		d := now.AddDate(0, 0, i)
-		insertStmt.Date(13, d)
-		insertStmt.DateTime(14, d)
+		writer.Date(13, d)
+		writer.DateTime(14, d)
 
-		insertStmt.Decimal32(15, 1.64*float64(i), 4)
-		insertStmt.Decimal64(16, 1.64*float64(i), 4)
+		writer.Decimal32(15, 1.64*float64(i), 4)
+		writer.Decimal64(16, 1.64*float64(i), 4)
 
-		insertStmt.UUID(17, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
+		writer.UUID(17, uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50"))
 
-		err = insertStmt.IPv4(18, net.ParseIP("1.2.3.4").To4())
+		err = writer.IPv4(18, net.ParseIP("1.2.3.4").To4())
 		require.NoError(t, err)
 
-		err = insertStmt.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
+		err = writer.IPv6(19, net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:733").To16())
 		require.NoError(t, err)
 
 		// array
-		insertStmt.AddLen(20, 2)
-		insertStmt.Int8(21, 1)
-		insertStmt.Int8(21, 2)
+		writer.AddLen(20, 2)
+		writer.Int8(21, 1)
+		writer.Int8(21, 2)
 	}
 
-	err = insertStmt.Commit(context.Background())
+	err = insertStmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
 
 	startValidReader := 38

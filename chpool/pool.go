@@ -53,6 +53,7 @@ type Pool interface {
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	Ping(ctx context.Context) error
 	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
 	Stat() *Stat
 }
@@ -444,4 +445,14 @@ func (p *pool) InsertWithSetting(ctx context.Context, query string, setting *chc
 	}
 
 	return s, nil
+}
+
+func (p *pool) Ping(ctx context.Context) error {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer c.Release()
+
+	return c.Ping(ctx)
 }

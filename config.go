@@ -234,7 +234,7 @@ func ParseConfig(connString string) (*Config, error) {
 
 		var tlsConfigs []*tls.Config
 
-		tlsConfigs, err = configTLS(settings)
+		tlsConfigs, err = configTLS(settings, host)
 
 		if err != nil {
 			return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
@@ -338,8 +338,12 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
 		}
-		hosts = append(hosts, h)
-		ports = append(ports, p)
+		if h != "" {
+			hosts = append(hosts, h)
+		}
+		if p != "" {
+			ports = append(ports, p)
+		}
 	}
 	if len(hosts) > 0 {
 		settings["host"] = strings.Join(hosts, ",")
@@ -353,7 +357,15 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		settings["database"] = database
 	}
 
+	nameMap := map[string]string{
+		"dbname": "database",
+	}
+
 	for k, v := range urlConn.Query() {
+		if k2, present := nameMap[k]; present {
+			k = k2
+		}
+
 		settings[k] = v[0]
 	}
 
@@ -442,8 +454,8 @@ func parseDSNSettings(s string) (map[string]string, error) {
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
 //nolint:funlen,gocyclo
-func configTLS(settings map[string]string) ([]*tls.Config, error) {
-	host := settings["host"]
+func configTLS(settings map[string]string, thisHost string) ([]*tls.Config, error) {
+	host := thisHost
 	sslmode := settings["sslmode"]
 	sslrootcert := settings["sslrootcert"]
 	sslcert := settings["sslcert"]
@@ -458,6 +470,8 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	tlsConfig := &tls.Config{}
 
 	switch sslmode {
+	case "disable":
+		return []*tls.Config{nil}, nil
 	case "allow", "prefer":
 		tlsConfig.InsecureSkipVerify = true
 	case "require":
