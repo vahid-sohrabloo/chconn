@@ -3,6 +3,7 @@ package chpool
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"runtime"
 	"testing"
@@ -53,29 +54,21 @@ func TestConnectCancel(t *testing.T) {
 	assert.Equal(t, context.Canceled, err)
 }
 
-func TestConnectParseError(t *testing.T) {
+func TestLazyConnect(t *testing.T) {
 	t.Parallel()
-
-	pool, err := Connect(context.Background(), "host>0")
-	assert.Nil(t, pool)
-	assert.Equal(t, "cannot parse `host>0`: failed to parse as DSN (invalid dsn)", err.Error())
-}
-
-func TestConnectError(t *testing.T) {
-	t.Parallel()
-
-	pool, err := Connect(context.Background(), "host=invalidhost")
-	assert.Nil(t, pool)
-	assert.Error(t, err)
 
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
-	require.NoError(t, err)
-	config.AfterConnect = func(ctx context.Context, c chconn.Conn) error {
-		return errors.New("afterConnect err")
-	}
+	assert.NoError(t, err)
+	config.LazyConnect = true
 
-	_, err = ConnectConfig(context.Background(), config)
-	assert.EqualError(t, err, "afterConnect err")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	pool, err := ConnectConfig(ctx, config)
+	assert.NoError(t, err)
+
+	_, err = pool.Exec(ctx, "SELECT 1")
+	assert.Equal(t, context.Canceled, err)
 }
 
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
@@ -88,6 +81,28 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	})
 }
 
+func TestConfigCopyReturnsEqualConfig(t *testing.T) {
+	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&connect_timeout=5"
+	original, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+
+	assertConfigsEqual(t, original, copied, t.Name())
+}
+
+func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	original, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assert.NotPanics(t, func() {
+		_, err = ConnectConfig(context.Background(), copied)
+	})
+	assert.NoError(t, err)
+}
+
 func TestPoolAcquireAndConnRelease(t *testing.T) {
 	t.Parallel()
 
@@ -98,6 +113,50 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c, err := pool.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
+}
+
+func TestPoolAcquireFunc(t *testing.T) {
+	t.Parallel()
+
+	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	err = pool.AcquireFunc(context.Background(), func(c Conn) error {
+		return c.Ping(context.Background())
+	})
+	require.NoError(t, err)
+}
+
+func TestPoolAcquireFuncReturnsFnError(t *testing.T) {
+	t.Parallel()
+
+	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	err = pool.AcquireFunc(context.Background(), func(c Conn) error {
+		return fmt.Errorf("some error")
+	})
+	require.EqualError(t, err, "some error")
+}
+
+func TestPoolBeforeConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	config.BeforeConnect = func(ctx context.Context, cfg *chconn.Config) error {
+		cfg.ClientName = "chx2"
+		return nil
+	}
+
+	db, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	db.Close()
+
+	// todo find a way to check it
 }
 
 func TestPoolAfterConnect(t *testing.T) {
@@ -216,6 +275,7 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 		}
 	}
 	waitForReleaseToComplete()
+
 	conns = db.AcquireAllIdle(context.Background())
 	assert.Len(t, conns, 3)
 
@@ -284,7 +344,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
-	time.Sleep(config.MaxConnLifetime + 50*time.Millisecond)
+	time.Sleep(config.MaxConnLifetime + 100*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
@@ -303,6 +363,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	db, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
+
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
@@ -411,6 +472,7 @@ func TestPoolSelectError(t *testing.T) {
 
 	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
+	defer pool.Close()
 
 	// Test common usage
 	testSelect(t, pool)
@@ -653,4 +715,29 @@ func TestParseConfigError(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestConnectParseError(t *testing.T) {
+	t.Parallel()
+
+	pool, err := Connect(context.Background(), "host>0")
+	assert.Nil(t, pool)
+	assert.Equal(t, "cannot parse `host>0`: failed to parse as DSN (invalid dsn)", err.Error())
+}
+
+func TestConnectError(t *testing.T) {
+	t.Parallel()
+
+	pool, err := Connect(context.Background(), "host=invalidhost")
+	assert.Nil(t, pool)
+	assert.Error(t, err)
+
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	config.AfterConnect = func(ctx context.Context, c chconn.Conn) error {
+		return errors.New("afterConnect err")
+	}
+
+	_, err = ConnectConfig(context.Background(), config)
+	assert.EqualError(t, err, "afterConnect err")
 }

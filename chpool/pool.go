@@ -2,9 +2,12 @@ package chpool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/jackc/puddle"
@@ -39,6 +42,7 @@ func (cr *connResource) getConn(p *pool, res *puddle.Resource) Conn {
 type Pool interface {
 	Close()
 	Acquire(ctx context.Context) (Conn, error)
+	AcquireFunc(ctx context.Context, f func(Conn) error) error
 	AcquireAllIdle(ctx context.Context) []Conn
 	Exec(ctx context.Context, sql string) (interface{}, error)
 	ExecWithSetting(ctx context.Context, query string, setting *chconn.Settings) (interface{}, error)
@@ -60,6 +64,7 @@ type Pool interface {
 type pool struct {
 	p                 *puddle.Pool
 	config            *Config
+	beforeConnect     func(context.Context, *chconn.Config) error
 	afterConnect      func(context.Context, chconn.Conn) error
 	beforeAcquire     func(context.Context, chconn.Conn) bool
 	afterRelease      func(chconn.Conn) bool
@@ -67,13 +72,18 @@ type pool struct {
 	maxConnLifetime   time.Duration
 	maxConnIdleTime   time.Duration
 	healthCheckPeriod time.Duration
-	closeChan         chan struct{}
+
+	closeOnce sync.Once
+	closeChan chan struct{}
 }
 
 // Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
 // modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	ConnConfig *chconn.Config
+	// BeforeConnect is called before a new connection is made. It is passed a copy of the underlying chconn.Config and
+	// will not impact any existing open connections.
+	BeforeConnect func(context.Context, *chconn.Config) error
 
 	// AfterConnect is called after a connection is established, but before it is added to the pool.
 	AfterConnect func(context.Context, chconn.Conn) error
@@ -121,6 +131,8 @@ func (c *Config) Copy() *Config {
 	return newConfig
 }
 
+func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
+
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. See ParseConfig for information on connString format.
 func Connect(ctx context.Context, connString string) (Pool, error) {
@@ -143,6 +155,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 
 	p := &pool{
 		config:            config,
+		beforeConnect:     config.BeforeConnect,
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
@@ -155,7 +168,15 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) {
-			c, err := chconn.ConnectConfig(ctx, config.ConnConfig)
+			connConfig := config.ConnConfig
+			if p.beforeConnect != nil {
+				connConfig = p.config.ConnConfig.Copy()
+				if err := p.beforeConnect(ctx, connConfig); err != nil {
+					return nil, err
+				}
+			}
+
+			c, err := chconn.ConnectConfig(ctx, connConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -190,11 +211,12 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 		// Initially establish one connection
 		res, err := p.p.Acquire(ctx)
 		if err != nil {
-			p.p.Close()
+			p.Close()
 			return nil, err
 		}
 		res.Release()
 	}
+
 	return p, nil
 }
 
@@ -210,10 +232,10 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 // See Config for definitions of these arguments.
 //
 //   # Example DSN
-//   user=jack password=secret host=clickhouse.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//   user=vahid password=secret host=clickhouse.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
 //   # Example URL
-//   clickhouse://jack:secret@ch.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
+//   clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	chConfig, err := chconn.ParseConfig(connString)
 	if err != nil {
@@ -293,8 +315,10 @@ func ParseConfig(connString string) (*Config, error) {
 // Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 // to pool and closed.
 func (p *pool) Close() {
-	close(p.closeChan)
-	p.p.Close()
+	p.closeOnce.Do(func() {
+		close(p.closeChan)
+		p.p.Close()
+	})
 }
 
 func (p *pool) backgroundHealthCheck() {
@@ -353,6 +377,19 @@ func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 	}
 }
 
+// AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
+// call of f. The return value is either an error acquiring the *Conn or the return value of f. The *Conn is
+// automatically released after the call of f.
+func (p *pool) AcquireFunc(ctx context.Context, f func(Conn) error) error {
+	conn, err := p.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	return f(conn)
+}
+
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
 func (p *pool) AcquireAllIdle(ctx context.Context) []Conn {
@@ -390,13 +427,18 @@ func (p *pool) ExecCallback(
 	sql string,
 	setting *chconn.Settings,
 	onProgress func(*chconn.Progress)) (interface{}, error) {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return nil, err
+	for {
+		c, err := p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
+		res, err := c.ExecCallback(ctx, sql, setting, onProgress)
+		c.Release()
+		if errors.Is(err, syscall.EPIPE) {
+			continue
+		}
+		return res, err
 	}
-	defer c.Release()
-
-	return c.ExecCallback(ctx, sql, setting, onProgress)
 }
 
 func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
@@ -414,18 +456,23 @@ func (p *pool) SelectCallback(
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
+	for {
+		c, err := p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	s, err := c.SelectCallback(ctx, query, setting, onProgress, onProfile)
-	if err != nil {
-		c.Release()
-		return nil, err
+		s, err := c.SelectCallback(ctx, query, setting, onProgress, onProfile)
+		fmt.Println("err", err)
+		if err != nil {
+			c.Release()
+			if errors.Is(err, syscall.EPIPE) {
+				continue
+			}
+			return nil, err
+		}
+		return s, nil
 	}
-
-	return s, nil
 }
 
 func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
@@ -433,18 +480,23 @@ func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, err
 }
 
 func (p *pool) InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error) {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
+	for {
+		c, err := p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	s, err := c.InsertWithSetting(ctx, query, setting)
-	if err != nil {
-		c.Release()
-		return nil, err
-	}
+		s, err := c.InsertWithSetting(ctx, query, setting)
+		if err != nil {
+			c.Release()
+			if errors.Is(err, syscall.EPIPE) {
+				continue
+			}
+			return nil, err
+		}
 
-	return s, nil
+		return s, nil
+	}
 }
 
 func (p *pool) Ping(ctx context.Context) error {
@@ -453,6 +505,5 @@ func (p *pool) Ping(ctx context.Context) error {
 		return err
 	}
 	defer c.Release()
-
 	return c.Ping(ctx)
 }

@@ -31,7 +31,7 @@ type Config struct {
 	Database       string
 	User           string
 	Password       string
-	ClientName     string      // e.g. net.Resolver.LookupHost
+	ClientName     string
 	TLSConfig      *tls.Config // nil disables TLS
 	ConnectTimeout time.Duration
 	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
@@ -53,6 +53,9 @@ type Config struct {
 	AfterConnect AfterConnectFunc
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+
+	// Original connection string that was parsed into config.
+	connString string
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -84,6 +87,8 @@ func (c *Config) Copy() *Config {
 	return newConf
 }
 
+func (c *Config) ConnString() string { return c.connString }
+
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
 // network connection. It is used for TLS fallback such as sslmode=prefer and high availability (HA) connections.
 type FallbackConfig struct {
@@ -106,7 +111,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //   user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
 //
 //   # Example URL
-//   clickhouse://jack:secret@ch.example.com:9000/mydb?sslmode=verify-ca
+//   clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system.
@@ -177,6 +182,7 @@ func ParseConfig(connString string) (*Config, error) {
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
 		ClientName:           settings["client_name"],
+		connString:           connString,
 	}
 
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {

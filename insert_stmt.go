@@ -165,12 +165,20 @@ func (s *InsertWriter) Decimal64(bufferIndex int, value float64, scale int) {
 }
 
 func (s *InsertWriter) Date(bufferIndex int, value time.Time) {
+	if value.Unix() < 0 {
+		s.ColumnsBuffer[bufferIndex].Uint16(0)
+		return
+	}
 	_, offset := value.Zone()
 	timestamp := value.Unix() + int64(offset)
 	s.ColumnsBuffer[bufferIndex].Uint16(uint16(timestamp / 24 / 3600))
 }
 
 func (s *InsertWriter) DateTime(bufferIndex int, value time.Time) {
+	if value.Unix() < 0 {
+		s.ColumnsBuffer[bufferIndex].Uint32(0)
+		return
+	}
 	s.ColumnsBuffer[bufferIndex].Uint32(uint32(value.Unix()))
 }
 

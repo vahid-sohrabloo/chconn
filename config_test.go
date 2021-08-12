@@ -509,7 +509,6 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
-
 func TestParseConfigDSNWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
 	_, err := ParseConfig("host= user= password= port= database=")
 	require.NoError(t, err)
