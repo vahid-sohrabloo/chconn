@@ -6,6 +6,7 @@ import (
 
 type pong struct{}
 
+// Check that connection to the server is alive.
 func (ch *conn) Ping(ctx context.Context) error {
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()

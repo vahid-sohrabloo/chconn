@@ -84,12 +84,12 @@ const (
 	serializationType = hasAdditionalKeysBit | needUpdateDictionary
 )
 
-type QueryProcessingStage uint64
+type queryProcessingStage uint64
 
 const (
 
-	// QueryProcessingStageComplete Completely.
-	QueryProcessingStageComplete QueryProcessingStage = 2
+	// queryProcessingStageComplete Completely.
+	queryProcessingStageComplete queryProcessingStage = 2
 )
 
 // DialFunc is a function that can be used to connect to a ClickHouse server.
@@ -101,25 +101,47 @@ type LookupFunc func(ctx context.Context, host string) (addrs []string, err erro
 // ReaderFunc is a function that can be used get reader for read from server
 type ReaderFunc func(io.Reader) io.Reader
 
-// WriterFunc is a function that can be used get writer to writer from server
-// Note: DO NOT Use bufio.Writer, chconn do not support flush
+// WriterFunc is a function that can be used to get writer to writer from server
+// Note: DO NOT use bufio.Writer, chconn doesn't support flush
 type WriterFunc func(io.Writer) io.Writer
 
-// Conn is a low-level Clickhoue connection handle. It is not safe for concurrent usage.
+// Conn is a low-level Clickhouse connection handle. It is not safe for concurrent usage.
 type Conn interface {
+	// RawConn Get Raw Connection. Do not use unless you know what you want to do
 	RawConn() net.Conn
+	// Close the connection to database
 	Close(ctx context.Context) error
+	// IsClosed reports if the connection has been closed.
 	IsClosed() bool
+	// IsBusy reports if the connection is busy.
 	IsBusy() bool
+	// ServerInfo get Server info
 	ServerInfo() ServerInfo
+	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
+	// Exec executes a query without returning any rows.
+	// NOTE: don't use it for insert and select query
 	Exec(ctx context.Context, query string) (interface{}, error)
+	// ExecWithSetting executes a query without returning any rows with the setting option.
+	// NOTE: don't use it for insert and select query
 	ExecWithSetting(ctx context.Context, query string, setting *Settings) (interface{}, error)
+	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
+	// NOTE: don't use it for insert and select query
 	ExecCallback(ctx context.Context, query string, setting *Settings, onProgress func(*Progress)) (interface{}, error)
+	// Insert executes a query and return insert stmt.
+	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string) (InsertStmt, error)
+	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	// NOTE: only use for insert query
 	InsertWithSetting(ctx context.Context, query string, setting *Settings) (InsertStmt, error)
+	// Select executes a query and return select stmt.
+	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (SelectStmt, error)
+	// Select executes a query with the setting option and return select stmt.
+	// NOTE: only use for select query
 	SelectWithSetting(ctx context.Context, query string, setting *Settings) (SelectStmt, error)
+	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
+	// NOTE: only use for select query
 	SelectCallback(
 		ctx context.Context,
 		query string,
@@ -295,6 +317,8 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 func (ch *conn) RawConn() net.Conn {
 	return ch.conn
 }
+
+// send hello to ClickHouse
 func (ch *conn) hello() error {
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
@@ -380,7 +404,7 @@ func (ch *conn) sendQueryWithOption(
 
 	ch.writer.String("")
 
-	ch.writer.Uvarint(uint64(QueryProcessingStageComplete))
+	ch.writer.Uvarint(uint64(queryProcessingStageComplete))
 
 	// comprestion
 	ch.writer.Uvarint(0)
@@ -519,7 +543,6 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Se
 
 	var blockData *block
 	for {
-		// todo check response block is the same old
 		var res interface{}
 		res, err = ch.reciveAndProccessData(emptyOnProgress)
 		if err != nil {
@@ -553,7 +576,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Se
 		conn:       ch,
 		query:      query,
 		queryID:    "",
-		stage:      QueryProcessingStageComplete,
+		stage:      queryProcessingStageComplete,
 		settings:   setting,
 		clientInfo: nil,
 	}, nil
@@ -569,7 +592,7 @@ func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *Se
 	return ch.SelectCallback(ctx, query, setting, nil, nil)
 }
 
-// Select send query for select and prepare SelectStmt on register  on progress and on profile callback
+// Select send query for select and prepare SelectStmt on progress and on profile callback
 func (ch *conn) SelectCallback(
 	ctx context.Context,
 	query string,

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Column contain detail of clickhouse column with Buffer index and needed buffer
+// Column contains details of ClickHouse column with Buffer index in inserting
 type Column struct {
 	ChType      string
 	Name        string

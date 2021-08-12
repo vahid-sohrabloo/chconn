@@ -1,5 +1,6 @@
 package chconn
 
+// Profile detail of profile select query
 type Profile struct {
 	Rows                      uint64
 	Blocks                    uint64
