@@ -4,6 +4,9 @@ import (
 	"context"
 	"net"
 	"time"
+
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 // Table of powers of 10 for fast casting from floating types to decimal type
@@ -25,7 +28,7 @@ type insertStmt struct {
 	query      string
 	queryID    string
 	stage      queryProcessingStage
-	settings   *Settings
+	settings   *setting.Settings
 	clientInfo *ClientInfo
 }
 
@@ -93,7 +96,7 @@ func (s *insertStmt) NumBuffer() int {
 // InsertWriter is a writer (without clickhouse connection) that can write to buffer
 type InsertWriter struct {
 	NumRows       uint64
-	ColumnsBuffer []*Writer
+	ColumnsBuffer []*readerwriter.Writer
 }
 
 // NewInsertWriter return new InsertWriter
@@ -101,9 +104,9 @@ type InsertWriter struct {
 // To get the number of buffer that need it for query.
 // You can use `InsertStmt.NumBuffer()` or use code generator
 func NewInsertWriter(numBuffer int) *InsertWriter {
-	columnsBuffer := make([]*Writer, numBuffer)
+	columnsBuffer := make([]*readerwriter.Writer, numBuffer)
 	for i := 0; i < numBuffer; i++ {
-		columnsBuffer[i] = NewWriter()
+		columnsBuffer[i] = readerwriter.NewWriter()
 	}
 	return &InsertWriter{
 		ColumnsBuffer: columnsBuffer,

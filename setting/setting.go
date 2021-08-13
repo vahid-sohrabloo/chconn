@@ -1,9 +1,11 @@
-package chconn
+package setting
 
 import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
 // Settings for clickhouse query setting
@@ -14,7 +16,7 @@ import (
 type Settings struct {
 	configs map[string]interface{}
 	dirty   bool
-	w       *Writer
+	w       *readerwriter.Writer
 }
 
 // NewSettings return new settings for clickhouse query setting
@@ -23,7 +25,7 @@ type Settings struct {
 func NewSettings() *Settings {
 	return &Settings{
 		configs: make(map[string]interface{}),
-		w:       NewWriter(),
+		w:       readerwriter.NewWriter(),
 	}
 }
 
@@ -56,7 +58,7 @@ func (s *Settings) WriteTo(wt io.Writer) (int, error) {
 			}
 		}
 	}
-	return wt.Write(s.w.output.Bytes())
+	return wt.Write(s.w.Output().Bytes())
 }
 
 // MinCompressBlockSize set min_compress_block_size setting

@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
 // ErrInvalidIPv4 when invalid ipv4 provided
@@ -50,7 +52,7 @@ type ChError struct {
 	err        error
 }
 
-func (e *ChError) read(r *Reader) error {
+func (e *ChError) read(r *readerwriter.Reader) error {
 	var (
 		err       error
 		hasNested bool

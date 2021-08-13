@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 func TestInsertError(t *testing.T) {
@@ -67,7 +68,7 @@ func TestInsertError(t *testing.T) {
 	require.NoError(t, err)
 	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error`)
 	require.NoError(t, err)
-	setting := NewSettings()
+	setting := setting.NewSettings()
 	setting.JoinUseNulls(false)
 	_, err = c.ExecWithSetting(context.Background(), `CREATE TABLE clickhouse_test_insert_error (
 				int8  Int8

@@ -3,8 +3,11 @@ package chconn
 import (
 	"fmt"
 	"time"
+
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
+// ServerInfo detail of server info
 type ServerInfo struct {
 	Name               string
 	Revision           uint64
@@ -15,7 +18,7 @@ type ServerInfo struct {
 	Timezone           *time.Location
 }
 
-func (srv *ServerInfo) read(r *Reader) (err error) {
+func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
 	if srv.Name, err = r.String(); err != nil {
 		return &readError{"ServerInfo: could not read server name", err}
 	}
@@ -62,6 +65,7 @@ func (srv ServerInfo) String() string {
 		srv.ServerVersionPatch)
 }
 
+// ServerInfo get server info
 func (ch *conn) ServerInfo() ServerInfo {
 	return ch.serverInfo
 }

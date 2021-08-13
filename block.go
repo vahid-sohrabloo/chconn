@@ -3,6 +3,8 @@ package chconn
 import (
 	"io"
 	"strings"
+
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
 // Column contains details of ClickHouse column with Buffer index in inserting
@@ -20,12 +22,12 @@ type block struct {
 	NumColumns   uint64
 	NumBuffer    uint64
 	info         blockInfo
-	headerWriter *Writer
+	headerWriter *readerwriter.Writer
 }
 
 func newBlock() *block {
 	return &block{
-		headerWriter: NewWriter(),
+		headerWriter: readerwriter.NewWriter(),
 	}
 }
 
@@ -272,7 +274,7 @@ type blockInfo struct {
 	num3        uint64
 }
 
-func (info *blockInfo) read(r *Reader) error {
+func (info *blockInfo) read(r *readerwriter.Reader) error {
 	var err error
 	if info.field1, err = r.Uvarint(); err != nil {
 		return &readError{"block: read field1", err}
@@ -292,7 +294,7 @@ func (info *blockInfo) read(r *Reader) error {
 	return nil
 }
 
-func (info *blockInfo) write(w *Writer) {
+func (info *blockInfo) write(w *readerwriter.Writer) {
 	w.Uvarint(1)
 	w.Bool(info.isOverflows)
 	w.Uvarint(2)

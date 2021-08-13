@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 const (
@@ -124,28 +126,28 @@ type Conn interface {
 	Exec(ctx context.Context, query string) (interface{}, error)
 	// ExecWithSetting executes a query without returning any rows with the setting option.
 	// NOTE: don't use it for insert and select query
-	ExecWithSetting(ctx context.Context, query string, setting *Settings) (interface{}, error)
+	ExecWithSetting(ctx context.Context, query string, setting *setting.Settings) (interface{}, error)
 	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
 	// NOTE: don't use it for insert and select query
-	ExecCallback(ctx context.Context, query string, setting *Settings, onProgress func(*Progress)) (interface{}, error)
+	ExecCallback(ctx context.Context, query string, setting *setting.Settings, onProgress func(*Progress)) (interface{}, error)
 	// Insert executes a query and return insert stmt.
 	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string) (InsertStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, setting *Settings) (InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, setting *setting.Settings) (InsertStmt, error)
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (SelectStmt, error)
 	// Select executes a query with the setting option and return select stmt.
 	// NOTE: only use for select query
-	SelectWithSetting(ctx context.Context, query string, setting *Settings) (SelectStmt, error)
+	SelectWithSetting(ctx context.Context, query string, setting *setting.Settings) (SelectStmt, error)
 	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
 	// NOTE: only use for select query
 	SelectCallback(
 		ctx context.Context,
 		query string,
-		setting *Settings,
+		setting *setting.Settings,
 		onProgress func(*Progress),
 		onProfile func(*Profile)) (SelectStmt, error)
 }
@@ -159,9 +161,9 @@ type conn struct {
 
 	status byte // One of connStatus* constants
 
-	writer   *Writer
+	writer   *readerwriter.Writer
 	writerto io.Writer
-	reader   *Reader
+	reader   *readerwriter.Reader
 
 	contextWatcher *ctxwatch.ContextWatcher
 }
@@ -291,11 +293,11 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.contextWatcher.Watch(ctx)
 	defer c.contextWatcher.Unwatch()
-	c.writer = NewWriter()
+	c.writer = readerwriter.NewWriter()
 	if config.ReaderFunc != nil {
-		c.reader = NewReader(config.ReaderFunc(c.conn))
+		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
 	} else {
-		c.reader = NewReader(bufio.NewReader(c.conn))
+		c.reader = readerwriter.NewReader(bufio.NewReader(c.conn))
 	}
 	if config.WriterFunc != nil {
 		c.writerto = config.WriterFunc(c.conn)
@@ -381,7 +383,7 @@ func (ch *conn) sendQueryWithOption(
 	ctx context.Context, //nolint:unparam
 	query,
 	queryID string,
-	setting *Settings,
+	setting *setting.Settings,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -399,7 +401,7 @@ func (ch *conn) sendQueryWithOption(
 	// setting
 	if setting != nil {
 		//nolint:errcheck // no need for bytes.Buffer
-		setting.WriteTo(ch.writer.output)
+		setting.WriteTo(ch.writer.Output())
 	}
 
 	ch.writer.String("")
@@ -492,14 +494,14 @@ func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
 	return ch.ExecCallback(ctx, query, nil, nil)
 }
 
-func (ch *conn) ExecWithSetting(ctx context.Context, query string, setting *Settings) (interface{}, error) {
+func (ch *conn) ExecWithSetting(ctx context.Context, query string, setting *setting.Settings) (interface{}, error) {
 	return ch.ExecCallback(ctx, query, setting, nil)
 }
 
 func (ch *conn) ExecCallback(
 	ctx context.Context,
 	query string,
-	setting *Settings,
+	setting *setting.Settings,
 	onProgress func(*Progress),
 ) (interface{}, error) {
 	err := ch.lock()
@@ -528,7 +530,7 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 }
 
 // Insert send query for insert and prepare insert stmt with setting option
-func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *Settings) (InsertStmt, error) {
+func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *setting.Settings) (InsertStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -588,7 +590,7 @@ func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
 }
 
 // Select send query for select and prepare SelectStmt with settion option
-func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *Settings) (SelectStmt, error) {
+func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *setting.Settings) (SelectStmt, error) {
 	return ch.SelectCallback(ctx, query, setting, nil, nil)
 }
 
@@ -596,7 +598,7 @@ func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *Se
 func (ch *conn) SelectCallback(
 	ctx context.Context,
 	query string,
-	setting *Settings,
+	setting *setting.Settings,
 	onProgress func(*Progress),
 	onProfile func(*Profile),
 ) (SelectStmt, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 func TestSelectError(t *testing.T) {
@@ -235,7 +236,7 @@ func TestSelect(t *testing.T) {
 
 	err = insertstmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
-	setting := NewSettings()
+	setting := setting.NewSettings()
 	setting.LogQueries(false)
 	selectStmt, err := conn.SelectWithSetting(context.Background(), `SELECT 
 				int8,
