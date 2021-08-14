@@ -74,18 +74,6 @@ const (
 	dbmsVersionRevision = 54429
 )
 
-const (
-	// Need to read additional keys.
-	// Additional keys are stored before indexes as value N and N keys
-	// after them.
-	hasAdditionalKeysBit = 1 << 9
-	// Need to update dictionary.
-	// It means that previous granule has different dictionary.
-	needUpdateDictionary = 1 << 10
-
-	serializationType = hasAdditionalKeysBit | needUpdateDictionary
-)
-
 type queryProcessingStage uint64
 
 const (
@@ -126,28 +114,28 @@ type Conn interface {
 	Exec(ctx context.Context, query string) (interface{}, error)
 	// ExecWithSetting executes a query without returning any rows with the setting option.
 	// NOTE: don't use it for insert and select query
-	ExecWithSetting(ctx context.Context, query string, setting *setting.Settings) (interface{}, error)
+	ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error)
 	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
 	// NOTE: don't use it for insert and select query
-	ExecCallback(ctx context.Context, query string, setting *setting.Settings, onProgress func(*Progress)) (interface{}, error)
+	ExecCallback(ctx context.Context, query string, settings *setting.Settings, onProgress func(*Progress)) (interface{}, error)
 	// Insert executes a query and return insert stmt.
 	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string) (InsertStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, setting *setting.Settings) (InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (InsertStmt, error)
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (SelectStmt, error)
 	// Select executes a query with the setting option and return select stmt.
 	// NOTE: only use for select query
-	SelectWithSetting(ctx context.Context, query string, setting *setting.Settings) (SelectStmt, error)
+	SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (SelectStmt, error)
 	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
 	// NOTE: only use for select query
 	SelectCallback(
 		ctx context.Context,
 		query string,
-		setting *setting.Settings,
+		settings *setting.Settings,
 		onProgress func(*Progress),
 		onProfile func(*Profile)) (SelectStmt, error)
 }
@@ -383,7 +371,7 @@ func (ch *conn) sendQueryWithOption(
 	ctx context.Context, //nolint:unparam
 	query,
 	queryID string,
-	setting *setting.Settings,
+	settings *setting.Settings,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -399,9 +387,9 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	// setting
-	if setting != nil {
+	if settings != nil {
 		//nolint:errcheck // no need for bytes.Buffer
-		setting.WriteTo(ch.writer.Output())
+		settings.WriteTo(ch.writer.Output())
 	}
 
 	ch.writer.String("")
@@ -494,14 +482,14 @@ func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
 	return ch.ExecCallback(ctx, query, nil, nil)
 }
 
-func (ch *conn) ExecWithSetting(ctx context.Context, query string, setting *setting.Settings) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, setting, nil)
+func (ch *conn) ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error) {
+	return ch.ExecCallback(ctx, query, settings, nil)
 }
 
 func (ch *conn) ExecCallback(
 	ctx context.Context,
 	query string,
-	setting *setting.Settings,
+	settings *setting.Settings,
 	onProgress func(*Progress),
 ) (interface{}, error) {
 	err := ch.lock()
@@ -513,7 +501,7 @@ func (ch *conn) ExecCallback(
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "", setting)
+	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +518,7 @@ func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
 }
 
 // Insert send query for insert and prepare insert stmt with setting option
-func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *setting.Settings) (InsertStmt, error) {
+func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (InsertStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -538,7 +526,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *se
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "", setting)
+	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +567,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, setting *se
 		query:      query,
 		queryID:    "",
 		stage:      queryProcessingStageComplete,
-		settings:   setting,
+		settings:   settings,
 		clientInfo: nil,
 	}, nil
 }
@@ -590,15 +578,15 @@ func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
 }
 
 // Select send query for select and prepare SelectStmt with settion option
-func (ch *conn) SelectWithSetting(ctx context.Context, query string, setting *setting.Settings) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, setting, nil, nil)
+func (ch *conn) SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (SelectStmt, error) {
+	return ch.SelectCallback(ctx, query, settings, nil, nil)
 }
 
 // Select send query for select and prepare SelectStmt on progress and on profile callback
 func (ch *conn) SelectCallback(
 	ctx context.Context,
 	query string,
-	setting *setting.Settings,
+	settings *setting.Settings,
 	onProgress func(*Progress),
 	onProfile func(*Profile),
 ) (SelectStmt, error) {
@@ -610,7 +598,7 @@ func (ch *conn) SelectCallback(
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
 
-	err = ch.sendQueryWithOption(ctx, query, "", setting)
+	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
 		return nil, err
 	}

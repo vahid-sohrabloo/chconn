@@ -6,24 +6,31 @@ import (
 
 	"github.com/jackc/puddle"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 // Conn is an acquired *chconn.Conn from a Pool.
 type Conn interface {
 	Release()
+	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
+	// NOTE: don't use it for insert and select query
 	ExecCallback(
 		ctx context.Context,
 		query string,
-		setting *chconn.Settings,
+		settings *setting.Settings,
 		onProgress func(*chconn.Progress)) (interface{}, error)
+	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
+	// NOTE: only use for select query
 	SelectCallback(
 		ctx context.Context,
 		query string,
-		setting *chconn.Settings,
+		settings *setting.Settings,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
-	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
+	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	// NOTE: only use for insert query
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error)
 	Conn() chconn.Conn
 	Ping(ctx context.Context) error
 }
@@ -66,9 +73,9 @@ func (c *conn) Release() {
 func (c *conn) ExecCallback(
 	ctx context.Context,
 	query string,
-	setting *chconn.Settings,
+	settings *setting.Settings,
 	onProgress func(*chconn.Progress)) (interface{}, error) {
-	return c.Conn().ExecCallback(ctx, query, setting, onProgress)
+	return c.Conn().ExecCallback(ctx, query, settings, onProgress)
 }
 
 func (c *conn) Ping(ctx context.Context) error {
@@ -78,11 +85,11 @@ func (c *conn) Ping(ctx context.Context) error {
 func (c *conn) SelectCallback(
 	ctx context.Context,
 	query string,
-	setting *chconn.Settings,
+	settings *setting.Settings,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
-	s, err := c.Conn().SelectCallback(ctx, query, setting, onProgress, onProfile)
+	s, err := c.Conn().SelectCallback(ctx, query, settings, onProgress, onProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +99,8 @@ func (c *conn) SelectCallback(
 	}, nil
 }
 
-func (c *conn) InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error) {
-	s, err := c.Conn().InsertWithSetting(ctx, query, setting)
+func (c *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error) {
+	s, err := c.Conn().InsertWithSetting(ctx, query, settings)
 	if err != nil {
 		return nil, err
 	}

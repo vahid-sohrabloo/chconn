@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/puddle"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 var defaultMaxConns = int32(4)
@@ -40,25 +41,49 @@ func (cr *connResource) getConn(p *pool, res *puddle.Resource) Conn {
 }
 
 type Pool interface {
+	// Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
+	// to pool and closed.
 	Close()
 	Acquire(ctx context.Context) (Conn, error)
+	// AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
+	// call of f. The return value is either an error acquiring the Conn or the return value of f. The Conn is
+	// automatically released after the call of f.
 	AcquireFunc(ctx context.Context, f func(Conn) error) error
+	// AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
+	// keep-alive functionality. It does not update pool statistics.
 	AcquireAllIdle(ctx context.Context) []Conn
+	// Exec executes a query without returning any rows.
+	// NOTE: don't use it for insert and select query
 	Exec(ctx context.Context, sql string) (interface{}, error)
-	ExecWithSetting(ctx context.Context, query string, setting *chconn.Settings) (interface{}, error)
-	ExecCallback(ctx context.Context, sql string, setting *chconn.Settings, onProgress func(*chconn.Progress)) (interface{}, error)
+	// ExecWithSetting executes a query without returning any rows with the setting option.
+	// NOTE: don't use it for insert and select query
+	ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error)
+	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
+	// NOTE: don't use it for insert and select query
+	ExecCallback(ctx context.Context, sql string, settings *setting.Settings, onProgress func(*chconn.Progress)) (interface{}, error)
+	// Select executes a query and return select stmt.
+	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
-	SelectWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.SelectStmt, error)
+	// Select executes a query with the setting option and return select stmt.
+	// NOTE: only use for select query
+	SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.SelectStmt, error)
+	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
+	// NOTE: only use for select query
 	SelectCallback(
 		ctx context.Context,
 		query string,
-		setting *chconn.Settings,
+		settings *setting.Settings,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
+	// Insert executes a query and return insert stmt.
+	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
+	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	// NOTE: only use for insert query
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error)
+	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
-	InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error)
 	Stat() *Stat
 }
 type pool struct {
@@ -418,21 +443,21 @@ func (p *pool) Exec(ctx context.Context, sql string) (interface{}, error) {
 	return p.ExecCallback(ctx, sql, nil, nil)
 }
 
-func (p *pool) ExecWithSetting(ctx context.Context, sql string, setting *chconn.Settings) (interface{}, error) {
-	return p.ExecCallback(ctx, sql, setting, nil)
+func (p *pool) ExecWithSetting(ctx context.Context, sql string, settings *setting.Settings) (interface{}, error) {
+	return p.ExecCallback(ctx, sql, settings, nil)
 }
 
 func (p *pool) ExecCallback(
 	ctx context.Context,
 	sql string,
-	setting *chconn.Settings,
+	settings *setting.Settings,
 	onProgress func(*chconn.Progress)) (interface{}, error) {
 	for {
 		c, err := p.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
-		res, err := c.ExecCallback(ctx, sql, setting, onProgress)
+		res, err := c.ExecCallback(ctx, sql, settings, onProgress)
 		c.Release()
 		if errors.Is(err, syscall.EPIPE) {
 			continue
@@ -445,14 +470,14 @@ func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, err
 	return p.SelectCallback(ctx, query, nil, nil, nil)
 }
 
-func (p *pool) SelectWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.SelectStmt, error) {
-	return p.SelectCallback(ctx, query, setting, nil, nil)
+func (p *pool) SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.SelectStmt, error) {
+	return p.SelectCallback(ctx, query, settings, nil, nil)
 }
 
 func (p *pool) SelectCallback(
 	ctx context.Context,
 	query string,
-	setting *chconn.Settings,
+	settings *setting.Settings,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
@@ -462,7 +487,7 @@ func (p *pool) SelectCallback(
 			return nil, err
 		}
 
-		s, err := c.SelectCallback(ctx, query, setting, onProgress, onProfile)
+		s, err := c.SelectCallback(ctx, query, settings, onProgress, onProfile)
 		fmt.Println("err", err)
 		if err != nil {
 			c.Release()
@@ -479,14 +504,14 @@ func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, err
 	return p.InsertWithSetting(ctx, query, nil)
 }
 
-func (p *pool) InsertWithSetting(ctx context.Context, query string, setting *chconn.Settings) (chconn.InsertStmt, error) {
+func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error) {
 	for {
 		c, err := p.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		s, err := c.InsertWithSetting(ctx, query, setting)
+		s, err := c.InsertWithSetting(ctx, query, settings)
 		if err != nil {
 			c.Release()
 			if errors.Is(err, syscall.EPIPE) {

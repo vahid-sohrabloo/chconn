@@ -236,8 +236,8 @@ func TestSelect(t *testing.T) {
 
 	err = insertstmt.Commit(context.Background(), writer)
 	require.NoError(t, err)
-	setting := setting.NewSettings()
-	setting.LogQueries(false)
+	settings := setting.NewSettings()
+	settings.LogQueries(false)
 	selectStmt, err := conn.SelectWithSetting(context.Background(), `SELECT 
 				int8,
 				int16,
@@ -263,7 +263,7 @@ func TestSelect(t *testing.T) {
 				ipv6,
 				enum8,
 				enum16
-	 FROM clickhouse_test_insert`, setting)
+	 FROM clickhouse_test_insert`, settings)
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16

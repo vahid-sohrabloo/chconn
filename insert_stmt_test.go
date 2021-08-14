@@ -68,11 +68,11 @@ func TestInsertError(t *testing.T) {
 	require.NoError(t, err)
 	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error`)
 	require.NoError(t, err)
-	setting := setting.NewSettings()
-	setting.JoinUseNulls(false)
+	settings := setting.NewSettings()
+	settings.JoinUseNulls(false)
 	_, err = c.ExecWithSetting(context.Background(), `CREATE TABLE clickhouse_test_insert_error (
 				int8  Int8
-			) Engine=Memory`, setting)
+			) Engine=Memory`, settings)
 
 	require.NoError(t, err)
 
