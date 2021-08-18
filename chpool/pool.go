@@ -525,10 +525,16 @@ func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *se
 }
 
 func (p *pool) Ping(ctx context.Context) error {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return err
+	for {
+		c, err := p.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		err = c.Ping(ctx)
+		c.Release()
+		if errors.Is(err, syscall.EPIPE) {
+			continue
+		}
+		return c.Ping(ctx)
 	}
-	defer c.Release()
-	return c.Ping(ctx)
 }

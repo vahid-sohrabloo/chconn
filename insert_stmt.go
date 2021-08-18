@@ -69,7 +69,11 @@ func (s *insertStmt) Commit(ctx context.Context, writer *InsertWriter) error {
 	s.conn.contextWatcher.Watch(ctx)
 	defer s.conn.contextWatcher.Unwatch()
 	defer s.conn.unlock()
-	return s.commit(writer)
+	err := s.commit(writer)
+	if err != nil {
+		s.conn.Close(context.Background())
+	}
+	return err
 }
 
 // GetBlock Get current block

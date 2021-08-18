@@ -500,16 +500,31 @@ func (ch *conn) ExecCallback(
 
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
+	var hasError bool
+	defer func() {
+		if hasError {
+			ch.Close(context.Background())
+		}
+	}()
 
 	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
+		hasError = true
 		return nil, err
 	}
 	if onProgress == nil {
 		onProgress = emptyOnProgress
 	}
-
-	return ch.reciveAndProccessData(onProgress)
+	if err != nil {
+		hasError = true
+		return nil, err
+	}
+	res, err := ch.reciveAndProccessData(onProgress)
+	if err != nil {
+		hasError = true
+		return nil, err
+	}
+	return res, nil
 }
 
 // Insert send query for insert and prepare insert stmt
@@ -525,9 +540,15 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 	}
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
-
+	var hasError bool
+	defer func() {
+		if hasError {
+			ch.Close(context.Background())
+		}
+	}()
 	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
+		hasError = true
 		return nil, err
 	}
 
@@ -536,6 +557,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 		var res interface{}
 		res, err = ch.reciveAndProccessData(emptyOnProgress)
 		if err != nil {
+			hasError = true
 			return nil, err
 		}
 		if b, ok := res.(*block); ok {
@@ -549,16 +571,13 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 		if _, ok := res.(*Progress); ok {
 			continue
 		}
-
+		hasError = true
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	err = blockData.initForInsert(ch)
 	if err != nil {
+		hasError = true
 		return nil, err
 	}
 	return &insertStmt{
@@ -597,9 +616,15 @@ func (ch *conn) SelectCallback(
 
 	ch.contextWatcher.Watch(ctx)
 	defer ch.contextWatcher.Unwatch()
-
+	var hasError bool
+	defer func() {
+		if hasError {
+			ch.Close(context.Background())
+		}
+	}()
 	err = ch.sendQueryWithOption(ctx, query, "", settings)
 	if err != nil {
+		hasError = true
 		return nil, err
 	}
 	return &selectStmt{

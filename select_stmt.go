@@ -323,6 +323,9 @@ func (s *selectStmt) Close() {
 	if !s.closed {
 		s.closed = true
 		s.conn.unlock()
+		if s.Err() != nil {
+			s.conn.Close(context.Background())
+		}
 	}
 }
 
