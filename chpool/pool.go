@@ -535,6 +535,6 @@ func (p *pool) Ping(ctx context.Context) error {
 		if errors.Is(err, syscall.EPIPE) {
 			continue
 		}
-		return c.Ping(ctx)
+		return err
 	}
 }
