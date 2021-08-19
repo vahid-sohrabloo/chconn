@@ -488,7 +488,6 @@ func (p *pool) SelectCallback(
 		}
 
 		s, err := c.SelectCallback(ctx, query, settings, onProgress, onProfile)
-		fmt.Println("err", err)
 		if err != nil {
 			c.Release()
 			if errors.Is(err, syscall.EPIPE) {
