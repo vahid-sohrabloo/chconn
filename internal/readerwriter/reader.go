@@ -8,16 +8,28 @@ import (
 
 // Reader is a helper to read data from reader
 type Reader struct {
-	input   io.Reader
-	offset  uint64
-	scratch [binary.MaxVarintLen64]byte
+	mainReader     io.Reader
+	input          io.Reader
+	compressReader io.Reader
+	offset         uint64
+	scratch        [binary.MaxVarintLen64]byte
 }
 
 // NewReader get new Reader
 func NewReader(input io.Reader) *Reader {
 	return &Reader{
-		input: input,
+		input:          input,
+		mainReader:     input,
+		compressReader: NewCompressReader(input),
 	}
+}
+
+func (r *Reader) SetCompress(c bool) {
+	if c {
+		r.input = r.compressReader
+		return
+	}
+	r.input = r.mainReader
 }
 
 // Bool read bool value

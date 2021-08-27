@@ -16,7 +16,7 @@ import (
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING") + " connect_timeout=10"
 
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
@@ -58,6 +58,13 @@ func TestConnectError(t *testing.T) {
 	assert.EqualError(t,
 		err,
 		"cannot parse `host>0`: failed to parse as DSN (invalid dsn)")
+	assert.Nil(t, conn)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	conn, err = Connect(ctx, connString)
+	assert.Error(t,
+		errors.Unwrap(err),
+		context.Canceled)
 	assert.Nil(t, conn)
 
 	conn, err = Connect(context.Background(), "host=invalid_host")

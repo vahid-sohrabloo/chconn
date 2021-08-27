@@ -139,6 +139,12 @@ type Conn interface {
 		onProgress func(*Progress),
 		onProfile func(*Profile)) (SelectStmt, error)
 }
+
+type writeFlusher interface {
+	io.Writer
+	Flush() error
+}
+
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
@@ -149,9 +155,12 @@ type conn struct {
 
 	status byte // One of connStatus* constants
 
-	writer   *readerwriter.Writer
-	writerto io.Writer
+	writer           *readerwriter.Writer
+	writerto         io.Writer
+	writertoCompress io.Writer
+
 	reader   *readerwriter.Reader
+	compress bool
 
 	contextWatcher *ctxwatch.ContextWatcher
 }
@@ -256,6 +265,8 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	c := new(conn)
 	c.config = config
 
+	c.compress = config.Compress
+
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
 	c.conn, err = config.DialFunc(ctx, network, address)
@@ -292,6 +303,11 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	} else {
 		c.writerto = c.conn
 	}
+	if c.compress {
+		c.writertoCompress = readerwriter.NewCompressWriter(c.writerto)
+	} else {
+		c.writertoCompress = c.writerto
+	}
 
 	c.serverInfo = ServerInfo{
 		Timezone: time.Local,
@@ -301,7 +317,15 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		return nil, err
 	}
 	c.status = connStatusIdle
+
 	return c, nil
+}
+
+func (ch *conn) flushCompress() error {
+	if w, ok := ch.writertoCompress.(writeFlusher); ok {
+		return w.Flush()
+	}
+	return nil
 }
 
 func (ch *conn) RawConn() net.Conn {
@@ -396,8 +420,12 @@ func (ch *conn) sendQueryWithOption(
 
 	ch.writer.Uvarint(uint64(queryProcessingStageComplete))
 
-	// comprestion
-	ch.writer.Uvarint(0)
+	// compression
+	if ch.compress {
+		ch.writer.Uvarint(1)
+	} else {
+		ch.writer.Uvarint(0)
+	}
 
 	ch.writer.String(query)
 
@@ -408,6 +436,14 @@ func (ch *conn) sendData(block *block, numRows uint64) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")
+
+	// if compress enable we must send to this part with uncompress data
+	if ch.compress {
+		_, err := ch.writer.WriteTo(ch.writerto)
+		if err != nil {
+			return &writeError{"block: write block info", err}
+		}
+	}
 	return block.writeHeader(ch, numRows)
 }
 

@@ -68,7 +68,7 @@ func TestLazyConnect(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = pool.Exec(ctx, "SELECT 1")
-	assert.Equal(t, context.Canceled, err)
+	assert.Equal(t, fmt.Errorf("acquire: %w", context.Canceled), err)
 }
 
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
@@ -414,7 +414,7 @@ func TestPoolExecError(t *testing.T) {
 
 	results, err := pool.Exec(context.Background(), "SET enable_http_compression=1")
 	if assert.Error(t, err) {
-		assert.Equal(t, "closed pool", err.Error())
+		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
 	assert.EqualValues(t, nil, results)
 }
@@ -489,7 +489,7 @@ func TestPoolSelectError(t *testing.T) {
 	stmt, err = pool.Select(context.Background(), "SELECT * FROM not_fount_table LIMIT 10;")
 
 	if assert.Error(t, err) {
-		assert.Equal(t, "closed pool", err.Error())
+		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
 
 	require.Nil(t, stmt)
@@ -590,7 +590,7 @@ func TestPoolInsertError(t *testing.T) {
 			) VALUES`)
 
 	if assert.Error(t, err) {
-		assert.Equal(t, "closed pool", err.Error())
+		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
 
 	require.Nil(t, insertStmt)

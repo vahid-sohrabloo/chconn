@@ -265,11 +265,13 @@ type selectStmt struct {
 // Next get the next block, if available return true else return false
 // if the server sends an error return false and we can get the last error with Err() function
 func (s *selectStmt) Next() bool {
+	s.conn.reader.SetCompress(false)
 	res, err := s.conn.reciveAndProccessData(nil)
 	if err != nil {
 		s.lastErr = err
 		return false
 	}
+	s.conn.reader.SetCompress(s.conn.compress)
 
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
@@ -320,6 +322,7 @@ func (s *selectStmt) Err() error {
 // Close after reads all data should call this function to unlock connection
 // NOTE: You shoud read all data and then call this function
 func (s *selectStmt) Close() {
+	s.conn.reader.SetCompress(false)
 	if !s.closed {
 		s.closed = true
 		s.conn.unlock()

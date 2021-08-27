@@ -41,7 +41,7 @@ func (s *insertStmt) commit(writer *InsertWriter) error {
 		}
 	}
 
-	err = s.block.writeColumsBuffer(s.conn.writerto, writer)
+	err = s.block.writeColumsBuffer(s.conn, writer)
 	if err != nil {
 		return err
 	}

@@ -37,6 +37,7 @@ type Config struct {
 	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
 	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
 	ReaderFunc     ReaderFunc // e.g. bufio.Reader
+	Compress       bool
 	WriterFunc     WriterFunc
 	// Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	RuntimeParams map[string]string
@@ -185,6 +186,10 @@ func ParseConfig(connString string) (*Config, error) {
 		connString:           connString,
 	}
 
+	if compress, err := strconv.ParseBool(settings["compress"]); err == nil && compress {
+		config.Compress = true
+	}
+
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
 		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
@@ -211,6 +216,7 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslkey":          {},
 		"sslcert":         {},
 		"sslrootcert":     {},
+		"compress":        {},
 	}
 
 	for k, v := range settings {

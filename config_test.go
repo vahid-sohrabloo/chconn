@@ -494,6 +494,52 @@ var parseConfigTests = []struct {
 			},
 		},
 	},
+	{
+		name:       "enable compress",
+		connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=prefer compress=true",
+		config: &Config{
+			User:       "vahid",
+			Password:   "secret",
+			Host:       "foo",
+			Port:       9000,
+			Database:   "mydb",
+			Compress:   true,
+			ClientName: defaultClientName,
+			TLSConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+			RuntimeParams: map[string]string{},
+			Fallbacks: []*FallbackConfig{
+				{
+					Host:      "foo",
+					Port:      9000,
+					TLSConfig: nil,
+				},
+				{
+					Host: "bar",
+					Port: 9000,
+					TLSConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					}},
+				{
+					Host:      "bar",
+					Port:      9000,
+					TLSConfig: nil,
+				},
+				{
+					Host: "baz",
+					Port: 9000,
+					TLSConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					}},
+				{
+					Host:      "baz",
+					Port:      9000,
+					TLSConfig: nil,
+				},
+			},
+		},
+	},
 }
 
 func TestParseConfig(t *testing.T) {

@@ -390,7 +390,7 @@ func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("acquire: %w", err)
 		}
 
 		cr := res.Value().(*connResource)

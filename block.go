@@ -1,7 +1,6 @@
 package chconn
 
 import (
-	"io"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
@@ -32,6 +31,12 @@ func newBlock() *block {
 }
 
 func (block *block) read(ch *conn) error {
+	if _, err := ch.reader.String(); err != nil { // temporary table
+		return err
+	}
+
+	ch.reader.SetCompress(ch.compress)
+	defer ch.reader.SetCompress(false)
 	var err error
 	err = block.info.read(ch.reader)
 	if err != nil {
@@ -51,6 +56,8 @@ func (block *block) read(ch *conn) error {
 }
 
 func (block *block) initForInsert(ch *conn) error {
+	ch.reader.SetCompress(ch.compress)
+	defer ch.reader.SetCompress(false)
 	block.Columns = make([]*Column, block.NumColumns)
 	for i := uint64(0); i < block.NumColumns; i++ {
 		column, err := block.nextColumn(ch)
@@ -237,14 +244,19 @@ func (block *block) writeHeader(ch *conn, numRows uint64) error {
 	ch.writer.Uvarint(block.NumColumns)
 	// NumRows
 	ch.writer.Uvarint(numRows)
-	_, err := ch.writer.WriteTo(ch.writerto)
+	_, err := ch.writer.WriteTo(ch.writertoCompress)
 	if err != nil {
 		return &writeError{"block: write block info", err}
 	}
+	err = ch.flushCompress()
+	if err != nil {
+		return &writeError{"block: flush block info", err}
+	}
+
 	return nil
 }
 
-func (block *block) writeColumsBuffer(w io.Writer, writer *InsertWriter) error {
+func (block *block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
 	var bufferIndex int
 	for _, column := range block.Columns {
 		block.headerWriter.Reset()
@@ -253,15 +265,19 @@ func (block *block) writeColumsBuffer(w io.Writer, writer *InsertWriter) error {
 		if column.HasVersion {
 			block.headerWriter.Int64(1)
 		}
-		if _, err := block.headerWriter.WriteTo(w); err != nil {
+		if _, err := block.headerWriter.WriteTo(ch.writertoCompress); err != nil {
 			return &writeError{"block: write header block data for column " + column.Name, err}
 		}
 		for i := 0; i < column.NumBuffer; i++ {
-			if _, err := w.Write(writer.ColumnsBuffer[bufferIndex].Bytes()); err != nil {
+			if _, err := ch.writertoCompress.Write(writer.ColumnsBuffer[bufferIndex].Bytes()); err != nil {
 				return &writeError{"block: write block data for column " + column.Name, err}
 			}
 			bufferIndex++
 		}
+	}
+	err := ch.flushCompress()
+	if err != nil {
+		return &writeError{"block: flush block data", err}
 	}
 	return nil
 }
@@ -277,19 +293,19 @@ type blockInfo struct {
 func (info *blockInfo) read(r *readerwriter.Reader) error {
 	var err error
 	if info.field1, err = r.Uvarint(); err != nil {
-		return &readError{"block: read field1", err}
+		return &readError{"blockInfo: read field1", err}
 	}
 	if info.isOverflows, err = r.Bool(); err != nil {
-		return &readError{"block: read isOverflows", err}
+		return &readError{"blockInfo: read isOverflows", err}
 	}
 	if info.field2, err = r.Uvarint(); err != nil {
-		return &readError{"block: read field2", err}
+		return &readError{"blockInfo: read field2", err}
 	}
 	if info.bucketNum, err = r.Int32(); err != nil {
-		return &readError{"block: read bucketNum", err}
+		return &readError{"blockInfo: read bucketNum", err}
 	}
 	if info.num3, err = r.Uvarint(); err != nil {
-		return &readError{"block: read num3", err}
+		return &readError{"blockInfo: read num3", err}
 	}
 	return nil
 }

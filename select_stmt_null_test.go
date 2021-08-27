@@ -20,8 +20,10 @@ func TestSelectNull(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
-
-	conn, err := Connect(context.Background(), connString)
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+	config.Compress = true
+	conn, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
 	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_null`)

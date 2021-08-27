@@ -12,7 +12,7 @@ import (
 )
 
 func TestBlockReadError(t *testing.T) {
-	startValidReader := 14
+	startValidReader := 15
 
 	tests := []struct {
 		name        string
@@ -20,38 +20,34 @@ func TestBlockReadError(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "block: read field1",
-			wantErr:     "block: read field1",
+			name:        "blockInfo: read field1",
+			wantErr:     "blockInfo: read field1",
 			numberValid: startValidReader,
 		}, {
-			name:        "block: read isOverflows",
-			wantErr:     "block: read isOverflows",
+			name:        "blockInfo: read isOverflows",
+			wantErr:     "blockInfo: read isOverflows",
 			numberValid: startValidReader + 1,
 		}, {
-			name:        "block: read field2",
-			wantErr:     "block: read field2",
+			name:        "blockInfo: read field2",
+			wantErr:     "blockInfo: read field2",
 			numberValid: startValidReader + 2,
 		}, {
-			name:        "block: read bucketNum",
-			wantErr:     "block: read bucketNum",
+			name:        "blockInfo: read bucketNum",
+			wantErr:     "blockInfo: read bucketNum",
 			numberValid: startValidReader + 3,
 		}, {
-			// because varint need two read
-			name:        "block: read num3",
-			wantErr:     "block: read num3",
+			// because varint needs two read
+			name:        "blockInfo: read num3",
+			wantErr:     "blockInfo: read num3",
 			numberValid: startValidReader + 4,
 		}, {
 			name:        "block: read NumColumns",
 			wantErr:     "block: read NumColumns",
-			numberValid: startValidReader + 6,
-		}, {
-			name:        "block: read NumColumns",
-			wantErr:     "block: read NumColumns",
-			numberValid: startValidReader + 6,
+			numberValid: startValidReader + 5,
 		}, {
 			name:        "block: read NumRows",
 			wantErr:     "block: read NumRows",
-			numberValid: startValidReader + 7,
+			numberValid: startValidReader + 6,
 		}, {
 			name:        "block: read column name",
 			wantErr:     "block: read column name",
