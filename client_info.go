@@ -48,6 +48,12 @@ func (c *ClientInfo) write(ch *conn) {
 	if ch.serverInfo.Revision >= dbmsMinRevisionWithVersionPatch {
 		ch.writer.Uvarint(c.ClientVersionPatch)
 	}
+
+	if ch.serverInfo.Revision >= dbmsMinRevisionWithOpentelemetry {
+		// TODO Support Opentelemetry later
+		// Don't have OpenTelemetry header.
+		ch.writer.Uint8(0)
+	}
 }
 
 func (c *ClientInfo) fillOSUserHostNameAndVersionInfo() {

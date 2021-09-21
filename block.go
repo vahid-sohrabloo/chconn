@@ -96,6 +96,11 @@ func (block *block) nextColumn(ch *conn) (*Column, error) {
 	if column.ChType, err = ch.reader.String(); err != nil {
 		return column, &readError{"block: read column type", err}
 	}
+
+	if strings.Contains(column.ChType, "LowCardinality(") {
+		column.HasVersion = true
+	}
+
 	return column, nil
 }
 
@@ -150,23 +155,19 @@ var preCachedNeedBuffer = map[string]int{
 	"Nullable(IPv6)":     2,
 }
 
+//nolint:gocyclo
 func (block *block) calcBuffer(chType string, column *Column) {
 	if numBuffer, ok := preCachedNeedBuffer[chType]; ok {
 		column.NumBuffer += numBuffer
 		return
 	}
 
-	if strings.HasPrefix(chType, "FixedString(") {
-		column.NumBuffer++
-		return
-	}
-
-	if strings.HasPrefix(chType, "Decimal(") {
-		column.NumBuffer++
-		return
-	}
-
-	if strings.HasPrefix(chType, "DateTime(") {
+	if strings.HasPrefix(chType, "FixedString(") ||
+		strings.HasPrefix(chType, "Decimal(") ||
+		strings.HasPrefix(chType, "DateTime(") ||
+		strings.HasPrefix(chType, "DateTime64(") ||
+		strings.HasPrefix(chType, "Enum8(") ||
+		strings.HasPrefix(chType, "Enum16(") {
 		column.NumBuffer++
 		return
 	}
@@ -213,11 +214,6 @@ func (block *block) calcBuffer(chType string, column *Column) {
 			}
 		}
 		block.calcBuffer(chType[cur+2:len(chType)-1], column)
-		return
-	}
-
-	if strings.HasPrefix(chType, "Enum8(") || strings.HasPrefix(chType, "Enum16(") {
-		column.NumBuffer++
 		return
 	}
 

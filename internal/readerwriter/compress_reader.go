@@ -95,7 +95,7 @@ func (cr *compressReader) readCompressedData() (err error) {
 
 	// @TODO checksum
 	if cr.header[16] == LZ4 {
-		n, err = cr.reader.Read(cr.zdata)
+		n, err = io.ReadFull(cr.reader, cr.zdata)
 		if err != nil {
 			return
 		}

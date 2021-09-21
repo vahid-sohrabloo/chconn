@@ -778,7 +778,7 @@ func TestSelectNullReadError(t *testing.T) {
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Int8PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "int8",
@@ -793,133 +793,133 @@ func TestSelectNullReadError(t *testing.T) {
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Int16PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "int32",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Int32PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "int64",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Int64PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "uint8",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Uint8PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "uint16",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Uint16PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "uint32",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Uint32PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "uint64",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Uint64PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "float32",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Float32PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "float64",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Float64PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "string",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.StringPAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "string2",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.ByteArrayPAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "fString",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.FixedStringPAll(nil, 2)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "date",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.DatePAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "datetime",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.DateTimePAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "decimal32",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Decimal32PAll(nil, 4)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "decimal64",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.Decimal64PAll(nil, 4)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "uuid",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.UUIDPAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "ipv4",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.IPv4PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		}, {
 			colName: "ipv6",
 			readFunc: func(stmt SelectStmt) error {
 				return stmt.IPv6PAll(nil)
 			},
-			wantErr:     "selectStmt PALL: read nulls (timeout)",
+			wantErr:     "selectStmt: read nulls (timeout)",
 			numberValid: startValidReader - 1,
 		},
 	}

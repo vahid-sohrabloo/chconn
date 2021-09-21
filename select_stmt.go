@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"math"
 	"net"
 	"time"
 )
@@ -46,6 +47,8 @@ type SelectStmt interface {
 	Date() (time.Time, error)
 	// DateTime read DateTime value
 	DateTime() (time.Time, error)
+	// DateTime64 read DateTime64 value
+	DateTime64(precision int) (time.Time, error)
 	// UUID read UUID value
 	UUID() ([16]byte, error)
 	// IPv4 read IPv4 value
@@ -262,6 +265,8 @@ type selectStmt struct {
 	closed      bool
 }
 
+var _ SelectStmt = &selectStmt{}
+
 // Next get the next block, if available return true else return false
 // if the server sends an error return false and we can get the last error with Err() function
 func (s *selectStmt) Next() bool {
@@ -272,7 +277,6 @@ func (s *selectStmt) Next() bool {
 		return false
 	}
 	s.conn.reader.SetCompress(s.conn.compress)
-
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
 			err = block.readColumns(s.conn)
@@ -338,6 +342,14 @@ func (s *selectStmt) NextColumn() (*Column, error) {
 	if err != nil {
 		s.Close()
 		s.conn.Close(context.Background())
+	}
+	if column.HasVersion {
+		// read version
+		_, err = s.Uint64()
+		if err != nil {
+			s.Close()
+			s.conn.Close(context.Background())
+		}
 	}
 	return column, err
 }
@@ -431,6 +443,21 @@ func (s *selectStmt) DateTime() (time.Time, error) {
 	return time.Unix(int64(val), 0), err
 }
 
+// DateTime64 read DateTime64 value
+func (s *selectStmt) DateTime64(precision int) (time.Time, error) {
+	val, err := s.conn.reader.Int64()
+	if err != nil {
+		return time.Time{}, err
+	}
+	var nano int64
+	if precision < 19 {
+		nano = val * int64(math.Pow10(9-precision))
+	}
+	sec := nano / int64(10e8)
+	nsec := nano - sec*10e8
+	return time.Unix(sec, nsec), nil
+}
+
 // UUID read UUID value
 func (s *selectStmt) UUID() ([16]byte, error) {
 	var (
@@ -463,4 +490,128 @@ func (s *selectStmt) IPv6() (net.IP, error) {
 
 	val, err = s.conn.reader.FixedString(16)
 	return net.IP(val), err
+}
+
+// LenS Read num of len of Array
+func (s *selectStmt) LenS(num uint64, value *[]int) (lastOffset uint64, err error) {
+	var (
+		val int
+	)
+	for i := uint64(0); i < num; i++ {
+		val, lastOffset, err = s.conn.reader.Len()
+		if err != nil {
+			return 0, err
+		}
+		*value = append(*value, val)
+	}
+	s.conn.reader.ResetOffset()
+	return lastOffset, nil
+}
+
+// LenAll read all Array Len values from a block
+func (s *selectStmt) LenAll(value *[]int) (uint64, error) {
+	return s.LenS(s.block.NumRows, value)
+}
+
+// LowCardinalityString read LowCardinality String values from a block
+func (s *selectStmt) LowCardinalityString(values *[]string) error {
+	var dictionary []string
+	return s.lowCardinality(func(dictionarySize uint64) error {
+		dictionary = make([]string, 0, dictionarySize)
+		return s.StringS(dictionarySize, &dictionary)
+	}, func(index int) {
+		*values = append(*values, dictionary[index])
+	})
+}
+
+// LowCardinalityFixedString read LowCardinality Fixed String values from a block
+func (s *selectStmt) LowCardinalityFixedString(values *[][]byte, strlne int) error {
+	var dictionary [][]byte
+	return s.lowCardinality(func(dictionarySize uint64) error {
+		dictionary = make([][]byte, 0, dictionarySize)
+		return s.FixedStringS(dictionarySize, &dictionary, strlne)
+	}, func(index int) {
+		*values = append(*values, dictionary[index])
+	})
+}
+
+// lowCardinality is a helper to read lowCardinality
+func (s *selectStmt) lowCardinality(readDict func(dictionarySize uint64) error, readValue func(index int)) error {
+	serializationType, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+	intType := serializationType & 0xf
+
+	dictionarySize, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+	err = readDict(dictionarySize)
+	if err != nil {
+		return err
+	}
+
+	indicesSize, err := s.conn.reader.Uint64()
+	if err != nil {
+		return err
+	}
+
+	switch intType {
+	case 0:
+		var val uint8
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint8()
+			if err != nil {
+				return err
+			}
+			readValue(int(val))
+		}
+	case 1:
+		var val uint16
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint16()
+			if err != nil {
+				return err
+			}
+			readValue(int(val))
+		}
+	case 2:
+		var val uint32
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint32()
+			if err != nil {
+				return err
+			}
+			readValue(int(val))
+		}
+	case 3:
+		var val uint64
+		for i := uint64(0); i < indicesSize; i++ {
+			val, err = s.conn.reader.Uint64()
+			if err != nil {
+				return err
+			}
+			readValue(int(val))
+		}
+	}
+	return nil
+}
+
+// GetNullS read num of null values from a block
+func (s *selectStmt) GetNullS(num uint64) ([]uint8, error) {
+	if int(num) > cap(s.nulls) {
+		s.nulls = make([]uint8, 0, num)
+	}
+	s.nulls = s.nulls[:0]
+	err := s.Uint8S(num, &s.nulls)
+	if err != nil {
+		return nil, err
+	}
+	return s.nulls[:num], nil
+}
+
+// GetNullS read all null values from a block
+func (s *selectStmt) GetNullSAll() ([]uint8, error) {
+	return s.GetNullS(s.block.NumRows)
 }

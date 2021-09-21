@@ -19,7 +19,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -32,7 +32,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -45,7 +45,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -58,7 +58,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -71,7 +71,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -84,7 +84,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -97,7 +97,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -110,7 +110,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -123,7 +123,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -136,7 +136,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -149,7 +149,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -162,7 +162,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -175,7 +175,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -188,7 +188,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -201,7 +201,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -214,7 +214,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -227,7 +227,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -240,7 +240,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -253,7 +253,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -266,7 +266,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -279,7 +279,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -292,7 +292,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -305,7 +305,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -318,7 +318,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -331,7 +331,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -344,7 +344,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -357,7 +357,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -370,7 +370,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -383,7 +383,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -396,7 +396,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -409,7 +409,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -422,7 +422,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -435,7 +435,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -448,7 +448,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -461,7 +461,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -474,7 +474,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -487,7 +487,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -500,7 +500,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -513,7 +513,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -526,7 +526,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -539,7 +539,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -552,7 +552,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -565,7 +565,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -578,7 +578,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -591,7 +591,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -604,7 +604,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -617,7 +617,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -630,7 +630,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -643,7 +643,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -656,7 +656,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -669,7 +669,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -682,7 +682,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -695,7 +695,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -708,7 +708,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -721,7 +721,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -734,7 +734,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -747,7 +747,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -760,7 +760,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -773,7 +773,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -786,7 +786,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -799,7 +799,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -812,7 +812,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -825,7 +825,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -838,7 +838,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -851,7 +851,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -864,7 +864,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -877,7 +877,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -890,7 +890,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -903,7 +903,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -916,7 +916,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -929,7 +929,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -942,7 +942,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -955,7 +955,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -968,7 +968,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1.11")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -981,7 +981,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1.11")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -993,7 +993,7 @@ func TestSetting(t *testing.T) {
 		writerExcept.String("network_zstd_compression_level")
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1006,7 +1006,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1019,7 +1019,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1032,7 +1032,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1045,7 +1045,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1058,7 +1058,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1071,7 +1071,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1084,7 +1084,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1097,7 +1097,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1110,7 +1110,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1123,7 +1123,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1136,7 +1136,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1149,7 +1149,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1162,7 +1162,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1175,7 +1175,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1188,7 +1188,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1201,7 +1201,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1214,7 +1214,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1227,7 +1227,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1240,7 +1240,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1253,7 +1253,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1266,7 +1266,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1279,7 +1279,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1292,7 +1292,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1305,7 +1305,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1317,7 +1317,7 @@ func TestSetting(t *testing.T) {
 		writerExcept.String("distributed_ddl_task_timeout")
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1330,7 +1330,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1343,7 +1343,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4000")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1356,7 +1356,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1369,7 +1369,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1382,7 +1382,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1395,7 +1395,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1408,7 +1408,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1421,7 +1421,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1434,7 +1434,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1447,7 +1447,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1460,7 +1460,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1473,7 +1473,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1486,7 +1486,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1499,7 +1499,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1512,7 +1512,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1525,7 +1525,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1538,7 +1538,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1551,7 +1551,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1564,7 +1564,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1577,7 +1577,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1590,7 +1590,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1603,7 +1603,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1616,7 +1616,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1629,7 +1629,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1642,7 +1642,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1655,7 +1655,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1668,7 +1668,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1681,7 +1681,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1694,7 +1694,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1707,7 +1707,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1720,7 +1720,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1733,7 +1733,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1746,7 +1746,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1759,7 +1759,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1772,7 +1772,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1785,7 +1785,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1798,7 +1798,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1811,7 +1811,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1824,7 +1824,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1837,7 +1837,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1850,7 +1850,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1863,7 +1863,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1876,7 +1876,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1889,7 +1889,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1902,7 +1902,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1915,7 +1915,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1928,7 +1928,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1941,7 +1941,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1954,7 +1954,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1967,7 +1967,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1980,7 +1980,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -1993,7 +1993,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2006,7 +2006,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2019,7 +2019,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2032,7 +2032,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2045,7 +2045,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2058,7 +2058,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2071,7 +2071,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2084,7 +2084,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2097,7 +2097,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2110,7 +2110,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2123,7 +2123,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2136,7 +2136,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2149,7 +2149,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2162,7 +2162,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2175,7 +2175,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2188,7 +2188,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2201,7 +2201,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2214,7 +2214,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2227,7 +2227,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2240,7 +2240,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2253,7 +2253,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2266,7 +2266,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2279,7 +2279,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2292,7 +2292,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2305,7 +2305,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2318,7 +2318,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2331,7 +2331,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2344,7 +2344,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2357,7 +2357,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2370,7 +2370,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2383,7 +2383,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2396,7 +2396,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2409,7 +2409,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2422,7 +2422,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2435,7 +2435,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2448,7 +2448,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2461,7 +2461,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2474,7 +2474,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2487,7 +2487,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2500,7 +2500,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2513,7 +2513,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2526,7 +2526,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2539,7 +2539,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2552,7 +2552,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2565,7 +2565,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2578,7 +2578,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2591,7 +2591,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2604,7 +2604,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2617,7 +2617,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2630,7 +2630,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2643,7 +2643,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2656,7 +2656,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2669,7 +2669,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2682,7 +2682,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2695,7 +2695,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2708,7 +2708,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2721,7 +2721,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2734,7 +2734,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2747,7 +2747,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2760,7 +2760,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2773,7 +2773,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("4")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2786,7 +2786,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2799,7 +2799,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2812,7 +2812,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2825,7 +2825,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2838,7 +2838,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2851,7 +2851,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2864,7 +2864,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2877,7 +2877,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2890,7 +2890,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2903,7 +2903,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2916,7 +2916,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2929,7 +2929,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2942,7 +2942,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2955,7 +2955,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2968,7 +2968,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2981,7 +2981,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -2994,7 +2994,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String(",")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3007,7 +3007,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3020,7 +3020,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3033,7 +3033,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3046,7 +3046,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3059,7 +3059,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3072,7 +3072,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3085,7 +3085,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3098,7 +3098,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3111,7 +3111,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3124,7 +3124,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3137,7 +3137,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3150,7 +3150,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3163,7 +3163,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3176,7 +3176,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3189,7 +3189,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3202,7 +3202,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3215,7 +3215,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3228,7 +3228,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3241,7 +3241,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3254,7 +3254,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3267,7 +3267,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3280,7 +3280,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3293,7 +3293,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3306,7 +3306,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3319,7 +3319,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3332,7 +3332,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("2")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3345,7 +3345,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1.11")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3358,7 +3358,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3371,7 +3371,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 
@@ -3384,7 +3384,7 @@ func TestSetting(t *testing.T) {
 		// flag
 		writerExcept.Uint8(0)
 		writerExcept.String("1")
-		setting.WriteTo(writerActual.Output())
+		setting.WriteTo(writerActual.Output(), true)
 		require.Equal(t, writerExcept.Output().Bytes(), writerActual.Output().Bytes())
 	})
 }

@@ -386,6 +386,7 @@ func (p *pool) checkMinConns() {
 	}
 }
 
+// Acquire returns a connection (Conn) from the Pool
 func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
@@ -523,6 +524,8 @@ func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *se
 	}
 }
 
+// Ping acquires a connection from the Pool and send ping
+// If returns without error, the database Ping is considered successful, otherwise, the error is returned.
 func (p *pool) Ping(ctx context.Context) error {
 	for {
 		c, err := p.Acquire(ctx)

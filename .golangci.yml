@@ -5,7 +5,7 @@ linters-settings:
     lines: 130
     statements: 60
   goconst:
-    min-len: 2
+    min-len: 5
     min-occurrences: 3
   gocritic:
     enabled-tags:
@@ -115,6 +115,11 @@ issues:
         - goerr113
         - maligned
         - errcheck
+    - path: main\.go
+      linters:
+        - goconst
+        - gocritic
+        - dupl # todo fix later
 
 run:
   skip-dirs:

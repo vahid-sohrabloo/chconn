@@ -29,7 +29,8 @@ func NewSettings() *Settings {
 	}
 }
 
-func (s *Settings) WriteTo(wt io.Writer) (int, error) {
+func (s *Settings) WriteTo(wt io.Writer, asString bool) (int, error) {
+	// todo handle asString for old protocols
 	if s.dirty {
 		s.w.Reset()
 		s.dirty = false

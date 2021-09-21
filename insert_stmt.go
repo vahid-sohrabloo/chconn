@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"math"
 	"net"
 	"time"
 
@@ -211,6 +212,16 @@ func (s *InsertWriter) DateTime(bufferIndex int, value time.Time) {
 		return
 	}
 	s.ColumnsBuffer[bufferIndex].Uint32(uint32(value.Unix()))
+}
+
+// DateTime write DateTime data
+func (s *InsertWriter) DateTime64(bufferIndex, precision int, value time.Time) {
+	if value.Unix() < 0 {
+		s.ColumnsBuffer[bufferIndex].Uint32(0)
+		return
+	}
+	timestamp := value.UnixNano() / int64(math.Pow10(9-precision))
+	s.ColumnsBuffer[bufferIndex].Int64(timestamp)
 }
 
 // UUID write UUID data

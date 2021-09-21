@@ -59,19 +59,22 @@ const (
 )
 
 const (
-	dbmsMinRevisionWithClientInfo           = 54032
-	dbmsMinRevisionWithServerTimezone       = 54058
-	dbmsMinRevisionWithQuotaKeyInClientInfo = 54060
-	dbmsMinRevisionWithServerDisplayName    = 54372
-	dbmsMinRevisionWithVersionPatch         = 54401
-	dbmsMinRevisionWithClientWriteInfo      = 54420
+	dbmsMinRevisionWithClientInfo                  = 54032
+	dbmsMinRevisionWithServerTimezone              = 54058
+	dbmsMinRevisionWithQuotaKeyInClientInfo        = 54060
+	dbmsMinRevisionWithServerDisplayName           = 54372
+	dbmsMinRevisionWithVersionPatch                = 54401
+	dbmsMinRevisionWithClientWriteInfo             = 54420
+	dbmsMinRevisionWithSettingsSerializedAsStrings = 54429
+	dbmsMinRevisionWithInterserverSecret           = 54441
+	dbmsMinRevisionWithOpentelemetry               = 54442
 )
 
 const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54429
+	dbmsVersionRevision = 54442
 )
 
 type queryProcessingStage uint64
@@ -413,10 +416,15 @@ func (ch *conn) sendQueryWithOption(
 	// setting
 	if settings != nil {
 		//nolint:errcheck // no need for bytes.Buffer
-		settings.WriteTo(ch.writer.Output())
+		settings.WriteTo(ch.writer.Output(),
+			ch.serverInfo.Revision >= dbmsMinRevisionWithSettingsSerializedAsStrings)
 	}
 
 	ch.writer.String("")
+
+	if ch.serverInfo.Revision >= dbmsMinRevisionWithInterserverSecret {
+		ch.writer.String("")
+	}
 
 	ch.writer.Uvarint(uint64(queryProcessingStageComplete))
 

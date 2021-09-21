@@ -420,16 +420,11 @@ func TestSelectSlice(t *testing.T) {
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		// version
-		_, err = selectStmt.Uint64()
-		require.NoError(t, err)
+
 		err = selectStmt.LowCardinalityString(&sLowCardinalityData)
 		require.NoError(t, err)
 
 		_, err = selectStmt.NextColumn()
-		require.NoError(t, err)
-		// version
-		_, err = selectStmt.Uint64()
 		require.NoError(t, err)
 
 		lenAsLowCardinality = lenAsLowCardinality[:0]
@@ -450,9 +445,7 @@ func TestSelectSlice(t *testing.T) {
 
 		_, err = selectStmt.NextColumn()
 		require.NoError(t, err)
-		// version
-		_, err = selectStmt.Uint64()
-		require.NoError(t, err)
+
 		err = selectStmt.LowCardinalityFixedString(&sfLowCardinalityData, 10)
 		require.NoError(t, err)
 	}
