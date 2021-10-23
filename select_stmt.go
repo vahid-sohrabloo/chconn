@@ -516,7 +516,7 @@ func (s *selectStmt) LenAll(value *[]int) (uint64, error) {
 // LowCardinalityString read LowCardinality String values from a block
 func (s *selectStmt) LowCardinalityString(values *[]string) error {
 	var dictionary []string
-	return s.lowCardinality(func(dictionarySize uint64) error {
+	return s.LowCardinality(func(dictionarySize uint64) error {
 		dictionary = make([]string, 0, dictionarySize)
 		return s.StringS(dictionarySize, &dictionary)
 	}, func(index int) {
@@ -527,7 +527,7 @@ func (s *selectStmt) LowCardinalityString(values *[]string) error {
 // LowCardinalityFixedString read LowCardinality Fixed String values from a block
 func (s *selectStmt) LowCardinalityFixedString(values *[][]byte, strlne int) error {
 	var dictionary [][]byte
-	return s.lowCardinality(func(dictionarySize uint64) error {
+	return s.LowCardinality(func(dictionarySize uint64) error {
 		dictionary = make([][]byte, 0, dictionarySize)
 		return s.FixedStringS(dictionarySize, &dictionary, strlne)
 	}, func(index int) {
@@ -535,8 +535,9 @@ func (s *selectStmt) LowCardinalityFixedString(values *[][]byte, strlne int) err
 	})
 }
 
-// lowCardinality is a helper to read lowCardinality
-func (s *selectStmt) lowCardinality(readDict func(dictionarySize uint64) error, readValue func(index int)) error {
+// LowCardinality is a helper to read lowCardinality.
+// for example please check LowCardinalityString and LowCardinalityFixedString source code
+func (s *selectStmt) LowCardinality(readDict func(dictionarySize uint64) error, readValue func(index int)) error {
 	serializationType, err := s.conn.reader.Uint64()
 	if err != nil {
 		return err
