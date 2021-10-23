@@ -8,10 +8,20 @@ import (
 )
 
 type SelectStmt interface {
+	// Next get the next block, if available return true else return false
+	// if the server sends an error return false and we can get the last error with Err() function
 	Next() bool
+	// Err When calls Next() func if server send error we can get error from thhis function
 	Err() error
+	// RowsInBlock return number of rows in this current block
 	RowsInBlock() uint64
+	// Close after reads all data should call this function to unlock connection
+	// NOTE: You shoud read all data and then call this function
 	Close()
+	// ‌Block get current block
+	// NOTE: Never use this if you do not know what a block is
+	Block() *block
+	// NextColumn get the next column of block
 	NextColumn() (*Column, error)
 	// Int8 read Int8 value
 	Int8() (int8, error)
@@ -316,6 +326,12 @@ func (s *selectStmt) Next() bool {
 // RowsInBlock return number of rows in this current block
 func (s *selectStmt) RowsInBlock() uint64 {
 	return s.block.NumRows
+}
+
+// ‌Block get current block
+// NOTE: Never use this if you do not know what a block is
+func (s *selectStmt) Block() *block {
+	return s.block
 }
 
 // Err When calls Next() func if server send error we can get error from thhis function
