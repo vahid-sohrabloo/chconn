@@ -150,6 +150,9 @@ type SelectStmt interface {
 	IPv6All(value *[]net.IP) error
 	// LenAll read all Array Len values from a block
 	LenAll(value *[]int) (uint64, error)
+	// LowCardinality is a helper to read lowCardinality.
+	// for example please check LowCardinalityString and LowCardinalityFixedString source code
+	LowCardinality(readDict func(dictionarySize uint64) error, readValue func(index int)) error
 	// LowCardinalityString read LowCardinality String values from a block
 	LowCardinalityString(values *[]string) error
 	// LowCardinalityFixedString read LowCardinality Fixed String values from a block
