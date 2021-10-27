@@ -120,13 +120,19 @@ type Conn interface {
 	ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error)
 	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
 	// NOTE: don't use it for insert and select query
-	ExecCallback(ctx context.Context, query string, settings *setting.Settings, onProgress func(*Progress)) (interface{}, error)
+	ExecCallback(
+		ctx context.Context,
+		query string,
+		settings *setting.Settings,
+		queryID string,
+		onProgress func(*Progress),
+	) (interface{}, error)
 	// Insert executes a query and return insert stmt.
 	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string) (InsertStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (InsertStmt, error)
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (SelectStmt, error)
@@ -139,6 +145,7 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		settings *setting.Settings,
+		queryID string,
 		onProgress func(*Progress),
 		onProfile func(*Profile)) (SelectStmt, error)
 }
@@ -523,17 +530,18 @@ var emptyOnProgress = func(*Progress) {
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, nil, nil)
+	return ch.ExecCallback(ctx, query, nil, "", nil)
 }
 
 func (ch *conn) ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, settings, nil)
+	return ch.ExecCallback(ctx, query, settings, "", nil)
 }
 
 func (ch *conn) ExecCallback(
 	ctx context.Context,
 	query string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*Progress),
 ) (interface{}, error) {
 	err := ch.lock()
@@ -551,7 +559,7 @@ func (ch *conn) ExecCallback(
 		}
 	}()
 
-	err = ch.sendQueryWithOption(ctx, query, "", settings)
+	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
 		return nil, err
@@ -573,11 +581,11 @@ func (ch *conn) ExecCallback(
 
 // Insert send query for insert and prepare insert stmt
 func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
-	return ch.InsertWithSetting(ctx, query, nil)
+	return ch.InsertWithSetting(ctx, query, nil, "")
 }
 
 // Insert send query for insert and prepare insert stmt with setting option
-func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (InsertStmt, error) {
+func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (InsertStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
@@ -590,7 +598,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 			ch.Close(context.Background())
 		}
 	}()
-	err = ch.sendQueryWithOption(ctx, query, "", settings)
+	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
 		return nil, err
@@ -637,12 +645,12 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 
 // Select send query for select and prepare SelectStmt
 func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, nil, nil, nil)
+	return ch.SelectCallback(ctx, query, nil, "", nil, nil)
 }
 
 // Select send query for select and prepare SelectStmt with settion option
 func (ch *conn) SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, settings, nil, nil)
+	return ch.SelectCallback(ctx, query, settings, "", nil, nil)
 }
 
 // Select send query for select and prepare SelectStmt on progress and on profile callback
@@ -650,6 +658,7 @@ func (ch *conn) SelectCallback(
 	ctx context.Context,
 	query string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*Progress),
 	onProfile func(*Profile),
 ) (SelectStmt, error) {
@@ -666,7 +675,7 @@ func (ch *conn) SelectCallback(
 			ch.Close(context.Background())
 		}
 	}()
-	err = ch.sendQueryWithOption(ctx, query, "", settings)
+	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
 		return nil, err
@@ -676,7 +685,7 @@ func (ch *conn) SelectCallback(
 		query:      query,
 		onProgress: onProgress,
 		onProfile:  onProfile,
-		queryID:    "",
+		queryID:    queryID,
 		clientInfo: nil,
 	}, nil
 }

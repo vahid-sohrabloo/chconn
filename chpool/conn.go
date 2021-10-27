@@ -18,6 +18,7 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		settings *setting.Settings,
+		queryID string,
 		onProgress func(*chconn.Progress)) (interface{}, error)
 	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
 	// NOTE: only use for select query
@@ -25,12 +26,13 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		settings *setting.Settings,
+		queryID string,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error)
 	Conn() chconn.Conn
 	Ping(ctx context.Context) error
 }
@@ -74,8 +76,9 @@ func (c *conn) ExecCallback(
 	ctx context.Context,
 	query string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*chconn.Progress)) (interface{}, error) {
-	return c.Conn().ExecCallback(ctx, query, settings, onProgress)
+	return c.Conn().ExecCallback(ctx, query, settings, queryID, onProgress)
 }
 
 func (c *conn) Ping(ctx context.Context) error {
@@ -86,10 +89,11 @@ func (c *conn) SelectCallback(
 	ctx context.Context,
 	query string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
-	s, err := c.Conn().SelectCallback(ctx, query, settings, onProgress, onProfile)
+	s, err := c.Conn().SelectCallback(ctx, query, settings, queryID, onProgress, onProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +103,8 @@ func (c *conn) SelectCallback(
 	}, nil
 }
 
-func (c *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error) {
-	s, err := c.Conn().InsertWithSetting(ctx, query, settings)
+func (c *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error) {
+	s, err := c.Conn().InsertWithSetting(ctx, query, settings, queryID)
 	if err != nil {
 		return nil, err
 	}

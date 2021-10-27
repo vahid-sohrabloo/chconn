@@ -318,7 +318,7 @@ func TestConnReleaseClosesBusyConn(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 
-	_, err = c.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 10;", nil, nil, nil)
+	_, err = c.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 10;", nil, "", nil, nil)
 	require.NoError(t, err)
 
 	c.Release()
@@ -509,7 +509,7 @@ func TestPoolAcquireSelectError(t *testing.T) {
 	conn, err := pool.Acquire(context.Background())
 	require.NoError(t, err)
 	conn.Conn().RawConn().Close()
-	_, err = conn.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", nil, nil, nil)
+	_, err = conn.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", nil, "", nil, nil)
 	conn.Release()
 	require.Error(t, err)
 }
@@ -610,7 +610,7 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	pid := c.Conn().RawConn().LocalAddr().String()
 
-	stmt, err := c.SelectCallback(ctx, "SELECT * FROM system.numbers2 LIMIT 5;", nil, nil, nil)
+	stmt, err := c.SelectCallback(ctx, "SELECT * FROM system.numbers2 LIMIT 5;", nil, "", nil, nil)
 	assert.NoError(t, err)
 	assert.False(t, stmt.Next())
 	assert.Error(t, stmt.Err())

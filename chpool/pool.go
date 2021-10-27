@@ -60,7 +60,13 @@ type Pool interface {
 	ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error)
 	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
 	// NOTE: don't use it for insert and select query
-	ExecCallback(ctx context.Context, sql string, settings *setting.Settings, onProgress func(*chconn.Progress)) (interface{}, error)
+	ExecCallback(
+		ctx context.Context,
+		sql string,
+		settings *setting.Settings,
+		queryID string,
+		onProgress func(*chconn.Progress),
+	) (interface{}, error)
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (chconn.SelectStmt, error)
@@ -73,6 +79,7 @@ type Pool interface {
 		ctx context.Context,
 		query string,
 		settings *setting.Settings,
+		queryID string,
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
@@ -81,7 +88,7 @@ type Pool interface {
 	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error)
 	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
 	Stat() *Stat
@@ -441,24 +448,25 @@ func (p *pool) Stat() *Stat {
 }
 
 func (p *pool) Exec(ctx context.Context, sql string) (interface{}, error) {
-	return p.ExecCallback(ctx, sql, nil, nil)
+	return p.ExecCallback(ctx, sql, nil, "", nil)
 }
 
 func (p *pool) ExecWithSetting(ctx context.Context, sql string, settings *setting.Settings) (interface{}, error) {
-	return p.ExecCallback(ctx, sql, settings, nil)
+	return p.ExecCallback(ctx, sql, settings, "", nil)
 }
 
 func (p *pool) ExecCallback(
 	ctx context.Context,
 	sql string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*chconn.Progress)) (interface{}, error) {
 	for {
 		c, err := p.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
-		res, err := c.ExecCallback(ctx, sql, settings, onProgress)
+		res, err := c.ExecCallback(ctx, sql, settings, queryID, onProgress)
 		c.Release()
 		if errors.Is(err, syscall.EPIPE) {
 			continue
@@ -468,17 +476,18 @@ func (p *pool) ExecCallback(
 }
 
 func (p *pool) Select(ctx context.Context, query string) (chconn.SelectStmt, error) {
-	return p.SelectCallback(ctx, query, nil, nil, nil)
+	return p.SelectCallback(ctx, query, nil, "", nil, nil)
 }
 
 func (p *pool) SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.SelectStmt, error) {
-	return p.SelectCallback(ctx, query, settings, nil, nil)
+	return p.SelectCallback(ctx, query, settings, "", nil, nil)
 }
 
 func (p *pool) SelectCallback(
 	ctx context.Context,
 	query string,
 	settings *setting.Settings,
+	queryID string,
 	onProgress func(*chconn.Progress),
 	onProfile func(*chconn.Profile),
 ) (chconn.SelectStmt, error) {
@@ -488,7 +497,7 @@ func (p *pool) SelectCallback(
 			return nil, err
 		}
 
-		s, err := c.SelectCallback(ctx, query, settings, onProgress, onProfile)
+		s, err := c.SelectCallback(ctx, query, settings, queryID, onProgress, onProfile)
 		if err != nil {
 			c.Release()
 			if errors.Is(err, syscall.EPIPE) {
@@ -501,17 +510,17 @@ func (p *pool) SelectCallback(
 }
 
 func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
-	return p.InsertWithSetting(ctx, query, nil)
+	return p.InsertWithSetting(ctx, query, nil, "")
 }
 
-func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings) (chconn.InsertStmt, error) {
+func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error) {
 	for {
 		c, err := p.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		s, err := c.InsertWithSetting(ctx, query, settings)
+		s, err := c.InsertWithSetting(ctx, query, settings, queryID)
 		if err != nil {
 			c.Release()
 			if errors.Is(err, syscall.EPIPE) {

@@ -257,7 +257,7 @@ func TestSelectSlice(t *testing.T) {
 				asLowCardinality,
 				sfLowCardinality
 
-	 FROM clickhouse_test_insert_slice`, nil, func(*Progress) {}, func(*Profile) {})
+	 FROM clickhouse_test_insert_slice`, nil, "", func(*Progress) {}, func(*Profile) {})
 	require.NoError(t, err)
 	var int8Data []int8
 	var int16Data []int16
