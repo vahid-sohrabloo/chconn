@@ -1,6 +1,7 @@
 package chconn
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
@@ -14,6 +15,7 @@ type Column struct {
 	NumBuffer                int
 	HasVersion               bool
 	isLowCardinalityNullable bool
+	fixedStringSize          int
 }
 
 type block struct {
@@ -163,13 +165,18 @@ func (block *block) calcBuffer(chType string, column *Column) {
 		return
 	}
 
-	if strings.HasPrefix(chType, "FixedString(") ||
-		strings.HasPrefix(chType, "Decimal(") ||
+	if strings.HasPrefix(chType, "Decimal(") ||
 		strings.HasPrefix(chType, "DateTime(") ||
 		strings.HasPrefix(chType, "DateTime64(") ||
 		strings.HasPrefix(chType, "Enum8(") ||
 		strings.HasPrefix(chType, "Enum16(") {
 		column.NumBuffer++
+		return
+	}
+
+	if strings.HasPrefix(chType, "FixedString(") {
+		column.NumBuffer++
+		column.fixedStringSize, _ = strconv.Atoi(chType[len("FixedString(") : len(chType)-1])
 		return
 	}
 
@@ -277,7 +284,7 @@ func (block *block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
 		}
 		for i := 0; i < column.NumBuffer; i++ {
 			if column.isLowCardinalityNullable {
-				writer.ColumnsBuffer[bufferIndex].SetStringLowCardinalityNull()
+				writer.ColumnsBuffer[bufferIndex].SetStringLowCardinalityNull(column.fixedStringSize)
 			}
 			if _, err := ch.writertoCompress.Write(writer.ColumnsBuffer[bufferIndex].Bytes()); err != nil {
 				return &writeError{"block: write block data for column " + column.Name, err}

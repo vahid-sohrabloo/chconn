@@ -27,6 +27,7 @@ type Writer struct {
 	offset                  uint64
 	isLowCardinality        bool
 	isLCNull                bool
+	fixedStringSize         int
 	keyLC                   []int
 	keyStringDictionaryLC   map[string]int
 	stringDictionaryLC      []string
@@ -127,8 +128,9 @@ func (w *Writer) AddLen(v uint64) {
 }
 
 // SetStringLowCardinalityNull set LowCardinality is nullable
-func (w *Writer) SetStringLowCardinalityNull() {
+func (w *Writer) SetStringLowCardinalityNull(fixedSize int) {
 	w.isLCNull = true
+	w.fixedStringSize = fixedSize
 }
 
 // AddStringLowCardinality add string to LowCardinality dictionary
@@ -194,7 +196,7 @@ func (w *Writer) flushLowCardinality() {
 
 		// write null value
 		if w.isLCNull {
-			w.Write([]byte{})
+			w.Write(make([]byte, w.fixedStringSize))
 		}
 		for _, val := range w.fixedStringDictionaryLC {
 			w.Write(val)

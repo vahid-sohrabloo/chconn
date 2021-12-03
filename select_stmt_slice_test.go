@@ -50,7 +50,7 @@ func TestSelectSlice(t *testing.T) {
 				tuple Tuple(UInt8, String),
 				ipv4  IPv4,
 				ipv6  IPv6,
-				sLowCardinality LowCardinality(String),
+				sLowCardinality LowCardinality(Nullable(String)),
 				asLowCardinality Array(LowCardinality(String)),
 				sfLowCardinality LowCardinality(FixedString(10))
 			) Engine=Memory`)
