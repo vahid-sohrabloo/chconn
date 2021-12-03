@@ -26,6 +26,7 @@ type Writer struct {
 	output                  *bytes.Buffer
 	offset                  uint64
 	isLowCardinality        bool
+	isLCNull                bool
 	keyLC                   []int
 	keyStringDictionaryLC   map[string]int
 	stringDictionaryLC      []string
@@ -125,6 +126,11 @@ func (w *Writer) AddLen(v uint64) {
 	w.Uint64(w.offset)
 }
 
+// SetStringLowCardinalityNull set LowCardinality is nullable
+func (w *Writer) SetStringLowCardinalityNull() {
+	w.isLCNull = true
+}
+
 // AddStringLowCardinality add string to LowCardinality dictionary
 func (w *Writer) AddStringLowCardinality(v string) {
 	w.isLowCardinality = true
@@ -160,41 +166,62 @@ func (w *Writer) AddFixedStringLowCardinality(v []byte) {
 // flushLowCardinality flush LowCardinality dictionary to buffer
 func (w *Writer) flushLowCardinality() {
 	var intType int
+	var dictionarySize int
+	if w.isLCNull {
+		dictionarySize++
+	}
 	if len(w.stringDictionaryLC) > 0 {
-		intType = int(math.Log2(float64(len(w.stringDictionaryLC))) / 8)
+		dictionarySize += len(w.stringDictionaryLC)
+		intType = int(math.Log2(float64(dictionarySize)) / 8)
 		stype := serializationType | intType
 		w.Int64(int64(stype))
-		w.Int64(int64(len(w.stringDictionaryLC)))
+		w.Int64(int64(dictionarySize))
+
+		// write null value
+		if w.isLCNull {
+			w.String("")
+		}
+
 		for _, val := range w.stringDictionaryLC {
 			w.String(val)
 		}
 	} else {
-		intType = int(math.Log2(float64(len(w.fixedStringDictionaryLC))) / 8)
+		dictionarySize += len(w.fixedStringDictionaryLC)
+		intType = int(math.Log2(float64(dictionarySize)) / 8)
 		stype := serializationType | intType
 		w.Int64(int64(stype))
-		w.Int64(int64(len(w.fixedStringDictionaryLC)))
+		w.Int64(int64(dictionarySize))
+
+		// write null value
+		if w.isLCNull {
+			w.Write([]byte{})
+		}
 		for _, val := range w.fixedStringDictionaryLC {
 			w.Write(val)
 		}
 	}
 
+	var keysOffset int
+	if w.isLCNull {
+		keysOffset = 1
+	}
 	w.Int64(int64(len(w.keyLC)))
 	switch intType {
 	case 0:
 		for _, val := range w.keyLC {
-			w.Uint8(uint8(val))
+			w.Uint8(uint8(val + keysOffset))
 		}
 	case 1:
 		for _, val := range w.keyLC {
-			w.Uint16(uint16(val))
+			w.Uint16(uint16(val + keysOffset))
 		}
 	case 2:
 		for _, val := range w.keyLC {
-			w.Uint32(uint32(val))
+			w.Uint32(uint32(val + keysOffset))
 		}
 	case 3:
 		for _, val := range w.keyLC {
-			w.Uint64(uint64(val))
+			w.Uint64(uint64(val + keysOffset))
 		}
 	}
 }

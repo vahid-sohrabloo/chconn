@@ -8,11 +8,12 @@ import (
 
 // Column contains details of ClickHouse column with Buffer index in inserting
 type Column struct {
-	ChType      string
-	Name        string
-	BufferIndex int
-	NumBuffer   int
-	HasVersion  bool
+	ChType                   string
+	Name                     string
+	BufferIndex              int
+	NumBuffer                int
+	HasVersion               bool
+	isLowCardinalityNullable bool
 }
 
 type block struct {
@@ -174,8 +175,9 @@ func (block *block) calcBuffer(chType string, column *Column) {
 
 	if strings.HasPrefix(chType, "LowCardinality(Nullable(") {
 		column.HasVersion = true
-		// get chtype between `LowCardinality(` and `)`
-		block.calcBuffer(chType[24:len(chType)-1], column)
+		column.isLowCardinalityNullable = true
+		// get chtype between `LowCardinality(Nullable` and `))`
+		block.calcBuffer(chType[24:len(chType)-2], column)
 		return
 	}
 
@@ -261,6 +263,7 @@ func (block *block) writeHeader(ch *conn, numRows uint64) error {
 }
 
 func (block *block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
+	// todo check if the write buffer is enough
 	var bufferIndex int
 	for _, column := range block.Columns {
 		block.headerWriter.Reset()
@@ -273,6 +276,9 @@ func (block *block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
 			return &writeError{"block: write header block data for column " + column.Name, err}
 		}
 		for i := 0; i < column.NumBuffer; i++ {
+			if column.isLowCardinalityNullable {
+				writer.ColumnsBuffer[bufferIndex].SetStringLowCardinalityNull()
+			}
 			if _, err := ch.writertoCompress.Write(writer.ColumnsBuffer[bufferIndex].Bytes()); err != nil {
 				return &writeError{"block: write block data for column " + column.Name, err}
 			}
