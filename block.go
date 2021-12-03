@@ -172,6 +172,13 @@ func (block *block) calcBuffer(chType string, column *Column) {
 		return
 	}
 
+	if strings.HasPrefix(chType, "LowCardinality(Nullable(") {
+		column.HasVersion = true
+		// get chtype between `LowCardinality(` and `)`
+		block.calcBuffer(chType[24:len(chType)-1], column)
+		return
+	}
+
 	if strings.HasPrefix(chType, "LowCardinality(") {
 		column.HasVersion = true
 		// get chtype between `LowCardinality(` and `)`
@@ -194,13 +201,14 @@ func (block *block) calcBuffer(chType string, column *Column) {
 
 	if strings.HasPrefix(chType, "Tuple(") {
 		var openFunc int
-		cur := 6
+		cur := 0
 		// for between `Tuple(` and `)`
-		for i, char := range chType[6 : len(chType)-1] {
+		tupleTypes := chType[6 : len(chType)-1]
+		for i, char := range tupleTypes {
 			if char == ',' {
 				if openFunc == 0 {
-					block.calcBuffer(chType[cur:i+6], column)
-					cur = i + 6
+					block.calcBuffer(tupleTypes[cur:i], column)
+					cur = i + 2
 				}
 				continue
 			}
@@ -213,7 +221,7 @@ func (block *block) calcBuffer(chType string, column *Column) {
 				continue
 			}
 		}
-		block.calcBuffer(chType[cur+2:len(chType)-1], column)
+		block.calcBuffer(tupleTypes[cur:], column)
 		return
 	}
 
