@@ -208,7 +208,7 @@ func redactURL(u *url.URL) string {
 
 // InsertError represents an error when insert error
 type InsertError struct {
-	Block *block
+	Block *Block
 	err   error
 }
 

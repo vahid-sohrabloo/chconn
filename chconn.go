@@ -447,7 +447,7 @@ func (ch *conn) sendQueryWithOption(
 	return ch.sendData(newBlock(), 0)
 }
 
-func (ch *conn) sendData(block *block, numRows uint64) error {
+func (ch *conn) sendData(block *Block, numRows uint64) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")
@@ -604,7 +604,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 		return nil, err
 	}
 
-	var blockData *block
+	var blockData *Block
 	for {
 		var res interface{}
 		res, err = ch.reciveAndProccessData(emptyOnProgress)
@@ -612,7 +612,7 @@ func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *s
 			hasError = true
 			return nil, err
 		}
-		if b, ok := res.(*block); ok {
+		if b, ok := res.(*Block); ok {
 			blockData = b
 			break
 		}

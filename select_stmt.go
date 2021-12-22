@@ -20,7 +20,7 @@ type SelectStmt interface {
 	Close()
 	// ‌Block get current block
 	// NOTE: Never use this if you do not know what a block is
-	Block() *block
+	Block() *Block
 	// NextColumn get the next column of block
 	NextColumn() (*Column, error)
 	// Int8 read Int8 value
@@ -264,7 +264,7 @@ type SelectStmt interface {
 	GetNullSAll() ([]uint8, error)
 }
 type selectStmt struct {
-	block       *block
+	block       *Block
 	conn        *conn
 	query       string
 	queryID     string
@@ -290,7 +290,7 @@ func (s *selectStmt) Next() bool {
 		return false
 	}
 	s.conn.reader.SetCompress(s.conn.compress)
-	if block, ok := res.(*block); ok {
+	if block, ok := res.(*Block); ok {
 		if block.NumRows == 0 {
 			err = block.readColumns(s.conn)
 			if err != nil {
@@ -333,7 +333,7 @@ func (s *selectStmt) RowsInBlock() uint64 {
 
 // ‌Block get current block
 // NOTE: Never use this if you do not know what a block is
-func (s *selectStmt) Block() *block {
+func (s *selectStmt) Block() *Block {
 	return s.block
 }
 

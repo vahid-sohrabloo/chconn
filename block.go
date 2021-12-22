@@ -18,7 +18,7 @@ type Column struct {
 	fixedStringSize          int
 }
 
-type block struct {
+type Block struct {
 	Columns      []*Column
 	NumRows      uint64
 	NumColumns   uint64
@@ -27,13 +27,13 @@ type block struct {
 	headerWriter *readerwriter.Writer
 }
 
-func newBlock() *block {
-	return &block{
+func newBlock() *Block {
+	return &Block{
 		headerWriter: readerwriter.NewWriter(),
 	}
 }
 
-func (block *block) read(ch *conn) error {
+func (block *Block) read(ch *conn) error {
 	if _, err := ch.reader.String(); err != nil { // temporary table
 		return err
 	}
@@ -58,7 +58,7 @@ func (block *block) read(ch *conn) error {
 	return nil
 }
 
-func (block *block) initForInsert(ch *conn) error {
+func (block *Block) initForInsert(ch *conn) error {
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
 	block.Columns = make([]*Column, block.NumColumns)
@@ -77,7 +77,7 @@ func (block *block) initForInsert(ch *conn) error {
 	return nil
 }
 
-func (block *block) readColumns(ch *conn) error {
+func (block *Block) readColumns(ch *conn) error {
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
@@ -90,7 +90,7 @@ func (block *block) readColumns(ch *conn) error {
 	return nil
 }
 
-func (block *block) nextColumn(ch *conn) (*Column, error) {
+func (block *Block) nextColumn(ch *conn) (*Column, error) {
 	column := &Column{}
 	var err error
 	if column.Name, err = ch.reader.String(); err != nil {
@@ -159,7 +159,7 @@ var preCachedNeedBuffer = map[string]int{
 }
 
 //nolint:gocyclo
-func (block *block) calcBuffer(chType string, column *Column) {
+func (block *Block) calcBuffer(chType string, column *Column) {
 	if numBuffer, ok := preCachedNeedBuffer[chType]; ok {
 		column.NumBuffer += numBuffer
 		return
@@ -251,7 +251,7 @@ func getNestedType(chType string) string {
 	panic("Cannot found  netsted type of " + chType)
 }
 
-func (block *block) writeHeader(ch *conn, numRows uint64) error {
+func (block *Block) writeHeader(ch *conn, numRows uint64) error {
 	block.info.write(ch.writer)
 	// NumColumns
 	ch.writer.Uvarint(block.NumColumns)
@@ -269,7 +269,7 @@ func (block *block) writeHeader(ch *conn, numRows uint64) error {
 	return nil
 }
 
-func (block *block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
+func (block *Block) writeColumsBuffer(ch *conn, writer *InsertWriter) error {
 	// todo check if the write buffer is enough
 	var bufferIndex int
 	for _, column := range block.Columns {

@@ -19,12 +19,12 @@ var factors10 = []float64{
 
 type InsertStmt interface {
 	Commit(ctx context.Context, writer *InsertWriter) error
-	GetBlock() *block
+	GetBlock() *Block
 	Writer() *InsertWriter
 	NumBuffer() int
 }
 type insertStmt struct {
-	block      *block
+	block      *Block
 	conn       *conn
 	query      string
 	queryID    string
@@ -78,7 +78,7 @@ func (s *insertStmt) Commit(ctx context.Context, writer *InsertWriter) error {
 }
 
 // GetBlock Get current block
-func (s *insertStmt) GetBlock() *block {
+func (s *insertStmt) GetBlock() *Block {
 	return s.block
 }
 
