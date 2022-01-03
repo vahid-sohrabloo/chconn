@@ -10,12 +10,6 @@ import (
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
-// ErrInvalidIPv4 when invalid ipv4 provided
-var ErrInvalidIPv4 = errors.New("invalid ipv4")
-
-// ErrInvalidIPv6 when invalid ipv4 provided
-var ErrInvalidIPv6 = errors.New("invalid ipv6")
-
 // ErrNegativeTimeout when negative timeout provided
 var ErrNegativeTimeout = errors.New("negative timeout")
 
@@ -42,6 +36,8 @@ var ErrInvalidquoted = errors.New("unterminated quoted string in connection info
 
 // ErrIPNotFound when can't found ip in connecting
 var ErrIPNotFound = errors.New("ip addr wasn't found")
+
+var ErrInsertMinColumn = errors.New("you should pass at least one column")
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
@@ -218,4 +214,34 @@ func (e *InsertError) Error() string {
 
 func (e *InsertError) Unwrap() error {
 	return e.err
+}
+
+// ColumnNumberReadError represents an error when read more or less column
+type ColumnNumberReadError struct {
+	Read      int
+	Available uint64
+}
+
+func (e *ColumnNumberReadError) Error() string {
+	return fmt.Sprintf("read %d column(s), but available %d column(s)", e.Read, e.Available)
+}
+
+// ColumnNumberReadError represents an error when number of write column is not equal to number of query column
+type ColumnNumberWriteError struct {
+	WriteColumn int
+	NeedColumn  uint64
+}
+
+func (e *ColumnNumberWriteError) Error() string {
+	return fmt.Sprintf("write %d column(s) but insert query needs %d column(s)", e.WriteColumn, e.NeedColumn)
+}
+
+type NumberWriteError struct {
+	FirstNumRow int
+	NumRow      int
+	Column      string
+}
+
+func (e *NumberWriteError) Error() string {
+	return fmt.Sprintf("first column has %d rows but \"%s\"  column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
 }

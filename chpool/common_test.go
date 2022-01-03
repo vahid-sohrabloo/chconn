@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/column"
 )
 
 // Conn.Release is an asynchronous process that returns immediately. There is no signal when the actual work is
@@ -35,17 +36,16 @@ func testSelect(t *testing.T, db selecter) {
 	var (
 		nums []uint64
 	)
-
 	stmt, err := db.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 	require.NoError(t, err)
-
+	col := column.NewUint64(false)
 	for stmt.Next() {
-		_, err := stmt.NextColumn()
+		err := stmt.NextColumn(col)
 		assert.NoError(t, err)
-		err = stmt.Uint64All(&nums)
+		col.ReadAll(&nums)
 		assert.NoError(t, err)
 	}
-
+	assert.NoError(t, stmt.Err())
 	assert.Equal(t, 5, len(nums))
 	stmt.Close()
 	assert.ElementsMatch(t, []uint64{0, 1, 2, 3, 4}, nums)

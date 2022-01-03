@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/column"
 )
 
 func TestConnect(t *testing.T) {
@@ -433,10 +434,11 @@ func TestPoolSelect(t *testing.T) {
 	// Test expected pool behavior
 	stmt, err := pool.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 	require.NoError(t, err)
+	col := column.NewUint64(false)
 	for stmt.Next() {
-		_, err := stmt.NextColumn()
+		err := stmt.NextColumn(col)
 		assert.NoError(t, err)
-		err = stmt.Uint64All(&[]uint64{})
+		col.ReadAll(&[]uint64{})
 		assert.NoError(t, err)
 	}
 
@@ -536,13 +538,12 @@ func TestPoolInsert(t *testing.T) {
 			) VALUES`)
 	require.NoError(t, err)
 	require.Nil(t, res)
-	writer := insertStmt.Writer()
+	col := column.NewInt8(false)
 	for i := 1; i <= 10; i++ {
-		writer.AddRow(1)
-		writer.Int8(0, int8(-1*i))
+		col.Append(int8(-1 * i))
 	}
 
-	err = insertStmt.Commit(context.Background(), writer)
+	err = insertStmt.Commit(context.Background(), col)
 	require.NoError(t, err)
 
 	selectStmt, err := pool.Select(context.Background(), `SELECT 
@@ -550,10 +551,12 @@ func TestPoolInsert(t *testing.T) {
 	 FROM clickhouse_test_insert_pool`)
 	require.NoError(t, err)
 	var int8Data []int8
+	colInt8 := column.NewInt8(false)
+
 	for selectStmt.Next() {
-		_, err := selectStmt.NextColumn()
+		err := selectStmt.NextColumn(colInt8)
 		require.NoError(t, err)
-		err = selectStmt.Int8All(&int8Data)
+		colInt8.ReadAll(&int8Data)
 		require.NoError(t, err)
 	}
 	require.NoError(t, selectStmt.Err())

@@ -306,7 +306,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if config.ReaderFunc != nil {
 		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
 	} else {
-		c.reader = readerwriter.NewReader(bufio.NewReader(c.conn))
+		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, 4096))
 	}
 	if config.WriterFunc != nil {
 		c.writerto = config.WriterFunc(c.conn)
@@ -447,7 +447,7 @@ func (ch *conn) sendQueryWithOption(
 	return ch.sendData(newBlock(), 0)
 }
 
-func (ch *conn) sendData(block *Block, numRows uint64) error {
+func (ch *conn) sendData(block *Block, numRows int) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vahid-sohrabloo/chconn/column"
 	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
@@ -92,11 +92,66 @@ func TestInsertError(t *testing.T) {
 	require.Nil(t, res)
 }
 
-func TestInsertIPError(t *testing.T) {
-	stmt := &InsertWriter{}
-	invalidIP := net.IP([]byte{1})
-	assert.EqualError(t, stmt.IPv4(0, invalidIP), "invalid ipv4")
-	assert.EqualError(t, stmt.IPv6(0, invalidIP), "invalid ipv6")
-	assert.EqualError(t, stmt.IPv4P(0, &invalidIP), "invalid ipv4")
-	assert.EqualError(t, stmt.IPv6P(0, &invalidIP), "invalid ipv6")
+func TestInsert(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_insert`)
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	res, err = conn.Exec(context.Background(), `CREATE TABLE test_insert (
+				int8 Int8
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	col := column.NewInt8(false)
+
+	var colInsert []int8
+
+	rows := 10
+	for i := 0; i < rows; i++ {
+		val := int8(i)
+
+		col.Append(val)
+		colInsert = append(colInsert, val)
+	}
+
+	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO test_insert (int8) VALUES`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	err = insertstmt.Commit(context.Background(),
+		col,
+	)
+	require.NoError(t, err)
+
+	// example read all
+	selectStmt, err := conn.Select(context.Background(), `SELECT int8 FROM test_insert`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead := column.NewInt8(false)
+
+	var colData []int8
+
+	for selectStmt.Next() {
+		err = selectStmt.NextColumn(colRead)
+		require.NoError(t, err)
+		colRead.ReadAll(&colData)
+	}
+
+	assert.Equal(t, colInsert, colData)
+	require.NoError(t, selectStmt.Err())
+
+	selectStmt.Close()
+
+	conn.RawConn().Close()
 }
