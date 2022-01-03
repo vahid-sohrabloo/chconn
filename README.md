@@ -42,7 +42,7 @@ func main() {
 
 	col1 := column.NewUint64(false)
 	col2 := column.NewUint64(true)
-	rows := 10000000 // fifty million rows- insert in five times
+	rows := 10000000 // One hundred million rows- insert in 10 times
 	numInsert := 10
 	startInsert := time.Now()
 	for i := 0; i < numInsert; i++ {
@@ -71,7 +71,7 @@ func main() {
 		}
 		cancelInsert()
 	}
-	fmt.Println("inserted 50M rows in ", time.Since(startInsert))
+	fmt.Println("inserted 100M rows in ", time.Since(startInsert))
 
 	// select data
 	col1Read := column.NewUint64(false)
@@ -119,7 +119,7 @@ func main() {
 	if selectStmt.Err() != nil {
 		panic(selectStmt.Err())
 	}
-	fmt.Println("selected 50M rows in ", time.Since(startSelect))
+	fmt.Println("selected 100M rows in ", time.Since(startSelect))
 
 }
 
