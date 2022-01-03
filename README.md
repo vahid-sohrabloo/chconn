@@ -138,5 +138,11 @@ selected 50M rows in  880.505004ms
 * Supports profile and progress 
 * database connection very like pgx (thanks @jackc)
 
+# TODO
+* Support ExternalTable
+* Support Clickhouse Log
+* Add a help page in wiki
+* Add code generator
+
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn?ref=badge_large)
