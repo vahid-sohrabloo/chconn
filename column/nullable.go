@@ -6,7 +6,6 @@ import (
 
 type nullable struct {
 	column
-	writerData []byte
 }
 
 func newNullable() *nullable {

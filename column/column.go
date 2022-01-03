@@ -23,6 +23,7 @@ type column struct {
 	r           *readerwriter.Reader
 	b           []byte
 	i           int
+	iNull       int
 	numRow      int
 	totalByte   int
 	size        int
@@ -32,10 +33,10 @@ type column struct {
 }
 
 func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
+	c.reset()
 	c.r = r
 	c.numRow = num
 	c.totalByte = num * c.size
-	c.reset()
 	if c.nullable {
 		err := c.colNullable.ReadRaw(num, r)
 		if err != nil {
@@ -47,7 +48,11 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 
 func (c *column) reset() {
 	c.i = 0
+	c.numRow = 0
 	c.writerData = c.writerData[:0]
+	if c.nullable {
+		c.colNullable.reset()
+	}
 }
 
 func (c *column) readBuffer() error {
@@ -103,4 +108,13 @@ func (c *column) setNullable(nullable bool) {
 }
 
 func (c *column) resetDict() {
+}
+
+func (c *column) ReadAllNil(value *[]uint8) {
+	*value = append(*value, c.colNullable.b...)
+}
+
+func (c *column) FillNil(value []uint8) {
+	copy(value, c.colNullable.b[c.iNull:c.iNull+len(value)])
+	c.iNull += len(value)
 }

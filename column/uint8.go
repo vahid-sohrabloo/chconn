@@ -36,10 +36,8 @@ func (c *Uint8) ReadAll(value *[]uint8) {
 }
 
 func (c *Uint8) Fill(value []uint8) {
-	for i := range value {
-		value[i] = c.b[c.i]
-		c.i += c.size
-	}
+	copy(value, c.b[c.i:len(value)+c.i])
+	c.i += len(value)
 }
 
 func (c *Uint8) ValueP() *uint8 {
