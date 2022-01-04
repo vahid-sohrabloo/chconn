@@ -46,6 +46,8 @@ func main() {
 	numInsert := 10
 	startInsert := time.Now()
 	for i := 0; i < numInsert; i++ {
+		col1.Reset()
+		col2.Reset()
 		for y := 0; y < rows; y++ {
 			col1.Append(uint64(i))
 			if i%2 == 0 {
@@ -122,7 +124,6 @@ func main() {
 	fmt.Println("selected 100M rows in ", time.Since(startSelect))
 
 }
-
 ```
 ```
 inserted 100M rows in  1.206666188s
