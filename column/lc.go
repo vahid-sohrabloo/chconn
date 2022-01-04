@@ -158,7 +158,6 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 		panic("cannot handle this amout of data fo lc")
 	}
 	c.indices.appendInts(keys)
-	c.dictColumn.resetDict()
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
 		return n, fmt.Errorf("error writing indices: %w", err)
@@ -190,5 +189,5 @@ func (c *LC) setNullable(nullable bool) {
 func (c *LC) AppendEmpty() {
 }
 
-func (c *LC) resetDict() {
+func (c *LC) Reset() {
 }

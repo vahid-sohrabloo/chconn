@@ -11,12 +11,12 @@ type Column interface {
 	ReadRaw(num int, r *readerwriter.Reader) error
 	NumRow() int
 	WriteTo(io.Writer) (int64, error)
+	Reset()
 	HeaderWriter(*readerwriter.Writer)
 	HeaderReader(*readerwriter.Reader) error
 	isNullable() bool
 	setNullable(nullable bool)
 	AppendEmpty()
-	resetDict()
 }
 
 type column struct {
@@ -33,7 +33,7 @@ type column struct {
 }
 
 func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.reset()
+	c.Reset()
 	c.r = r
 	c.numRow = num
 	c.totalByte = num * c.size
@@ -46,12 +46,12 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	return c.readBuffer()
 }
 
-func (c *column) reset() {
+func (c *column) Reset() {
 	c.i = 0
 	c.numRow = 0
 	c.writerData = c.writerData[:0]
 	if c.nullable {
-		c.colNullable.reset()
+		c.colNullable.Reset()
 	}
 }
 
@@ -95,7 +95,6 @@ func (c *column) WriteTo(w io.Writer) (int64, error) {
 		}
 	}
 	nw, err := w.Write(c.writerData)
-	c.reset()
 	return int64(nw) + n, err
 }
 
@@ -105,9 +104,6 @@ func (c *column) isNullable() bool {
 
 func (c *column) setNullable(nullable bool) {
 	c.nullable = nullable
-}
-
-func (c *column) resetDict() {
 }
 
 func (c *column) ReadAllNil(value *[]uint8) {

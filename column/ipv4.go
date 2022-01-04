@@ -140,7 +140,8 @@ func (c *IPv4) Keys() []int {
 	return c.keys
 }
 
-func (c *IPv4) resetDict() {
+func (c *IPv4) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[string]int)
 }

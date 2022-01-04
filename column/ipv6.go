@@ -135,7 +135,8 @@ func (c *IPv6) Keys() []int {
 	return c.keys
 }
 
-func (c *IPv6) resetDict() {
+func (c *IPv6) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[string]int)
 }

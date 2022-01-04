@@ -24,6 +24,5 @@ func (c *nullable) Append(v uint8) {
 
 func (c *nullable) WriteTo(w io.Writer) (int64, error) {
 	nw, err := w.Write(c.writerData)
-	c.reset()
 	return int64(nw), err
 }

@@ -140,7 +140,8 @@ func (c *Int16) Keys() []int {
 	return c.keys
 }
 
-func (c *Int16) resetDict() {
+func (c *Int16) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[int16]int)
 }

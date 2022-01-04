@@ -58,7 +58,7 @@ func (c *Map) HeaderReader(r *readerwriter.Reader) error {
 }
 
 func (c *Map) reset() {
-	c.Uint64.reset()
+	c.Uint64.Reset()
 	c.offset = 0
 }
 
@@ -110,7 +110,6 @@ func (c *Map) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("write len data: %w", err)
 	}
-	c.reset()
 	nc, errSubColumn := c.columnKey.WriteTo(w)
 	n += nc
 	if errSubColumn != nil {

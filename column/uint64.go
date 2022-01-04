@@ -146,7 +146,8 @@ func (c *Uint64) Keys() []int {
 	return c.keys
 }
 
-func (c *Uint64) resetDict() {
+func (c *Uint64) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[uint64]int)
 }

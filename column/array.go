@@ -27,7 +27,7 @@ func NewArray(subColumn Column) *Array {
 }
 
 func (c *Array) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.reset()
+	c.Reset()
 	err := c.Uint64.ReadRaw(num, r)
 	if err != nil {
 		return err
@@ -46,8 +46,8 @@ func (c *Array) HeaderReader(r *readerwriter.Reader) error {
 	return c.subColumn.HeaderReader(r)
 }
 
-func (c *Array) reset() {
-	c.Uint64.reset()
+func (c *Array) Reset() {
+	c.Uint64.Reset()
 	c.offset = 0
 }
 
@@ -97,7 +97,6 @@ func (c *Array) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("write len data: %w", err)
 	}
-	c.reset()
 	n, errSubColumn := c.subColumn.WriteTo(w)
 
 	return int64(nw) + n, errSubColumn

@@ -148,7 +148,8 @@ func (c *Float64) Keys() []int {
 	return c.keys
 }
 
-func (c *Float64) resetDict() {
+func (c *Float64) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[float64]int)
 }

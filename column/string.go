@@ -241,7 +241,8 @@ func (c *String) Keys() []int {
 	return c.keys
 }
 
-func (c *String) resetDict() {
+func (c *String) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[string]int)
 }

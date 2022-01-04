@@ -132,7 +132,6 @@ func (c *Raw) Keys() []int {
 	return c.keys
 }
 
-func (c *Raw) resetDict() {
-	c.keys = c.keys[:0]
-	c.dict = make(map[string]int)
+func (c *Raw) Reset() {
+	c.column.Reset()
 }

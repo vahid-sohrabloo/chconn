@@ -149,7 +149,8 @@ func (c *Date32) Keys() []int {
 	return c.keys
 }
 
-func (c *Date32) resetDict() {
+func (c *Date32) Reset() {
+	c.column.Reset()
 	c.keys = c.keys[:0]
 	c.dict = make(map[time.Time]int)
 }
