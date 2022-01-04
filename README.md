@@ -125,8 +125,8 @@ func main() {
 
 ```
 ```
-inserted 50M rows in  1.206666188s
-selected 50M rows in  880.505004ms
+inserted 100M rows in  1.206666188s
+selected 100M rows in  880.505004ms
 ```
 
 # Features
