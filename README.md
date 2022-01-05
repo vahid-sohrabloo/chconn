@@ -130,7 +130,7 @@ inserted 100M rows in  1.206666188s
 selected 100M rows in  880.505004ms
 ```
 
-For more information please read [https://github.com/vahid-sohrabloo/chconn/wiki](https://github.com/facebook/react/wiki/Sites-Using-React)
+For more information please read [wiki](https://github.com/vahid-sohrabloo/chconn/wiki)
 
 # Features
 * Connection pool with after-connect hook for arbitrary connection setup similar to pgx (thanks @jackc)
