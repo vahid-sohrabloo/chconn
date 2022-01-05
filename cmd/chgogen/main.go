@@ -75,7 +75,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	conn, err := chconn.Connect(ctx, "password=salam")
+	conn, err := chconn.Connect(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
