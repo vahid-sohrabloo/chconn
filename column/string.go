@@ -237,6 +237,20 @@ func (c *String) AppendDictP(v *[]byte) {
 	c.keys = append(c.keys, key+1)
 }
 
+func (c *String) AppendStringDictP(v *string) {
+	if v == nil {
+		c.keys = append(c.keys, 0)
+		return
+	}
+	key, ok := c.dict[*v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[*v] = key
+		c.AppendString(*v)
+	}
+	c.keys = append(c.keys, key+1)
+}
+
 func (c *String) Keys() []int {
 	return c.keys
 }

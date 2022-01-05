@@ -115,6 +115,11 @@ issues:
         - goerr113
         - maligned
         - errcheck
+    - path: cmd/chgogen
+      linters:
+        - goconst
+        - funlen
+        - gocyclo
     - path: main\.go
       linters:
         - goconst
