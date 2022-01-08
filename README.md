@@ -136,7 +136,7 @@ For more information please read [wiki](https://github.com/vahid-sohrabloo/chcon
 * Connection pool with after-connect hook for arbitrary connection setup similar to pgx (thanks @jackc)
 * Support All ClickHouse data types
 * Read and write data in column-oriendted (like ClickHouse)
-* Do not use `interface{}` , `reflect` and `unsafe`
+* Do not use `interface{}` , `reflect`
 * Batch select and insert
 * Full TLS connection control
 * Read raw binary data
