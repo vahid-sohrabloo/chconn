@@ -226,6 +226,20 @@ func (c *String) AppendDict(v []byte) {
 	}
 }
 
+func (c *String) AppendStringDict(v string) {
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.AppendString(v)
+	}
+	if c.nullable {
+		c.keys = append(c.keys, key+1)
+	} else {
+		c.keys = append(c.keys, key)
+	}
+}
+
 func (c *String) AppendDictNil() {
 	c.keys = append(c.keys, 0)
 }
