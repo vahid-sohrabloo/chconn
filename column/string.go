@@ -33,13 +33,20 @@ func (c *String) ReadRaw(num int, r *readerwriter.Reader) error {
 	} else {
 		c.vals = c.vals[:num]
 	}
-	var str []byte
 	for i := 0; i < num; i++ {
-		str, err = c.r.ByteString()
+		l, err := c.r.Uvarint()
 		if err != nil {
 			return err
 		}
-		c.vals[i] = str
+		if cap(c.vals[i]) < int(l) {
+			c.vals[i] = make([]byte, l)
+		} else {
+			c.vals[i] = c.vals[i][:l]
+		}
+		_, err = c.r.Read(c.vals[i])
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
