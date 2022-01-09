@@ -47,6 +47,12 @@ func NewLC(dictColumn lcDictColumn) *LC {
 func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
+	if c.numRow == 0 {
+		c.indices = NewUint8(false)
+		// to reset nullable dictionary
+		c.dictColumn.ReadRaw(0, r)
+		return nil
+	}
 
 	serializationType, err := c.r.Uint64()
 	if err != nil {
@@ -81,7 +87,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	case 2:
 		c.indices = NewUint32(false)
 	case 3:
-		panic("cannot handle this amout of data fo lc")
+		panic("cannot handle this amount of data fo lc")
 	}
 
 	return c.indices.ReadRaw(c.numRow, c.r)
@@ -118,8 +124,13 @@ func (c *LC) HeaderWriter(w *readerwriter.Writer) {
 }
 
 func (c *LC) WriteTo(w io.Writer) (int64, error) {
-	var n int64
 	dictionarySize := c.dictColumn.NumRow()
+	// Do not write anything for empty column.
+	// May happen while writing empty arrays.
+	if dictionarySize == 0 || (c.dictColumn.isNullable() && dictionarySize <= 1) {
+		return 0, nil
+	}
+	var n int64
 	intType := int(math.Log2(float64(dictionarySize)) / 8)
 	stype := serializationType | intType
 
@@ -155,7 +166,7 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	case 2:
 		c.indices = NewUint32(false)
 	case 3:
-		panic("cannot handle this amout of data fo lc")
+		panic("cannot handle this amount of data fo lc")
 	}
 	c.indices.appendInts(keys)
 	nwt, err := c.indices.WriteTo(w)

@@ -78,20 +78,20 @@ func TestUUID(t *testing.T) {
 		if i%2 == 0 {
 			colNilInsert = append(colNilInsert, &valCast)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendP(&valCast)
 			} else {
-				// example to without poiner
+				// example to without pointer
 				colNil.Append(val)
 				colNil.AppendIsNil(false)
 			}
 		} else {
 			colNilInsert = append(colNilInsert, nil)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendP(nil)
 			} else {
-				// example to add without poiner
+				// example to add without pointer
 				colNil.AppendEmpty()
 				colNil.AppendIsNil(true)
 			}

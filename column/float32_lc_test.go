@@ -54,8 +54,6 @@ func TestFloat32LC(t *testing.T) {
 	var colInsertArrayNil [][]*float32
 	var colNilInsert []*float32
 
-	// var colMap
-
 	rows := 10
 	for i := 1; i <= rows; i++ {
 		val := float32(i * -4)
@@ -83,19 +81,19 @@ func TestFloat32LC(t *testing.T) {
 		if i%2 == 0 {
 			colNilInsert = append(colNilInsert, &val)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendDictP(&val)
 			} else {
-				// example to without poiner
+				// example to without pointer
 				colNil.AppendDict(val)
 			}
 		} else {
 			colNilInsert = append(colNilInsert, nil)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendDictP(nil)
 			} else {
-				// example to add without poiner
+				// example to add without pointer
 				colNil.AppendDictNil()
 			}
 		}

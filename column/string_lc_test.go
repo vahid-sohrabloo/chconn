@@ -53,8 +53,6 @@ func TestStringLC(t *testing.T) {
 	var colInsertArrayNil [][]*[]byte
 	var colNilInsert []*[]byte
 
-	// var colMap
-
 	rows := 10
 	for i := 1; i <= rows; i++ {
 		val := []byte(fmt.Sprintf("%d", i))
@@ -82,19 +80,19 @@ func TestStringLC(t *testing.T) {
 		if i%2 == 0 {
 			colNilInsert = append(colNilInsert, &val)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendDictP(&val)
 			} else {
-				// example to without poiner
+				// example to without pointer
 				colNil.AppendDict(val)
 			}
 		} else {
 			colNilInsert = append(colNilInsert, nil)
 			if i <= rows/2 {
-				// example to add by poiner
+				// example to add by pointer
 				colNil.AppendDictP(nil)
 			} else {
-				// example to add without poiner
+				// example to add without pointer
 				colNil.AppendDictNil()
 			}
 		}
@@ -270,5 +268,113 @@ func TestStringLC(t *testing.T) {
 
 	assert.Equal(t, colInsert, colData)
 	assert.Equal(t, colNilInsert, colNilData)
+	conn.RawConn().Close()
+}
+
+func TestStringLCEmpty(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_lc_string_empty`)
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	res, err = conn.Exec(context.Background(), `CREATE TABLE test_lc_string_empty (
+				string_lc_array Array(LowCardinality(String)),
+				string_lc_array_nullable Array(LowCardinality(Nullable(String)))
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	colArrayValues := column.NewString(false)
+	collArrayLC := column.NewLC(colArrayValues)
+	colArray := column.NewArray(collArrayLC)
+
+	colArrayValuesNil := column.NewString(true)
+	collArrayLCNil := column.NewLC(colArrayValuesNil)
+	colArrayNil := column.NewArray(collArrayLCNil)
+
+	rows := 10
+	for i := 1; i <= rows; i++ {
+		// example insert empty array
+		colArray.AppendLen(0)
+		// example insert nullable empty array
+		colArrayNil.AppendLen(0)
+
+		continue
+
+	}
+
+	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	test_lc_string_empty(string_lc_array,string_lc_array_nullable)
+	VALUES`)
+
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	err = insertstmt.Commit(context.Background(),
+		colArray,
+		colArrayNil,
+	)
+	require.NoError(t, err)
+
+	// example read all
+	selectStmt, err := conn.Select(context.Background(), `SELECT
+		string_lc_array,string_lc_array_nullable
+	FROM test_lc_string_empty`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colArrayReadData := column.NewString(false)
+	colArrayLCRead := column.NewLC(colArrayReadData)
+	colArrayRead := column.NewArray(colArrayLCRead)
+
+	colArrayReadDataNil := column.NewString(true)
+	colArrayLCReadNil := column.NewLC(colArrayReadDataNil)
+	colArrayReadNil := column.NewArray(colArrayLCReadNil)
+
+	// var colDataDict [][]byte
+	// var colDataKeys []int
+	// var colData [][]byte
+
+	// var colNilDataDict [][]byte
+	// var colNilDataKeys []int
+	// var colNilData []*[]byte
+
+	var colArrayDataDict [][]byte
+
+	var colArrayDataDictNil [][]byte
+
+	var colArrayLens []int
+	var colArrayLensNil []int
+
+	for selectStmt.Next() {
+
+		// read array
+		err = selectStmt.NextColumn(colArrayRead)
+		require.NoError(t, err)
+		colArrayRead.ReadAll(&colArrayLens)
+		colArrayReadData.ReadAll(&colArrayDataDict)
+
+		// read array nil
+		err = selectStmt.NextColumn(colArrayReadNil)
+		require.NoError(t, err)
+		colArrayReadNil.ReadAll(&colArrayLensNil)
+		colArrayReadDataNil.ReadAll(&colArrayDataDictNil)
+	}
+
+	require.NoError(t, selectStmt.Err())
+
+	assert.Empty(t, colArrayDataDict)
+	assert.Empty(t, colArrayDataDictNil)
+	assert.Equal(t, colArrayLens, make([]int, rows))
+	assert.Equal(t, colArrayLensNil, make([]int, rows))
+
+	selectStmt.Close()
 	conn.RawConn().Close()
 }

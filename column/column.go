@@ -56,9 +56,10 @@ func (c *column) Reset() {
 }
 
 func (c *column) readBuffer() error {
-	if c.size == 0 {
+	if c.size == 0 || c.totalByte == 0 {
 		return nil
 	}
+
 	if cap(c.b) < c.totalByte {
 		c.b = make([]byte, c.totalByte)
 	} else {
