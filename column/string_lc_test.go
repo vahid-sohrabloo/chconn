@@ -307,7 +307,6 @@ func TestStringLCEmpty(t *testing.T) {
 		colArrayNil.AppendLen(0)
 
 		continue
-
 	}
 
 	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
@@ -338,14 +337,6 @@ func TestStringLCEmpty(t *testing.T) {
 	colArrayLCReadNil := column.NewLC(colArrayReadDataNil)
 	colArrayReadNil := column.NewArray(colArrayLCReadNil)
 
-	// var colDataDict [][]byte
-	// var colDataKeys []int
-	// var colData [][]byte
-
-	// var colNilDataDict [][]byte
-	// var colNilDataKeys []int
-	// var colNilData []*[]byte
-
 	var colArrayDataDict [][]byte
 
 	var colArrayDataDictNil [][]byte
@@ -354,7 +345,6 @@ func TestStringLCEmpty(t *testing.T) {
 	var colArrayLensNil []int
 
 	for selectStmt.Next() {
-
 		// read array
 		err = selectStmt.NextColumn(colArrayRead)
 		require.NoError(t, err)

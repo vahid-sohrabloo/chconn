@@ -50,8 +50,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if c.numRow == 0 {
 		c.indices = NewUint8(false)
 		// to reset nullable dictionary
-		c.dictColumn.ReadRaw(0, r)
-		return nil
+		return c.dictColumn.ReadRaw(0, r)
 	}
 
 	serializationType, err := c.r.Uint64()
