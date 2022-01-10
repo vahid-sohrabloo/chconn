@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,12 +42,9 @@ func TestConnectError(t *testing.T) {
 	config.Password = "invalid password"
 	config.User = "invalid username"
 	conn, err := ConnectConfig(context.Background(), config)
-	assert.EqualError(t,
-		err,
-		strings.Join([]string{
-			"failed to connect to `host=127.0.0.1 user=invalid username database=default`: ",
-			"server error ( DB::Exception (516): invalid username: Authentication failed: password is incorrect or there is no user with such name)",
-		}, ""))
+	assert.Contains(t,
+		err.Error(),
+		"server error ( DB::Exception (516): invalid username: Authentication failed: password is incorrect or there is no user with such name)")
 	assert.EqualError(t,
 		errors.Unwrap(err),
 		" DB::Exception (516): invalid username: Authentication failed: password is incorrect or there is no user with such name")
@@ -68,15 +64,9 @@ func TestConnectError(t *testing.T) {
 	assert.Nil(t, conn)
 
 	conn, err = Connect(context.Background(), "host=invalid_host")
-	assert.EqualError(t,
-		err,
-		"failed to connect to `host=invalid_host user=default database=default`: hostname resolving error (lookup invalid_host: no such host)")
-	assert.Nil(t, conn)
-
-	conn, err = Connect(context.Background(), "host=invalid_host")
-	assert.EqualError(t,
-		err,
-		"failed to connect to `host=invalid_host user=default database=default`: hostname resolving error (lookup invalid_host: no such host)")
+	assert.Contains(t,
+		err.Error(),
+		"hostname resolving error")
 	assert.Nil(t, conn)
 
 	config, err = ParseConfig(connString)
@@ -84,9 +74,9 @@ func TestConnectError(t *testing.T) {
 	config.Port = 63666
 
 	conn, err = ConnectConfig(context.Background(), config)
-	assert.EqualError(t,
-		err,
-		"failed to connect to `host=127.0.0.1 user=default database=default`: dial error (dial tcp 127.0.0.1:63666: connect: connection refused)")
+	assert.Contains(t,
+		err.Error(),
+		"connect: connection refused")
 	assert.Nil(t, conn)
 
 	config, err = ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
@@ -97,8 +87,8 @@ func TestConnectError(t *testing.T) {
 
 	_, err = ConnectConfig(context.Background(), config)
 	assert.EqualError(t,
-		err,
-		"failed to connect to `host=127.0.0.1 user=default database=default`: AfterConnect error (afterConnect err)")
+		errors.Unwrap(err),
+		"afterConnect err")
 
 	config, err = ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
@@ -174,18 +164,6 @@ func TestTlsPreferConnect(t *testing.T) {
 	}
 
 	conn.RawConn().Close()
-}
-
-func TestTlsVerifyCAConnect(t *testing.T) {
-	t.Parallel()
-
-	connString := os.Getenv("CHX_TEST_TCP_TLS_CONN_CA_STRING")
-
-	_, err := Connect(context.Background(), connString)
-
-	// there is certificate signed by unknown authority error
-	// later maybe complete by valid ca
-	require.Error(t, err)
 }
 
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {

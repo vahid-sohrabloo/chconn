@@ -34,18 +34,18 @@ func TestFixedStringLC(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	col := column.NewRaw(10, false)
-	colLC := column.NewLC(col)
+	col := column.NewFixedString(10, false)
+	colLC := column.NewLowCardinality(col)
 
-	colNil := column.NewRaw(10, true)
-	colNilLC := column.NewLC(colNil)
+	colNil := column.NewFixedString(10, true)
+	colNilLC := column.NewLowCardinality(colNil)
 
-	colArrayValues := column.NewRaw(10, false)
-	collArrayLC := column.NewLC(colArrayValues)
+	colArrayValues := column.NewFixedString(10, false)
+	collArrayLC := column.NewLowCardinality(colArrayValues)
 	colArray := column.NewArray(collArrayLC)
 
-	colArrayValuesNil := column.NewRaw(10, true)
-	collArrayLCNil := column.NewLC(colArrayValuesNil)
+	colArrayValuesNil := column.NewFixedString(10, true)
+	collArrayLCNil := column.NewLowCardinality(colArrayValuesNil)
 	colArrayNil := column.NewArray(collArrayLCNil)
 
 	var colInsert [][]byte
@@ -120,18 +120,18 @@ func TestFixedStringLC(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead := column.NewRaw(10, false)
-	colLCRead := column.NewLC(colRead)
+	colRead := column.NewFixedString(10, false)
+	colLCRead := column.NewLowCardinality(colRead)
 
-	colNilRead := column.NewRaw(10, true)
-	colNilLCRead := column.NewLC(colNilRead)
+	colNilRead := column.NewFixedString(10, true)
+	colNilLCRead := column.NewLowCardinality(colNilRead)
 
-	colArrayReadData := column.NewRaw(10, false)
-	colArrayLCRead := column.NewLC(colArrayReadData)
+	colArrayReadData := column.NewFixedString(10, false)
+	colArrayLCRead := column.NewLowCardinality(colArrayReadData)
 	colArrayRead := column.NewArray(colArrayLCRead)
 
-	colArrayReadDataNil := column.NewRaw(10, true)
-	colArrayLCReadNil := column.NewLC(colArrayReadDataNil)
+	colArrayReadDataNil := column.NewFixedString(10, true)
+	colArrayLCReadNil := column.NewLowCardinality(colArrayReadDataNil)
 	colArrayReadNil := column.NewArray(colArrayLCReadNil)
 
 	var colDataDict [][]byte
@@ -227,11 +227,11 @@ func TestFixedStringLC(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewRaw(10, false)
-	colLCRead = column.NewLC(colRead)
+	colRead = column.NewFixedString(10, false)
+	colLCRead = column.NewLowCardinality(colRead)
 
-	colNilRead = column.NewRaw(10, true)
-	colNilLCRead = column.NewLC(colNilRead)
+	colNilRead = column.NewFixedString(10, true)
+	colNilLCRead = column.NewLowCardinality(colNilRead)
 
 	colDataDict = colDataDict[:0]
 	colData = colData[:0]

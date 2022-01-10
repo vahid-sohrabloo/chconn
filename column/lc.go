@@ -35,6 +35,15 @@ type LC struct {
 
 var _ Column = &LC{}
 
+func NewLowCardinality(dictColumn lcDictColumn) *LC {
+	if dictColumn.isNullable() {
+		dictColumn.AppendEmpty()
+	}
+	return &LC{
+		dictColumn: dictColumn,
+	}
+}
+
 func NewLC(dictColumn lcDictColumn) *LC {
 	if dictColumn.isNullable() {
 		dictColumn.AppendEmpty()
@@ -49,7 +58,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.numRow = num
 	if c.numRow == 0 {
 		c.indices = NewUint8(false)
-		// to reset nullable dictionary
+		// to reset nullable dictionaryp
 		return c.dictColumn.ReadRaw(0, r)
 	}
 

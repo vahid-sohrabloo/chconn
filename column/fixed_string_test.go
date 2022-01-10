@@ -34,15 +34,15 @@ func TestFixedString(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	col := column.NewRaw(10, false)
+	col := column.NewFixedString(10, false)
 
-	colArrayValues := column.NewRaw(10, false)
+	colArrayValues := column.NewFixedString(10, false)
 	colArray := column.NewArray(colArrayValues)
 
-	colArrayValuesNil := column.NewRaw(10, true)
+	colArrayValuesNil := column.NewFixedString(10, true)
 	colArrayNil := column.NewArray(colArrayValuesNil)
 
-	colNil := column.NewRaw(10, true)
+	colNil := column.NewFixedString(10, true)
 
 	var colInsert [][]byte
 	var colInsertArray [][][]byte
@@ -118,11 +118,11 @@ func TestFixedString(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead := column.NewRaw(10, false)
-	colNilRead := column.NewRaw(10, true)
-	colArrayReadData := column.NewRaw(10, false)
+	colRead := column.NewFixedString(10, false)
+	colNilRead := column.NewFixedString(10, true)
+	colArrayReadData := column.NewFixedString(10, false)
 	colArrayRead := column.NewArray(colArrayReadData)
-	colArrayReadDataNil := column.NewRaw(10, true)
+	colArrayReadDataNil := column.NewFixedString(10, true)
 	colArrayReadNil := column.NewArray(colArrayReadDataNil)
 	var colData [][]byte
 	var colNilData []*[]byte
@@ -180,11 +180,11 @@ func TestFixedString(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewRaw(10, false)
-	colNilRead = column.NewRaw(10, true)
-	colArrayReadData = column.NewRaw(10, false)
+	colRead = column.NewFixedString(10, false)
+	colNilRead = column.NewFixedString(10, true)
+	colArrayReadData = column.NewFixedString(10, false)
 	colArrayRead = column.NewArray(colArrayReadData)
-	colArrayReadDataNil = column.NewRaw(10, true)
+	colArrayReadDataNil = column.NewFixedString(10, true)
 	colArrayReadNil = column.NewArray(colArrayReadDataNil)
 	colData = colData[:0]
 	colNilData = colNilData[:0]
