@@ -53,7 +53,7 @@ func TestFloat64Unsafe(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// example read all
+	// example get all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
 		float64
 	FROM test_float64_unsafe`)
@@ -63,6 +63,27 @@ func TestFloat64Unsafe(t *testing.T) {
 	colRead := column.NewFloat64(false)
 
 	var colData []float64
+
+	for selectStmt.Next() {
+		err = selectStmt.NextColumn(colRead)
+		require.NoError(t, err)
+		colData = append(colData, colRead.GetAllUnsafe()...)
+	}
+
+	assert.Equal(t, colInsert, colData)
+
+	selectStmt.Close()
+
+	// example read all
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		float64
+	FROM test_float64_unsafe`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead = column.NewFloat64(false)
+
+	colData = colData[:0]
 
 	for selectStmt.Next() {
 		err = selectStmt.NextColumn(colRead)

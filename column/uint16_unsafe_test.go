@@ -53,7 +53,7 @@ func TestUint16Unsafe(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// example read all
+	// example get all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
 		uint16
 	FROM test_uint16_unsafe`)
@@ -63,6 +63,27 @@ func TestUint16Unsafe(t *testing.T) {
 	colRead := column.NewUint16(false)
 
 	var colData []uint16
+
+	for selectStmt.Next() {
+		err = selectStmt.NextColumn(colRead)
+		require.NoError(t, err)
+		colData = append(colData, colRead.GetAllUnsafe()...)
+	}
+
+	assert.Equal(t, colInsert, colData)
+
+	selectStmt.Close()
+
+	// example read all
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		uint16
+	FROM test_uint16_unsafe`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead = column.NewUint16(false)
+
+	colData = colData[:0]
 
 	for selectStmt.Next() {
 		err = selectStmt.NextColumn(colRead)

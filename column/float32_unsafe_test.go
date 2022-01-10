@@ -53,7 +53,7 @@ func TestFloat32Unsafe(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// example read all
+	// example get all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
 		float32
 	FROM test_float32_unsafe`)
@@ -63,6 +63,27 @@ func TestFloat32Unsafe(t *testing.T) {
 	colRead := column.NewFloat32(false)
 
 	var colData []float32
+
+	for selectStmt.Next() {
+		err = selectStmt.NextColumn(colRead)
+		require.NoError(t, err)
+		colData = append(colData, colRead.GetAllUnsafe()...)
+	}
+
+	assert.Equal(t, colInsert, colData)
+
+	selectStmt.Close()
+
+	// example read all
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		float32
+	FROM test_float32_unsafe`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead = column.NewFloat32(false)
+
+	colData = colData[:0]
 
 	for selectStmt.Next() {
 		err = selectStmt.NextColumn(colRead)
