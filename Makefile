@@ -126,10 +126,17 @@ test: TEST_REPORT ?= main
 test: TEST_FORMAT ?= standard-quiet
 test: SHELL = /bin/bash
 test: bin/gotestsum ## Run tests
-	@mkdir -p ${BUILD_DIR}/test_results/${TEST_REPORT}
-	bin/gotestsum --no-summary=skipped --junitfile ${BUILD_DIR}/test_results/${TEST_REPORT}/${TEST_REPORT_NAME} --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
 	@go tool cover -func=coverage.out
 	@rm coverage.out
+
+.PHONY: test-cover
+test-cover: TEST_REPORT ?= main
+test-cover: TEST_FORMAT ?= standard-quiet
+test-cover: SHELL = /bin/bash
+test-cover: bin/gotestsum ## Run tests
+	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	@go tool cover -func=coverage.out
 
 
 
