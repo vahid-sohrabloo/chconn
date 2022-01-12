@@ -7,6 +7,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
+// Column is a interface for column
 type Column interface {
 	ReadRaw(num int, r *readerwriter.Reader) error
 	NumRow() int
@@ -32,6 +33,7 @@ type column struct {
 	colNullable *nullable
 }
 
+// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
 func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	c.r = r
@@ -46,6 +48,11 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	return c.readBuffer()
 }
 
+// Reset all status and buffer data
+//
+// Reading data does not require a reset after each read. The reset will be triggered automatically.
+//
+// However, writing data requires a reset after each write.
 func (c *column) Reset() {
 	c.i = 0
 	c.numRow = 0
@@ -69,9 +76,14 @@ func (c *column) readBuffer() error {
 	return err
 }
 
+// NumRow return number of row for this block
 func (c *column) NumRow() int {
 	return c.numRow
 }
+
+// AppendIsNil determine if current append value is null or not (for nullable columns)
+//
+// Use with `Append` and `AppendEmpty` for nullable columns
 func (c *column) AppendIsNil(v bool) {
 	if v {
 		c.colNullable.Append(1)
@@ -80,12 +92,19 @@ func (c *column) AppendIsNil(v bool) {
 	c.colNullable.Append(0)
 }
 
+// HeaderWriter writes header data to writer
+// it uses internally
 func (c *column) HeaderWriter(w *readerwriter.Writer) {
 }
+
+// HeaderReader reads header data from read
+// it uses internally
 func (c *column) HeaderReader(*readerwriter.Reader) error {
 	return nil
 }
 
+// WriteTo write data clickhouse
+// it uses internally
 func (c *column) WriteTo(w io.Writer) (int64, error) {
 	var n int64
 	if c.nullable {
@@ -107,10 +126,20 @@ func (c *column) setNullable(nullable bool) {
 	c.nullable = nullable
 }
 
+// ValueIsNil check if the current value is nil or not
+func (c *column) ValueIsNil() bool {
+	return c.colNullable.b[(c.i-c.size)/(c.size)] == 1
+}
+
+// ReadAll read all nils state in this block and append to the input slice
+// NOTE: only use for nullable columns
 func (c *column) ReadAllNil(value *[]uint8) {
 	*value = append(*value, c.colNullable.b...)
 }
 
+// Fill slice with state and forward the pointer by the length of the slice
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass and only use.
 func (c *column) FillNil(value []uint8) {
 	copy(value, c.colNullable.b[c.iNull:c.iNull+len(value)])
 	c.iNull += len(value)

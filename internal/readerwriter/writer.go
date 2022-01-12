@@ -102,7 +102,7 @@ func (w *Writer) Reset() {
 	w.output.Reset()
 }
 
-// Outout get raw *bytes.Buffer
+// Output get raw *bytes.Buffer
 func (w *Writer) Output() *bytes.Buffer {
 	return w.output
 }

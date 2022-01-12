@@ -109,14 +109,14 @@ func getNewFunc(name, chType string, nullable bool) (jen.Code, string) {
 				s.Id(fieldName).Op("=").Id("column.NewLC(" + subFieldName + ")")
 			}), fieldName
 		}
-		// todo add tuble uint128 uint256 decimal128 decimal256 map
+		// todo add map tuple uint128 uint256 decimal128 decimal256 map
 		panic("unknown type: " + chType)
 	}
 	fieldName := "t." + getStandardName(name)
 	return jen.Id(fieldName).Op("=").Id("column." + columnType), fieldName
 }
 
-func generateColumns(packageName, structName string, columns []ChColumns) {
+func generateColumns(packageName, structName string, columns []chColumns) {
 	f := jen.NewFile(packageName)
 	st := f.Type().Id(structName + "Columns")
 
@@ -130,7 +130,6 @@ func generateColumns(packageName, structName string, columns []ChColumns) {
 	var initColumns []jen.Code
 	initColumns = append(initColumns, jen.Id("t:=&"+structName+"Columns{}"))
 	var mainColumnsField []jen.Code
-	mainColumnsField = append(mainColumnsField, jen.Id("ctx"))
 	for i, c := range columns {
 		fn, fieldName := getNewFunc(c.Name, c.Type, false)
 		initColumns = append(initColumns, fn)
@@ -180,11 +179,11 @@ func generateColumns(packageName, structName string, columns []ChColumns) {
 		).Line()
 
 	st.Line().Func().
-		Params(jen.Id("t").Op("*").Id(structName+"Columns")).
-		Id("Commit").Params(jen.Id("ctx ").Qual("context", "Context"), jen.Id("stmt ").Qual("github.com/vahid-sohrabloo/chconn", "InsertStmt")).
-		Params(jen.Error()).
+		Params(jen.Id("t").Op("*").Id(structName + "Columns")).
+		Id("ColumnsForInsert").Params().
+		Params(jen.Index().Qual("github.com/vahid-sohrabloo/chconn/column", "Column")).
 		Block(
-			jen.Return(jen.Id("stmt.Commit").Call(mainColumnsField...)),
+			jen.Return(jen.Index().Id("column.Column").Values(mainColumnsField...)),
 		).Line()
 
 	err := f.Save(strings.ToLower(structName) + "_column.go")

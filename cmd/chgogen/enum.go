@@ -7,7 +7,7 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func generateEnum(packageName, structName string, columns []ChColumns) {
+func generateEnum(packageName, structName string, columns []chColumns) {
 	f := jen.NewFile(packageName)
 	var hasEnum bool
 	for _, c := range columns {

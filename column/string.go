@@ -4,6 +4,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
+// String use for String ClickHouse DataType
 type String struct {
 	column
 	dict map[string]int
@@ -12,6 +13,7 @@ type String struct {
 	vals [][]byte
 }
 
+// NewString return new String for String ClickHouse DataType
 func NewString(nullable bool) *String {
 	return &String{
 		dict: make(map[string]int),
@@ -23,6 +25,7 @@ func NewString(nullable bool) *String {
 	}
 }
 
+// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
 func (c *String) ReadRaw(num int, r *readerwriter.Reader) error {
 	err := c.column.ReadRaw(num, r)
 	if err != nil {
@@ -51,6 +54,9 @@ func (c *String) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
+// Next forward pointer to the next value. Returns false if there are no more values.
+//
+// Use with Value() or ValueP() or ValueString() or ValueStringP()
 func (c *String) Next() bool {
 	if c.i >= c.numRow {
 		return false
@@ -60,14 +66,23 @@ func (c *String) Next() bool {
 	return true
 }
 
+// Value of current pointer
+//
+// Use with Next()
 func (c *String) Value() []byte {
 	return c.val
 }
 
+// ValueString string value of current pointer
+//
+// Use with Next()
 func (c *String) ValueString() string {
 	return string(c.val)
 }
 
+// ValueP value of current pointer
+//
+// Use with Next()
 func (c *String) ValueP() *[]byte {
 	if c.colNullable.b[c.i-1] == 1 {
 		return nil
@@ -77,6 +92,9 @@ func (c *String) ValueP() *[]byte {
 	return &val
 }
 
+// ValueStringP string value of current pointer
+//
+// Use with Next()
 func (c *String) ValueStringP() *string {
 	if c.colNullable.b[c.i-1] == 1 {
 		return nil
@@ -85,6 +103,7 @@ func (c *String) ValueStringP() *string {
 	return &val
 }
 
+// ReadAll read all value in this block and append to the input slice
 func (c *String) ReadAll(value *[][]byte) {
 	for i := 0; i < c.numRow; i++ {
 		str := c.vals[i]
@@ -92,6 +111,7 @@ func (c *String) ReadAll(value *[][]byte) {
 	}
 }
 
+// ReadAllString read all string value in this block and append to the input slice
 func (c *String) ReadAllString(value *[]string) {
 	for i := 0; i < c.numRow; i++ {
 		str := c.vals[i]
@@ -99,6 +119,9 @@ func (c *String) ReadAllString(value *[]string) {
 	}
 }
 
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *String) ReadAllP(value *[]*[]byte) {
 	for i := 0; i < c.numRow; i++ {
 		if c.colNullable.b[i] != 0 {
@@ -112,6 +135,9 @@ func (c *String) ReadAllP(value *[]*[]byte) {
 	}
 }
 
+// ReadAllStringP read all string value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAllString()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *String) ReadAllStringP(value *[]*string) {
 	for i := 0; i < c.numRow; i++ {
 		if c.colNullable.b[i] != 0 {
@@ -123,6 +149,9 @@ func (c *String) ReadAllStringP(value *[]*string) {
 	}
 }
 
+// Fill slice with value and forward the pointer by the length of the slice
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *String) Fill(value [][]byte) {
 	for i := range value {
 		val := c.vals[c.i]
@@ -131,6 +160,9 @@ func (c *String) Fill(value [][]byte) {
 	}
 }
 
+// FillString slice with string value and forward the pointer by the length of the slice
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *String) FillString(value []string) {
 	for i := range value {
 		val := c.vals[c.i]
@@ -139,6 +171,11 @@ func (c *String) FillString(value []string) {
 	}
 }
 
+// FillP slice with value and forward the pointer by the length of the slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `Fill()` to get a values and `FillNil()` to check if they are null.
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *String) FillP(value []*[]byte) {
 	for i := range value {
 		if c.colNullable.b[c.i] != 0 {
@@ -152,6 +189,11 @@ func (c *String) FillP(value []*[]byte) {
 	}
 }
 
+// FillStringP slice with string value and forward the pointer by the length of the slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `FillString()` to get a values and `FillNil()` to check if they are null.
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *String) FillStringP(value []*string) {
 	for i := range value {
 		if c.colNullable.b[c.i] != 0 {
@@ -175,18 +217,25 @@ func (c *String) appendLen(x int) {
 	c.writerData = append(c.writerData, byte(x))
 }
 
+// Append value for insert
 func (c *String) Append(v []byte) {
 	c.numRow++
 	c.appendLen(len(v))
 	c.writerData = append(c.writerData, v...)
 }
 
+// AppendString append string value for insert
 func (c *String) AppendString(v string) {
 	c.numRow++
 	c.appendLen(len(v))
 	c.writerData = append(c.writerData, v...)
 }
 
+// AppendP value for insert (for nullable column)
+//
+// As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
+//
+// NOTE: for alternative mode. of your value is nil you still need to append default value. You can use `AppendEmpty()` for nil values
 func (c *String) AppendP(v *[]byte) {
 	if v == nil {
 		c.AppendEmpty()
@@ -197,6 +246,11 @@ func (c *String) AppendP(v *[]byte) {
 	c.Append(*v)
 }
 
+// AppendStringP append string value for insert (for nullable column)
+//
+// As an alternative (for better performance), you can use `AppendString` to append data. and `AppendIsNil` to say this value is null or not
+//
+// NOTE: for alternative mode. of your value is nil you still need to append default value. You can use `AppendEmpty()` for nil values
 func (c *String) AppendStringP(v *string) {
 	if v == nil {
 		c.AppendEmpty()
@@ -207,11 +261,15 @@ func (c *String) AppendStringP(v *string) {
 	c.AppendString(*v)
 }
 
+// AppendEmpty append empty value for insert
 func (c *String) AppendEmpty() {
 	c.numRow++
 	c.writerData = append(c.writerData, 0)
 }
 
+// AppendDict add value to the dictionary (if doesn't exist on dictionary) and append key of the dictionary to keys
+//
+// Only use for LowCardinality data type
 func (c *String) AppendDict(v []byte) {
 	key, ok := c.dict[string(v)]
 	if !ok {
@@ -226,6 +284,9 @@ func (c *String) AppendDict(v []byte) {
 	}
 }
 
+// AppendStringDict add string value to the dictionary (if doesn't exist on dictionary) and append key of the dictionary to keys
+//
+// Only use for LowCardinality data type
 func (c *String) AppendStringDict(v string) {
 	key, ok := c.dict[v]
 	if !ok {
@@ -240,10 +301,17 @@ func (c *String) AppendStringDict(v string) {
 	}
 }
 
+// AppendDictNil add nil key for LowCardinality nullable data type
 func (c *String) AppendDictNil() {
 	c.keys = append(c.keys, 0)
 }
 
+// AppendDictP add string value to the dictionary (if doesn't exist on dictionary)
+// and append key of the dictionary to keys (for nullable data type)
+//
+// As an alternative (for better performance), You can use `AppendDict()` and `AppendDictNil` instead of this function.
+//
+// For alternative way You shouldn't append empty value for nullable data
 func (c *String) AppendDictP(v *[]byte) {
 	if v == nil {
 		c.keys = append(c.keys, 0)
@@ -258,6 +326,12 @@ func (c *String) AppendDictP(v *[]byte) {
 	c.keys = append(c.keys, key+1)
 }
 
+// AppendStringDictP add string value to the dictionary (if doesn't exist on dictionary)
+// and append key of the dictionary to keys (for nullable data type)
+//
+// As an alternative (for better performance), You can use `AppendStringDict()` and `AppendDictNil` instead of this function.
+//
+// For alternative way You shouldn't append empty value for nullable data
 func (c *String) AppendStringDictP(v *string) {
 	if v == nil {
 		c.keys = append(c.keys, 0)
@@ -272,10 +346,16 @@ func (c *String) AppendStringDictP(v *string) {
 	c.keys = append(c.keys, key+1)
 }
 
+// Keys current keys for LowCardinality data type
 func (c *String) Keys() []int {
 	return c.keys
 }
 
+// Reset all status and buffer data
+//
+// Reading data does not require a reset after each read. The reset will be triggered automatically.
+//
+// However, writing data requires a reset after each write.
 func (c *String) Reset() {
 	c.column.Reset()
 	c.keys = c.keys[:0]

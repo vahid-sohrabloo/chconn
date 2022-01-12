@@ -130,12 +130,13 @@ test: bin/gotestsum ## Run tests
 	@go tool cover -func=coverage.out
 	@rm coverage.out
 
+CVPKG = $(shell go list ./... | grep -v 'chgogen\|generator' | tr '\n' ',')
 .PHONY: test-cover
 test-cover: TEST_REPORT ?= main
 test-cover: TEST_FORMAT ?= standard-quiet
 test-cover: SHELL = /bin/bash
 test-cover: bin/gotestsum ## Run tests
-	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverpkg=${CVPKG} -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
 	@go tool cover -func=coverage.out
 
 

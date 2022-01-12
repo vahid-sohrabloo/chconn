@@ -96,20 +96,17 @@ func TestFixedString(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 			test_fixed_string (fixed_string,fixed_string_nullable,fixed_string_array,fixed_string_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		col,
 		colNil,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
+	require.Nil(t, res)
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT

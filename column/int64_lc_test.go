@@ -99,19 +99,15 @@ func TestInt64LC(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_int64(int64_lc,int64_lc_nullable,int64_lc_array,int64_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colLC,
 		colNilLC,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all

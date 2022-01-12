@@ -8,7 +8,7 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func generateModel(packageName, structName string, getter bool, columns []ChColumns) {
+func generateModel(packageName, structName string, getter bool, columns []chColumns) {
 	f := jen.NewFile(packageName)
 
 	var fields []jen.Code

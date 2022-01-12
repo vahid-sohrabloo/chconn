@@ -1,6 +1,6 @@
 package chconn
 
-// Profile details of progress select query
+// Progress details of progress select query
 type Progress struct {
 	ReadRows     uint64
 	Readbytes    uint64

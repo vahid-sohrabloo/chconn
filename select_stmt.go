@@ -6,25 +6,23 @@ import (
 	"github.com/vahid-sohrabloo/chconn/column"
 )
 
+// SelectStmt is a interface for select statement
 type SelectStmt interface {
 	// Next get the next block, if available return true else return false
 	// if the server sends an error return false and we can get the last error with Err() function
 	Next() bool
-	// Err When calls Next() func if server send error we can get error from thhis function
+	// Err When calls Next() func if server send error we can get error from this function
 	Err() error
 	// RowsInBlock return number of rows in this current block
 	RowsInBlock() int
 	// Close after reads all data should call this function to unlock connection
 	// NOTE: You shoud read all data and then call this function
 	Close()
-	// ‌Block get current block
-	// NOTE: Never use this if you do not know what a block is
-	Block() *Block
 	// NextColumn get the next column of block
 	NextColumn(colData column.Column) error
 }
 type selectStmt struct {
-	block            *Block
+	block            *block
 	conn             *conn
 	query            string
 	queryID          string
@@ -54,13 +52,13 @@ func (s *selectStmt) Next() bool {
 	}
 
 	s.conn.reader.SetCompress(false)
-	res, err := s.conn.reciveAndProccessData(nil)
+	res, err := s.conn.receiveAndProccessData(nil)
 	if err != nil {
 		s.lastErr = err
 		return false
 	}
 	s.conn.reader.SetCompress(s.conn.compress)
-	if block, ok := res.(*Block); ok {
+	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
 			err = block.readColumns(s.conn)
 			if err != nil {
@@ -102,13 +100,7 @@ func (s *selectStmt) RowsInBlock() int {
 	return int(s.block.NumRows)
 }
 
-// ‌Block get current block
-// NOTE: Never use this if you do not know what a block is
-func (s *selectStmt) Block() *Block {
-	return s.block
-}
-
-// Err When calls Next() func if server send error we can get error from thhis function
+// Err When calls Next() func if server send error we can get error from this function
 func (s *selectStmt) Err() error {
 	return s.lastErr
 }

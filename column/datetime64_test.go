@@ -48,68 +48,77 @@ func TestDateTime64(t *testing.T) {
 	var colInsertArray [][]time.Time
 	var colInsertArrayNil [][]*time.Time
 	var colNilInsert []*time.Time
-
-	rows := 10
-	for i := 1; i <= rows; i++ {
-		val := zeroTime.AddDate(i, 0, 0).Truncate(time.Millisecond)
-		valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).Truncate(time.Millisecond)}
-		valArrayNil := []*time.Time{&val, nil}
-
-		col.Append(val)
-		colInsert = append(colInsert, val)
-
-		// example insert time.Time array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.Append(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &val)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(&val)
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		col.Reset()
+		colArrayValues.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		colArrayNil.Reset()
+		colNil.Reset()
+		for i := 0; i < rows; i++ {
+			val := zeroTime.AddDate(i, 0, 0).Truncate(time.Millisecond)
+			valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).Truncate(time.Millisecond)}
+			valArrayNil := []*time.Time{&val, nil}
+			if i == 0 {
+				// check if pass negative time
+				// clickhouse doesn't support negative time
+				col.Append(time.Time{})
+				colInsert = append(colInsert, time.Unix(0, 0))
 			} else {
-				// example to without pointer
-				colNil.Append(val)
-				colNil.AppendIsNil(false)
+				col.Append(val)
+				colInsert = append(colInsert, val)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(nil)
+
+			// example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.Append(v)
+			}
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &val)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(&val)
+				} else {
+					// example to without pointer
+					colNil.Append(val)
+					colNil.AppendIsNil(false)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendEmpty()
-				colNil.AppendIsNil(true)
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendEmpty()
+					colNil.AppendIsNil(true)
+				}
 			}
 		}
+
+		err = conn.Insert(context.Background(), `INSERT INTO
+			test_datetime64 (datetime64,datetime64_nullable,datetime64_array,datetime64_array_nullable)
+		VALUES`,
+			col,
+			colNil,
+			colArray,
+			colArrayNil,
+		)
+
+		require.NoError(t, err)
 	}
-
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
-		test_datetime64 (datetime64,datetime64_nullable,datetime64_array,datetime64_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-		colNil,
-		colArray,
-		colArrayNil,
-	)
-	require.NoError(t, err)
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
@@ -169,7 +178,6 @@ func TestDateTime64(t *testing.T) {
 	assert.Equal(t, colNilInsert, colNilData)
 	assert.Equal(t, colInsertArray, colArrayData)
 	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
-
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()
@@ -229,10 +237,9 @@ func TestDateTime64(t *testing.T) {
 	assert.Equal(t, colNilInsert, colNilData)
 	assert.Equal(t, colInsertArray, colArrayData)
 	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
-
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()
 
-	conn.RawConn().Close()
+	conn.Close(context.Background())
 }

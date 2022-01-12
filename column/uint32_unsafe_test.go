@@ -41,16 +41,10 @@ func TestUint32Unsafe(t *testing.T) {
 		colInsert = append(colInsert, val)
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_uint32_unsafe (uint32)
-	VALUES`)
+	VALUES`, col)
 
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-	)
 	require.NoError(t, err)
 
 	// example get all

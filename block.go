@@ -11,7 +11,7 @@ type Column struct {
 	Name   string
 }
 
-type Block struct {
+type block struct {
 	Columns      []*Column
 	NumRows      uint64
 	NumColumns   uint64
@@ -19,13 +19,13 @@ type Block struct {
 	headerWriter *readerwriter.Writer
 }
 
-func newBlock() *Block {
-	return &Block{
+func newBlock() *block {
+	return &block{
 		headerWriter: readerwriter.NewWriter(),
 	}
 }
 
-func (block *Block) read(ch *conn) error {
+func (block *block) read(ch *conn) error {
 	if _, err := ch.reader.String(); err != nil { // temporary table
 		return err
 	}
@@ -50,7 +50,7 @@ func (block *Block) read(ch *conn) error {
 	return nil
 }
 
-func (block *Block) initForInsert(ch *conn) error {
+func (block *block) initForInsert(ch *conn) error {
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
 	block.Columns = make([]*Column, block.NumColumns)
@@ -65,7 +65,7 @@ func (block *Block) initForInsert(ch *conn) error {
 	return nil
 }
 
-func (block *Block) readColumns(ch *conn) error {
+func (block *block) readColumns(ch *conn) error {
 	block.Columns = make([]*Column, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
@@ -78,7 +78,7 @@ func (block *Block) readColumns(ch *conn) error {
 	return nil
 }
 
-func (block *Block) nextColumn(ch *conn) (*Column, error) {
+func (block *block) nextColumn(ch *conn) (*Column, error) {
 	col := &Column{}
 	var err error
 	if col.Name, err = ch.reader.String(); err != nil {
@@ -90,13 +90,13 @@ func (block *Block) nextColumn(ch *conn) (*Column, error) {
 	return col, nil
 }
 
-func (block *Block) writeHeader(ch *conn, numRows int) error {
+func (block *block) writeHeader(ch *conn, numRows int) error {
 	block.info.write(ch.writer)
 	// NumColumns
 	ch.writer.Uvarint(block.NumColumns)
 	// NumRows
 	ch.writer.Uvarint(uint64(numRows))
-	_, err := ch.writer.WriteTo(ch.writertoCompress)
+	_, err := ch.writer.WriteTo(ch.writerToCompress)
 	if err != nil {
 		return &writeError{"block: write block info", err}
 	}
@@ -108,7 +108,7 @@ func (block *Block) writeHeader(ch *conn, numRows int) error {
 	return nil
 }
 
-func (block *Block) writeColumsBuffer(ch *conn, columns ...column.Column) error {
+func (block *block) writeColumnsBuffer(ch *conn, columns ...column.Column) error {
 	if int(block.NumColumns) != len(columns) {
 		return &ColumnNumberWriteError{
 			WriteColumn: len(columns),
@@ -129,10 +129,10 @@ func (block *Block) writeColumsBuffer(ch *conn, columns ...column.Column) error 
 		block.headerWriter.String(column.ChType)
 
 		columns[i].HeaderWriter(block.headerWriter)
-		if _, err := block.headerWriter.WriteTo(ch.writertoCompress); err != nil {
+		if _, err := block.headerWriter.WriteTo(ch.writerToCompress); err != nil {
 			return &writeError{"block: write header block data for column " + column.Name, err}
 		}
-		if _, err := columns[i].WriteTo(ch.writertoCompress); err != nil {
+		if _, err := columns[i].WriteTo(ch.writerToCompress); err != nil {
 			return &writeError{"block: write block data for column " + column.Name, err}
 		}
 	}

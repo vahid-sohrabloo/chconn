@@ -98,19 +98,14 @@ func TestUUID(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_uuid (uuid,uuid_nullable,uuid_array,uuid_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		col,
 		colNil,
 		colArray,
-		colArrayNil,
-	)
+		colArrayNil)
+
 	require.NoError(t, err)
 
 	// example read all

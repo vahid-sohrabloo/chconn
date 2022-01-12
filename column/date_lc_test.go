@@ -100,19 +100,15 @@ func TestDateLC(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_date(date_lc,date_lc_nullable,date_lc_array,date_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colLC,
 		colNilLC,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all

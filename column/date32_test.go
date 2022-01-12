@@ -48,68 +48,71 @@ func TestDate32(t *testing.T) {
 	var colInsertArray [][]time.Time
 	var colInsertArrayNil [][]*time.Time
 	var colNilInsert []*time.Time
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		col.Reset()
+		colArrayValues.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		colArrayNil.Reset()
+		colNil.Reset()
+		for i := 0; i < rows; i++ {
+			val := zeroTime.AddDate(i, 0, 0).Truncate(time.Hour * 24)
+			valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).Truncate(time.Hour * 24)}
+			valArrayNil := []*time.Time{&val, nil}
 
-	rows := 10
-	for i := 0; i < rows; i++ {
-		val := zeroTime.AddDate(i, 0, 0).Truncate(time.Hour * 24)
-		valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).Truncate(time.Hour * 24)}
-		valArrayNil := []*time.Time{&val, nil}
+			col.Append(val)
+			colInsert = append(colInsert, val)
 
-		col.Append(val)
-		colInsert = append(colInsert, val)
-
-		// example insert array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.Append(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &val)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(&val)
-			} else {
-				// example to without pointer
-				colNil.Append(val)
-				colNil.AppendIsNil(false)
+			// example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.Append(v)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(nil)
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &val)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(&val)
+				} else {
+					// example to without pointer
+					colNil.Append(val)
+					colNil.AppendIsNil(false)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendEmpty()
-				colNil.AppendIsNil(true)
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendEmpty()
+					colNil.AppendIsNil(true)
+				}
 			}
 		}
+
+		err = conn.Insert(context.Background(), `INSERT INTO
+			test_date32 (date32,date32_nullable,date32_array,date32_array_nullable)
+		VALUES`,
+			col,
+			colNil,
+			colArray,
+			colArrayNil,
+		)
+
+		require.NoError(t, err)
 	}
-
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
-		test_date32 (date32,date32_nullable,date32_array,date32_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-		colNil,
-		colArray,
-		colArrayNil,
-	)
-	require.NoError(t, err)
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT

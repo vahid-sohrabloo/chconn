@@ -8,6 +8,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
 
+// Map use for Map ClickHouse DataTypes
 type Map struct {
 	Uint64
 	offset      int
@@ -16,6 +17,7 @@ type Map struct {
 	columnValue Column
 }
 
+// NewMap return new Map for Map ClickHouse DataTypes
 func NewMap(columnKey, columnValue Column) *Map {
 	return &Map{
 		columnKey:   columnKey,
@@ -28,8 +30,9 @@ func NewMap(columnKey, columnValue Column) *Map {
 	}
 }
 
+// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
 func (c *Map) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.reset()
+	c.Reset()
 	err := c.Uint64.ReadRaw(num, r)
 	if err != nil {
 		return err
@@ -41,14 +44,20 @@ func (c *Map) ReadRaw(num int, r *readerwriter.Reader) error {
 	return c.columnValue.ReadRaw(c.TotalRows(), r)
 }
 
+// TotalRows return total rows on this block of array data
 func (c *Map) TotalRows() int {
 	return int(binary.LittleEndian.Uint64(c.b[c.totalByte-c.size : c.totalByte]))
 }
 
+// HeaderWriter writes header data to writer
+// it uses internally
 func (c *Map) HeaderWriter(w *readerwriter.Writer) {
 	c.columnKey.HeaderWriter(w)
 	c.columnValue.HeaderWriter(w)
 }
+
+// HeaderReader reads header data from read
+// it uses internally
 func (c *Map) HeaderReader(r *readerwriter.Reader) error {
 	err := c.columnKey.HeaderReader(r)
 	if err != nil {
@@ -57,11 +66,19 @@ func (c *Map) HeaderReader(r *readerwriter.Reader) error {
 	return c.columnValue.HeaderReader(r)
 }
 
-func (c *Map) reset() {
+// Reset all status and buffer data
+//
+// Reading data does not require a reset after each read. The reset will be triggered automatically.
+//
+// However, writing data requires a reset after each write.
+func (c *Map) Reset() {
 	c.Uint64.Reset()
 	c.offset = 0
 }
 
+// Next forward pointer to the next value. Returns false if there are no more values.
+//
+// Use with Value()
 func (c *Map) Next() bool {
 	ok := c.Uint64.Next()
 	if !ok {
@@ -72,10 +89,14 @@ func (c *Map) Next() bool {
 	return true
 }
 
+// Value of current pointer
+//
+// Use with Next()
 func (c *Map) Value() int {
 	return c.val
 }
 
+// ReadAll read all lens in this block and append to the input slice
 func (c *Map) ReadAll(value *[]int) error {
 	var offset uint64
 	var prevOffset uint64
@@ -88,6 +109,7 @@ func (c *Map) ReadAll(value *[]int) error {
 	return nil
 }
 
+// AppendLen Append len for insert
 func (c *Map) AppendLen(v int) {
 	c.numRow++
 	c.offset += v
@@ -103,6 +125,8 @@ func (c *Map) AppendLen(v int) {
 	)
 }
 
+// WriteTo write data clickhouse
+// it uses internally
 func (c *Map) WriteTo(w io.Writer) (int64, error) {
 	var n int64
 	nw, err := w.Write(c.writerData)

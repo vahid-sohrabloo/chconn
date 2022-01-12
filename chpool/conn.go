@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/puddle"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/column"
 	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
@@ -32,7 +33,7 @@ type Conn interface {
 	) (chconn.SelectStmt, error)
 	// InsertWithSetting executes a query with the setting option and return insert stmt.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string, columns ...column.Column) error
 	Conn() chconn.Conn
 	Ping(ctx context.Context) error
 }
@@ -103,15 +104,13 @@ func (c *conn) SelectCallback(
 	}, nil
 }
 
-func (c *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error) {
-	s, err := c.Conn().InsertWithSetting(ctx, query, settings, queryID)
-	if err != nil {
-		return nil, err
-	}
-	return &insertStmt{
-		InsertStmt: s,
-		conn:       c,
-	}, nil
+func (c *conn) InsertWithSetting(
+	ctx context.Context,
+	query string,
+	settings *setting.Settings,
+	queryID string,
+	columns ...column.Column) error {
+	return c.Conn().InsertWithSetting(ctx, query, settings, queryID, columns...)
 }
 
 func (c *conn) Conn() chconn.Conn {

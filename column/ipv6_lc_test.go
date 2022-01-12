@@ -110,19 +110,15 @@ func TestIPv6LC(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_ipv6(ipv6_lc,ipv6_lc_nullable,ipv6_lc_array,ipv6_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colLC,
 		colNilLC,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all

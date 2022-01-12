@@ -99,19 +99,15 @@ func TestUint32LC(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_uint32(uint32_lc,uint32_lc_nullable,uint32_lc_array,uint32_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colLC,
 		colNilLC,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all

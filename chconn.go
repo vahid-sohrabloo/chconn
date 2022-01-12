@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/vahid-sohrabloo/chconn/column"
 	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/setting"
@@ -127,12 +128,12 @@ type Conn interface {
 		queryID string,
 		onProgress func(*Progress),
 	) (interface{}, error)
-	// Insert executes a query and return insert stmt.
+	// Insert executes a query and commit all columns data.
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string) (InsertStmt, error)
-	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	Insert(ctx context.Context, query string, columns ...column.Column) error
+	// InsertWithSetting executes a query with the setting option and commit all columns data.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string, columns ...column.Column) error
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string) (SelectStmt, error)
@@ -166,8 +167,8 @@ type conn struct {
 	status byte // One of connStatus* constants
 
 	writer           *readerwriter.Writer
-	writerto         io.Writer
-	writertoCompress io.Writer
+	writerTo         io.Writer
+	writerToCompress io.Writer
 
 	reader   *readerwriter.Reader
 	compress bool
@@ -309,14 +310,14 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, 4096))
 	}
 	if config.WriterFunc != nil {
-		c.writerto = config.WriterFunc(c.conn)
+		c.writerTo = config.WriterFunc(c.conn)
 	} else {
-		c.writerto = c.conn
+		c.writerTo = c.conn
 	}
 	if c.compress {
-		c.writertoCompress = readerwriter.NewCompressWriter(c.writerto)
+		c.writerToCompress = readerwriter.NewCompressWriter(c.writerTo)
 	} else {
-		c.writertoCompress = c.writerto
+		c.writerToCompress = c.writerTo
 	}
 
 	c.serverInfo = ServerInfo{
@@ -332,7 +333,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 }
 
 func (ch *conn) flushCompress() error {
-	if w, ok := ch.writertoCompress.(writeFlusher); ok {
+	if w, ok := ch.writerToCompress.(writeFlusher); ok {
 		return w.Flush()
 	}
 	return nil
@@ -353,11 +354,11 @@ func (ch *conn) hello() error {
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
 
-	if _, err := ch.writer.WriteTo(ch.writerto); err != nil {
+	if _, err := ch.writer.WriteTo(ch.writerTo); err != nil {
 		return fmt.Errorf("write hello: %w", err)
 	}
 
-	res, err := ch.reciveAndProccessData(emptyOnProgress)
+	res, err := ch.receiveAndProccessData(emptyOnProgress)
 	if err != nil {
 		return err
 	}
@@ -447,14 +448,14 @@ func (ch *conn) sendQueryWithOption(
 	return ch.sendData(newBlock(), 0)
 }
 
-func (ch *conn) sendData(block *Block, numRows int) error {
+func (ch *conn) sendData(block *block, numRows int) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")
 
-	// if compress enable we must send to this part with uncompress data
+	// if compress enable we must send to this part with uncompressed data
 	if ch.compress {
-		_, err := ch.writer.WriteTo(ch.writerto)
+		_, err := ch.writer.WriteTo(ch.writerTo)
 		if err != nil {
 			return &writeError{"block: write block info", err}
 		}
@@ -479,7 +480,7 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}
@@ -499,7 +500,7 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 		err = progress.read(ch)
 		if err == nil && onProgress != nil {
 			onProgress(progress)
-			return ch.reciveAndProccessData(onProgress)
+			return ch.receiveAndProccessData(onProgress)
 		}
 		return progress, err
 	case serverHello:
@@ -520,7 +521,7 @@ func (ch *conn) reciveAndProccessData(onProgress func(*Progress)) (interface{}, 
 	case serverTableColumns:
 		ch.readTableColumn()
 
-		return ch.reciveAndProccessData(onProgress)
+		return ch.receiveAndProccessData(onProgress)
 	}
 	return nil, &notImplementedPacket{packet: packet}
 }
@@ -571,76 +572,12 @@ func (ch *conn) ExecCallback(
 		hasError = true
 		return nil, err
 	}
-	res, err := ch.reciveAndProccessData(onProgress)
+	res, err := ch.receiveAndProccessData(onProgress)
 	if err != nil {
 		hasError = true
 		return nil, err
 	}
 	return res, nil
-}
-
-// Insert send query for insert and prepare insert stmt
-func (ch *conn) Insert(ctx context.Context, query string) (InsertStmt, error) {
-	return ch.InsertWithSetting(ctx, query, nil, "")
-}
-
-// Insert send query for insert and prepare insert stmt with setting option
-func (ch *conn) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (InsertStmt, error) {
-	err := ch.lock()
-	if err != nil {
-		return nil, err
-	}
-	ch.contextWatcher.Watch(ctx)
-	defer ch.contextWatcher.Unwatch()
-	var hasError bool
-	defer func() {
-		if hasError {
-			ch.Close(context.Background())
-		}
-	}()
-	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
-	if err != nil {
-		hasError = true
-		return nil, err
-	}
-
-	var blockData *Block
-	for {
-		var res interface{}
-		res, err = ch.reciveAndProccessData(emptyOnProgress)
-		if err != nil {
-			hasError = true
-			return nil, err
-		}
-		if b, ok := res.(*Block); ok {
-			blockData = b
-			break
-		}
-
-		if _, ok := res.(*Profile); ok {
-			continue
-		}
-		if _, ok := res.(*Progress); ok {
-			continue
-		}
-		hasError = true
-		return nil, &unexpectedPacket{expected: "serverData", actual: res}
-	}
-
-	err = blockData.initForInsert(ch)
-	if err != nil {
-		hasError = true
-		return nil, err
-	}
-	return &insertStmt{
-		block:      blockData,
-		conn:       ch,
-		query:      query,
-		queryID:    "",
-		stage:      queryProcessingStageComplete,
-		settings:   settings,
-		clientInfo: nil,
-	}, nil
 }
 
 // Select send query for select and prepare SelectStmt

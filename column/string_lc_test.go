@@ -98,19 +98,15 @@ func TestStringLC(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_string(string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colLC,
 		colNilLC,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all
@@ -309,17 +305,13 @@ func TestStringLCEmpty(t *testing.T) {
 		continue
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 	test_lc_string_empty(string_lc_array,string_lc_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colArray,
 		colArrayNil,
 	)
+
 	require.NoError(t, err)
 
 	// example read all

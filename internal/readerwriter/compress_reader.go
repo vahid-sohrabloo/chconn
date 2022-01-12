@@ -9,7 +9,10 @@ import (
 	"github.com/pierrec/lz4/v4"
 )
 
+// ErrHeaderDecompressEOF is returned when the header is not fully read
 var ErrHeaderDecompressEOF = errors.New("lz4 decompression header EOF")
+
+// ErrDecompressSizeError is returned when the decompressed size is not equal to excepted size
 var ErrDecompressSizeError = errors.New("decompress read size not match")
 
 type invalidCompressErr struct {
@@ -33,7 +36,7 @@ type compressReader struct {
 }
 
 // NewCompressReader wrap the io.Reader
-func NewCompressReader(r io.Reader) *compressReader {
+func NewCompressReader(r io.Reader) io.Reader {
 	p := &compressReader{
 		reader: r,
 		header: make([]byte, HeaderSize),

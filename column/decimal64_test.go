@@ -19,15 +19,15 @@ func TestDecimal64(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_decima64`)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_decimal64`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	res, err = conn.Exec(context.Background(), `CREATE TABLE test_decima64 (
-				decima64 Decimal64(3),
-				decima64_nullable Nullable(Decimal64(3)),
-				decima64_array Array(Decimal64(3)),
-				decima64_array_nullable Array(Nullable(Decimal64(3)))
+	res, err = conn.Exec(context.Background(), `CREATE TABLE test_decimal64 (
+				decimal64 Decimal64(3),
+				decimal64_nullable Nullable(Decimal64(3)),
+				decimal64_array Array(Decimal64(3)),
+				decimal64_array_nullable Array(Nullable(Decimal64(3)))
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -47,73 +47,76 @@ func TestDecimal64(t *testing.T) {
 	var colInsertArray [][]float64
 	var colInsertArrayNil [][]*float64
 	var colNilInsert []*float64
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		col.Reset()
+		colArrayValues.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		colArrayNil.Reset()
+		colNil.Reset()
+		for i := 0; i < rows; i++ {
+			val := float64(i * -4)
+			valArray := []float64{val, float64(i*-4) + 1}
+			valArrayNil := []*float64{&val, nil}
 
-	rows := 10
-	for i := 1; i <= rows; i++ {
-		val := float64(i * -4)
-		valArray := []float64{val, float64(i*-4) + 1}
-		valArrayNil := []*float64{&val, nil}
+			col.Append(val)
+			colInsert = append(colInsert, val)
 
-		col.Append(val)
-		colInsert = append(colInsert, val)
-
-		// example insert float64 array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.Append(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &val)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(&val)
-			} else {
-				// example to without pointer
-				colNil.Append(val)
-				colNil.AppendIsNil(false)
+			// example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.Append(v)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(nil)
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &val)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(&val)
+				} else {
+					// example to without pointer
+					colNil.Append(val)
+					colNil.AppendIsNil(false)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendEmpty()
-				colNil.AppendIsNil(true)
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendEmpty()
+					colNil.AppendIsNil(true)
+				}
 			}
 		}
+
+		err = conn.Insert(context.Background(), `INSERT INTO
+			test_decimal64 (decimal64,decimal64_nullable,decimal64_array,decimal64_array_nullable)
+		VALUES`,
+			col,
+			colNil,
+			colArray,
+			colArrayNil,
+		)
+
+		require.NoError(t, err)
 	}
-
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
-		test_decima64 (decima64,decima64_nullable,decima64_array,decima64_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-		colNil,
-		colArray,
-		colArrayNil,
-	)
-	require.NoError(t, err)
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
-		decima64,decima64_nullable,decima64_array,decima64_array_nullable
-	FROM test_decima64`)
+		decimal64,decimal64_nullable,decimal64_array,decimal64_array_nullable
+	FROM test_decimal64`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
@@ -168,15 +171,14 @@ func TestDecimal64(t *testing.T) {
 	assert.Equal(t, colNilInsert, colNilData)
 	assert.Equal(t, colInsertArray, colArrayData)
 	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
-
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()
 
 	// example one by one
 	selectStmt, err = conn.Select(context.Background(), `SELECT
-		decima64,decima64_nullable,decima64_array,decima64_array_nullable
-	FROM test_decima64`)
+		decimal64,decimal64_nullable,decimal64_array,decimal64_array_nullable
+	FROM test_decimal64`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
@@ -228,7 +230,6 @@ func TestDecimal64(t *testing.T) {
 	assert.Equal(t, colNilInsert, colNilData)
 	assert.Equal(t, colInsertArray, colArrayData)
 	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
-
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()

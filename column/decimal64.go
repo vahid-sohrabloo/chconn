@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 )
 
+// Decimal64 use for Decimal64 ClickHouse DataType
 type Decimal64 struct {
 	column
 	factor float64
 	val    float64
 }
 
+// NewDecimal64 return new Decimal64 for Decimal64 ClickHouse DataType
 func NewDecimal64(scale int, nullable bool) *Decimal64 {
 	return &Decimal64{
 		factor: factors10[scale],
@@ -21,6 +23,9 @@ func NewDecimal64(scale int, nullable bool) *Decimal64 {
 	}
 }
 
+// Next forward pointer to the next value. Returns false if there are no more values.
+//
+// Use with Value() or ValueP()
 func (c *Decimal64) Next() bool {
 	if c.i >= c.totalByte {
 		return false
@@ -30,10 +35,14 @@ func (c *Decimal64) Next() bool {
 	return true
 }
 
+// Value of current pointer
+//
+// Use with Next()
 func (c *Decimal64) Value() float64 {
 	return c.val
 }
 
+// ReadAll read all value in this block and append to the input slice
 func (c *Decimal64) ReadAll(value *[]float64) {
 	for i := 0; i < c.totalByte; i += c.size {
 		*value = append(*value,
@@ -41,13 +50,21 @@ func (c *Decimal64) ReadAll(value *[]float64) {
 	}
 }
 
+// Fill slice with value and forward the pointer by the length of the slice
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *Decimal64) Fill(value []float64) {
 	for i := range value {
+		value[i] = float64(int64(binary.LittleEndian.Uint64(c.b[c.i:c.i+c.size]))) / c.factor
 		c.i += c.size
-		value[i] = float64(int64(binary.LittleEndian.Uint64(c.b[c.i-c.size:c.i]))) / c.factor
 	}
 }
 
+// ValueP Value of current pointer for nullable data
+//
+// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
+//
+// Use with Next()
 func (c *Decimal64) ValueP() *float64 {
 	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
 		return nil
@@ -56,6 +73,9 @@ func (c *Decimal64) ValueP() *float64 {
 	return &val
 }
 
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *Decimal64) ReadAllP(value *[]*float64) {
 	for i := 0; i < c.totalByte; i += c.size {
 		if c.colNullable.b[i/c.size] != 0 {
@@ -67,6 +87,11 @@ func (c *Decimal64) ReadAllP(value *[]*float64) {
 	}
 }
 
+// FillP slice with value and forward the pointer by the length of the slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `Fill()` to get a values and `FillNil()` to check if they are null.
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *Decimal64) FillP(value []*float64) {
 	for i := range value {
 		if c.colNullable.b[c.i/c.size] == 1 {
@@ -80,6 +105,7 @@ func (c *Decimal64) FillP(value []*float64) {
 	}
 }
 
+// Append value for insert
 func (c *Decimal64) Append(v float64) {
 	c.numRow++
 	castVal := int64(v * c.factor)
@@ -95,11 +121,17 @@ func (c *Decimal64) Append(v float64) {
 	)
 }
 
+// AppendEmpty append empty value for insert
 func (c *Decimal64) AppendEmpty() {
 	c.numRow++
 	c.writerData = append(c.writerData, emptyByte[:c.size]...)
 }
 
+// AppendP value for insert (for nullable column)
+//
+// As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
+//
+// NOTE: for alternative mode. of your value is nil you still need to append default value. You can use `AppendEmpty()` for nil values
 func (c *Decimal64) AppendP(v *float64) {
 	if v == nil {
 		c.AppendEmpty()
@@ -108,4 +140,13 @@ func (c *Decimal64) AppendP(v *float64) {
 	}
 	c.colNullable.Append(0)
 	c.Append(*v)
+}
+
+// Reset all status and buffer data
+//
+// Reading data does not require a reset after each read. The reset will be triggered automatically.
+//
+// However, writing data requires a reset after each write.
+func (c *Decimal64) Reset() {
+	c.column.Reset()
 }

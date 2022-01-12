@@ -47,68 +47,71 @@ func TestUint8(t *testing.T) {
 	var colInsertArray [][]uint8
 	var colInsertArrayNil [][]*uint8
 	var colNilInsert []*uint8
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		col.Reset()
+		colArrayValues.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		colArrayNil.Reset()
+		colNil.Reset()
+		for i := 0; i < rows; i++ {
+			val := uint8(i)
+			valArray := []uint8{val, uint8(i) + 1}
+			valArrayNil := []*uint8{&val, nil}
 
-	rows := 10
-	for i := 0; i < rows; i++ {
-		val := uint8(i)
-		valArray := []uint8{val, uint8(i) + 1}
-		valArrayNil := []*uint8{&val, nil}
+			col.Append(val)
+			colInsert = append(colInsert, val)
 
-		col.Append(val)
-		colInsert = append(colInsert, val)
-
-		// example insert array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.Append(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &val)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(&val)
-			} else {
-				// example to without pointer
-				colNil.Append(val)
-				colNil.AppendIsNil(false)
+			// example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.Append(v)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(nil)
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &val)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(&val)
+				} else {
+					// example to without pointer
+					colNil.Append(val)
+					colNil.AppendIsNil(false)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendEmpty()
-				colNil.AppendIsNil(true)
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendEmpty()
+					colNil.AppendIsNil(true)
+				}
 			}
 		}
+
+		err = conn.Insert(context.Background(), `INSERT INTO
+			test_uint8 (uint8,uint8_nullable,uint8_array,uint8_array_nullable)
+		VALUES`,
+			col,
+			colNil,
+			colArray,
+			colArrayNil,
+		)
+
+		require.NoError(t, err)
 	}
-
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
-		test_uint8 (uint8,uint8_nullable,uint8_array,uint8_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-		colNil,
-		colArray,
-		colArrayNil,
-	)
-	require.NoError(t, err)
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT

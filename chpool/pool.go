@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/puddle"
 	"github.com/vahid-sohrabloo/chconn"
+	"github.com/vahid-sohrabloo/chconn/column"
 	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
@@ -40,6 +41,7 @@ func (cr *connResource) getConn(p *pool, res *puddle.Resource) Conn {
 	return c
 }
 
+// Pool is a connection pool for chconn
 type Pool interface {
 	// Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 	// to pool and closed.
@@ -83,12 +85,12 @@ type Pool interface {
 		onProgress func(*chconn.Progress),
 		onProfile func(*chconn.Profile),
 	) (chconn.SelectStmt, error)
-	// Insert executes a query and return insert stmt.
+	// Insert executes a query and commit all columns
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string) (chconn.InsertStmt, error)
-	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	Insert(ctx context.Context, query string, columns ...column.Column) error
+	// InsertWithSetting executes a query with the setting option and commit all columns
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error)
+	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string, columns ...column.Column) error
 	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
 	Stat() *Stat
@@ -121,7 +123,7 @@ type Config struct {
 	AfterConnect func(context.Context, chconn.Conn) error
 
 	// BeforeAcquire is called before before a connection is acquired from the pool. It must return true to allow the
-	// acquision or false to indicate that the connection should be destroyed and a different connection should be
+	// acquire or false to indicate that the connection should be destroyed and a different connection should be
 	// acquired.
 	BeforeAcquire func(context.Context, chconn.Conn) bool
 
@@ -163,6 +165,7 @@ func (c *Config) Copy() *Config {
 	return newConfig
 }
 
+// ConnString returns the original connection string used to connect to the ClickHouse server.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -509,27 +512,28 @@ func (p *pool) SelectCallback(
 	}
 }
 
-func (p *pool) Insert(ctx context.Context, query string) (chconn.InsertStmt, error) {
-	return p.InsertWithSetting(ctx, query, nil, "")
+func (p *pool) Insert(ctx context.Context, query string, columns ...column.Column) error {
+	return p.InsertWithSetting(ctx, query, nil, "", columns...)
 }
 
-func (p *pool) InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string) (chconn.InsertStmt, error) {
+func (p *pool) InsertWithSetting(
+	ctx context.Context,
+	query string,
+	settings *setting.Settings,
+	queryID string,
+	columns ...column.Column) error {
 	for {
 		c, err := p.Acquire(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		s, err := c.InsertWithSetting(ctx, query, settings, queryID)
-		if err != nil {
-			c.Release()
-			if errors.Is(err, syscall.EPIPE) {
-				continue
-			}
-			return nil, err
+		err = c.InsertWithSetting(ctx, query, settings, queryID, columns...)
+		c.Release()
+		if err != nil && errors.Is(err, syscall.EPIPE) {
+			continue
 		}
-
-		return s, nil
+		return err
 	}
 }
 

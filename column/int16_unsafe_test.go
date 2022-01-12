@@ -41,16 +41,10 @@ func TestInt16Unsafe(t *testing.T) {
 		colInsert = append(colInsert, val)
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_int16_unsafe (int16)
-	VALUES`)
+	VALUES`, col)
 
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
-		col,
-	)
 	require.NoError(t, err)
 
 	// example get all

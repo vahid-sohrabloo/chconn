@@ -20,7 +20,13 @@ const defaultDatabase = "default"
 const defaultDBPort = "9000"
 const defaultClientName = "chx"
 
+// AfterConnectFunc is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
+// or prepare statements). If this returns an error the connection attempt fails.
 type AfterConnectFunc func(ctx context.Context, conn Conn) error
+
+// ValidateConnectFunc is called during a connection attempt after a successful authentication with the ClickHouse server.
+// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
+// fallback config is tried. This allows implementing high availability behavior.
 type ValidateConnectFunc func(ctx context.Context, conn Conn) error
 
 // Config is the settings used to establish a connection to a ClickHouse server. It must be created by ParseConfig and
@@ -88,6 +94,7 @@ func (c *Config) Copy() *Config {
 	return newConf
 }
 
+// ConnString returns the original connection string used to connect to the ClickHouse server.
 func (c *Config) ConnString() string { return c.connString }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
@@ -552,7 +559,7 @@ func configTLS(settings map[string]string, thisHost string) ([]*tls.Config, erro
 	}
 
 	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return nil, ErrMissCertReqirement
+		return nil, ErrMissCertRequirement
 	}
 
 	if sslcert != "" && sslkey != "" {

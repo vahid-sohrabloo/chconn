@@ -21,7 +21,7 @@ const (
 	k2 uint64 = 0x9ae16a3b2f90404f
 	k3 uint64 = 0xc949d7c7509e6557
 
-	kMul uint64 = 0x9ddfea08eb382d69
+	mul uint64 = 0x9ddfea08eb382d69
 )
 
 func fetch64(p []byte) uint64 {
@@ -52,6 +52,7 @@ func shiftMix(val uint64) uint64 {
 	return val ^ (val >> 47)
 }
 
+// Uint128 support Uint128 in golang
 type Uint128 [2]uint64
 
 func (u *Uint128) setLower64(l uint64) {
@@ -62,21 +63,23 @@ func (u *Uint128) setHigher64(h uint64) {
 	u[1] = h
 }
 
+// Lower64 get lower uint64
 func (u Uint128) Lower64() uint64 {
 	return u[0]
 }
 
+// Higher64 get gigher uint64
 func (u Uint128) Higher64() uint64 {
 	return u[1]
 }
 
 func hash128to64(x Uint128) uint64 {
 	// Murmur-inspired hashing.
-	var a = (x.Lower64() ^ x.Higher64()) * kMul
+	var a = (x.Lower64() ^ x.Higher64()) * mul
 	a ^= (a >> 47)
-	var b = (x.Higher64() ^ a) * kMul
+	var b = (x.Higher64() ^ a) * mul
 	b ^= (b >> 47)
-	b *= kMul
+	b *= mul
 	return b
 }
 
@@ -163,7 +166,7 @@ func cityMurmur(s []byte, length uint32, seed Uint128) Uint128 {
 	return Uint128{a ^ b, hashLen16(b, a)}
 }
 
-func CityHash128WithSeed(s []byte, length uint32, seed Uint128) Uint128 {
+func cityHash128WithSeed(s []byte, length uint32, seed Uint128) Uint128 {
 	if length < 128 {
 		return cityMurmur(s, length, seed)
 	}
@@ -229,7 +232,7 @@ func CityHash128WithSeed(s []byte, length uint32, seed Uint128) Uint128 {
 	}
 	// At this point our 48 bytes of state should contain more than
 	// enough information for a strong 128-bit hash.  We use two
-	// different 48-byte-to-8-byte hashes to get a 16-byte final result.
+	// different 48-byte-to-8-byte hashes to get a 16-byte final result.p
 	x = hashLen16(x, v.Lower64())
 	y = hashLen16(y, w.Lower64())
 
@@ -237,13 +240,14 @@ func CityHash128WithSeed(s []byte, length uint32, seed Uint128) Uint128 {
 		hashLen16(x+w.Higher64(), y+v.Higher64())}
 }
 
+// CityHash128 returns the 128-bit CityHash for the given data.
 func CityHash128(s []byte, length uint32) (result Uint128) {
 	if length >= 16 {
-		result = CityHash128WithSeed(s[16:length], length-16, Uint128{fetch64(s) ^ k3, fetch64(s[8:])})
+		result = cityHash128WithSeed(s[16:length], length-16, Uint128{fetch64(s) ^ k3, fetch64(s[8:])})
 	} else if length >= 8 {
-		result = CityHash128WithSeed(nil, 0, Uint128{fetch64(s) ^ (uint64(length) * k0), fetch64(s[length-8:]) ^ k1})
+		result = cityHash128WithSeed(nil, 0, Uint128{fetch64(s) ^ (uint64(length) * k0), fetch64(s[length-8:]) ^ k1})
 	} else {
-		result = CityHash128WithSeed(s, length, Uint128{k0, k1})
+		result = cityHash128WithSeed(s, length, Uint128{k0, k1})
 	}
 	return
 }

@@ -2,6 +2,7 @@ package column_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -9,10 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn"
 	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
-func TestInt8LC(t *testing.T) {
+func TestSringStringLC(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -20,61 +20,60 @@ func TestInt8LC(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_lc_int8`)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_lc_string`)
 	require.NoError(t, err)
 	require.Nil(t, res)
-	settings := setting.NewSettings()
-	settings.AllowSuspiciousLowCardinalityTypes(true)
-	res, err = conn.ExecWithSetting(context.Background(), `CREATE TABLE test_lc_int8 (
-				int8_lc LowCardinality(Int8),
-				int8_lc_nullable LowCardinality(Nullable(Int8)),
-				int8_lc_array Array(LowCardinality(Int8)),
-				int8_lc_array_nullable Array(LowCardinality(Nullable(Int8)))
-			) Engine=Memory`, settings)
+
+	res, err = conn.Exec(context.Background(), `CREATE TABLE test_lc_string (
+				string_lc LowCardinality(String),
+				string_lc_nullable LowCardinality(Nullable(String)),
+				string_lc_array Array(LowCardinality(String)),
+				string_lc_array_nullable Array(LowCardinality(Nullable(String)))
+			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	col := column.NewInt8(false)
+	col := column.NewString(false)
 	colLC := column.NewLC(col)
 
-	colNil := column.NewInt8(true)
+	colNil := column.NewString(true)
 	colNilLC := column.NewLC(colNil)
 
-	colArrayValues := column.NewInt8(false)
+	colArrayValues := column.NewString(false)
 	collArrayLC := column.NewLC(colArrayValues)
 	colArray := column.NewArray(collArrayLC)
 
-	colArrayValuesNil := column.NewInt8(true)
+	colArrayValuesNil := column.NewString(true)
 	collArrayLCNil := column.NewLC(colArrayValuesNil)
 	colArrayNil := column.NewArray(collArrayLCNil)
 
-	var colInsert []int8
-	var colInsertArray [][]int8
-	var colInsertArrayNil [][]*int8
-	var colNilInsert []*int8
+	var colInsert []string
+	var colInsertArray [][]string
+	var colInsertArrayNil [][]*string
+	var colNilInsert []*string
 
 	rows := 10
 	for i := 1; i <= rows; i++ {
-		val := int8(i)
-		valArray := []int8{val, int8(i) + 1}
-		valArrayNil := []*int8{&val, nil}
+		val := fmt.Sprintf("%d", i)
+		valArray := []string{val, fmt.Sprintf("%d", i+1)}
+		valArrayNil := []*string{&val, nil}
 
-		col.AppendDict(val)
+		col.AppendStringDict(val)
 		colInsert = append(colInsert, val)
 
 		// // example insert array
 		colInsertArray = append(colInsertArray, valArray)
 		colArray.AppendLen(len(valArray))
 		for _, v := range valArray {
-			colArrayValues.AppendDict(v)
+			colArrayValues.AppendStringDict(v)
 		}
 
 		// example insert nullable array
 		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
 		colArrayNil.AppendLen(len(valArrayNil))
 		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendDictP(v)
+			colArrayValuesNil.AppendStringDictP(v)
 		}
 
 		// example add nullable
@@ -82,10 +81,10 @@ func TestInt8LC(t *testing.T) {
 			colNilInsert = append(colNilInsert, &val)
 			if i <= rows/2 {
 				// example to add by pointer
-				colNil.AppendDictP(&val)
+				colNil.AppendStringDictP(&val)
 			} else {
 				// example to without pointer
-				colNil.AppendDict(val)
+				colNil.AppendStringDict(val)
 			}
 		} else {
 			colNilInsert = append(colNilInsert, nil)
@@ -100,7 +99,7 @@ func TestInt8LC(t *testing.T) {
 	}
 
 	err = conn.Insert(context.Background(), `INSERT INTO
-		test_lc_int8(int8_lc,int8_lc_nullable,int8_lc_array,int8_lc_array_nullable)
+		test_lc_string(string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable)
 	VALUES`,
 		colLC,
 		colNilLC,
@@ -111,46 +110,46 @@ func TestInt8LC(t *testing.T) {
 	require.NoError(t, err)
 
 	// example read all
-	selectStmt, err := conn.Select(context.Background(), `SELECT int8_lc,
-		int8_lc_nullable,int8_lc_array,int8_lc_array_nullable FROM
-	test_lc_int8`)
+	selectStmt, err := conn.Select(context.Background(), `SELECT
+		string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable
+	FROM test_lc_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead := column.NewInt8(false)
+	colRead := column.NewString(false)
 	colLCRead := column.NewLC(colRead)
 
-	colNilRead := column.NewInt8(true)
+	colNilRead := column.NewString(true)
 	colNilLCRead := column.NewLC(colNilRead)
 
-	colArrayReadData := column.NewInt8(false)
+	colArrayReadData := column.NewString(false)
 	colArrayLCRead := column.NewLC(colArrayReadData)
 	colArrayRead := column.NewArray(colArrayLCRead)
 
-	colArrayReadDataNil := column.NewInt8(true)
+	colArrayReadDataNil := column.NewString(true)
 	colArrayLCReadNil := column.NewLC(colArrayReadDataNil)
 	colArrayReadNil := column.NewArray(colArrayLCReadNil)
 
-	var colDataDict []int8
+	var colDataDict []string
 	var colDataKeys []int
-	var colData []int8
+	var colData []string
 
-	var colNilDataDict []int8
+	var colNilDataDict []string
 	var colNilDataKeys []int
-	var colNilData []*int8
+	var colNilData []*string
 
-	var colArrayDataDict []int8
-	var colArrayData [][]int8
+	var colArrayDataDict []string
+	var colArrayData [][]string
 
-	var colArrayDataDictNil []int8
-	var colArrayDataNil [][]*int8
+	var colArrayDataDictNil []string
+	var colArrayDataNil [][]*string
 
 	var colArrayLens []int
 
 	for selectStmt.Next() {
 		err = selectStmt.NextColumn(colLCRead)
 		require.NoError(t, err)
-		colRead.ReadAll(&colDataDict)
+		colRead.ReadAllString(&colDataDict)
 		colLCRead.ReadAll(&colDataKeys)
 
 		for _, k := range colDataKeys {
@@ -158,7 +157,7 @@ func TestInt8LC(t *testing.T) {
 		}
 		err = selectStmt.NextColumn(colNilLCRead)
 		require.NoError(t, err)
-		colNilRead.ReadAll(&colNilDataDict)
+		colNilRead.ReadAllString(&colNilDataDict)
 		colNilLCRead.ReadAll(&colNilDataKeys)
 
 		for _, k := range colNilDataKeys {
@@ -175,10 +174,10 @@ func TestInt8LC(t *testing.T) {
 		err = selectStmt.NextColumn(colArrayRead)
 		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
-		colArrayReadData.ReadAll(&colArrayDataDict)
+		colArrayReadData.ReadAllString(&colArrayDataDict)
 		for _, l := range colArrayLens {
 			arr := make([]int, l)
-			arrData := make([]int8, l)
+			arrData := make([]string, l)
 			colArrayLCRead.Fill(arr)
 			for i, k := range arr {
 				arrData[i] = colArrayDataDict[k]
@@ -191,10 +190,10 @@ func TestInt8LC(t *testing.T) {
 		err = selectStmt.NextColumn(colArrayReadNil)
 		require.NoError(t, err)
 		colArrayReadNil.ReadAll(&colArrayLens)
-		colArrayReadDataNil.ReadAll(&colArrayDataDictNil)
+		colArrayReadDataNil.ReadAllString(&colArrayDataDictNil)
 		for _, l := range colArrayLens {
 			arr := make([]int, l)
-			arrData := make([]*int8, l)
+			arrData := make([]*string, l)
 			colArrayLCReadNil.Fill(arr)
 			for i, k := range arr {
 				// 0 means nil
@@ -219,15 +218,15 @@ func TestInt8LC(t *testing.T) {
 
 	// example one by one
 	selectStmt, err = conn.Select(context.Background(), `SELECT
-		int8_lc,int8_lc_nullable FROM
-	test_lc_int8`)
+		string_lc,string_lc_nullable
+	FROM test_lc_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewInt8(false)
+	colRead = column.NewString(false)
 	colLCRead = column.NewLC(colRead)
 
-	colNilRead = column.NewInt8(true)
+	colNilRead = column.NewString(true)
 	colNilLCRead = column.NewLC(colNilRead)
 
 	colDataDict = colDataDict[:0]
@@ -239,14 +238,14 @@ func TestInt8LC(t *testing.T) {
 	for selectStmt.Next() {
 		err = selectStmt.NextColumn(colLCRead)
 		require.NoError(t, err)
-		colRead.ReadAll(&colDataDict)
+		colRead.ReadAllString(&colDataDict)
 
 		for colLCRead.Next() {
 			colData = append(colData, colDataDict[colLCRead.Value()])
 		}
 		err = selectStmt.NextColumn(colNilLCRead)
 		require.NoError(t, err)
-		colNilRead.ReadAll(&colNilDataDict)
+		colNilRead.ReadAllString(&colNilDataDict)
 
 		for colNilLCRead.Next() {
 			k := colNilLCRead.Value()
@@ -265,5 +264,5 @@ func TestInt8LC(t *testing.T) {
 
 	assert.Equal(t, colInsert, colData)
 	assert.Equal(t, colNilInsert, colNilData)
-	conn.Close(context.Background())
+	conn.RawConn().Close()
 }

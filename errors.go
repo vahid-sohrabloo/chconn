@@ -22,8 +22,8 @@ var ErrSSLModeInvalid = errors.New("sslmode is invalid")
 // ErrAddCA when can't add ca
 var ErrAddCA = errors.New("unable to add CA to cert pool")
 
-// ErrMissCertReqirement when sslcert or sslkey not provided
-var ErrMissCertReqirement = errors.New(`both "sslcert" and "sslkey" are required`)
+// ErrMissCertRequirement when sslcert or sslkey not provided
+var ErrMissCertRequirement = errors.New(`both "sslcert" and "sslkey" are required`)
 
 // ErrInvalidDSN for invalid dsn
 var ErrInvalidDSN = errors.New("invalid dsn")
@@ -37,6 +37,7 @@ var ErrInvalidquoted = errors.New("unterminated quoted string in connection info
 // ErrIPNotFound when can't found ip in connecting
 var ErrIPNotFound = errors.New("ip addr wasn't found")
 
+// ErrInsertMinColumn when no column provided for insert
 var ErrInsertMinColumn = errors.New("you should pass at least one column")
 
 // ChError represents an error reported by the Clickhouse server
@@ -204,8 +205,7 @@ func redactURL(u *url.URL) string {
 
 // InsertError represents an error when insert error
 type InsertError struct {
-	Block *Block
-	err   error
+	err error
 }
 
 func (e *InsertError) Error() string {
@@ -226,7 +226,7 @@ func (e *ColumnNumberReadError) Error() string {
 	return fmt.Sprintf("read %d column(s), but available %d column(s)", e.Read, e.Available)
 }
 
-// ColumnNumberReadError represents an error when number of write column is not equal to number of query column
+// ColumnNumberWriteError represents an error when number of write column is not equal to number of query column
 type ColumnNumberWriteError struct {
 	WriteColumn int
 	NeedColumn  uint64
@@ -236,6 +236,7 @@ func (e *ColumnNumberWriteError) Error() string {
 	return fmt.Sprintf("write %d column(s) but insert query needs %d column(s)", e.WriteColumn, e.NeedColumn)
 }
 
+// NumberWriteError represents an error when number rows of columns is not equal
 type NumberWriteError struct {
 	FirstNumRow int
 	NumRow      int
@@ -243,5 +244,5 @@ type NumberWriteError struct {
 }
 
 func (e *NumberWriteError) Error() string {
-	return fmt.Sprintf("first column has %d rows but \"%s\"  column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
+	return fmt.Sprintf("first column has %d rows but \"%s\" column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
 }

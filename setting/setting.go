@@ -29,6 +29,9 @@ func NewSettings() *Settings {
 	}
 }
 
+// WriteTo write settings to writer
+//
+// it uses internally
 func (s *Settings) WriteTo(wt io.Writer, asString bool) (int, error) {
 	// todo handle asString for old protocols
 	if s.dirty {

@@ -54,16 +54,12 @@ func TestMap(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 	test_map (map)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		colMap,
 	)
+
 	require.NoError(t, err)
 
 	// example read all
@@ -90,6 +86,44 @@ func TestMap(t *testing.T) {
 		for _, l := range colArrayLens {
 			arrKey := make([]string, l)
 			arrValue := make([]uint64, l)
+			colKey.FillString(arrKey)
+			colVal.Fill(arrValue)
+			colDataKey = append(colDataKey, arrKey)
+			colDataValue = append(colDataValue, arrValue)
+		}
+	}
+	require.Equal(t, len(colInsert), len(colDataKey))
+	require.Equal(t, len(colInsert), len(colDataValue))
+	for i, val := range colDataKey {
+		for y, kData := range val {
+			assert.Equal(t, colInsert[i][kData], colDataValue[i][y])
+		}
+	}
+	require.NoError(t, selectStmt.Err())
+	selectStmt.Close()
+
+	// example one by one
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+	map
+	FROM test_map`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colKey = column.NewString(false)
+	colVal = column.NewUint64(false)
+	colMap = column.NewMap(colKey, colVal)
+	colDataKey = colDataKey[:0]
+	colDataValue = colDataValue[:0]
+	colArrayLens = colArrayLens[:0]
+
+	for selectStmt.Next() {
+		// read array
+		colArrayLens = colArrayLens[:0]
+		err = selectStmt.NextColumn(colMap)
+		require.NoError(t, err)
+		for colMap.Next() {
+			arrKey := make([]string, colMap.Value())
+			arrValue := make([]uint64, colMap.Value())
 			colKey.FillString(arrKey)
 			colVal.Fill(arrValue)
 			colDataKey = append(colDataKey, arrKey)

@@ -19,7 +19,7 @@ type compressWriter struct {
 }
 
 // NewCompressWriter wrap the io.Writer
-func NewCompressWriter(w io.Writer) *compressWriter {
+func NewCompressWriter(w io.Writer) io.Writer {
 	p := &compressWriter{writer: w}
 	p.data = make([]byte, BlockMaxSize)
 

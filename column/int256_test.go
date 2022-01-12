@@ -98,19 +98,14 @@ func TestInt256(t *testing.T) {
 		}
 	}
 
-	insertstmt, err := conn.Insert(context.Background(), `INSERT INTO
+	err = conn.Insert(context.Background(), `INSERT INTO
 		test_int256 (int256,int256_nullable,int256_array,int256_array_nullable)
-	VALUES`)
-
-	require.NoError(t, err)
-	require.Nil(t, res)
-
-	err = insertstmt.Commit(context.Background(),
+	VALUES`,
 		col,
 		colNil,
 		colArray,
-		colArrayNil,
-	)
+		colArrayNil)
+
 	require.NoError(t, err)
 
 	// example read all

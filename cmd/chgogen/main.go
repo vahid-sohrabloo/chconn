@@ -13,11 +13,11 @@ import (
 	"github.com/vahid-sohrabloo/chconn/column"
 )
 
-type ChColumns struct {
+type chColumns struct {
 	Name string `json:"Name"`
 	Type string `json:"Type"`
 }
-type ExplainData []struct {
+type explainData []struct {
 	Plan struct {
 		NodeType   string `json:"Node Type"`
 		Expression struct {
@@ -32,7 +32,7 @@ type ExplainData []struct {
 				RemovedArguments []int  `json:"Removed Arguments"`
 				Result           int    `json:"Result"`
 			} `json:"Actions"`
-			Outputs      []ChColumns `json:"Outputs"`
+			Outputs      []chColumns `json:"Outputs"`
 			Positions    []int       `json:"Positions"`
 			ProjectInput bool        `json:"Project Input"`
 		} `json:"Expression"`
@@ -85,14 +85,14 @@ func main() {
 		log.Fatal(err)
 	}
 	col := column.NewString(false)
-	var explainData ExplainData
+	var explain explainData
 	for stmt.Next() {
 		err = stmt.NextColumn(col)
 		if err != nil {
 			log.Fatal(err)
 		}
 		col.Next()
-		err = json.Unmarshal(col.Value(), &explainData)
+		err = json.Unmarshal(col.Value(), &explain)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -101,7 +101,7 @@ func main() {
 		log.Fatal(stmt.Err())
 	}
 
-	generateEnum(*packageName, *structName, explainData[0].Plan.Expression.Outputs)
-	generateModel(*packageName, *structName, *getter, explainData[0].Plan.Expression.Outputs)
-	generateColumns(*packageName, *structName, explainData[0].Plan.Expression.Outputs)
+	generateEnum(*packageName, *structName, explain[0].Plan.Expression.Outputs)
+	generateModel(*packageName, *structName, *getter, explain[0].Plan.Expression.Outputs)
+	generateColumns(*packageName, *structName, explain[0].Plan.Expression.Outputs)
 }

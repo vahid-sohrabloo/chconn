@@ -1,10 +1,12 @@
 package column
 
+// UUID use for UUID ClickHouse DataType
 type UUID struct {
 	column
 	val [16]byte
 }
 
+// NewUUID return new UUID for UUID ClickHouse DataType
 func NewUUID(nullable bool) *UUID {
 	return &UUID{
 		column: column{
@@ -15,6 +17,9 @@ func NewUUID(nullable bool) *UUID {
 	}
 }
 
+// Next forward pointer to the next value. Returns false if there are no more values.
+//
+// Use with Value() or ValueP()
 func (c *UUID) Next() bool {
 	if c.i >= c.totalByte {
 		return false
@@ -24,18 +29,14 @@ func (c *UUID) Next() bool {
 	return true
 }
 
+// Value of current pointer
+//
+// Use with Next()
 func (c *UUID) Value() [16]byte {
 	return c.val
 }
 
-func (c *UUID) ValueP() *[16]byte {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
-		return nil
-	}
-	val := c.val
-	return &val
-}
-
+// ReadAll read all value in this block and append to the input slice
 func (c *UUID) ReadAll(value *[][16]byte) {
 	for i := 0; i < c.totalByte; i += c.size {
 		c.setVal(c.b[i : i+c.size])
@@ -44,6 +45,9 @@ func (c *UUID) ReadAll(value *[][16]byte) {
 	}
 }
 
+// Fill slice with value and forward the pointer by the length of the slice
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *UUID) Fill(value [][16]byte) {
 	for i := range value {
 		c.setVal(c.b[c.i : c.i+c.size])
@@ -52,6 +56,22 @@ func (c *UUID) Fill(value [][16]byte) {
 	}
 }
 
+// ValueP Value of current pointer for nullable data
+//
+// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
+//
+// Use with Next()
+func (c *UUID) ValueP() *[16]byte {
+	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+		return nil
+	}
+	val := c.val
+	return &val
+}
+
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *UUID) ReadAllP(value *[]*[16]byte) {
 	for i := 0; i < c.totalByte; i += c.size {
 		if c.colNullable.b[i/c.size] != 0 {
@@ -64,6 +84,11 @@ func (c *UUID) ReadAllP(value *[]*[16]byte) {
 	}
 }
 
+// FillP slice with value and forward the pointer by the length of the slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `Fill()` to get a values and `FillNil()` to check if they are null.
+//
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *UUID) FillP(value []*[16]byte) {
 	for i := range value {
 		if c.colNullable.b[c.i/c.size] == 1 {
@@ -78,11 +103,7 @@ func (c *UUID) FillP(value []*[16]byte) {
 	}
 }
 
-func (c *UUID) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
+// Append value for insert
 func (c *UUID) Append(v [16]byte) {
 	c.numRow++
 	c.writerData = append(c.writerData,
@@ -93,6 +114,17 @@ func (c *UUID) Append(v [16]byte) {
 	)
 }
 
+// AppendEmpty append empty value for insert
+func (c *UUID) AppendEmpty() {
+	c.numRow++
+	c.writerData = append(c.writerData, emptyByte[:c.size]...)
+}
+
+// AppendP value for insert (for nullable column)
+//
+// As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
+//
+// NOTE: for alternative mode. of your value is nil you still need to append default value. You can use `AppendEmpty()` for nil values
 func (c *UUID) AppendP(v *[16]byte) {
 	if v == nil {
 		c.AppendEmpty()
@@ -101,6 +133,15 @@ func (c *UUID) AppendP(v *[16]byte) {
 	}
 	c.colNullable.Append(0)
 	c.Append(*v)
+}
+
+// Reset all status and buffer data
+//
+// Reading data does not require a reset after each read. The reset will be triggered automatically.
+//
+// However, writing data requires a reset after each write.
+func (c *UUID) Reset() {
+	c.column.Reset()
 }
 
 func (c *UUID) setVal(b []byte) {

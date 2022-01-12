@@ -523,6 +523,8 @@ func TestPoolInsert(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
+	require.NoError(t, pool.Ping(context.Background()))
+
 	res, err := pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -533,17 +535,13 @@ func TestPoolInsert(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	insertStmt, err := pool.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_pool (
-				int8
-			) VALUES`)
-	require.NoError(t, err)
-	require.Nil(t, res)
 	col := column.NewInt8(false)
 	for i := 1; i <= 10; i++ {
 		col.Append(int8(-1 * i))
 	}
-
-	err = insertStmt.Commit(context.Background(), col)
+	err = pool.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_pool (
+				int8
+			) VALUES`, col)
 	require.NoError(t, err)
 
 	selectStmt, err := pool.Select(context.Background(), `SELECT 
@@ -578,25 +576,22 @@ func TestPoolInsertError(t *testing.T) {
 	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 
-	insertStmt, err := pool.Insert(context.Background(), `INSERT INTO not_found_table (
+	err = pool.Insert(context.Background(), `INSERT INTO not_found_table (
 				int8
 			) VALUES`)
 	if assert.Error(t, err) {
 		assert.Equal(t, " DB::Exception (60): Table default.not_found_table doesn't exist", err.Error())
 	}
-	require.Nil(t, insertStmt)
 
 	pool.Close()
 
-	insertStmt, err = pool.Insert(context.Background(), `INSERT INTO not_found_table (
+	err = pool.Insert(context.Background(), `INSERT INTO not_found_table (
 				int8
 			) VALUES`)
 
 	if assert.Error(t, err) {
 		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
-
-	require.Nil(t, insertStmt)
 }
 
 func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {

@@ -22,6 +22,7 @@ func NewReader(input io.Reader) *Reader {
 	}
 }
 
+// SetCompress set compress status
 func (r *Reader) SetCompress(c bool) {
 	if c {
 		r.input = r.compressReader
@@ -39,7 +40,7 @@ func (r *Reader) Bool() (bool, error) {
 	return v == 1, nil
 }
 
-// Bool read variable uint64 value
+// Uvarint read variable uint64 value
 func (r *Reader) Uvarint() (uint64, error) {
 	return binary.ReadUvarint(r)
 }
