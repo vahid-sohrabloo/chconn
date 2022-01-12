@@ -1,3 +1,4 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/vahid-sohrabloo/chconn.svg)](https://pkg.go.dev/github.com/vahid-sohrabloo/chconn)
 [![codecov](https://codecov.io/gh/vahid-sohrabloo/chconn/branch/master/graph/badge.svg?token=K3JN6XWFVV)](https://codecov.io/gh/vahid-sohrabloo/chconn)
 [![Actions Status](https://github.com/vahid-sohrabloo/chconn/workflows/CI/badge.svg)](https://github.com/vahid-sohrabloo/chconn/actions)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn?ref=badge_shield)
