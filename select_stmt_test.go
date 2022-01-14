@@ -56,8 +56,8 @@ func TestSelectError(t *testing.T) {
 	col := column.NewUint64(false)
 	col2 := column.NewUint64(false)
 	for res.Next() {
-		name, chType, err := res.NextColumnDetail(col)
-		assert.NoError(t, err)
+		name, chType, errNext := res.NextColumnDetail(col)
+		assert.NoError(t, errNext)
 		assert.Equal(t, name, "number")
 		assert.Equal(t, chType, "UInt64")
 		err = res.NextColumn(col2)
