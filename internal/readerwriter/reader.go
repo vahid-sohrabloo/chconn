@@ -16,15 +16,17 @@ type Reader struct {
 // NewReader get new Reader
 func NewReader(input io.Reader) *Reader {
 	return &Reader{
-		input:          input,
-		mainReader:     input,
-		compressReader: NewCompressReader(input),
+		input:      input,
+		mainReader: input,
 	}
 }
 
-// SetCompress set compress status
+// SetCompress set compress statusp
 func (r *Reader) SetCompress(c bool) {
 	if c {
+		if r.compressReader == nil {
+			r.compressReader = NewCompressReader(r.mainReader)
+		}
 		r.input = r.compressReader
 		return
 	}

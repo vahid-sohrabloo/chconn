@@ -174,6 +174,7 @@ type conn struct {
 	compress bool
 
 	contextWatcher *ctxwatch.ContextWatcher
+	block          *block
 }
 
 // Connect establishes a connection to a ClickHouse server using the environment and connString (in URL or DSN format)
@@ -327,6 +328,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if err != nil {
 		return nil, err
 	}
+	c.block = newBlock()
 	c.status = connStatusIdle
 
 	return c, nil
@@ -444,8 +446,7 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	ch.writer.String(query)
-
-	return ch.sendData(newBlock(), 0)
+	return ch.sendEmptyBlock()
 }
 
 func (ch *conn) sendData(block *block, numRows int) error {
@@ -461,6 +462,11 @@ func (ch *conn) sendData(block *block, numRows int) error {
 		}
 	}
 	return block.writeHeader(ch, numRows)
+}
+
+func (ch *conn) sendEmptyBlock() error {
+	ch.block.reset()
+	return ch.sendData(ch.block, 0)
 }
 
 func (ch *conn) Close(ctx context.Context) error {
@@ -487,9 +493,9 @@ func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{},
 	}
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
-		block := newBlock()
-		err = block.read(ch)
-		return block, err
+		ch.block.reset()
+		err = ch.block.read(ch)
+		return ch.block, err
 	case serverProfileInfo:
 		profile := newProfile()
 

@@ -105,10 +105,12 @@ func (c *String) ValueStringP() *string {
 
 // ReadAll read all value in this block and append to the input slice
 func (c *String) ReadAll(value *[][]byte) {
-	for i := 0; i < c.numRow; i++ {
-		str := c.vals[i]
-		*value = append(*value, str)
-	}
+	*value = append(*value, c.vals...)
+}
+
+// GetAll get all string in this block
+func (c *String) GetAll() [][]byte {
+	return c.vals
 }
 
 // ReadAllString read all string value in this block and append to the input slice

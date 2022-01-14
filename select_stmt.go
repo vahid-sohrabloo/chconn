@@ -20,6 +20,8 @@ type SelectStmt interface {
 	Close()
 	// NextColumn get the next column of block
 	NextColumn(colData column.Column) error
+	// NextColumnDetail get the next column of block with name and type
+	NextColumnDetail(colData column.Column) (name, chType string, err error)
 }
 type selectStmt struct {
 	block            *block
@@ -43,7 +45,7 @@ var _ SelectStmt = &selectStmt{}
 func (s *selectStmt) Next() bool {
 	if s.lastErr == nil &&
 		s.block != nil &&
-		s.numberColumnRead != int(s.block.NumColumns) {
+		s.numberColumnRead < int(s.block.NumColumns) {
 		s.lastErr = &ColumnNumberReadError{
 			Read:      s.numberColumnRead,
 			Available: s.block.NumColumns,
@@ -146,4 +148,37 @@ func (s *selectStmt) NextColumn(colData column.Column) error {
 		s.conn.Close(context.Background())
 	}
 	return err
+}
+
+// NextColumnDetail get the next column of block with name and type
+func (s *selectStmt) NextColumnDetail(colData column.Column) (name, chType string, err error) {
+	s.numberColumnRead++
+	if s.numberColumnRead > int(s.block.NumColumns) {
+		err = &ColumnNumberReadError{
+			Read:      s.numberColumnRead,
+			Available: s.block.NumColumns,
+		}
+		return
+	}
+	col, errNext := s.block.nextColumn(s.conn)
+	if err != nil {
+		s.Close()
+		s.conn.Close(context.Background())
+		err = errNext
+		return
+	}
+	chType = col.ChType
+	name = col.Name
+	err = colData.HeaderReader(s.conn.reader)
+	if err != nil {
+		s.Close()
+		s.conn.Close(context.Background())
+		return
+	}
+	err = colData.ReadRaw(s.RowsInBlock(), s.conn.reader)
+	if err != nil {
+		s.Close()
+		s.conn.Close(context.Background())
+	}
+	return
 }

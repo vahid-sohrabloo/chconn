@@ -23,7 +23,7 @@ func commit(c *conn, b *block, columns ...column.Column) error {
 		return err
 	}
 
-	err = c.sendData(newBlock(), 0)
+	err = c.sendEmptyBlock()
 
 	if err != nil {
 		return err

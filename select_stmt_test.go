@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/column"
 )
@@ -55,8 +56,10 @@ func TestSelectError(t *testing.T) {
 	col := column.NewUint64(false)
 	col2 := column.NewUint64(false)
 	for res.Next() {
-		err = res.NextColumn(col)
-		require.NoError(t, err)
+		name, chType, err := res.NextColumnDetail(col)
+		assert.NoError(t, err)
+		assert.Equal(t, name, "number")
+		assert.Equal(t, chType, "UInt64")
 		err = res.NextColumn(col2)
 		require.EqualError(t, err, "read 2 column(s), but available 1 column(s)")
 	}
@@ -77,6 +80,42 @@ func TestSelectError(t *testing.T) {
 		require.NoError(t, err)
 	}
 	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
+
+	c.Close(context.Background())
+}
+
+func TestSelectprogress(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	// test lock error
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	res, err := c.SelectCallback(context.Background(),
+		"SELECT sleep(0.1), * FROM system.numbers LIMIT 400000",
+		nil, "", func(p *Progress) {
+
+		}, func(p *Profile) {
+
+		},
+	)
+	require.NotNil(t, res)
+	require.NoError(t, err)
+
+	colNumber := column.NewUint64(false)
+	colSleep := column.NewUint8(false)
+	for res.Next() {
+		err = res.NextColumn(colSleep)
+		require.NoError(t, err)
+		err = res.NextColumn(colNumber)
+		require.NoError(t, err)
+	}
+	require.NoError(t, res.Err())
 
 	c.Close(context.Background())
 }

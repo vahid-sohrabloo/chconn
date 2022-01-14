@@ -6,13 +6,13 @@ import (
 )
 
 // Column contains details of ClickHouse column with Buffer index in inserting
-type Column struct {
+type chColumn struct {
 	ChType string
 	Name   string
 }
 
 type block struct {
-	Columns      []*Column
+	Columns      []chColumn
 	NumRows      uint64
 	NumColumns   uint64
 	info         blockInfo
@@ -23,6 +23,13 @@ func newBlock() *block {
 	return &block{
 		headerWriter: readerwriter.NewWriter(),
 	}
+}
+
+func (block *block) reset() {
+	block.headerWriter.Reset()
+	block.Columns = block.Columns[:0]
+	block.NumRows = 0
+	block.NumColumns = 0
 }
 
 func (block *block) read(ch *conn) error {
@@ -53,7 +60,7 @@ func (block *block) read(ch *conn) error {
 func (block *block) initForInsert(ch *conn) error {
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
-	block.Columns = make([]*Column, block.NumColumns)
+	block.Columns = make([]chColumn, block.NumColumns)
 	for i := uint64(0); i < block.NumColumns; i++ {
 		col, err := block.nextColumn(ch)
 		if err != nil {
@@ -66,7 +73,7 @@ func (block *block) initForInsert(ch *conn) error {
 }
 
 func (block *block) readColumns(ch *conn) error {
-	block.Columns = make([]*Column, block.NumColumns)
+	block.Columns = make([]chColumn, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {
 		col, err := block.nextColumn(ch)
@@ -78,11 +85,11 @@ func (block *block) readColumns(ch *conn) error {
 	return nil
 }
 
-func (block *block) nextColumn(ch *conn) (*Column, error) {
-	col := &Column{}
+func (block *block) nextColumn(ch *conn) (chColumn, error) {
+	col := chColumn{}
 	var err error
 	if col.Name, err = ch.reader.String(); err != nil {
-		return nil, &readError{"block: read column name", err}
+		return col, &readError{"block: read column name", err}
 	}
 	if col.ChType, err = ch.reader.String(); err != nil {
 		return col, &readError{"block: read column type", err}
