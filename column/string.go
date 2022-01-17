@@ -114,7 +114,7 @@ func (c *String) GetAll() [][]byte {
 	return c.vals
 }
 
-// GetAll get all string values in this block
+// GetAllString get all string values in this block
 func (c *String) GetAllString() []string {
 	data := make([]string, len(c.vals))
 	for i, v := range c.vals {

@@ -71,7 +71,7 @@ func (w *Writer) String(v string) {
 	w.Write(str)
 }
 
-// String write string
+// ByteString write []byte
 func (w *Writer) ByteString(v []byte) {
 	w.Uvarint(uint64(len(v)))
 	w.Write(v)
