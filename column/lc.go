@@ -27,9 +27,8 @@ type lcDictColumn interface {
 
 // LC use for LowCardinality ClickHouse DataTypes
 type LC struct {
-	r          *readerwriter.Reader
+	column
 	dictColumn lcDictColumn
-	numRow     int
 	indices    indicesColumn
 	scratch    [8]byte
 }
@@ -51,9 +50,11 @@ func NewLC(dictColumn lcDictColumn) *LC {
 	if dictColumn.isNullable() {
 		dictColumn.AppendEmpty()
 	}
-	return &LC{
+	l := &LC{
 		dictColumn: dictColumn,
 	}
+	dictColumn.setParent(l)
+	return l
 }
 
 // ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
@@ -139,8 +140,12 @@ func (c *LC) NumRow() int {
 // HeaderReader writes header data to writer
 // it uses internally
 func (c *LC) HeaderReader(r *readerwriter.Reader) error {
+	err := c.column.HeaderReader(r)
+	if err != nil {
+		return nil
+	}
 	// write KeysSerializationVersion. for more information see clickhouse docs
-	_, err := r.Uint64()
+	_, err = r.Uint64()
 	return err
 }
 
@@ -235,4 +240,12 @@ func (c *LC) AppendEmpty() {
 // Reset reset column
 // it does nothing for low cardinality column
 func (c *LC) Reset() {
+}
+
+func (c *LC) setParent(parent Column) {
+	c.parent = parent
+}
+
+func (c *LC) getParent() Column {
+	return c.parent
 }

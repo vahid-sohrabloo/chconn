@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn"
 	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 func TestConnect(t *testing.T) {
@@ -67,8 +68,8 @@ func TestLazyConnect(t *testing.T) {
 
 	pool, err := ConnectConfig(ctx, config)
 	assert.NoError(t, err)
-
-	_, err = pool.Exec(ctx, "SELECT 1")
+	settings := setting.NewSettings()
+	_, err = pool.ExecWithSetting(ctx, "SELECT 1", settings)
 	assert.Equal(t, fmt.Errorf("acquire: %w", context.Canceled), err)
 }
 
@@ -432,11 +433,12 @@ func TestPoolSelect(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// Test expected pool behavior
-	stmt, err := pool.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
+	settings := setting.NewSettings()
+	stmt, err := pool.SelectWithSetting(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", settings)
 	require.NoError(t, err)
 	col := column.NewUint64(false)
 	for stmt.Next() {
-		err := stmt.NextColumn(col)
+		err := stmt.ReadColumns(col)
 		assert.NoError(t, err)
 		col.ReadAll(&[]uint64{})
 		assert.NoError(t, err)
@@ -552,6 +554,7 @@ func TestPoolInsert(t *testing.T) {
 	colInt8 := column.NewInt8(false)
 
 	for selectStmt.Next() {
+		//nolint:staticcheck // for unit test NextColumn
 		err := selectStmt.NextColumn(colInt8)
 		require.NoError(t, err)
 		colInt8.ReadAll(&int8Data)

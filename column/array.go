@@ -18,7 +18,7 @@ type Array struct {
 
 // NewArray return new Array for Array ClickHouse DataTypes
 func NewArray(subColumn Column) *Array {
-	return &Array{
+	a := &Array{
 		subColumn: subColumn,
 		Uint64: Uint64{
 			column: column{
@@ -26,6 +26,8 @@ func NewArray(subColumn Column) *Array {
 			},
 		},
 	}
+	subColumn.setParent(a)
+	return a
 }
 
 // ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
@@ -52,6 +54,10 @@ func (c *Array) HeaderWriter(w *readerwriter.Writer) {
 // HeaderReader reads header data from read
 // it uses internally
 func (c *Array) HeaderReader(r *readerwriter.Reader) error {
+	err := c.Uint64.HeaderReader(r)
+	if err != nil {
+		return err
+	}
 	return c.subColumn.HeaderReader(r)
 }
 

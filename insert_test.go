@@ -85,6 +85,74 @@ func TestInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	require.EqualError(t, err, "block: read column name (timeout)")
+
+	config, err = ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error (
+				int8
+			) VALUES`)
+	require.EqualError(t, err, ErrInsertMinColumn.Error())
+}
+
+func TestInsertMoreColumnsError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error_column`)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_error_column (
+		int8  Int8
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error_column (
+			int8
+		) VALUES`, column.NewInt8(false), column.NewInt8(false))
+	require.EqualError(t, err, "write 2 column(s) but insert query needs 1 column(s)")
+}
+
+func TestInsertMoreRowsError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_error_rows`)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_error_rows (
+		int8  Int8,
+		int16 Int16
+	) Engine=Memory`)
+	require.NoError(t, err)
+
+	col1 := column.NewInt8(false)
+	col2 := column.NewInt16(false)
+	col1.Append(1)
+	col1.Append(2)
+	col2.Append(2)
+	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error_rows (
+			int8,
+			int16
+		) VALUES`, col1, col2)
+	require.EqualError(t, err, "first column has 2 rows but \"int16\" column has 1 rows")
 }
 
 func TestInsert(t *testing.T) {

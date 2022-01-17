@@ -79,7 +79,7 @@ func TestMap(t *testing.T) {
 	for selectStmt.Next() {
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colMap)
+		err = selectStmt.ReadColumns(colMap)
 		require.NoError(t, err)
 		colMap.ReadAll(&colArrayLens)
 
@@ -119,7 +119,7 @@ func TestMap(t *testing.T) {
 	for selectStmt.Next() {
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colMap)
+		err = selectStmt.ReadColumns(colMap)
 		require.NoError(t, err)
 		for colMap.Next() {
 			arrKey := make([]string, colMap.Value())

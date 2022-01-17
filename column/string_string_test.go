@@ -129,18 +129,14 @@ func TestStringString(t *testing.T) {
 	var colArrayLens []int
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		colRead.ReadAllString(&colData)
 
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		colNilRead.ReadAllStringP(&colNilData)
 
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -151,8 +147,6 @@ func TestStringString(t *testing.T) {
 
 		// read nullable array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -189,22 +183,18 @@ func TestStringString(t *testing.T) {
 	colArrayDataNil = colArrayDataNil[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		for colRead.Next() {
 			colData = append(colData, colRead.ValueString())
 		}
 
 		// read nullable
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		for colNilRead.Next() {
 			colNilData = append(colNilData, colNilRead.ValueStringP())
 		}
 
 		// read array
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		for colArrayRead.Next() {
 			arr := make([]string, colArrayRead.Value())
 			colArrayReadData.FillString(arr)
@@ -212,8 +202,6 @@ func TestStringString(t *testing.T) {
 		}
 
 		// read nullable array
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		for colArrayReadNil.Next() {
 			arr := make([]*string, colArrayReadNil.Value())
 			colArrayReadDataNil.FillStringP(arr)

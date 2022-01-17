@@ -6,8 +6,8 @@ type Profile struct {
 	Blocks                    uint64
 	Bytes                     uint64
 	RowsBeforeLimit           uint64
-	AppliedLimit              bool
-	CalculatedRowsBeforeLimit bool
+	AppliedLimit              uint8
+	CalculatedRowsBeforeLimit uint8
 }
 
 func newProfile() *Profile {
@@ -25,13 +25,13 @@ func (p *Profile) read(ch *conn) (err error) {
 		return &readError{"profile: read Bytes", err}
 	}
 
-	if p.AppliedLimit, err = ch.reader.Bool(); err != nil {
+	if p.AppliedLimit, err = ch.reader.ReadByte(); err != nil {
 		return &readError{"profile: read AppliedLimit", err}
 	}
 	if p.RowsBeforeLimit, err = ch.reader.Uvarint(); err != nil {
 		return &readError{"profile: read RowsBeforeLimit", err}
 	}
-	if p.CalculatedRowsBeforeLimit, err = ch.reader.Bool(); err != nil {
+	if p.CalculatedRowsBeforeLimit, err = ch.reader.ReadByte(); err != nil {
 		return &readError{"profile: read CalculatedRowsBeforeLimit", err}
 	}
 	return nil

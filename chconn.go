@@ -243,7 +243,6 @@ func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 	if config.AfterConnect != nil {
 		err := config.AfterConnect(ctx, c)
 		if err != nil {
-			//nolint:errcheck
 			c.RawConn().Close()
 			return nil, &connectError{config: config, msg: "AfterConnect error", err: err}
 		}
@@ -308,7 +307,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if config.ReaderFunc != nil {
 		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
 	} else {
-		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, 4096))
+		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, 1024*128))
 	}
 	if config.WriterFunc != nil {
 		c.writerTo = config.WriterFunc(c.conn)

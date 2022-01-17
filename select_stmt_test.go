@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/setting"
 )
 
 func TestSelectError(t *testing.T) {
@@ -56,10 +57,10 @@ func TestSelectError(t *testing.T) {
 	col := column.NewUint64(false)
 	col2 := column.NewUint64(false)
 	for res.Next() {
-		name, chType, errNext := res.NextColumnDetail(col)
+		errNext := res.NextColumn(col)
 		assert.NoError(t, errNext)
-		assert.Equal(t, name, "number")
-		assert.Equal(t, chType, "UInt64")
+		assert.Equal(t, string(col.Name()), "number")
+		assert.Equal(t, string(col.Type()), "UInt64")
 		err = res.NextColumn(col2)
 		require.EqualError(t, err, "read 2 column(s), but available 1 column(s)")
 	}
@@ -71,8 +72,9 @@ func TestSelectError(t *testing.T) {
 	require.NoError(t, err)
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-
-	res, err = c.Select(context.Background(), "select number,number+1 from system.numbers limit 1")
+	settings := setting.NewSettings()
+	settings.MaxRowsInSet(1000)
+	res, err = c.SelectWithSetting(context.Background(), "select number,number+1 from system.numbers limit 1", settings)
 	require.NotNil(t, res)
 	require.NoError(t, err)
 	for res.Next() {
@@ -80,6 +82,18 @@ func TestSelectError(t *testing.T) {
 		require.NoError(t, err)
 	}
 	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
+
+	c.Close(context.Background())
+
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	res, err = c.Select(context.Background(), "select number,number+1 from system.numbers limit 1")
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	for res.Next() {
+		err = res.ReadColumns(col)
+		require.EqualError(t, err, "read 1 column(s), but available 2 column(s)")
+	}
 
 	c.Close(context.Background())
 }

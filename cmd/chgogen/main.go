@@ -87,7 +87,7 @@ func main() {
 	col := column.NewString(false)
 	var explain explainData
 	for stmt.Next() {
-		err = stmt.NextColumn(col)
+		err = stmt.ReadColumns(col)
 		if err != nil {
 			log.Fatal(err)
 		}

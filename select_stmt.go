@@ -18,10 +18,10 @@ type SelectStmt interface {
 	// Close after reads all data should call this function to unlock connection
 	// NOTE: You shoud read all data and then call this function
 	Close()
-	// NextColumn get the next column of block
+	// Deprecated: use ReadColumns instead
 	NextColumn(colData column.Column) error
-	// NextColumnDetail get the next column of block with name and type
-	NextColumnDetail(colData column.Column) (name, chType string, err error)
+	// ReadColumns read all columns of block
+	ReadColumns(columns ...column.Column) error
 }
 type selectStmt struct {
 	block            *block
@@ -36,6 +36,7 @@ type selectStmt struct {
 	Progress         *Progress
 	closed           bool
 	numberColumnRead int
+	readAll          bool
 }
 
 var _ SelectStmt = &selectStmt{}
@@ -90,6 +91,7 @@ func (s *selectStmt) Next() bool {
 	}
 
 	if res == nil {
+		s.readAll = true
 		return false
 	}
 
@@ -108,35 +110,33 @@ func (s *selectStmt) Err() error {
 }
 
 // Close after reads all data should call this function to unlock connection
-// NOTE: You shoud read all data and then call this function
+// NOTE: You should read all blocks and then call this function
 func (s *selectStmt) Close() {
 	s.conn.reader.SetCompress(false)
 	if !s.closed {
 		s.closed = true
 		s.conn.unlock()
-		if s.Err() != nil {
+		if s.Err() != nil || !s.readAll {
 			s.conn.Close(context.Background())
 		}
 	}
 	s.numberColumnRead = 0
+	s.readAll = false
 }
 
-// NextColumn get the next column of block
+// Deprecated: use ReadColumns instead
 func (s *selectStmt) NextColumn(colData column.Column) error {
 	s.numberColumnRead++
 	if s.numberColumnRead > int(s.block.NumColumns) {
-		return &ColumnNumberReadError{
+		err := &ColumnNumberReadError{
 			Read:      s.numberColumnRead,
 			Available: s.block.NumColumns,
 		}
-	}
-	_, err := s.block.nextColumn(s.conn)
-	if err != nil {
 		s.Close()
 		s.conn.Close(context.Background())
 		return err
 	}
-	err = colData.HeaderReader(s.conn.reader)
+	err := colData.HeaderReader(s.conn.reader)
 	if err != nil {
 		s.Close()
 		s.conn.Close(context.Background())
@@ -150,35 +150,32 @@ func (s *selectStmt) NextColumn(colData column.Column) error {
 	return err
 }
 
-// NextColumnDetail get the next column of block with name and type
-func (s *selectStmt) NextColumnDetail(colData column.Column) (name, chType string, err error) {
-	s.numberColumnRead++
-	if s.numberColumnRead > int(s.block.NumColumns) {
-		err = &ColumnNumberReadError{
-			Read:      s.numberColumnRead,
+// ReadColumns read all columns of block
+func (s *selectStmt) ReadColumns(columns ...column.Column) error {
+	if int(s.block.NumColumns) != len(columns) {
+		s.Close()
+		s.conn.Close(context.Background())
+		return &ColumnNumberReadError{
+			Read:      len(columns),
 			Available: s.block.NumColumns,
 		}
-		return
 	}
-	col, errNext := s.block.nextColumn(s.conn)
-	if err != nil {
-		s.Close()
-		s.conn.Close(context.Background())
-		err = errNext
-		return
+	s.numberColumnRead = int(s.block.NumColumns)
+	// todo: validate number of bytes
+
+	for _, col := range columns {
+		err := col.HeaderReader(s.conn.reader)
+		if err != nil {
+			s.Close()
+			s.conn.Close(context.Background())
+			return err
+		}
+		err = col.ReadRaw(s.RowsInBlock(), s.conn.reader)
+		if err != nil {
+			s.Close()
+			s.conn.Close(context.Background())
+			return err
+		}
 	}
-	chType = col.ChType
-	name = col.Name
-	err = colData.HeaderReader(s.conn.reader)
-	if err != nil {
-		s.Close()
-		s.conn.Close(context.Background())
-		return
-	}
-	err = colData.ReadRaw(s.RowsInBlock(), s.conn.reader)
-	if err != nil {
-		s.Close()
-		s.conn.Close(context.Background())
-	}
-	return
+	return nil
 }

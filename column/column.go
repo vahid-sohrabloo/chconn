@@ -18,19 +18,27 @@ type Column interface {
 	isNullable() bool
 	setNullable(nullable bool)
 	AppendEmpty()
+	Name() []byte
+	Type() []byte
+	setParent(parent Column)
+	getParent() Column
 }
 
 type column struct {
-	r           *readerwriter.Reader
-	b           []byte
-	i           int
-	iNull       int
-	numRow      int
-	totalByte   int
-	size        int
-	writerData  []byte
-	nullable    bool
-	colNullable *nullable
+	r             *readerwriter.Reader
+	b             []byte
+	i             int
+	iNull         int
+	numRow        int
+	totalByte     int
+	size          int
+	writerData    []byte
+	nullable      bool
+	colNullable   *nullable
+	name          []byte
+	chType        []byte
+	parent        Column
+	ownReadBuffer bool
 }
 
 // ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
@@ -39,6 +47,7 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
 	c.totalByte = num * c.size
+
 	if c.nullable {
 		err := c.colNullable.ReadRaw(num, r)
 		if err != nil {
@@ -46,6 +55,41 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 		}
 	}
 	return c.readBuffer()
+}
+
+func (c *column) readColumn() error {
+	if c.parent != nil {
+		return nil
+	}
+	strLen, err := c.r.Uvarint()
+	if err != nil {
+		return err
+	}
+	if cap(c.name) < int(strLen) {
+		c.name = make([]byte, strLen)
+	} else {
+		c.name = c.name[:strLen]
+	}
+	_, err = c.r.Read(c.name)
+	if err != nil {
+		return err
+	}
+
+	strLen, err = c.r.Uvarint()
+	if err != nil {
+		return err
+	}
+	if cap(c.chType) < int(strLen) {
+		c.chType = make([]byte, strLen)
+	} else {
+		c.chType = c.chType[:strLen]
+	}
+	_, err = c.r.Read(c.chType)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 // Reset all status and buffer data
@@ -56,6 +100,7 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 func (c *column) Reset() {
 	c.i = 0
 	c.numRow = 0
+	c.iNull = 0
 	c.writerData = c.writerData[:0]
 	if c.nullable {
 		c.colNullable.Reset()
@@ -63,10 +108,9 @@ func (c *column) Reset() {
 }
 
 func (c *column) readBuffer() error {
-	if c.size == 0 || c.totalByte == 0 {
+	if c.ownReadBuffer {
 		return nil
 	}
-
 	if cap(c.b) < c.totalByte {
 		c.b = make([]byte, c.totalByte)
 	} else {
@@ -99,8 +143,9 @@ func (c *column) HeaderWriter(w *readerwriter.Writer) {
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *column) HeaderReader(*readerwriter.Reader) error {
-	return nil
+func (c *column) HeaderReader(r *readerwriter.Reader) error {
+	c.r = r
+	return c.readColumn()
 }
 
 // WriteTo write data clickhouse
@@ -143,4 +188,28 @@ func (c *column) ReadAllNil(value *[]uint8) {
 func (c *column) FillNil(value []uint8) {
 	copy(value, c.colNullable.b[c.iNull:c.iNull+len(value)])
 	c.iNull += len(value)
+}
+
+// Name get name of the column
+func (c *column) Name() []byte {
+	return c.name
+}
+
+// Type get clickhouse type
+func (c *column) Type() []byte {
+	return c.chType
+}
+
+func (c *column) setParent(parent Column) {
+	c.parent = parent
+}
+
+func (c *column) getParent() Column {
+	return c.parent
+}
+
+// AppendEmpty append empty value for insert
+func (c *column) AppendEmpty() {
+	c.numRow++
+	c.writerData = append(c.writerData, emptyByte[:c.size]...)
 }

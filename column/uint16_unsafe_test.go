@@ -59,7 +59,7 @@ func TestUint16Unsafe(t *testing.T) {
 	var colData []uint16
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead)
 		require.NoError(t, err)
 		colData = append(colData, colRead.GetAllUnsafe()...)
 	}
@@ -80,7 +80,7 @@ func TestUint16Unsafe(t *testing.T) {
 	colData = colData[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead)
 		require.NoError(t, err)
 		colRead.ReadAllUnsafe(&colData)
 	}

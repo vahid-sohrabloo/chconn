@@ -135,18 +135,14 @@ func TestString(t *testing.T) {
 	var colArrayLens []int
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		colRead.ReadAll(&colData)
 
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		colNilRead.ReadAllP(&colNilData)
 
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -157,8 +153,6 @@ func TestString(t *testing.T) {
 
 		// read nullable array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -194,22 +188,18 @@ func TestString(t *testing.T) {
 	colArrayDataNil = colArrayDataNil[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		for colRead.Next() {
 			colData = append(colData, colRead.Value())
 		}
 
 		// read nullable
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		for colNilRead.Next() {
 			colNilData = append(colNilData, colNilRead.ValueP())
 		}
 
 		// read array
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		for colArrayRead.Next() {
 			arr := make([][]byte, colArrayRead.Value())
 			colArrayReadData.Fill(arr)
@@ -217,8 +207,6 @@ func TestString(t *testing.T) {
 		}
 
 		// read nullable array
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		for colArrayReadNil.Next() {
 			arr := make([]*[]byte, colArrayReadNil.Value())
 			colArrayReadDataNil.FillP(arr)
@@ -230,6 +218,42 @@ func TestString(t *testing.T) {
 	assert.Equal(t, colNilInsert, colNilData)
 	assert.Equal(t, colInsertArray, colArrayData)
 	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
+	require.NoError(t, selectStmt.Err())
+
+	selectStmt.Close()
+
+	// another read null one by one
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		string_nullable,string_nullable	FROM test_string`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colNilRead = column.NewString(true)
+	colNilRead2 := column.NewString(true)
+	colNilData = colNilData[:0]
+	nilsData := make([]uint8, 0)
+
+	for selectStmt.Next() {
+		err = selectStmt.ReadColumns(colNilRead, colNilRead2)
+		require.NoError(t, err)
+		// read nullable
+		for colNilRead.Next() {
+			if colNilRead.ValueIsNil() {
+				colNilData = append(colNilData, nil)
+			} else {
+				val := colNilRead.Value()
+				colNilData = append(colNilData, &val)
+			}
+		}
+		// or this way to get nils status
+		colNilRead.ReadAllNil(&nilsData)
+
+		nilsFillData := make([]uint8, selectStmt.RowsInBlock())
+		// or this way to get nils status
+		colNilRead2.FillNil(nilsFillData)
+	}
+
+	assert.Equal(t, colNilInsert, colNilData)
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()

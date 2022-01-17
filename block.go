@@ -7,8 +7,8 @@ import (
 
 // Column contains details of ClickHouse column with Buffer index in inserting
 type chColumn struct {
-	ChType string
-	Name   string
+	ChType []byte
+	Name   []byte
 }
 
 type block struct {
@@ -33,8 +33,8 @@ func (block *block) reset() {
 }
 
 func (block *block) read(ch *conn) error {
-	if _, err := ch.reader.String(); err != nil { // temporary table
-		return err
+	if _, err := ch.reader.ByteString(); err != nil { // temporary table
+		return &readError{"block: temporary table", err}
 	}
 
 	ch.reader.SetCompress(ch.compress)
@@ -88,10 +88,10 @@ func (block *block) readColumns(ch *conn) error {
 func (block *block) nextColumn(ch *conn) (chColumn, error) {
 	col := chColumn{}
 	var err error
-	if col.Name, err = ch.reader.String(); err != nil {
+	if col.Name, err = ch.reader.ByteString(); err != nil {
 		return col, &readError{"block: read column name", err}
 	}
-	if col.ChType, err = ch.reader.String(); err != nil {
+	if col.ChType, err = ch.reader.ByteString(); err != nil {
 		return col, &readError{"block: read column type", err}
 	}
 	return col, nil
@@ -128,19 +128,19 @@ func (block *block) writeColumnsBuffer(ch *conn, columns ...column.Column) error
 			return &NumberWriteError{
 				FirstNumRow: numRows,
 				NumRow:      columns[i].NumRow(),
-				Column:      column.Name,
+				Column:      string(column.Name),
 			}
 		}
 		block.headerWriter.Reset()
-		block.headerWriter.String(column.Name)
-		block.headerWriter.String(column.ChType)
+		block.headerWriter.ByteString(column.Name)
+		block.headerWriter.ByteString(column.ChType)
 
 		columns[i].HeaderWriter(block.headerWriter)
 		if _, err := block.headerWriter.WriteTo(ch.writerToCompress); err != nil {
-			return &writeError{"block: write header block data for column " + column.Name, err}
+			return &writeError{"block: write header block data for column " + string(column.Name), err}
 		}
 		if _, err := columns[i].WriteTo(ch.writerToCompress); err != nil {
-			return &writeError{"block: write block data for column " + column.Name, err}
+			return &writeError{"block: write block data for column " + string(column.Name), err}
 		}
 	}
 	err := ch.flushCompress()
@@ -152,7 +152,7 @@ func (block *block) writeColumnsBuffer(ch *conn, columns ...column.Column) error
 
 type blockInfo struct {
 	field1      uint64
-	isOverflows bool
+	isOverflows uint8
 	field2      uint64
 	bucketNum   int32
 	num3        uint64
@@ -163,7 +163,7 @@ func (info *blockInfo) read(r *readerwriter.Reader) error {
 	if info.field1, err = r.Uvarint(); err != nil {
 		return &readError{"blockInfo: read field1", err}
 	}
-	if info.isOverflows, err = r.Bool(); err != nil {
+	if info.isOverflows, err = r.ReadByte(); err != nil {
 		return &readError{"blockInfo: read isOverflows", err}
 	}
 	if info.field2, err = r.Uvarint(); err != nil {
@@ -180,7 +180,7 @@ func (info *blockInfo) read(r *readerwriter.Reader) error {
 
 func (info *blockInfo) write(w *readerwriter.Writer) {
 	w.Uvarint(1)
-	w.Bool(info.isOverflows)
+	w.Uint8(info.isOverflows)
 	w.Uvarint(2)
 
 	if info.bucketNum == 0 {

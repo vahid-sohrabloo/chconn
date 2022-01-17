@@ -199,7 +199,7 @@ func generateColumns(packageName, structName string, columns []chColumns) {
 	).
 		Params(jen.Error()).
 		Block(
-			readAllColumn,
+			jen.Return(jen.Id("stmt").Op(".").Id("ReadColumns").Call(mainColumnsField[1:]...)),
 		).Line()
 
 	err := f.Save(strings.ToLower(structName) + "_column.go")
@@ -452,7 +452,7 @@ func getColumnByType(name, chType string, fields *[]jen.Code, fieldsName *[]stri
 			getColumnByType(name, chType[len("LowCardinality("):len(chType)-1], fields, fieldsName)
 			return
 		}
-		// todo add tuble uint128 uint256 decimal128 decimal256 map
+		// todo add tuple uint128 uint256 decimal128 decimal256 map
 		panic("unknown type: " + chType)
 	}
 	fieldName := getStandardName(name)

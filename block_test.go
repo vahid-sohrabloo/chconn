@@ -21,6 +21,10 @@ func TestBlockReadError(t *testing.T) {
 	}{
 		{
 			name:        "blockInfo: read field1",
+			wantErr:     "block: temporary table",
+			numberValid: startValidReader - 1,
+		}, {
+			name:        "blockInfo: read field1",
 			wantErr:     "blockInfo: read field1",
 			numberValid: startValidReader,
 		}, {
@@ -36,7 +40,6 @@ func TestBlockReadError(t *testing.T) {
 			wantErr:     "blockInfo: read bucketNum",
 			numberValid: startValidReader + 3,
 		}, {
-			// because varint needs two read
 			name:        "blockInfo: read num3",
 			wantErr:     "blockInfo: read num3",
 			numberValid: startValidReader + 4,

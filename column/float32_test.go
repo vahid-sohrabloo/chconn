@@ -134,18 +134,15 @@ func TestFloat32(t *testing.T) {
 	var colArrayLens []int
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
+
 		colRead.ReadAll(&colData)
 
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		colNilRead.ReadAllP(&colNilData)
 
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -156,8 +153,6 @@ func TestFloat32(t *testing.T) {
 
 		// read nullable array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 
 		for _, l := range colArrayLens {
@@ -194,22 +189,18 @@ func TestFloat32(t *testing.T) {
 	colArrayDataNil = colArrayDataNil[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		for colRead.Next() {
 			colData = append(colData, colRead.Value())
 		}
 
 		// read nullable
-		err = selectStmt.NextColumn(colNilRead)
-		require.NoError(t, err)
 		for colNilRead.Next() {
 			colNilData = append(colNilData, colNilRead.ValueP())
 		}
 
 		// read array
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		for colArrayRead.Next() {
 			arr := make([]float32, colArrayRead.Value())
 			colArrayReadData.Fill(arr)
@@ -217,8 +208,6 @@ func TestFloat32(t *testing.T) {
 		}
 
 		// read nullable array
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		for colArrayReadNil.Next() {
 			arr := make([]*float32, colArrayReadNil.Value())
 			colArrayReadDataNil.FillP(arr)

@@ -27,15 +27,6 @@ func (w *Writer) Uvarint(v uint64) {
 	w.Write(w.scratch[:ln])
 }
 
-// Bool write bool value
-func (w *Writer) Bool(v bool) {
-	if v {
-		w.Uint8(1)
-		return
-	}
-	w.Uint8(0)
-}
-
 // Int32 write Int32 value
 func (w *Writer) Int32(v int32) {
 	w.Uint32(uint32(v))
@@ -49,13 +40,6 @@ func (w *Writer) Int64(v int64) {
 // Uint8 write Uint8 value
 func (w *Writer) Uint8(v uint8) {
 	w.output.WriteByte(v)
-}
-
-// Uint16 write Uint16 value
-func (w *Writer) Uint16(v uint16) {
-	w.scratch[0] = byte(v)
-	w.scratch[1] = byte(v >> 8)
-	w.Write(w.scratch[:2])
 }
 
 // Uint32 write Uint32 value
@@ -85,6 +69,12 @@ func (w *Writer) String(v string) {
 	str := str2Bytes(v)
 	w.Uvarint(uint64(len(str)))
 	w.Write(str)
+}
+
+// String write string
+func (w *Writer) ByteString(v []byte) {
+	w.Uvarint(uint64(len(v)))
+	w.Write(v)
 }
 
 // Write write raw []byte data

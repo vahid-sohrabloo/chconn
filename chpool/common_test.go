@@ -40,7 +40,7 @@ func testSelect(t *testing.T, db selecter) {
 	require.NoError(t, err)
 	col := column.NewUint64(false)
 	for stmt.Next() {
-		err := stmt.NextColumn(col)
+		err := stmt.ReadColumns(col)
 		assert.NoError(t, err)
 		col.ReadAll(&nums)
 		assert.NoError(t, err)

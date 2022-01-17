@@ -149,7 +149,7 @@ func TestIPv4LC(t *testing.T) {
 	var colArrayLens []int
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colLCRead)
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		colRead.ReadAll(&colDataDict)
 		colLCRead.ReadAll(&colDataKeys)
@@ -157,8 +157,6 @@ func TestIPv4LC(t *testing.T) {
 		for _, k := range colDataKeys {
 			colData = append(colData, colDataDict[k])
 		}
-		err = selectStmt.NextColumn(colNilLCRead)
-		require.NoError(t, err)
 		colNilRead.ReadAll(&colNilDataDict)
 		colNilLCRead.ReadAll(&colNilDataKeys)
 
@@ -173,8 +171,6 @@ func TestIPv4LC(t *testing.T) {
 
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 		colArrayReadData.ReadAll(&colArrayDataDict)
 		for _, l := range colArrayLens {
@@ -189,8 +185,6 @@ func TestIPv4LC(t *testing.T) {
 
 		// read array nil
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		colArrayReadNil.ReadAll(&colArrayLens)
 		colArrayReadDataNil.ReadAll(&colArrayDataDictNil)
 		for _, l := range colArrayLens {
@@ -238,15 +232,13 @@ func TestIPv4LC(t *testing.T) {
 	colNilData = colNilData[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colLCRead)
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead)
 		require.NoError(t, err)
 		colRead.ReadAll(&colDataDict)
 
 		for colLCRead.Next() {
 			colData = append(colData, colDataDict[colLCRead.Value()])
 		}
-		err = selectStmt.NextColumn(colNilLCRead)
-		require.NoError(t, err)
 		colNilRead.ReadAll(&colNilDataDict)
 
 		for colNilLCRead.Next() {

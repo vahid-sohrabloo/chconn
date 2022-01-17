@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/url"
@@ -545,7 +544,7 @@ func configTLS(settings map[string]string, thisHost string) ([]*tls.Config, erro
 		caCertPool := x509.NewCertPool()
 
 		caPath := sslrootcert
-		caCert, err := ioutil.ReadFile(caPath)
+		caCert, err := os.ReadFile(caPath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read CA file: %w", err)
 		}

@@ -18,9 +18,10 @@ func NewString(nullable bool) *String {
 	return &String{
 		dict: make(map[string]int),
 		column: column{
-			nullable:    nullable,
-			colNullable: newNullable(),
-			size:        0,
+			nullable:      nullable,
+			colNullable:   newNullable(),
+			size:          1,
+			ownReadBuffer: true,
 		},
 	}
 }
@@ -108,9 +109,18 @@ func (c *String) ReadAll(value *[][]byte) {
 	*value = append(*value, c.vals...)
 }
 
-// GetAll get all string in this block
+// GetAll get all values in this block
 func (c *String) GetAll() [][]byte {
 	return c.vals
+}
+
+// GetAll get all string values in this block
+func (c *String) GetAllString() []string {
+	data := make([]string, len(c.vals))
+	for i, v := range c.vals {
+		data[i] = string(v)
+	}
+	return data
 }
 
 // ReadAllString read all string value in this block and append to the input slice

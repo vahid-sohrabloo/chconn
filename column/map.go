@@ -19,7 +19,7 @@ type Map struct {
 
 // NewMap return new Map for Map ClickHouse DataTypes
 func NewMap(columnKey, columnValue Column) *Map {
-	return &Map{
+	m := &Map{
 		columnKey:   columnKey,
 		columnValue: columnValue,
 		Uint64: Uint64{
@@ -28,6 +28,9 @@ func NewMap(columnKey, columnValue Column) *Map {
 			},
 		},
 	}
+	columnKey.setParent(m)
+	columnValue.setParent(m)
+	return m
 }
 
 // ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
@@ -59,7 +62,11 @@ func (c *Map) HeaderWriter(w *readerwriter.Writer) {
 // HeaderReader reads header data from read
 // it uses internally
 func (c *Map) HeaderReader(r *readerwriter.Reader) error {
-	err := c.columnKey.HeaderReader(r)
+	err := c.Uint64.HeaderReader(r)
+	if err != nil {
+		return err
+	}
+	err = c.columnKey.HeaderReader(r)
 	if err != nil {
 		return err
 	}

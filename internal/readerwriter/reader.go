@@ -33,15 +33,6 @@ func (r *Reader) SetCompress(c bool) {
 	r.input = r.mainReader
 }
 
-// Bool read bool value
-func (r *Reader) Bool() (bool, error) {
-	v, err := r.ReadByte()
-	if err != nil {
-		return false, err
-	}
-	return v == 1, nil
-}
-
 // Uvarint read variable uint64 value
 func (r *Reader) Uvarint() (uint64, error) {
 	return binary.ReadUvarint(r)

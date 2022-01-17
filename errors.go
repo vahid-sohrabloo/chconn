@@ -52,7 +52,7 @@ type ChError struct {
 func (e *ChError) read(r *readerwriter.Reader) error {
 	var (
 		err       error
-		hasNested bool
+		hasNested uint8
 	)
 	if e.Code, err = r.Int32(); err != nil {
 		return &readError{"ChError: read code", err}
@@ -67,10 +67,10 @@ func (e *ChError) read(r *readerwriter.Reader) error {
 	if e.StackTrace, err = r.String(); err != nil {
 		return &readError{"ChError: read StackTrace", err}
 	}
-	if hasNested, err = r.Bool(); err != nil {
+	if hasNested, err = r.ReadByte(); err != nil {
 		return &readError{"ChError: read hasNested", err}
 	}
-	if hasNested {
+	if hasNested == 1 {
 		nestedErr := &ChError{}
 		if err := nestedErr.read(r); err != nil {
 			return err
@@ -244,5 +244,5 @@ type NumberWriteError struct {
 }
 
 func (e *NumberWriteError) Error() string {
-	return fmt.Sprintf("first column has %d rows but \"%s\" column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
+	return fmt.Sprintf("first column has %d rows but %q column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
 }

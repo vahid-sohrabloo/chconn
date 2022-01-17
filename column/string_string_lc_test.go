@@ -147,7 +147,7 @@ func TestSringStringLC(t *testing.T) {
 	var colArrayLens []int
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colLCRead)
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		colRead.ReadAllString(&colDataDict)
 		colLCRead.ReadAll(&colDataKeys)
@@ -155,8 +155,6 @@ func TestSringStringLC(t *testing.T) {
 		for _, k := range colDataKeys {
 			colData = append(colData, colDataDict[k])
 		}
-		err = selectStmt.NextColumn(colNilLCRead)
-		require.NoError(t, err)
 		colNilRead.ReadAllString(&colNilDataDict)
 		colNilLCRead.ReadAll(&colNilDataKeys)
 
@@ -171,8 +169,6 @@ func TestSringStringLC(t *testing.T) {
 
 		// read array
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayRead)
-		require.NoError(t, err)
 		colArrayRead.ReadAll(&colArrayLens)
 		colArrayReadData.ReadAllString(&colArrayDataDict)
 		for _, l := range colArrayLens {
@@ -187,8 +183,6 @@ func TestSringStringLC(t *testing.T) {
 
 		// read array nil
 		colArrayLens = colArrayLens[:0]
-		err = selectStmt.NextColumn(colArrayReadNil)
-		require.NoError(t, err)
 		colArrayReadNil.ReadAll(&colArrayLens)
 		colArrayReadDataNil.ReadAllString(&colArrayDataDictNil)
 		for _, l := range colArrayLens {
@@ -236,15 +230,14 @@ func TestSringStringLC(t *testing.T) {
 	colNilData = colNilData[:0]
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colLCRead)
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead)
 		require.NoError(t, err)
 		colRead.ReadAllString(&colDataDict)
 
 		for colLCRead.Next() {
 			colData = append(colData, colDataDict[colLCRead.Value()])
 		}
-		err = selectStmt.NextColumn(colNilLCRead)
-		require.NoError(t, err)
+
 		colNilRead.ReadAllString(&colNilDataDict)
 
 		for colNilLCRead.Next() {
