@@ -11,7 +11,7 @@ import (
 )
 
 func Example() {
-	conn, err := chpool.Connect(context.Background(), os.Getenv("DATABESE_URL"))
+	conn, err := chpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
@@ -84,17 +84,13 @@ func Example() {
 	var col2DataNil []uint8
 	var col2Data []uint64
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(col1Read)
+		err = selectStmt.ReadColumns(col1Read, col2Read)
 		if err != nil {
 			panic(err)
 		}
 		col1Data = col1Data[:0]
 		col1Read.ReadAll(&col1Data)
 
-		err = selectStmt.NextColumn(col2Read)
-		if err != nil {
-			panic(err)
-		}
 		col2DataNil = col2DataNil[:0]
 		col2Read.ReadAllNil(&col2DataNil)
 
