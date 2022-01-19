@@ -55,8 +55,8 @@ func TestFixedStringStringLC(t *testing.T) {
 
 	rows := 10
 	for i := 1; i <= rows; i++ {
-		val := string(fmt.Sprintf("%10d", i))
-		valArray := []string{val, string(fmt.Sprintf("%10d", i+1))}
+		val := fmt.Sprintf("%10d", i)
+		valArray := []string{val, fmt.Sprintf("%10d", i+1)}
 		valArrayNil := []*string{&val, nil}
 
 		col.AppendStringDict(val)

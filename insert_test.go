@@ -331,8 +331,8 @@ func TestInsertColumnError(t *testing.T) {
 			require.EqualError(t, err, tt.wantErr)
 		})
 	}
-
 }
+
 func TestInsertColumnErrorCompress(t *testing.T) {
 	t.Parallel()
 
@@ -397,5 +397,4 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 			require.EqualError(t, err, tt.wantErr)
 		})
 	}
-
 }

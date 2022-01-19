@@ -153,7 +153,7 @@ func (c *Raw) AppendStringDict(v string) {
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
-		c.dict[string(v)] = key
+		c.dict[v] = key
 		c.Append([]byte(v))
 	}
 	if c.nullable {
@@ -199,7 +199,7 @@ func (c *Raw) AppendStringDictP(v *string) {
 		c.keys = append(c.keys, 0)
 		return
 	}
-	key, ok := c.dict[string(*v)]
+	key, ok := c.dict[*v]
 	if !ok {
 		key = len(c.dict)
 		c.dict[*v] = key

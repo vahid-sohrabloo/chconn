@@ -142,7 +142,7 @@ func (c *LC) HeaderReader(r *readerwriter.Reader) error {
 	// write KeysSerializationVersion. for more information see clickhouse docs
 	_, err = r.Uint64()
 	if err != nil {
-		err = fmt.Errorf("error reading keys serialization version: %v", err)
+		err = fmt.Errorf("error reading keys serialization version: %w", err)
 	}
 	return err
 }
