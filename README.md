@@ -129,37 +129,37 @@ selected 100M rows in  880.505004ms
 For more information please read [wiki](https://github.com/vahid-sohrabloo/chconn/wiki)
 
 ## Features
-*  Connection pool with after-connect hook for arbitrary connection setup similar to pgx (thanks @jackc)
-*  Support All ClickHouse data types
-*  Read and write data in column-oriented (like ClickHouse)
-*  Do not use `interface{}` , `reflect`
-*  Batch select and insert
-*  Full TLS connection control
-*  Read raw binary data
-*  Supports profile and progress 
-*  database url connection very like pgx (thanks @jackc)
-*  Code generator for Insert
-*  Support LZ4 compression protocol
+  * Connection pool with after-connect hook for arbitrary connection setup similar to pgx (thanks @jackc)
+  * Support All ClickHouse data types
+  * Read and write data in column-oriented (like ClickHouse)
+  * Do not use `interface{}` , `reflect`
+  * Batch select and insert
+  * Full TLS connection control
+  * Read raw binary data
+  * Supports profile and progress 
+  * database url connection very like pgx (thanks @jackc)
+  * Code generator for Insert
+  * Support LZ4 compression protocol
 
 ## Supported types
-*  UInt8, UInt16, UInt32, UInt64, UInt128, UInt256
-*  Int8, Int16, Int32, Int64, Int128, Int256
-*  Date, Date32, DateTime, DateTime64
-*  Decimal32, Decimal64, Decimal128, Decimal256
-*  IPv4, IPv6
-*  String, FixedString(N)
-*  UUID
-*  Array(T)
-*  Enums
-*  LowCardinality(T)
-*  Map(K, V)
-*  Tuple(T1, T2, ..., Tn)
-*  Nullable(T)
+  * UInt8, UInt16, UInt32, UInt64, UInt128, UInt256
+  * Int8, Int16, Int32, Int64, Int128, Int256
+  * Date, Date32, DateTime, DateTime64
+  * Decimal32, Decimal64, Decimal128, Decimal256
+  * IPv4, IPv6
+  * String, FixedString(N)
+  * UUID
+  * Array(T)
+  * Enums
+  * LowCardinality(T)
+  * Map(K, V)
+  * Tuple(T1, T2, ..., Tn)
+  * Nullable(T)
 
 ## TODO
-*  Support ExternalTable
-*  Support Clickhouse Log
-*  Add code generator for select
+  * Support ExternalTable
+  * Support Clickhouse Log
+  * Add code generator for select
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn?ref=badge_large)
