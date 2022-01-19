@@ -188,7 +188,7 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	nw, err = c.writeUint64(w, uint64(len(keys)))
 	n += int64(nw)
 	if err != nil {
-		return n, fmt.Errorf("error writing keys: %w", err)
+		return n, fmt.Errorf("error writing keys len: %w", err)
 	}
 
 	switch intType {

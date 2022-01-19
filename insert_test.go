@@ -313,7 +313,6 @@ func TestInsertColumnError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// test write block info error
 			config.WriterFunc = func(w io.Writer) io.Writer {
 				return &writerErrorHelper{
 					err:         errors.New("timeout"),
@@ -379,7 +378,6 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// test write block info error
 			config.WriterFunc = func(w io.Writer) io.Writer {
 				return &writerErrorHelper{
 					err:         errors.New("timeout"),
@@ -393,6 +391,87 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 			err = c.Insert(context.Background(),
 				"insert into clickhouse_test_insert_column_error (int8) VALUES",
 				col,
+			)
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestInsertColumnLowCardinality(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_lc`)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_lc (
+		col  LowCardinality(String)
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write stype",
+			wantErr:     "block: write block data for column col (error writing stype: timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "write dictionarySize",
+			wantErr:     "block: write block data for column col (error writing dictionarySize: timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "write dictionary",
+			wantErr:     "block: write block data for column col (error writing dictionary: timeout)",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "write keys len",
+			wantErr:     "block: write block data for column col (error writing keys len: timeout)",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "write indices",
+			wantErr:     "block: write block data for column col (error writing indices: timeout)",
+			numberValid: startValidReader + 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.NewString(false)
+			colLC := column.NewLowCardinality(col)
+			col.AppendStringDict("test")
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_lc (col) VALUES",
+				colLC,
 			)
 			require.EqualError(t, err, tt.wantErr)
 		})
