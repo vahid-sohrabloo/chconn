@@ -95,8 +95,8 @@ func TestMap(t *testing.T) {
 	require.Equal(t, len(colInsert), len(colDataKey))
 	require.Equal(t, len(colInsert), len(colDataValue))
 	for i, val := range colDataKey {
-		for y, kData := range val {
-			assert.Equal(t, colInsert[i][kData], colDataValue[i][y])
+		for y, data := range val {
+			assert.Equal(t, colInsert[i][data], colDataValue[i][y])
 		}
 	}
 	require.NoError(t, selectStmt.Err())
@@ -133,8 +133,8 @@ func TestMap(t *testing.T) {
 	require.Equal(t, len(colInsert), len(colDataKey))
 	require.Equal(t, len(colInsert), len(colDataValue))
 	for i, val := range colDataKey {
-		for y, kData := range val {
-			assert.Equal(t, colInsert[i][kData], colDataValue[i][y])
+		for y, data := range val {
+			assert.Equal(t, colInsert[i][data], colDataValue[i][y])
 		}
 	}
 	require.NoError(t, selectStmt.Err())

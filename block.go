@@ -57,22 +57,9 @@ func (block *block) read(ch *conn) error {
 	return nil
 }
 
-func (block *block) initForInsert(ch *conn) error {
+func (block *block) readColumns(ch *conn) error {
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
-	block.Columns = make([]chColumn, block.NumColumns)
-	for i := uint64(0); i < block.NumColumns; i++ {
-		col, err := block.nextColumn(ch)
-		if err != nil {
-			return err
-		}
-		block.Columns[i] = col
-	}
-
-	return nil
-}
-
-func (block *block) readColumns(ch *conn) error {
 	block.Columns = make([]chColumn, block.NumColumns)
 
 	for i := uint64(0); i < block.NumColumns; i++ {

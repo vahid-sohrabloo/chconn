@@ -81,10 +81,12 @@ func (e *ChError) read(r *readerwriter.Reader) error {
 	return nil
 }
 
+// Unwrap returns the underlying error
 func (e *ChError) Unwrap() error {
 	return e.err
 }
 
+// Error return string error
 func (e *ChError) Error() string {
 	if e.err == nil {
 		return fmt.Sprintf(" %s (%d): %s", e.Name, e.Code, e.Message)
@@ -208,10 +210,12 @@ type InsertError struct {
 	err error
 }
 
+// Error return string error
 func (e *InsertError) Error() string {
 	return fmt.Sprintf("failed to insert data: %s", e.err.Error())
 }
 
+// Unwrap returns the underlying error
 func (e *InsertError) Unwrap() error {
 	return e.err
 }

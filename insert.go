@@ -95,7 +95,7 @@ func (ch *conn) InsertWithSetting(
 		return &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
-	err = blockData.initForInsert(ch)
+	err = blockData.readColumns(ch)
 	if err != nil {
 		hasError = true
 		return err
