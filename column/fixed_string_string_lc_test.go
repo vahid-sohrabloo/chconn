@@ -12,7 +12,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/column"
 )
 
-func TestSringStringLC(t *testing.T) {
+func TestFixedStringStringLC(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -20,32 +20,32 @@ func TestSringStringLC(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_lc_string_string`)
+	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_lc_fixedstring_string`)
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	res, err = conn.Exec(context.Background(), `CREATE TABLE test_lc_string_string (
-				string_lc LowCardinality(String),
-				string_lc_nullable LowCardinality(Nullable(String)),
-				string_lc_array Array(LowCardinality(String)),
-				string_lc_array_nullable Array(LowCardinality(Nullable(String)))
+	res, err = conn.Exec(context.Background(), `CREATE TABLE test_lc_fixedstring_string (
+				fixed_lc LowCardinality(FixedString(10)),
+				fixed_lc_nullable LowCardinality(Nullable(FixedString(10))),
+				fixed_lc_array Array(LowCardinality(FixedString(10))),
+				fixed_lc_array_nullable Array(LowCardinality(Nullable(FixedString(10))))
 			) Engine=Memory`)
 
 	require.NoError(t, err)
 	require.Nil(t, res)
 
-	col := column.NewString(false)
-	colLC := column.NewLC(col)
+	col := column.NewFixedString(10, false)
+	colLC := column.NewLowCardinality(col)
 
-	colNil := column.NewString(true)
-	colNilLC := column.NewLC(colNil)
+	colNil := column.NewFixedString(10, true)
+	colNilLC := column.NewLowCardinality(colNil)
 
-	colArrayValues := column.NewString(false)
-	collArrayLC := column.NewLC(colArrayValues)
+	colArrayValues := column.NewFixedString(10, false)
+	collArrayLC := column.NewLowCardinality(colArrayValues)
 	colArray := column.NewArray(collArrayLC)
 
-	colArrayValuesNil := column.NewString(true)
-	collArrayLCNil := column.NewLC(colArrayValuesNil)
+	colArrayValuesNil := column.NewFixedString(10, true)
+	collArrayLCNil := column.NewLowCardinality(colArrayValuesNil)
 	colArrayNil := column.NewArray(collArrayLCNil)
 
 	var colInsert []string
@@ -55,8 +55,8 @@ func TestSringStringLC(t *testing.T) {
 
 	rows := 10
 	for i := 1; i <= rows; i++ {
-		val := fmt.Sprintf("%d", i)
-		valArray := []string{val, fmt.Sprintf("%d", i+1)}
+		val := string(fmt.Sprintf("%10d", i))
+		valArray := []string{val, string(fmt.Sprintf("%10d", i+1))}
 		valArrayNil := []*string{&val, nil}
 
 		col.AppendStringDict(val)
@@ -90,7 +90,7 @@ func TestSringStringLC(t *testing.T) {
 			colNilInsert = append(colNilInsert, nil)
 			if i <= rows/2 {
 				// example to add by pointer
-				colNil.AppendDictP(nil)
+				colNil.AppendStringDictP(nil)
 			} else {
 				// example to add without pointer
 				colNil.AppendDictNil()
@@ -99,7 +99,7 @@ func TestSringStringLC(t *testing.T) {
 	}
 
 	err = conn.Insert(context.Background(), `INSERT INTO
-		test_lc_string_string(string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable)
+		test_lc_fixedstring_string(fixed_lc,fixed_lc_nullable,fixed_lc_array,fixed_lc_array_nullable)
 	VALUES`,
 		colLC,
 		colNilLC,
@@ -111,23 +111,23 @@ func TestSringStringLC(t *testing.T) {
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
-		string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable
-	FROM test_lc_string_string`)
+		fixed_lc,fixed_lc_nullable,fixed_lc_array,fixed_lc_array_nullable FROM
+	test_lc_fixedstring_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead := column.NewString(false)
-	colLCRead := column.NewLC(colRead)
+	colRead := column.NewFixedString(10, false)
+	colLCRead := column.NewLowCardinality(colRead)
 
-	colNilRead := column.NewString(true)
-	colNilLCRead := column.NewLC(colNilRead)
+	colNilRead := column.NewFixedString(10, true)
+	colNilLCRead := column.NewLowCardinality(colNilRead)
 
-	colArrayReadData := column.NewString(false)
-	colArrayLCRead := column.NewLC(colArrayReadData)
+	colArrayReadData := column.NewFixedString(10, false)
+	colArrayLCRead := column.NewLowCardinality(colArrayReadData)
 	colArrayRead := column.NewArray(colArrayLCRead)
 
-	colArrayReadDataNil := column.NewString(true)
-	colArrayLCReadNil := column.NewLC(colArrayReadDataNil)
+	colArrayReadDataNil := column.NewFixedString(10, true)
+	colArrayLCReadNil := column.NewLowCardinality(colArrayReadDataNil)
 	colArrayReadNil := column.NewArray(colArrayLCReadNil)
 
 	var colDataDict []string
@@ -212,16 +212,16 @@ func TestSringStringLC(t *testing.T) {
 
 	// example one by one
 	selectStmt, err = conn.Select(context.Background(), `SELECT
-		string_lc,string_lc_nullable
-	FROM test_lc_string_string`)
+		fixed_lc,fixed_lc_nullable
+	FROM test_lc_fixedstring_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewString(false)
-	colLCRead = column.NewLC(colRead)
+	colRead = column.NewFixedString(10, false)
+	colLCRead = column.NewLowCardinality(colRead)
 
-	colNilRead = column.NewString(true)
-	colNilLCRead = column.NewLC(colNilRead)
+	colNilRead = column.NewFixedString(10, true)
+	colNilLCRead = column.NewLowCardinality(colNilRead)
 
 	colDataDict = colDataDict[:0]
 	colData = colData[:0]
@@ -237,7 +237,6 @@ func TestSringStringLC(t *testing.T) {
 		for colLCRead.Next() {
 			colData = append(colData, colDataDict[colLCRead.Value()])
 		}
-
 		colNilRead.ReadAllString(&colNilDataDict)
 
 		for colNilLCRead.Next() {
@@ -260,16 +259,16 @@ func TestSringStringLC(t *testing.T) {
 
 	// example get all
 	selectStmt, err = conn.Select(context.Background(), `SELECT
-		string_lc,string_lc_nullable
-	FROM test_lc_string_string`)
+		fixed_lc,fixed_lc_nullable
+	FROM test_lc_fixedstring_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewString(false)
-	colLCRead = column.NewLC(colRead)
+	colRead = column.NewFixedString(10, false)
+	colLCRead = column.NewLowCardinality(colRead)
 
-	colNilRead = column.NewString(true)
-	colNilLCRead = column.NewLC(colNilRead)
+	colNilRead = column.NewFixedString(10, true)
+	colNilLCRead = column.NewLowCardinality(colNilRead)
 
 	colDataDict = colDataDict[:0]
 	colData = colData[:0]
@@ -280,9 +279,7 @@ func TestSringStringLC(t *testing.T) {
 	for selectStmt.Next() {
 		err = selectStmt.ReadColumns(colLCRead, colNilLCRead)
 		require.NoError(t, err)
-
 		colData = append(colData, colRead.GetAllStringDict()...)
-
 		colNilData = append(colNilData, colNilRead.GetAllStringDictP()...)
 	}
 
@@ -295,16 +292,16 @@ func TestSringStringLC(t *testing.T) {
 
 	// example read all
 	selectStmt, err = conn.Select(context.Background(), `SELECT
-		string_lc,string_lc_nullable
-	FROM test_lc_string_string`)
+		fixed_lc,fixed_lc_nullable
+	FROM test_lc_fixedstring_string`)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead = column.NewString(false)
-	colLCRead = column.NewLC(colRead)
+	colRead = column.NewFixedString(10, false)
+	colLCRead = column.NewLowCardinality(colRead)
 
-	colNilRead = column.NewString(true)
-	colNilLCRead = column.NewLC(colNilRead)
+	colNilRead = column.NewFixedString(10, true)
+	colNilLCRead = column.NewLowCardinality(colNilRead)
 
 	colDataDict = colDataDict[:0]
 	colData = colData[:0]

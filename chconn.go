@@ -457,7 +457,7 @@ func (ch *conn) sendData(block *block, numRows int) error {
 	if ch.compress {
 		_, err := ch.writer.WriteTo(ch.writerTo)
 		if err != nil {
-			return &writeError{"block: write block info", err}
+			return &writeError{"write block info", err}
 		}
 	}
 	return block.writeHeader(ch, numRows)

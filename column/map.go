@@ -38,13 +38,17 @@ func (c *Map) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	err := c.Uint64.ReadRaw(num, r)
 	if err != nil {
-		return err
+		return fmt.Errorf("read len data: %w", err)
 	}
 	err = c.columnKey.ReadRaw(c.TotalRows(), r)
 	if err != nil {
-		return err
+		return fmt.Errorf("read key data: %w", err)
 	}
-	return c.columnValue.ReadRaw(c.TotalRows(), r)
+	err = c.columnValue.ReadRaw(c.TotalRows(), r)
+	if err != nil {
+		return fmt.Errorf("read value data: %w", err)
+	}
+	return nil
 }
 
 // TotalRows return total rows on this block of array data

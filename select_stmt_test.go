@@ -42,7 +42,7 @@ func TestSelectError(t *testing.T) {
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	res, err = c.Select(context.Background(), "select * from system.numbers limit 5")
-	require.EqualError(t, err, "block: write block info (timeout)")
+	require.EqualError(t, err, "write block info (timeout)")
 	require.Nil(t, res)
 
 	// test read more column error
@@ -132,4 +132,219 @@ func TestSelectprogress(t *testing.T) {
 	require.NoError(t, res.Err())
 
 	c.Close(context.Background())
+}
+
+func TestSelectReadError(t *testing.T) {
+	startValidReader := 35
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "read column name error",
+			wantErr:     "read column name length: timeout",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "read column name",
+			wantErr:     "read column name: timeout",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "read column type error",
+			wantErr:     "read column type length: timeout",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "read column type",
+			wantErr:     "read column type: timeout",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "read nullable data",
+			wantErr:     "read nullable data: read data: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "read data error",
+			wantErr:     "read data: timeout",
+			numberValid: startValidReader + 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+			require.NoError(t, err)
+			config.ReaderFunc = func(r io.Reader) io.Reader {
+				return &readErrorHelper{
+					err:         errors.New("timeout"),
+					r:           r,
+					numberValid: tt.numberValid,
+				}
+			}
+
+			c, err := ConnectConfig(context.Background(), config)
+			assert.NoError(t, err)
+			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) FROM system.numbers LIMIT 1;")
+			require.NoError(t, err)
+			col := column.NewUint64(true)
+			require.True(t, stmt.Next())
+
+			err = stmt.ReadColumns(col)
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSelectReadErrorMap(t *testing.T) {
+	startValidReader := 35
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "read column name error",
+			wantErr:     "read column name length: timeout",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "read column name",
+			wantErr:     "read column name: timeout",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "read column type error",
+			wantErr:     "read column type length: timeout",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "read column type",
+			wantErr:     "read column type: timeout",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "read len data",
+			wantErr:     "read len data: read data: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "read key column",
+			wantErr:     "read key data: read data: timeout",
+			numberValid: startValidReader + 5,
+		},
+		{
+			name:        "read value column",
+			wantErr:     "read value data: read data: timeout",
+			numberValid: startValidReader + 6,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+			require.NoError(t, err)
+			config.ReaderFunc = func(r io.Reader) io.Reader {
+				return &readErrorHelper{
+					err:         errors.New("timeout"),
+					r:           r,
+					numberValid: tt.numberValid,
+				}
+			}
+
+			c, err := ConnectConfig(context.Background(), config)
+			assert.NoError(t, err)
+			stmt, err := c.Select(context.Background(), "SELECT map('key1', number, 'key2', number * 2) FROM system.numbers LIMIT 1;")
+			require.NoError(t, err)
+			colKey := column.NewUint64(false)
+			colValue := column.NewUint64(false)
+			col := column.NewMap(colKey, colValue)
+			require.True(t, stmt.Next())
+
+			err = stmt.ReadColumns(col)
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSelectReadErrorLowCardinality(t *testing.T) {
+	startValidReader := 35
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "read column name error",
+			wantErr:     "read column name length: timeout",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "read column name",
+			wantErr:     "read column name: timeout",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "read column type error",
+			wantErr:     "read column type length: timeout",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "read column type",
+			wantErr:     "read column type: timeout",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "error reading keys serialization version",
+			wantErr:     "error reading keys serialization version: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "error reading serialization type",
+			wantErr:     "error reading serialization type: timeout",
+			numberValid: startValidReader + 5,
+		},
+		{
+			name:        "error reading dictionary size",
+			wantErr:     "error reading dictionary size: timeout",
+			numberValid: startValidReader + 6,
+		},
+		{
+			name:        "error reading dictionary",
+			wantErr:     "error reading dictionary: read data: timeout",
+			numberValid: startValidReader + 7,
+		},
+		{
+			name:        "error reading keys",
+			wantErr:     "timeout",
+			numberValid: startValidReader + 8,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+			require.NoError(t, err)
+			config.ReaderFunc = func(r io.Reader) io.Reader {
+				return &readErrorHelper{
+					err:         errors.New("timeout"),
+					r:           r,
+					numberValid: tt.numberValid,
+				}
+			}
+
+			c, err := ConnectConfig(context.Background(), config)
+			assert.NoError(t, err)
+			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(number) FROM system.numbers LIMIT 1;")
+			require.NoError(t, err)
+			colData := column.NewUint64(false)
+			col := column.NewLowCardinality(colData)
+			require.True(t, stmt.Next())
+
+			err = stmt.ReadColumns(col)
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
 }

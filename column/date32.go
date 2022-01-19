@@ -124,12 +124,6 @@ func (c *Date32) Append(v time.Time) {
 	)
 }
 
-// AppendEmpty append empty value for insert
-func (c *Date32) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
 // AppendP value for insert (for nullable column)
 //
 // As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
@@ -188,7 +182,7 @@ func (c *Date32) AppendDictP(v *time.Time) {
 }
 
 // Keys current keys for LowCardinality data type
-func (c *Date32) Keys() []int {
+func (c *Date32) getKeys() []int {
 	return c.keys
 }
 

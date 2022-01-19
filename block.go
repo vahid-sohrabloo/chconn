@@ -105,11 +105,11 @@ func (block *block) writeHeader(ch *conn, numRows int) error {
 	ch.writer.Uvarint(uint64(numRows))
 	_, err := ch.writer.WriteTo(ch.writerToCompress)
 	if err != nil {
-		return &writeError{"block: write block info", err}
+		return &writeError{"write block info", err}
 	}
 	err = ch.flushCompress()
 	if err != nil {
-		return &writeError{"block: flush block info", err}
+		return &writeError{"flush block info", err}
 	}
 
 	return nil

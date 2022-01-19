@@ -209,7 +209,7 @@ type InsertError struct {
 }
 
 func (e *InsertError) Error() string {
-	return fmt.Sprintf("failed to insert data : %s", e.err.Error())
+	return fmt.Sprintf("failed to insert data: %s", e.err.Error())
 }
 
 func (e *InsertError) Unwrap() error {

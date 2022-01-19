@@ -169,7 +169,7 @@ func (c *Uint8) AppendDictP(v *uint8) {
 }
 
 // Keys current keys for LowCardinality data type
-func (c *Uint8) Keys() []int {
+func (c *Uint8) getKeys() []int {
 	return c.keys
 }
 

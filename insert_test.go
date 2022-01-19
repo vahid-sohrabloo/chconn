@@ -43,7 +43,7 @@ func TestInsertError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.Insert(context.Background(), "insert into system.numbers VALUES")
-	require.EqualError(t, err, "block: write block info (timeout)")
+	require.EqualError(t, err, "write block info (timeout)")
 
 	// test insert server error
 	config.WriterFunc = nil
@@ -238,7 +238,7 @@ func TestCompressInsert(t *testing.T) {
 
 	var colInsert []int8
 
-	rows := 10
+	rows := 1000
 	for i := 0; i < rows; i++ {
 		val := int8(i)
 
@@ -271,4 +271,131 @@ func TestCompressInsert(t *testing.T) {
 	selectStmt.Close()
 
 	conn.RawConn().Close()
+}
+
+func TestInsertColumnError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error`)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error (
+		int8  Int8
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "block: write header block data for column int8 (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write block data",
+			wantErr:     "block: write block data for column int8 (timeout)",
+			numberValid: startValidReader + 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// test write block info error
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.NewInt8(false)
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error (int8) VALUES",
+				col,
+			)
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+
+}
+func TestInsertColumnErrorCompress(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	config.Compress = true
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error`)
+	require.NoError(t, err)
+
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error (
+		int8  Int8
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "failed to insert data: write block info (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "flush block info",
+			wantErr:     "failed to insert data: flush block info (timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "flush data",
+			wantErr:     "block: flush block data (timeout)",
+			numberValid: startValidReader + 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// test write block info error
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.NewInt8(false)
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error (int8) VALUES",
+				col,
+			)
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+
 }

@@ -256,6 +256,73 @@ func TestStringLC(t *testing.T) {
 
 	assert.Equal(t, colInsert, colData)
 	assert.Equal(t, colNilInsert, colNilData)
+
+	// example get all
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		string_lc,string_lc_nullable
+	FROM test_lc_string`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead = column.NewString(false)
+	colLCRead = column.NewLC(colRead)
+
+	colNilRead = column.NewString(true)
+	colNilLCRead = column.NewLC(colNilRead)
+
+	colDataDict = colDataDict[:0]
+	colData = colData[:0]
+
+	colNilDataDict = colNilDataDict[:0]
+	colNilData = colNilData[:0]
+
+	for selectStmt.Next() {
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead)
+		require.NoError(t, err)
+		colData = append(colData, colRead.GetAllDict()...)
+		colNilData = append(colNilData, colNilRead.GetAllDictP()...)
+	}
+
+	require.NoError(t, selectStmt.Err())
+
+	selectStmt.Close()
+
+	assert.Equal(t, colInsert, colData)
+	assert.Equal(t, colNilInsert, colNilData)
+
+	// example read all
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		string_lc,string_lc_nullable
+	FROM test_lc_string`)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colRead = column.NewString(false)
+	colLCRead = column.NewLC(colRead)
+
+	colNilRead = column.NewString(true)
+	colNilLCRead = column.NewLC(colNilRead)
+
+	colDataDict = colDataDict[:0]
+	colData = colData[:0]
+
+	colNilDataDict = colNilDataDict[:0]
+	colNilData = colNilData[:0]
+
+	for selectStmt.Next() {
+		err = selectStmt.ReadColumns(colLCRead, colNilLCRead)
+		require.NoError(t, err)
+		colRead.ReadAllDict(&colData)
+		colNilRead.ReadAllDictP(&colNilData)
+	}
+
+	require.NoError(t, selectStmt.Err())
+
+	selectStmt.Close()
+
+	assert.Equal(t, colInsert, colData)
+	assert.Equal(t, colNilInsert, colNilData)
+
 	conn.RawConn().Close()
 }
 

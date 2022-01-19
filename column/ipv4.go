@@ -115,12 +115,6 @@ func (c *IPv4) Append(v net.IP) {
 	c.writerData = append(c.writerData, v[3], v[2], v[1], v[0])
 }
 
-// AppendEmpty append empty value for insert
-func (c *IPv4) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
 // AppendP value for insert (for nullable column)
 //
 // As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
@@ -179,7 +173,7 @@ func (c *IPv4) AppendDictP(v *net.IP) {
 }
 
 // Keys current keys for LowCardinality data type
-func (c *IPv4) Keys() []int {
+func (c *IPv4) getKeys() []int {
 	return c.keys
 }
 

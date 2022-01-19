@@ -11,7 +11,7 @@ type SelectStmt interface {
 	// Next get the next block, if available return true else return false
 	// if the server sends an error return false and we can get the last error with Err() function
 	Next() bool
-	// Err When calls Next() func if server send error we can get error from this function
+	// Err When calls Next() func, if server send an error, we can get error from this function
 	Err() error
 	// RowsInBlock return number of rows in this current block
 	RowsInBlock() int
@@ -104,7 +104,7 @@ func (s *selectStmt) RowsInBlock() int {
 	return int(s.block.NumRows)
 }
 
-// Err When calls Next() func if server send error we can get error from this function
+// Err When calls Next() func, if server send an error, we can get error from this function
 func (s *selectStmt) Err() error {
 	return s.lastErr
 }

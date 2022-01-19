@@ -242,7 +242,7 @@ func TestExecError(t *testing.T) {
 	require.NoError(t, err)
 
 	res, err = c.Exec(context.Background(), "SET enable_http_compression=1")
-	require.EqualError(t, err, "block: write block info (timeout)")
+	require.EqualError(t, err, "write block info (timeout)")
 	require.Nil(t, res)
 }
 

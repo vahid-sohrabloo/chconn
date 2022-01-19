@@ -114,12 +114,6 @@ func (c *UUID) Append(v [16]byte) {
 	)
 }
 
-// AppendEmpty append empty value for insert
-func (c *UUID) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
 // AppendP value for insert (for nullable column)
 //
 // As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not

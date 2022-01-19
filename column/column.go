@@ -21,7 +21,6 @@ type Column interface {
 	Name() []byte
 	Type() []byte
 	setParent(parent Column)
-	getParent() Column
 }
 
 type column struct {
@@ -47,14 +46,17 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
 	c.totalByte = num * c.size
-
 	if c.nullable {
 		err := c.colNullable.ReadRaw(num, r)
 		if err != nil {
-			return err
+			return fmt.Errorf("read nullable data: %w", err)
 		}
 	}
-	return c.readBuffer()
+	err := c.readBuffer()
+	if err != nil {
+		err = fmt.Errorf("read data: %w", err)
+	}
+	return err
 }
 
 func (c *column) readColumn() error {
@@ -63,7 +65,7 @@ func (c *column) readColumn() error {
 	}
 	strLen, err := c.r.Uvarint()
 	if err != nil {
-		return err
+		return fmt.Errorf("read column name length: %w", err)
 	}
 	if cap(c.name) < int(strLen) {
 		c.name = make([]byte, strLen)
@@ -72,12 +74,12 @@ func (c *column) readColumn() error {
 	}
 	_, err = c.r.Read(c.name)
 	if err != nil {
-		return err
+		return fmt.Errorf("read column name: %w", err)
 	}
 
 	strLen, err = c.r.Uvarint()
 	if err != nil {
-		return err
+		return fmt.Errorf("read column type length: %w", err)
 	}
 	if cap(c.chType) < int(strLen) {
 		c.chType = make([]byte, strLen)
@@ -86,10 +88,9 @@ func (c *column) readColumn() error {
 	}
 	_, err = c.r.Read(c.chType)
 	if err != nil {
-		return err
+		return fmt.Errorf("read column type: %w", err)
 	}
-
-	return err
+	return nil
 }
 
 // Reset all status and buffer data
@@ -202,10 +203,6 @@ func (c *column) Type() []byte {
 
 func (c *column) setParent(parent Column) {
 	c.parent = parent
-}
-
-func (c *column) getParent() Column {
-	return c.parent
 }
 
 // AppendEmpty append empty value for insert

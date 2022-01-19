@@ -117,12 +117,6 @@ func (c *Int32) Append(v int32) {
 	)
 }
 
-// AppendEmpty append empty value for insert
-func (c *Int32) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
 // AppendP value for insert (for nullable column)
 //
 // As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not
@@ -181,7 +175,7 @@ func (c *Int32) AppendDictP(v *int32) {
 }
 
 // Keys current keys for LowCardinality data type
-func (c *Int32) Keys() []int {
+func (c *Int32) getKeys() []int {
 	return c.keys
 }
 

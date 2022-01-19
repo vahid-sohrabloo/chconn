@@ -358,8 +358,114 @@ func (c *String) AppendStringDictP(v *string) {
 	c.keys = append(c.keys, key+1)
 }
 
+// GetAllDict get all from dictionary values in this block
+// NOTE: only use on low cardinality column
+func (c *String) GetAllDict() [][]byte {
+	result := make([][]byte, 0, c.parent.NumRow())
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		result = append(result, c.vals[parent.Value()])
+	}
+	return result
+}
+
+// GetAllDictP get all from dictionary values in this block (for nullable column)
+// NOTE: only use on low cardinality column
+func (c *String) GetAllDictP() []*[]byte {
+	result := make([]*[]byte, 0, c.parent.NumRow())
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		k := parent.Value()
+		// 0 means nil
+		if k == 0 {
+			result = append(result, nil)
+			continue
+		}
+		result = append(result, &c.vals[k])
+	}
+	return result
+}
+
+// GetAllStringDict get all string from dictionary values in this block
+// NOTE: only use on low cardinality column
+func (c *String) GetAllStringDict() []string {
+	result := make([]string, 0, c.parent.NumRow())
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		result = append(result, string(c.vals[parent.Value()]))
+	}
+	return result
+}
+
+// GetAllStringDictP get all string from dictionary values in this block (for nullable column)
+// NOTE: only use on low cardinality column
+func (c *String) GetAllStringDictP() []*string {
+	result := make([]*string, 0, c.parent.NumRow())
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		k := parent.Value()
+		// 0 means nil
+		if k == 0 {
+			result = append(result, nil)
+			continue
+		}
+		str := string(c.vals[k])
+		result = append(result, &str)
+	}
+	return result
+}
+
+// ReadAllDict readd all from dictionary values in this block and append to input
+// NOTE: only use on low cardinality column
+func (c *String) ReadAllDict(value *[][]byte) {
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		*value = append(*value, c.vals[parent.Value()])
+	}
+}
+
+// ReadAllDictP read  all from dictionary values in this block and append to input (for nullable column)
+// NOTE: only use on low cardinality column
+func (c *String) ReadAllDictP(value *[]*[]byte) {
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		k := parent.Value()
+		// 0 means nil
+		if k == 0 {
+			*value = append(*value, nil)
+			continue
+		}
+		*value = append(*value, &c.vals[k])
+	}
+}
+
+// ReadAllStringDict read all string from dictionary values in this block and append to input
+// NOTE: only use on low cardinality column
+func (c *String) ReadAllStringDict(value *[]string) {
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		*value = append(*value, string(c.vals[parent.Value()]))
+	}
+}
+
+// ReadAllStringDictP read all string from dictionary values in this block  and append to input (for nullable column)
+// NOTE: only use on low cardinality column
+func (c *String) ReadAllStringDictP(value *[]*string) {
+	parent := c.parent.(*LC)
+	for parent.Next() {
+		k := parent.Value()
+		// 0 means nil
+		if k == 0 {
+			*value = append(*value, nil)
+			continue
+		}
+		str := string(c.vals[k])
+		*value = append(*value, &str)
+	}
+}
+
 // Keys current keys for LowCardinality data type
-func (c *String) Keys() []int {
+func (c *String) getKeys() []int {
 	return c.keys
 }
 

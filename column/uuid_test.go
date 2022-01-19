@@ -49,64 +49,72 @@ func TestUUID(t *testing.T) {
 	var colInsertArrayNil [][]*[16]byte
 	var colNilInsert []*[16]byte
 
-	rows := 10
 	val := uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a50")
 	val2 := uuid.MustParse("417ddc5d-e556-4d27-95dd-a34d84e46a51")
 	valCast := [16]byte(val)
-	for i := 1; i <= rows; i++ {
-		valArray := [][16]byte{val, val2}
-		valArrayNil := []*[16]byte{&valCast, nil}
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		col.Reset()
+		colArrayValues.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		colArrayNil.Reset()
+		colNil.Reset()
+		for i := 0; i < rows; i++ {
+			valArray := [][16]byte{val, val2}
+			valArrayNil := []*[16]byte{&valCast, nil}
 
-		col.Append(val)
-		colInsert = append(colInsert, val)
+			col.Append(val)
+			colInsert = append(colInsert, val)
 
-		// example insert array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.Append(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &valCast)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(&valCast)
-			} else {
-				// example to without pointer
-				colNil.Append(val)
-				colNil.AppendIsNil(false)
+			// example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.Append(v)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendP(nil)
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &valCast)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(&valCast)
+				} else {
+					// example to without pointer
+					colNil.Append(val)
+					colNil.AppendIsNil(false)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendEmpty()
-				colNil.AppendIsNil(true)
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendEmpty()
+					colNil.AppendIsNil(true)
+				}
 			}
 		}
-	}
 
-	err = conn.Insert(context.Background(), `INSERT INTO
+		err = conn.Insert(context.Background(), `INSERT INTO
 		test_uuid (uuid,uuid_nullable,uuid_array,uuid_array_nullable)
 	VALUES`,
-		col,
-		colNil,
-		colArray,
-		colArrayNil)
+			col,
+			colNil,
+			colArray,
+			colArrayNil)
 
-	require.NoError(t, err)
+		require.NoError(t, err)
+	}
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT

@@ -121,12 +121,6 @@ func (c *Decimal64) Append(v float64) {
 	)
 }
 
-// AppendEmpty append empty value for insert
-func (c *Decimal64) AppendEmpty() {
-	c.numRow++
-	c.writerData = append(c.writerData, emptyByte[:c.size]...)
-}
-
 // AppendP value for insert (for nullable column)
 //
 // As an alternative (for better performance), you can use `Append` to append data. and `AppendIsNil` to say this value is null or not

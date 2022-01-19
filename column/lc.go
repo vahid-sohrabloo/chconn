@@ -22,7 +22,7 @@ const (
 
 type lcDictColumn interface {
 	Column
-	Keys() []int
+	getKeys() []int
 }
 
 // LC use for LowCardinality ClickHouse DataTypes
@@ -37,12 +37,7 @@ var _ Column = &LC{}
 
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
 func NewLowCardinality(dictColumn lcDictColumn) *LC {
-	if dictColumn.isNullable() {
-		dictColumn.AppendEmpty()
-	}
-	return &LC{
-		dictColumn: dictColumn,
-	}
+	return NewLC(dictColumn)
 }
 
 // NewLC return new LC for LowCardinality ClickHouse DataTypes
@@ -69,13 +64,13 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 
 	serializationType, err := c.r.Uint64()
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading serialization type: %w", err)
 	}
 	intType := serializationType & 0xf
 
 	dictionarySize, err := c.r.Uint64()
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading dictionary size: %w", err)
 	}
 	nullable := c.dictColumn.isNullable()
 	// disable nullable for low cardinality dictionary
@@ -83,7 +78,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	err = c.dictColumn.ReadRaw(int(dictionarySize), r)
 	c.dictColumn.setNullable(nullable)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
 	indicesSize, err := r.Uint64()
@@ -134,7 +129,7 @@ func (c *LC) Fill(value []int) {
 
 // NumRow return number of keys for this block
 func (c *LC) NumRow() int {
-	return len(c.dictColumn.Keys())
+	return len(c.dictColumn.getKeys())
 }
 
 // HeaderReader writes header data to writer
@@ -142,10 +137,13 @@ func (c *LC) NumRow() int {
 func (c *LC) HeaderReader(r *readerwriter.Reader) error {
 	err := c.column.HeaderReader(r)
 	if err != nil {
-		return nil
+		return err
 	}
 	// write KeysSerializationVersion. for more information see clickhouse docs
 	_, err = r.Uint64()
+	if err != nil {
+		err = fmt.Errorf("error reading keys serialization version: %v", err)
+	}
 	return err
 }
 
@@ -186,7 +184,7 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionary: %w", err)
 	}
-	keys := c.dictColumn.Keys()
+	keys := c.dictColumn.getKeys()
 	nw, err = c.writeUint64(w, uint64(len(keys)))
 	n += int64(nw)
 	if err != nil {
@@ -244,8 +242,4 @@ func (c *LC) Reset() {
 
 func (c *LC) setParent(parent Column) {
 	c.parent = parent
-}
-
-func (c *LC) getParent() Column {
-	return c.parent
 }
