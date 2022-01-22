@@ -43,14 +43,6 @@ func (c *Uint32) Value() uint32 {
 	return c.val
 }
 
-// ReadAll read all value in this block and append to the input slice
-func (c *Uint32) ReadAll(value *[]uint32) {
-	for i := 0; i < c.totalByte; i += c.size {
-		*value = append(*value,
-			binary.LittleEndian.Uint32(c.b[i:i+c.size]))
-	}
-}
-
 // Fill slice with value and forward the pointer by the length of the slice
 //
 // NOTE: A slice that is longer than the remaining data is not safe to pass.

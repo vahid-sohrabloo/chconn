@@ -16,10 +16,8 @@ func (c *Float32) GetAllUnsafe() []float32 {
 	return value[:c.numRow]
 }
 
-// ReadAllUnsafe reads all the data in current block and append to column.
-//
-// NOTE: this function is unsafe and only can use in little-endian system  cpu architecture.
-func (c *Float32) ReadAllUnsafe(value *[]float32) {
+// ReadAll reads all the data in current block and append to column.
+func (c *Float32) ReadAll(value *[]float32) {
 	v := *(*[]float32)(unsafe.Pointer(&c.b))
 	*value = append(*value, v[:c.numRow]...)
 }

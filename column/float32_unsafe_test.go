@@ -1,3 +1,7 @@
+//go:build (386 || amd64 || amd64p32 || arm || arm64 || mipsle || mips64le || mips64p32le || ppc64le || riscv || riscv64) && !purego
+// +build 386 amd64 amd64p32 arm arm64 mipsle mips64le mips64p32le ppc64le riscv riscv64
+// +build !purego
+
 package column_test
 
 import (
@@ -62,27 +66,6 @@ func TestFloat32Unsafe(t *testing.T) {
 		err = selectStmt.ReadColumns(colRead)
 		require.NoError(t, err)
 		colData = append(colData, colRead.GetAllUnsafe()...)
-	}
-
-	assert.Equal(t, colInsert, colData)
-
-	selectStmt.Close()
-
-	// example read all
-	selectStmt, err = conn.Select(context.Background(), `SELECT
-		float32
-	FROM test_float32_unsafe`)
-	require.NoError(t, err)
-	require.True(t, conn.IsBusy())
-
-	colRead = column.NewFloat32(false)
-
-	colData = colData[:0]
-
-	for selectStmt.Next() {
-		err = selectStmt.ReadColumns(colRead)
-		require.NoError(t, err)
-		colRead.ReadAllUnsafe(&colData)
 	}
 
 	assert.Equal(t, colInsert, colData)

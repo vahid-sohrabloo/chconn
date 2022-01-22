@@ -16,10 +16,8 @@ func (c *Int16) GetAllUnsafe() []int16 {
 	return value[:c.numRow]
 }
 
-// ReadAllUnsafe reads all the data in current block and append to column.
-//
-// NOTE: this function is unsafe and only can use in little-endian system  cpu architecture.
-func (c *Int16) ReadAllUnsafe(value *[]int16) {
+// ReadAll reads all the data in current block and append to column.
+func (c *Int16) ReadAll(value *[]int16) {
 	v := *(*[]int16)(unsafe.Pointer(&c.b))
 	*value = append(*value, v[:c.numRow]...)
 }
