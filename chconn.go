@@ -610,7 +610,6 @@ func (ch *conn) SelectCallback(
 	}
 
 	ch.contextWatcher.Watch(ctx)
-	defer ch.contextWatcher.Unwatch()
 	var hasError bool
 	defer func() {
 		if hasError {

@@ -53,6 +53,20 @@ func (c *Raw) ReadAllString(value *[]string) {
 	}
 }
 
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *Raw) Row(row int) []byte {
+	i := row * c.size
+	return c.b[i : i+c.size]
+}
+
+// Row string of current pointer
+// NOTE: Row number start from zero
+func (c *Raw) RowString(row int) string {
+	i := row * c.size
+	return string(c.b[i : i+c.size])
+}
+
 // Fill slice with value and forward the pointer by the length of the slice
 //
 // NOTE: A slice that is longer than the remaining data is not safe to pass.

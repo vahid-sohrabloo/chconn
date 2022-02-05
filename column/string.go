@@ -9,7 +9,6 @@ type String struct {
 	column
 	dict map[string]int
 	keys []int
-	val  []byte
 	vals [][]byte
 }
 
@@ -62,7 +61,6 @@ func (c *String) Next() bool {
 	if c.i >= c.numRow {
 		return false
 	}
-	c.val = c.vals[c.i]
 	c.i++
 	return true
 }
@@ -71,14 +69,14 @@ func (c *String) Next() bool {
 //
 // Use with Next()
 func (c *String) Value() []byte {
-	return c.val
+	return c.vals[c.i-1]
 }
 
 // ValueString string value of current pointer
 //
 // Use with Next()
 func (c *String) ValueString() string {
-	return string(c.val)
+	return string(c.vals[c.i-1])
 }
 
 // ValueP value of current pointer
@@ -88,8 +86,8 @@ func (c *String) ValueP() *[]byte {
 	if c.colNullable.b[c.i-1] == 1 {
 		return nil
 	}
-	val := make([]byte, len(c.val))
-	copy(val, c.val)
+	val := make([]byte, len(c.vals[c.i-1]))
+	copy(val, c.vals[c.i-1])
 	return &val
 }
 
@@ -100,8 +98,20 @@ func (c *String) ValueStringP() *string {
 	if c.colNullable.b[c.i-1] == 1 {
 		return nil
 	}
-	val := string(c.val)
+	val := string(c.vals[c.i-1])
 	return &val
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *String) Row(row int) []byte {
+	return c.vals[row]
+}
+
+// Row string of current pointer
+// NOTE: Row number start from zero
+func (c *String) RowString(row int) string {
+	return string(c.vals[row])
 }
 
 // ReadAll read all value in this block and append to the input slice

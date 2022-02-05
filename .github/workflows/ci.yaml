@@ -8,8 +8,8 @@ on:
 
 jobs:
 
-  test:
-    name: Test
+  test-coverage:
+    name: Test Coverage
     runs-on: ubuntu-latest
     env:
       VERBOSE: 1
@@ -33,8 +33,42 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           file: coverage.out
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      VERBOSE: 1
+      GOFLAGS: -mod=readonly
 
+    steps:
+      - name: Set up clickhouse
+        uses: EpicStep/clickhouse-github-action@v1.0.0
+        
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
+      - name: Test
+        run: make test
+  test-purego:
+    name: Test Pure go
+    runs-on: ubuntu-latest
+    env:
+      VERBOSE: 1
+      GOFLAGS: -mod=readonly
+
+    steps:
+      - name: Set up clickhouse
+        uses: EpicStep/clickhouse-github-action@v1.0.0
+        
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+        
+      - name: Test
+        run: make test-purego
   build:
     name: Build
     runs-on: ubuntu-latest

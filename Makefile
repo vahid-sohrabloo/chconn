@@ -27,7 +27,6 @@ endif
 # Dependency versions
 GOTESTSUM_VERSION = 1.7.0
 GOLANGCI_VERSION = 1.43.0
-BUF_VERSION = 0.11.0
 
 GOLANG_VERSION = 1.14
 
@@ -123,10 +122,19 @@ TEST_PKGS ?= ./...
 TEST_REPORT_NAME ?= results.xml
 .PHONY: test
 test: TEST_REPORT ?= main
-test: TEST_FORMAT ?= standard-quiet
+test: TEST_FORMAT ?= short
 test: SHELL = /bin/bash
 test: bin/gotestsum ## Run tests
 	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	@go tool cover -func=coverage.out
+	@rm coverage.out
+
+.PHONY: test-purego
+test-purego: TEST_REPORT ?= main
+test-purego: TEST_FORMAT ?= standard-quiet
+test-purego: SHELL = /bin/bash
+test-purego: bin/gotestsum ## Run tests
+	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverprofile=coverage.out -race -parallel 1  -tags purego $(if ${TEST_PKGS},${TEST_PKGS},./...)
 	@go tool cover -func=coverage.out
 	@rm coverage.out
 

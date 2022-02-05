@@ -9,7 +9,6 @@ import (
 // DateTime64 use for DateTime ClickHouse DateTime64
 type DateTime64 struct {
 	column
-	val       time.Time
 	precision int64
 }
 
@@ -32,8 +31,7 @@ func (c *DateTime64) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.i += c.size
-	c.val = c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i-c.size : c.i])))
+	c.i += Datetime64Size
 	return true
 }
 
@@ -41,14 +39,34 @@ func (c *DateTime64) Next() bool {
 //
 // Use with Next()
 func (c *DateTime64) Value() time.Time {
-	return c.val
+	return c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i-Datetime64Size : c.i])))
+}
+
+// ValueP Value of current pointer for nullable data
+//
+// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
+//
+// Use with Next()
+func (c *DateTime64) ValueP() *time.Time {
+	if c.colNullable.b[(c.i-Datetime64Size)/(Datetime64Size)] == 1 {
+		return nil
+	}
+	val := c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i-Datetime64Size : c.i])))
+	return &val
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *DateTime64) Row(row int) time.Time {
+	i := row * DatetimeSize
+	return c.toDate(int64(binary.LittleEndian.Uint64(c.b[i : i+Datetime64Size])))
 }
 
 // ReadAll read all value in this block and append to the input slice
 func (c *DateTime64) ReadAll(value *[]time.Time) {
-	for i := 0; i < c.totalByte; i += c.size {
+	for i := 0; i < c.totalByte; i += Datetime64Size {
 		*value = append(*value,
-			c.toDate(int64(binary.LittleEndian.Uint64(c.b[i:i+c.size]))))
+			c.toDate(int64(binary.LittleEndian.Uint64(c.b[i:i+Datetime64Size]))))
 	}
 }
 
@@ -57,7 +75,7 @@ func (c *DateTime64) ReadAll(value *[]time.Time) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *DateTime64) Fill(value []time.Time) {
 	for i := range value {
-		value[i] = c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+c.size])))
+		value[i] = c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+Datetime64Size])))
 		c.i += 8
 	}
 }
@@ -69,28 +87,15 @@ func (c *DateTime64) toDate(usec int64) time.Time {
 	return time.Unix(sec, nsec)
 }
 
-// ValueP Value of current pointer for nullable data
-//
-// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
-//
-// Use with Next()
-func (c *DateTime64) ValueP() *time.Time {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
-		return nil
-	}
-	val := c.val
-	return &val
-}
-
 // ReadAllP read all value in this block and append to the input slice (for nullable data)
 // As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *DateTime64) ReadAllP(value *[]*time.Time) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
+	for i := 0; i < c.totalByte; i += Datetime64Size {
+		if c.colNullable.b[i/Datetime64Size] != 0 {
 			*value = append(*value, nil)
 			continue
 		}
-		val := c.toDate(int64(binary.LittleEndian.Uint64(c.b[i : i+c.size])))
+		val := c.toDate(int64(binary.LittleEndian.Uint64(c.b[i : i+Datetime64Size])))
 		*value = append(*value, &val)
 	}
 }
@@ -102,14 +107,14 @@ func (c *DateTime64) ReadAllP(value *[]*time.Time) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *DateTime64) FillP(value []*time.Time) {
 	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
+		if c.colNullable.b[c.i/Datetime64Size] == 1 {
 			value[i] = nil
-			c.i += c.size
+			c.i += Datetime64Size
 			continue
 		}
-		val := c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+c.size])))
+		val := c.toDate(int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+Datetime64Size])))
 		value[i] = &val
-		c.i += c.size
+		c.i += Datetime64Size
 	}
 }
 
@@ -117,7 +122,7 @@ func (c *DateTime64) FillP(value []*time.Time) {
 func (c *DateTime64) Append(v time.Time) {
 	c.numRow++
 	if v.Unix() < 0 {
-		c.writerData = append(c.writerData, emptyByte[:c.size]...)
+		c.writerData = append(c.writerData, emptyByte[:Datetime64Size]...)
 		return
 	}
 	timestamp := v.UnixNano() / c.precision

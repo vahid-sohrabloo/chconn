@@ -15,11 +15,16 @@ type indicesColumn interface {
 	readAllInt(*[]int)
 	fillInt([]int)
 	appendInts([]int)
+	rowInt(int) int
 }
 
 // uint8 indices
 func (c *Uint8) valueInt() int {
-	return int(c.val)
+	return int(c.Value())
+}
+
+func (c *Uint8) rowInt(i int) int {
+	return int(c.Row(i))
 }
 
 func (c *Uint8) readAllInt(value *[]int) {
@@ -45,7 +50,11 @@ func (c *Uint8) appendInts(values []int) {
 
 // uint16 indices
 func (c *Uint16) valueInt() int {
-	return int(c.val)
+	return int(c.Value())
+}
+
+func (c *Uint16) rowInt(i int) int {
+	return int(c.Row(i))
 }
 
 func (c *Uint16) readAllInt(value *[]int) {
@@ -74,7 +83,11 @@ func (c *Uint16) appendInts(ints []int) {
 
 // uint32 indices
 func (c *Uint32) valueInt() int {
-	return int(c.val)
+	return int(c.Value())
+}
+
+func (c *Uint32) rowInt(i int) int {
+	return int(c.Row(i))
 }
 
 func (c *Uint32) readAllInt(value *[]int) {

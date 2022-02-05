@@ -14,13 +14,18 @@ type Column interface {
 	WriteTo(io.Writer) (int64, error)
 	Reset()
 	HeaderWriter(*readerwriter.Writer)
-	HeaderReader(*readerwriter.Reader) error
-	isNullable() bool
+	HeaderReader(*readerwriter.Reader, bool) error
+	IsNullable() bool
 	setNullable(nullable bool)
 	AppendEmpty()
 	Name() []byte
 	Type() []byte
+	SetName(v []byte)
+	SetType(v []byte)
 	setParent(parent Column)
+	HasParent() bool
+	ValueIsNil() bool
+	RowIsNil(int) bool
 }
 
 type column struct {
@@ -59,8 +64,8 @@ func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	return err
 }
 
-func (c *column) readColumn() error {
-	if c.parent != nil {
+func (c *column) readColumn(readColumn bool) error {
+	if c.parent != nil || !readColumn {
 		return nil
 	}
 	strLen, err := c.r.Uvarint()
@@ -144,9 +149,9 @@ func (c *column) HeaderWriter(w *readerwriter.Writer) {
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *column) HeaderReader(r *readerwriter.Reader) error {
+func (c *column) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 	c.r = r
-	return c.readColumn()
+	return c.readColumn(readColumn)
 }
 
 // WriteTo write data clickhouse
@@ -164,7 +169,8 @@ func (c *column) WriteTo(w io.Writer) (int64, error) {
 	return int64(nw) + n, err
 }
 
-func (c *column) isNullable() bool {
+// IsNullable check if the column is nullable or not
+func (c *column) IsNullable() bool {
 	return c.nullable
 }
 
@@ -175,6 +181,11 @@ func (c *column) setNullable(nullable bool) {
 // ValueIsNil check if the current value is nil or not
 func (c *column) ValueIsNil() bool {
 	return c.colNullable.b[(c.i-c.size)/(c.size)] == 1
+}
+
+// ValueIsNil check if the current value is nil or not
+func (c *column) RowIsNil(i int) bool {
+	return c.nullable && c.colNullable.b[i] == 1
 }
 
 // ReadAll read all nils state in this block and append to the input slice
@@ -201,6 +212,16 @@ func (c *column) Type() []byte {
 	return c.chType
 }
 
+// SetName set name of the column
+func (c *column) SetName(v []byte) {
+	c.name = v
+}
+
+// SetType set clickhouse type
+func (c *column) SetType(v []byte) {
+	c.chType = v
+}
+
 func (c *column) setParent(parent Column) {
 	c.parent = parent
 }
@@ -209,4 +230,9 @@ func (c *column) setParent(parent Column) {
 func (c *column) AppendEmpty() {
 	c.numRow++
 	c.writerData = append(c.writerData, emptyByte[:c.size]...)
+}
+
+// HasParent check if the column has parent or not
+func (c *column) HasParent() bool {
+	return c.parent != nil
 }

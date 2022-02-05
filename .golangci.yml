@@ -120,6 +120,9 @@ issues:
         - goconst
         - funlen
         - gocyclo
+    - path: _unsafe\.go
+      linters:
+        - dupl
     - path: main\.go
       linters:
         - goconst

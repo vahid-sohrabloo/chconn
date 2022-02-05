@@ -191,13 +191,21 @@ func TestUint32(t *testing.T) {
 	for selectStmt.Next() {
 		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
+		i := 0
 		for colRead.Next() {
 			colData = append(colData, colRead.Value())
+			// Or use Row
+			require.Equal(t, colRead.Value(), colRead.Row(i))
+			i++
 		}
 
 		// read nullable
+		i = 0
 		for colNilRead.Next() {
 			colNilData = append(colNilData, colNilRead.ValueP())
+			// Or use RowP
+			require.Equal(t, colNilRead.ValueP(), colNilRead.RowP(i))
+			i++
 		}
 
 		// read array

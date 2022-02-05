@@ -25,7 +25,7 @@ func TestTuple(t *testing.T) {
 	require.Nil(t, res)
 
 	res, err = conn.Exec(context.Background(), `CREATE TABLE test_tuple (
-				tuple Tuple(Int64, LowCardinality(String))
+				tuple Tuple(Int64, LowCardinality(String), UInt8)
 			) Engine=Memory`)
 
 	require.NoError(t, err)
@@ -33,14 +33,17 @@ func TestTuple(t *testing.T) {
 
 	colInt64 := column.NewInt64(false)
 	colString := column.NewString(false)
-	colTuple := column.NewTuple(colInt64, column.NewLowCardinality(colString))
+	colUint8 := column.NewUint8(false)
+	colTuple := column.NewTuple(colInt64, column.NewLowCardinality(colString), colUint8)
 
 	var colInt64Insert []int64
 	var colStringInsert []string
+	var colUint8Insert []uint8
 	for insertN := 0; insertN < 2; insertN++ {
 		rows := 10
 		colInt64.Reset()
 		colString.Reset()
+		colUint8.Reset()
 
 		for i := 0; i < rows; i++ {
 			val := int64(i * -8)
@@ -52,6 +55,9 @@ func TestTuple(t *testing.T) {
 			colString.AppendStringDict(valStr)
 
 			colStringInsert = append(colStringInsert, valStr)
+
+			colUint8.Append(uint8(i))
+			colUint8Insert = append(colUint8Insert, uint8(i))
 		}
 
 		err = conn.Insert(context.Background(), `INSERT INTO
@@ -73,10 +79,12 @@ func TestTuple(t *testing.T) {
 	colInt64Read := column.NewInt64(false)
 	colStringRead := column.NewString(false)
 	colStringLCRead := column.NewLC(colStringRead)
-	colTupleRead := column.NewTuple(colInt64Read, colStringLCRead)
+	colUint8Read := column.NewUint8(false)
+	colTupleRead := column.NewTuple(colInt64Read, colStringLCRead, colUint8Read)
 
 	var colInt64Data []int64
 	var colStringData []string
+	var colUint8Data []uint8
 
 	for selectStmt.Next() {
 		err = selectStmt.ReadColumns(colTupleRead)
@@ -86,10 +94,12 @@ func TestTuple(t *testing.T) {
 		for colStringLCRead.Next() {
 			colStringData = append(colStringData, colStringDict[colStringLCRead.Value()])
 		}
+		colUint8Read.ReadAll(&colUint8Data)
 	}
 
 	assert.Equal(t, colInt64Insert, colInt64Data)
 	assert.Equal(t, colStringInsert, colStringData)
+	assert.Equal(t, colUint8Insert, colUint8Data)
 	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()

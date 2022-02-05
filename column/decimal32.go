@@ -8,13 +8,14 @@ import (
 type Decimal32 struct {
 	column
 	factor float64
-	val    float64
+	Scale  int
 }
 
 // NewDecimal32 return new Decimal32 for Decimal32 ClickHouse DataType
 func NewDecimal32(scale int, nullable bool) *Decimal32 {
 	return &Decimal32{
 		factor: factors10[scale],
+		Scale:  scale,
 		column: column{
 			nullable:    nullable,
 			colNullable: newNullable(),
@@ -31,7 +32,6 @@ func (c *Decimal32) Next() bool {
 		return false
 	}
 	c.i += c.size
-	c.val = float64(int32(binary.LittleEndian.Uint32(c.b[c.i-c.size:c.i]))) / c.factor
 	return true
 }
 
@@ -39,7 +39,27 @@ func (c *Decimal32) Next() bool {
 //
 // Use with Next()
 func (c *Decimal32) Value() float64 {
-	return c.val
+	return float64(int32(binary.LittleEndian.Uint32(c.b[c.i-c.size:c.i]))) / c.factor
+}
+
+// ValueP Value of current pointer for nullable data
+//
+// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
+//
+// Use with Next()
+func (c *Decimal32) ValueP() *float64 {
+	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+		return nil
+	}
+	val := float64(int32(binary.LittleEndian.Uint32(c.b[c.i-c.size:c.i]))) / c.factor
+	return &val
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *Decimal32) Row(row int) float64 {
+	i := row * Decimal32Size
+	return float64(int32(binary.LittleEndian.Uint32(c.b[i:i+Decimal32Size]))) / c.factor
 }
 
 // ReadAll read all value in this block and append to the input slice
@@ -58,19 +78,6 @@ func (c *Decimal32) Fill(value []float64) {
 		value[i] = float64(int32(binary.LittleEndian.Uint32(c.b[c.i:c.i+c.size]))) / c.factor
 		c.i += c.size
 	}
-}
-
-// ValueP Value of current pointer for nullable data
-//
-// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
-//
-// Use with Next()
-func (c *Decimal32) ValueP() *float64 {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
-		return nil
-	}
-	val := c.val
-	return &val
 }
 
 // ReadAllP read all value in this block and append to the input slice (for nullable data)

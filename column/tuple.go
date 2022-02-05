@@ -49,13 +49,13 @@ func (c *Tuple) HeaderWriter(w *readerwriter.Writer) {
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *Tuple) HeaderReader(r *readerwriter.Reader) error {
-	err := c.column.HeaderReader(r)
+func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+	err := c.column.HeaderReader(r, readColumn)
 	if err != nil {
 		return err
 	}
 	for _, col := range c.columns {
-		err = col.HeaderReader(r)
+		err = col.HeaderReader(r, readColumn)
 		if err != nil {
 			return err
 		}
@@ -81,4 +81,9 @@ func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 func (c *Tuple) NumRow() int {
 	// todo: find a way to validate all columns number
 	return c.columns[0].NumRow()
+}
+
+// Columns return all columns of tuple
+func (c *Tuple) Columns() []Column {
+	return c.columns
 }

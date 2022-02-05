@@ -11,22 +11,22 @@ import (
 // Array use for Array ClickHouse DataTypes
 type Array struct {
 	Uint64
-	offset    int
-	val       int
-	subColumn Column
+	offset     int
+	val        int
+	dataColumn Column
 }
 
 // NewArray return new Array for Array ClickHouse DataTypes
-func NewArray(subColumn Column) *Array {
+func NewArray(dataColumn Column) *Array {
 	a := &Array{
-		subColumn: subColumn,
+		dataColumn: dataColumn,
 		Uint64: Uint64{
 			column: column{
 				size: ArraylenSize,
 			},
 		},
 	}
-	subColumn.setParent(a)
+	dataColumn.setParent(a)
 	return a
 }
 
@@ -37,7 +37,7 @@ func (c *Array) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return err
 	}
-	return c.subColumn.ReadRaw(c.TotalRows(), r)
+	return c.dataColumn.ReadRaw(c.TotalRows(), r)
 }
 
 // TotalRows return total rows on this block of array data
@@ -48,17 +48,17 @@ func (c *Array) TotalRows() int {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *Array) HeaderWriter(w *readerwriter.Writer) {
-	c.subColumn.HeaderWriter(w)
+	c.dataColumn.HeaderWriter(w)
 }
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *Array) HeaderReader(r *readerwriter.Reader) error {
-	err := c.Uint64.HeaderReader(r)
+func (c *Array) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+	err := c.Uint64.HeaderReader(r, readColumn)
 	if err != nil {
 		return err
 	}
-	return c.subColumn.HeaderReader(r)
+	return c.dataColumn.HeaderReader(r, readColumn)
 }
 
 // Reset all status and buffer data
@@ -79,8 +79,9 @@ func (c *Array) Next() bool {
 	if !ok {
 		return false
 	}
-	c.val = int(c.Uint64.val) - c.offset
-	c.offset = int(c.Uint64.val)
+	offset := int(c.Uint64.Value())
+	c.val = offset - c.offset
+	c.offset = offset
 	return true
 }
 
@@ -89,6 +90,15 @@ func (c *Array) Next() bool {
 // Use with Next()
 func (c *Array) Value() int {
 	return c.val
+}
+
+// Value of current pointer
+// NOTE: Row number start from zero
+func (c *Array) Row(i int) int {
+	if i == 0 {
+		return int(c.Uint64.Row(i))
+	}
+	return int(c.Uint64.Row(i) - c.Uint64.Row(i-1))
 }
 
 // ReadAll read all lens in this block and append to the input slice
@@ -127,7 +137,12 @@ func (c *Array) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("write len data: %w", err)
 	}
-	n, errSubColumn := c.subColumn.WriteTo(w)
+	n, errdataColumn := c.dataColumn.WriteTo(w)
 
-	return int64(nw) + n, errSubColumn
+	return int64(nw) + n, errdataColumn
+}
+
+// DataColumn return data column
+func (c *Array) DataColumn() Column {
+	return c.dataColumn
 }

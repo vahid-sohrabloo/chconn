@@ -5,7 +5,6 @@ import "net"
 // IPv6 use for IPv6 ClickHouse DataType
 type IPv6 struct {
 	column
-	val  net.IP
 	dict map[string]int
 	keys []int
 }
@@ -29,34 +28,58 @@ func (c *IPv6) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.i += c.size
-	c.val = net.IP(c.b[c.i-c.size : c.i])
+	c.i += IPv6Size
 	return true
+}
+
+// ReadAll read all value in this block and append to the input slice
+func (c *IPv6) ReadAll(value *[]net.IP) {
+	for i := 0; i < c.totalByte; i += IPv6Size {
+		*value = append(*value,
+			net.IP(c.b[i:i+IPv6Size]))
+	}
+}
+
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
+func (c *IPv6) ReadAllP(value *[]*net.IP) {
+	for i := 0; i < c.totalByte; i += IPv6Size {
+		if c.colNullable.b[i/IPv6Size] != 0 {
+			*value = append(*value, nil)
+			continue
+		}
+		val := net.IP(c.b[i : i+IPv6Size])
+		*value = append(*value, &val)
+	}
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *IPv6) Row(row int) net.IP {
+	i := row * IPv6Size
+	return net.IP(c.b[i : i+IPv6Size])
+}
+
+// Row return the value of given row for nullable data
+// NOTE: Row number start from zero
+//
+// As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
+//
+func (c *IPv6) RowP(row int) *net.IP {
+	if c.colNullable.b[row] == 1 {
+		return nil
+	}
+	i := row * IPv6Size
+	val := net.IP(c.b[i : i+IPv6Size])
+	return &val
 }
 
 // Value of current pointer
 //
 // Use with Next()
 func (c *IPv6) Value() net.IP {
-	return c.val
-}
-
-// ReadAll read all value in this block and append to the input slice
-func (c *IPv6) ReadAll(value *[]net.IP) {
-	for i := 0; i < c.totalByte; i += c.size {
-		*value = append(*value,
-			net.IP(c.b[i:i+c.size]))
-	}
-}
-
-// Fill slice with value and forward the pointer by the length of the slice
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *IPv6) Fill(value []net.IP) {
-	for i := range value {
-		value[i] = net.IP(c.b[c.i : c.i+c.size])
-		c.i += c.size
-	}
+	return net.IP(c.b[c.i-IPv6Size : c.i])
 }
 
 // ValueP Value of current pointer for nullable data
@@ -65,24 +88,20 @@ func (c *IPv6) Fill(value []net.IP) {
 //
 // Use with Next()
 func (c *IPv6) ValueP() *net.IP {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+	if c.colNullable.b[(c.i-IPv6Size)/(IPv6Size)] == 1 {
 		return nil
 	}
-	val := c.val
+	val := net.IP(c.b[c.i-IPv6Size : c.i])
 	return &val
 }
 
-// ReadAllP read all value in this block and append to the input slice (for nullable data)
+// Fill slice with value and forward the pointer by the length of the slice
 //
-// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
-func (c *IPv6) ReadAllP(value *[]*net.IP) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
-			*value = append(*value, nil)
-			continue
-		}
-		val := net.IP(c.b[i : i+c.size])
-		*value = append(*value, &val)
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
+func (c *IPv6) Fill(value []net.IP) {
+	for i := range value {
+		value[i] = net.IP(c.b[c.i : c.i+IPv6Size])
+		c.i += IPv6Size
 	}
 }
 
@@ -93,14 +112,14 @@ func (c *IPv6) ReadAllP(value *[]*net.IP) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *IPv6) FillP(value []*net.IP) {
 	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
+		if c.colNullable.b[c.i/IPv6Size] == 1 {
 			value[i] = nil
-			c.i += c.size
+			c.i += IPv6Size
 			continue
 		}
-		val := net.IP(c.b[c.i : c.i+c.size])
+		val := net.IP(c.b[c.i : c.i+IPv6Size])
 		value[i] = &val
-		c.i += c.size
+		c.i += IPv6Size
 	}
 }
 

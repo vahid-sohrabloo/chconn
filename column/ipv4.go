@@ -5,7 +5,6 @@ import "net"
 // IPv4 use for IPv4 ClickHouse DataType
 type IPv4 struct {
 	column
-	val  net.IP
 	dict map[string]int
 	keys []int
 }
@@ -29,37 +28,63 @@ func (c *IPv4) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.i += c.size
-	b := c.b[c.i-c.size : c.i]
-	c.val = net.IPv4(b[3], b[2], b[1], b[0]).To4()
+	c.i += IPv4Size
 	return true
+}
+
+// ReadAll read all value in this block and append to the input slice
+func (c *IPv4) ReadAll(value *[]net.IP) {
+	for i := 0; i < c.totalByte; i += IPv4Size {
+		b := c.b[i : i+IPv4Size]
+		*value = append(*value,
+			net.IPv4(b[3], b[2], b[1], b[0]).To4())
+	}
+}
+
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
+func (c *IPv4) ReadAllP(value *[]*net.IP) {
+	for i := 0; i < c.totalByte; i += IPv4Size {
+		if c.colNullable.b[i/IPv4Size] != 0 {
+			*value = append(*value, nil)
+			continue
+		}
+		b := c.b[i : i+IPv4Size]
+		val := net.IPv4(b[3], b[2], b[1], b[0]).To4()
+		*value = append(*value, &val)
+	}
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *IPv4) Row(row int) net.IP {
+	i := row * IPv4Size
+	b := c.b[i : i+IPv4Size]
+	return net.IPv4(b[3], b[2], b[1], b[0]).To4()
+}
+
+// Row return the value of given row for nullable data
+// NOTE: Row number start from zero
+//
+// As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
+//
+func (c *IPv4) RowP(row int) *net.IP {
+	if c.colNullable.b[row] == 1 {
+		return nil
+	}
+	i := row * IPv4Size
+	b := c.b[i : i+IPv4Size]
+	val := net.IPv4(b[3], b[2], b[1], b[0]).To4()
+	return &val
 }
 
 // Value of current pointer
 //
 // Use with Next()
 func (c *IPv4) Value() net.IP {
-	return c.val
-}
-
-// ReadAll read all value in this block and append to the input slice
-func (c *IPv4) ReadAll(value *[]net.IP) {
-	for i := 0; i < c.totalByte; i += c.size {
-		b := c.b[i : i+c.size]
-		*value = append(*value,
-			net.IPv4(b[3], b[2], b[1], b[0]).To4())
-	}
-}
-
-// Fill slice with value and forward the pointer by the length of the slice
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *IPv4) Fill(value []net.IP) {
-	for i := range value {
-		b := c.b[c.i : c.i+c.size]
-		value[i] = net.IPv4(b[3], b[2], b[1], b[0]).To4()
-		c.i += c.size
-	}
+	b := c.b[c.i-IPv4Size : c.i]
+	return net.IPv4(b[3], b[2], b[1], b[0]).To4()
 }
 
 // ValueP Value of current pointer for nullable data
@@ -68,25 +93,22 @@ func (c *IPv4) Fill(value []net.IP) {
 //
 // Use with Next()
 func (c *IPv4) ValueP() *net.IP {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+	if c.colNullable.b[(c.i-IPv4Size)/(IPv4Size)] == 1 {
 		return nil
 	}
-	val := c.val
+	b := c.b[c.i-IPv4Size : c.i]
+	val := net.IPv4(b[3], b[2], b[1], b[0]).To4()
 	return &val
 }
 
-// ReadAllP read all value in this block and append to the input slice (for nullable data)
+// Fill slice with value and forward the pointer by the length of the slice
 //
-// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
-func (c *IPv4) ReadAllP(value *[]*net.IP) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
-			*value = append(*value, nil)
-			continue
-		}
-		b := c.b[i : i+c.size]
-		val := net.IPv4(b[3], b[2], b[1], b[0]).To4()
-		*value = append(*value, &val)
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
+func (c *IPv4) Fill(value []net.IP) {
+	for i := range value {
+		b := c.b[c.i : c.i+IPv4Size]
+		value[i] = net.IPv4(b[3], b[2], b[1], b[0]).To4()
+		c.i += IPv4Size
 	}
 }
 
@@ -97,15 +119,15 @@ func (c *IPv4) ReadAllP(value *[]*net.IP) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *IPv4) FillP(value []*net.IP) {
 	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
+		if c.colNullable.b[c.i/IPv4Size] == 1 {
 			value[i] = nil
-			c.i += c.size
+			c.i += IPv4Size
 			continue
 		}
-		b := c.b[c.i : c.i+c.size]
+		b := c.b[c.i : c.i+IPv4Size]
 		val := net.IPv4(b[3], b[2], b[1], b[0]).To4()
 		value[i] = &val
-		c.i += c.size
+		c.i += IPv4Size
 	}
 }
 

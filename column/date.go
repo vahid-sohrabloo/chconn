@@ -8,7 +8,6 @@ import (
 // Date use for Date ClickHouse DataType
 type Date struct {
 	column
-	val  time.Time
 	dict map[time.Time]int
 	keys []int
 }
@@ -32,34 +31,58 @@ func (c *Date) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.i += c.size
-	c.val = time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i-c.size:c.i]))*daySeconds, 0)
+	c.i += DateSize
 	return true
+}
+
+// ReadAll read all value in this block and append to the input slice
+func (c *Date) ReadAll(value *[]time.Time) {
+	for i := 0; i < c.totalByte; i += DateSize {
+		*value = append(*value,
+			time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+DateSize]))*daySeconds, 0))
+	}
+}
+
+// ReadAllP read all value in this block and append to the input slice (for nullable data)
+//
+// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
+func (c *Date) ReadAllP(value *[]*time.Time) {
+	for i := 0; i < c.totalByte; i += DateSize {
+		if c.colNullable.b[i/DateSize] != 0 {
+			*value = append(*value, nil)
+			continue
+		}
+		val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+DateSize]))*daySeconds, 0)
+		*value = append(*value, &val)
+	}
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *Date) Row(row int) time.Time {
+	i := row * DateSize
+	return time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+DateSize]))*daySeconds, 0)
+}
+
+// Row return the value of given row for nullable data
+// NOTE: Row number start from zero
+//
+// As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
+//
+func (c *Date) RowP(row int) *time.Time {
+	if c.colNullable.b[row] == 1 {
+		return nil
+	}
+	i := row * DateSize
+	val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+DateSize]))*daySeconds, 0)
+	return &val
 }
 
 // Value of current pointer
 //
 // Use with Next()
 func (c *Date) Value() time.Time {
-	return c.val
-}
-
-// ReadAll read all value in this block and append to the input slice
-func (c *Date) ReadAll(value *[]time.Time) {
-	for i := 0; i < c.totalByte; i += c.size {
-		*value = append(*value,
-			time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+c.size]))*daySeconds, 0))
-	}
-}
-
-// Fill slice with value and forward the pointer by the length of the slice
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *Date) Fill(value []time.Time) {
-	for i := range value {
-		value[i] = time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i:c.i+c.size]))*daySeconds, 0)
-		c.i += c.size
-	}
+	return time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i-DateSize:c.i]))*daySeconds, 0)
 }
 
 // ValueP Value of current pointer for nullable data
@@ -68,24 +91,20 @@ func (c *Date) Fill(value []time.Time) {
 //
 // Use with Next()
 func (c *Date) ValueP() *time.Time {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+	if c.colNullable.b[(c.i-DateSize)/(DateSize)] == 1 {
 		return nil
 	}
-	val := c.val
+	val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i-DateSize:c.i]))*daySeconds, 0)
 	return &val
 }
 
-// ReadAllP read all value in this block and append to the input slice (for nullable data)
+// Fill slice with value and forward the pointer by the length of the slice
 //
-// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
-func (c *Date) ReadAllP(value *[]*time.Time) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
-			*value = append(*value, nil)
-			continue
-		}
-		val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+c.size]))*daySeconds, 0)
-		*value = append(*value, &val)
+// NOTE: A slice that is longer than the remaining data is not safe to pass.
+func (c *Date) Fill(value []time.Time) {
+	for i := range value {
+		value[i] = time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i:c.i+DateSize]))*daySeconds, 0)
+		c.i += DateSize
 	}
 }
 
@@ -96,14 +115,14 @@ func (c *Date) ReadAllP(value *[]*time.Time) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *Date) FillP(value []*time.Time) {
 	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
+		if c.colNullable.b[c.i/DateSize] == 1 {
 			value[i] = nil
-			c.i += c.size
+			c.i += DateSize
 			continue
 		}
-		val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i:c.i+c.size]))*daySeconds, 0)
+		val := time.Unix(int64(binary.LittleEndian.Uint16(c.b[c.i:c.i+DateSize]))*daySeconds, 0)
 		value[i] = &val
-		c.i += c.size
+		c.i += DateSize
 	}
 }
 

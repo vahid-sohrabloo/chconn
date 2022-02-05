@@ -39,6 +39,24 @@ func (c *Uint8) Value() uint8 {
 	return c.val
 }
 
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *Uint8) Row(row int) uint8 {
+	return c.b[row]
+}
+
+// Row return the value of given row for nullable data
+// NOTE: Row number start from zero
+//
+// As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
+//
+func (c *Uint8) RowP(row int) *uint8 {
+	if c.colNullable.b[row] == 1 {
+		return nil
+	}
+	return &c.b[row]
+}
+
 // ReadAll read all value in this block and append to the input slice
 func (c *Uint8) ReadAll(value *[]uint8) {
 	*value = append(*value, c.b...)

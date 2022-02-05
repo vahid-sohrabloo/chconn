@@ -1,13 +1,8 @@
 package column
 
-import (
-	"encoding/binary"
-)
-
 // Int64 use for Int64 ClickHouse DataType
 type Int64 struct {
 	column
-	val  int64
 	dict map[int64]int
 	keys []int
 }
@@ -31,71 +26,8 @@ func (c *Int64) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.i += c.size
-	c.val = int64(binary.LittleEndian.Uint64(c.b[c.i-c.size : c.i]))
+	c.i += Int64Size
 	return true
-}
-
-// Value of current pointer
-//
-// Use with Next()
-func (c *Int64) Value() int64 {
-	return c.val
-}
-
-// Fill slice with value and forward the pointer by the length of the slice
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *Int64) Fill(value []int64) {
-	for i := range value {
-		value[i] = int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+c.size]))
-		c.i += c.size
-	}
-}
-
-// ValueP Value of current pointer for nullable data
-//
-// As an alternative (for better performance), you can use `Value()` to get a value and `ValueIsNil()` to check if it is null.
-//
-// Use with Next()
-func (c *Int64) ValueP() *int64 {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
-		return nil
-	}
-	val := c.val
-	return &val
-}
-
-// ReadAllP read all value in this block and append to the input slice (for nullable data)
-//
-// As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
-func (c *Int64) ReadAllP(value *[]*int64) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
-			*value = append(*value, nil)
-			continue
-		}
-		val := int64(binary.LittleEndian.Uint64(c.b[i : i+c.size]))
-		*value = append(*value, &val)
-	}
-}
-
-// FillP slice with value and forward the pointer by the length of the slice (for nullable data)
-//
-// As an alternative (for better performance), you can use `Fill()` to get a values and `FillNil()` to check if they are null.
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *Int64) FillP(value []*int64) {
-	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
-			value[i] = nil
-			c.i += c.size
-			continue
-		}
-		val := int64(binary.LittleEndian.Uint64(c.b[c.i : c.i+c.size]))
-		value[i] = &val
-		c.i += c.size
-	}
 }
 
 // Append value for insert

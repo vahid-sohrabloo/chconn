@@ -20,7 +20,8 @@ const (
 	serializationType = hasAdditionalKeysBit | needUpdateDictionary
 )
 
-type lcDictColumn interface {
+//  LCDictColumn is a interface for column that can be LowCardinality
+type LCDictColumn interface {
 	Column
 	getKeys() []int
 }
@@ -28,7 +29,7 @@ type lcDictColumn interface {
 // LC use for LowCardinality ClickHouse DataTypes
 type LC struct {
 	column
-	dictColumn lcDictColumn
+	DictColumn LCDictColumn
 	indices    indicesColumn
 	scratch    [8]byte
 }
@@ -36,17 +37,17 @@ type LC struct {
 var _ Column = &LC{}
 
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
-func NewLowCardinality(dictColumn lcDictColumn) *LC {
+func NewLowCardinality(dictColumn LCDictColumn) *LC {
 	return NewLC(dictColumn)
 }
 
 // NewLC return new LC for LowCardinality ClickHouse DataTypes
-func NewLC(dictColumn lcDictColumn) *LC {
-	if dictColumn.isNullable() {
+func NewLC(dictColumn LCDictColumn) *LC {
+	if dictColumn.IsNullable() {
 		dictColumn.AppendEmpty()
 	}
 	l := &LC{
-		dictColumn: dictColumn,
+		DictColumn: dictColumn,
 	}
 	dictColumn.setParent(l)
 	return l
@@ -59,7 +60,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if c.numRow == 0 {
 		c.indices = NewUint8(false)
 		// to reset nullable dictionary
-		return c.dictColumn.ReadRaw(0, r)
+		return c.DictColumn.ReadRaw(0, r)
 	}
 
 	serializationType, err := c.r.Uint64()
@@ -72,11 +73,11 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return fmt.Errorf("error reading dictionary size: %w", err)
 	}
-	nullable := c.dictColumn.isNullable()
+	nullable := c.DictColumn.IsNullable()
 	// disable nullable for low cardinality dictionary
-	c.dictColumn.setNullable(false)
-	err = c.dictColumn.ReadRaw(int(dictionarySize), r)
-	c.dictColumn.setNullable(nullable)
+	c.DictColumn.setNullable(false)
+	err = c.DictColumn.ReadRaw(int(dictionarySize), r)
+	c.DictColumn.setNullable(nullable)
 	if err != nil {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
@@ -115,6 +116,12 @@ func (c *LC) Value() int {
 	return c.indices.valueInt()
 }
 
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *LC) Row(row int) int {
+	return c.indices.rowInt(row)
+}
+
 // ReadAll read all keys in this block and append to the input slice
 func (c *LC) ReadAll(value *[]int) {
 	c.indices.readAllInt(value)
@@ -129,13 +136,13 @@ func (c *LC) Fill(value []int) {
 
 // NumRow return number of keys for this block
 func (c *LC) NumRow() int {
-	return len(c.dictColumn.getKeys())
+	return len(c.DictColumn.getKeys())
 }
 
 // HeaderReader writes header data to writer
 // it uses internally
-func (c *LC) HeaderReader(r *readerwriter.Reader) error {
-	err := c.column.HeaderReader(r)
+func (c *LC) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+	err := c.column.HeaderReader(r, readColumn)
 	if err != nil {
 		return err
 	}
@@ -157,10 +164,10 @@ func (c *LC) HeaderWriter(w *readerwriter.Writer) {
 // WriteTo write data clickhouse
 // it uses internally
 func (c *LC) WriteTo(w io.Writer) (int64, error) {
-	dictionarySize := c.dictColumn.NumRow()
+	dictionarySize := c.DictColumn.NumRow()
 	// Do not write anything for empty column.
 	// May happen while writing empty arrays.
-	if dictionarySize == 0 || (c.dictColumn.isNullable() && dictionarySize <= 1) {
+	if dictionarySize == 0 || (c.DictColumn.IsNullable() && dictionarySize <= 1) {
 		return 0, nil
 	}
 	var n int64
@@ -179,12 +186,12 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 		return n, fmt.Errorf("error writing dictionarySize: %w", err)
 	}
 
-	nwd, err := c.dictColumn.WriteTo(w)
+	nwd, err := c.DictColumn.WriteTo(w)
 	n += nwd
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionary: %w", err)
 	}
-	keys := c.dictColumn.getKeys()
+	keys := c.DictColumn.getKeys()
 	nw, err = c.writeUint64(w, uint64(len(keys)))
 	n += int64(nw)
 	if err != nil {
@@ -221,7 +228,7 @@ func (c *LC) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LC) isNullable() bool {
+func (c *LC) IsNullable() bool {
 	// low cardinality column cannot be nullable
 	return false
 }

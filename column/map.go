@@ -65,16 +65,16 @@ func (c *Map) HeaderWriter(w *readerwriter.Writer) {
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *Map) HeaderReader(r *readerwriter.Reader) error {
-	err := c.Uint64.HeaderReader(r)
+func (c *Map) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+	err := c.Uint64.HeaderReader(r, readColumn)
 	if err != nil {
 		return err
 	}
-	err = c.columnKey.HeaderReader(r)
+	err = c.columnKey.HeaderReader(r, readColumn)
 	if err != nil {
 		return err
 	}
-	return c.columnValue.HeaderReader(r)
+	return c.columnValue.HeaderReader(r, readColumn)
 }
 
 // Reset all status and buffer data
@@ -95,8 +95,9 @@ func (c *Map) Next() bool {
 	if !ok {
 		return false
 	}
-	c.val = int(c.Uint64.val) - c.offset
-	c.offset = int(c.Uint64.val)
+	offset := int(c.Uint64.Value())
+	c.val = offset - c.offset
+	c.offset = offset
 	return true
 }
 
