@@ -9,7 +9,9 @@
 chconn is a pure Go driver for [ClickHouse](https://clickhouse.com/) that use Native protocol
 chconn aims to be low-level, fast, and performant.
 
-If you have any suggestion or comment, please feel free to open an issue on this tutorial's GitHub page!
+For comparison with other libraries, please see https://github.com/jwilm0028/go-driver-benchmark/ and https://github.com/go-faster/ch-bench#benchmarks
+
+If you have any suggestion or comment, please feel free to open an issue
 
 ## Example Usage
 ```go
