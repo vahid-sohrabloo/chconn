@@ -76,11 +76,11 @@ func getNewFunc(name, chType string, nullable bool) (jen.Code, string) {
 		}
 
 		if strings.HasPrefix(chType, "Enum8(") {
-			columnType = "NewInt8(" + nullableStr + ")"
+			columnType = "NewEnum8(" + nullableStr + ")"
 			break
 		}
 		if strings.HasPrefix(chType, "Enum16(") {
-			columnType = "NewInt16(" + nullableStr + ")"
+			columnType = "NewEnum16(" + nullableStr + ")"
 			break
 		}
 		if strings.HasPrefix(chType, "Nullable(") {
@@ -416,11 +416,11 @@ func getColumnByType(name, chType string, fields *[]jen.Code, fieldsName *[]stri
 		}
 
 		if strings.HasPrefix(chType, "Enum8(") {
-			columnType = "Int8"
+			columnType = "Enum8"
 			break
 		}
 		if strings.HasPrefix(chType, "Enum16(") {
-			columnType = "Int16"
+			columnType = "Enum16"
 			break
 		}
 		if strings.HasPrefix(chType, "Nullable(") {

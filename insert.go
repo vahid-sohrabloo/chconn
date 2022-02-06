@@ -57,11 +57,11 @@ func (ch *conn) InsertWithSetting(
 	if err != nil {
 		return err
 	}
-	defer ch.unlock()
 	ch.contextWatcher.Watch(ctx)
-	defer ch.contextWatcher.Unwatch()
 	var hasError bool
 	defer func() {
+		ch.unlock()
+		ch.contextWatcher.Unwatch()
 		if hasError {
 			ch.Close(context.Background())
 		}

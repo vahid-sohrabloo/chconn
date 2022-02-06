@@ -18,28 +18,33 @@ type ColumnTest struct {
 	ChType string
 }
 
-func TestJSON(t *testing.T) {
-	var mainDataTypes = []ColumnTest{
-		{"int8", "Int8"},
-		{"int16", "Int16"},
-		{"int32", "Int32"},
-		{"int64", "Int64"},
-		{"uint8", "UInt8"},
-		{"uint16", "UInt16"},
-		{"uint32", "UInt32"},
-		{"uint64", "UInt64"},
-		{"float32", "Float32"},
-		{"float64", "Float64"},
-		{"string", "String"},
-		{"fixedString", "FixedString(10)"},
-		{"decimal32", "Decimal32(3)"},
-		{"decimal64", "Decimal64(3)"},
-		{"date", "Date"},
-		{"date32", "Date32"},
-		{"datetime", "DateTime"},
-		{"datetime64", "DateTime64"},
-	}
+var mainDataTypes = []ColumnTest{
+	{"int8", "Int8"},
+	{"int16", "Int16"},
+	{"int32", "Int32"},
+	{"int64", "Int64"},
+	{"uint8", "UInt8"},
+	{"uint16", "UInt16"},
+	{"uint32", "UInt32"},
+	{"uint64", "UInt64"},
+	{"float32", "Float32"},
+	{"float64", "Float64"},
+	{"string", "String"},
+	{"fixedString", "FixedString(10)"},
+	{"decimal32", "Decimal32(3)"},
+	{"decimal64", "Decimal64(3)"},
+	{"date", "Date"},
+	{"date32", "Date32"},
+	{"datetime", "DateTime"},
+	{"datetime64", "DateTime64"},
+	{"enum8", "Enum8('hello' = 1, 'world' = 2)"},
+	{"enum16", "Enum16('hello' = 1, 'world' = 2)"},
+	{"uuid", "UUID"},
+	{"ipv4", "IPv4"},
+	{"ipv6", "IPv6"},
+}
 
+func TestJSON(t *testing.T) {
 	var columnTypes []string
 	for _, dataType := range mainDataTypes {
 		columnTypes = append(columnTypes, dataType.Name+" "+dataType.ChType,
@@ -85,27 +90,6 @@ func TestJSON(t *testing.T) {
 }
 
 func TestJSONCompact(t *testing.T) {
-	var mainDataTypes = []ColumnTest{
-		{"int8", "Int8"},
-		{"int16", "Int16"},
-		{"int32", "Int32"},
-		{"int64", "Int64"},
-		{"uint8", "UInt8"},
-		{"uint16", "UInt16"},
-		{"uint32", "UInt32"},
-		{"uint64", "UInt64"},
-		{"float32", "Float32"},
-		{"float64", "Float64"},
-		{"string", "String"},
-		{"fixedString", "FixedString(10)"},
-		{"decimal32", "Decimal32(3)"},
-		{"decimal64", "Decimal64(3)"},
-		{"date", "Date"},
-		{"date32", "Date32"},
-		{"datetime", "DateTime"},
-		{"datetime64", "DateTime64"},
-	}
-
 	var columnTypes []string
 	for _, dataType := range mainDataTypes {
 		columnTypes = append(columnTypes, dataType.Name+" "+dataType.ChType,
@@ -135,7 +119,7 @@ func TestJSONCompact(t *testing.T) {
 	selectStmt, err := conn.Select(context.Background(), `SELECT *,
 				toLowCardinality(string),toLowCardinality(string_nullable),
 				toLowCardinality(fixedString),toLowCardinality(fixedString_nullable)
-				 FROM chconn_json_compact_export_example limit 10`)
+				 FROM chconn_json_compact_export_example limit 200`)
 
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
@@ -153,27 +137,6 @@ func TestJSONCompact(t *testing.T) {
 }
 
 func TestJSONEachRow(t *testing.T) {
-	var mainDataTypes = []ColumnTest{
-		{"int8", "Int8"},
-		{"int16", "Int16"},
-		{"int32", "Int32"},
-		{"int64", "Int64"},
-		{"uint8", "UInt8"},
-		{"uint16", "UInt16"},
-		{"uint32", "UInt32"},
-		{"uint64", "UInt64"},
-		{"float32", "Float32"},
-		{"float64", "Float64"},
-		{"string", "String"},
-		{"fixedString", "FixedString(10)"},
-		{"decimal32", "Decimal32(3)"},
-		{"decimal64", "Decimal64(3)"},
-		{"date", "Date"},
-		{"date32", "Date32"},
-		{"datetime", "DateTime"},
-		{"datetime64", "DateTime64"},
-	}
-
 	var columnTypes []string
 	for _, dataType := range mainDataTypes {
 		columnTypes = append(columnTypes, dataType.Name+" "+dataType.ChType,

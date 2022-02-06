@@ -300,6 +300,10 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 		*columns = append(*columns, column.NewIPv4(nullable))
 	case string(chType) == "IPv6":
 		*columns = append(*columns, column.NewIPv6(nullable))
+	case bytes.HasPrefix(chType, []byte("Enum8(")):
+		*columns = append(*columns, column.NewEnum8(nullable))
+	case bytes.HasPrefix(chType, []byte("Enum16(")):
+		*columns = append(*columns, column.NewEnum16(nullable))
 	case bytes.HasPrefix(chType, []byte("Nullable(")):
 		s.columnByType(columns, chType[len("Nullable("):len(chType)-1], true)
 	case bytes.HasPrefix(chType, []byte("SimpleAggregateFunction(")):

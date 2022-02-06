@@ -185,8 +185,10 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionarySize: %w", err)
 	}
-
+	dictNullable := c.DictColumn.IsNullable()
+	c.DictColumn.setNullable(false)
 	nwd, err := c.DictColumn.WriteTo(w)
+	c.DictColumn.setNullable(dictNullable)
 	n += nwd
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionary: %w", err)

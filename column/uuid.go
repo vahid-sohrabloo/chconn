@@ -24,9 +24,17 @@ func (c *UUID) Next() bool {
 	if c.i >= c.totalByte {
 		return false
 	}
-	c.setVal(c.b[c.i : c.i+c.size])
-	c.i += c.size
+	c.setVal(c.b[c.i : c.i+UUIDSize])
+	c.i += UUIDSize
 	return true
+}
+
+// Row return the value of given row
+// NOTE: Row number start from zero
+func (c *UUID) Row(row int) [16]byte {
+	i := row * UUIDSize
+	c.setVal(c.b[i : i+UUIDSize])
+	return c.val
 }
 
 // Value of current pointer
@@ -38,8 +46,8 @@ func (c *UUID) Value() [16]byte {
 
 // ReadAll read all value in this block and append to the input slice
 func (c *UUID) ReadAll(value *[][16]byte) {
-	for i := 0; i < c.totalByte; i += c.size {
-		c.setVal(c.b[i : i+c.size])
+	for i := 0; i < c.totalByte; i += UUIDSize {
+		c.setVal(c.b[i : i+UUIDSize])
 		*value = append(*value,
 			c.val)
 	}
@@ -50,9 +58,9 @@ func (c *UUID) ReadAll(value *[][16]byte) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *UUID) Fill(value [][16]byte) {
 	for i := range value {
-		c.setVal(c.b[c.i : c.i+c.size])
+		c.setVal(c.b[c.i : c.i+UUIDSize])
 		value[i] = c.val
-		c.i += c.size
+		c.i += UUIDSize
 	}
 }
 
@@ -62,7 +70,7 @@ func (c *UUID) Fill(value [][16]byte) {
 //
 // Use with Next()
 func (c *UUID) ValueP() *[16]byte {
-	if c.colNullable.b[(c.i-c.size)/(c.size)] == 1 {
+	if c.colNullable.b[(c.i-UUIDSize)/(UUIDSize)] == 1 {
 		return nil
 	}
 	val := c.val
@@ -73,12 +81,12 @@ func (c *UUID) ValueP() *[16]byte {
 //
 // As an alternative (for better performance), you can use `ReadAll()` to get a values and `ReadAllNil()` to check if they are null.
 func (c *UUID) ReadAllP(value *[]*[16]byte) {
-	for i := 0; i < c.totalByte; i += c.size {
-		if c.colNullable.b[i/c.size] != 0 {
+	for i := 0; i < c.totalByte; i += UUIDSize {
+		if c.colNullable.b[i/UUIDSize] != 0 {
 			*value = append(*value, nil)
 			continue
 		}
-		c.setVal(c.b[i : i+c.size])
+		c.setVal(c.b[i : i+UUIDSize])
 		val := c.val
 		*value = append(*value, &val)
 	}
@@ -91,15 +99,15 @@ func (c *UUID) ReadAllP(value *[]*[16]byte) {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *UUID) FillP(value []*[16]byte) {
 	for i := range value {
-		if c.colNullable.b[c.i/c.size] == 1 {
+		if c.colNullable.b[c.i/UUIDSize] == 1 {
 			value[i] = nil
-			c.i += c.size
+			c.i += UUIDSize
 			continue
 		}
-		c.setVal(c.b[c.i : c.i+c.size])
+		c.setVal(c.b[c.i : c.i+UUIDSize])
 		val := c.val
 		value[i] = &val
-		c.i += c.size
+		c.i += UUIDSize
 	}
 }
 

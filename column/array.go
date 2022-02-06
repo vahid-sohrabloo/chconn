@@ -58,7 +58,12 @@ func (c *Array) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 	if err != nil {
 		return err
 	}
-	return c.dataColumn.HeaderReader(r, readColumn)
+	err = c.dataColumn.HeaderReader(r, readColumn)
+	if err != nil {
+		return err
+	}
+	c.dataColumn.SetType(c.Type()[len("Array(") : len(c.Type())-1])
+	return err
 }
 
 // Reset all status and buffer data

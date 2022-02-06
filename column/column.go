@@ -159,6 +159,11 @@ func (c *column) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 func (c *column) WriteTo(w io.Writer) (int64, error) {
 	var n int64
 	if c.nullable {
+		if len(c.colNullable.writerData) != c.NumRow() {
+			return 0,
+				//nolint:goerr113
+				fmt.Errorf("mismatch write data: nullable row %d != column row %d", c.colNullable.NumRow(), c.NumRow())
+		}
 		var err error
 		n, err = c.colNullable.WriteTo(w)
 		if err != nil {

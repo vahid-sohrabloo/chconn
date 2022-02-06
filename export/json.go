@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/vahid-sohrabloo/chconn"
 	"github.com/vahid-sohrabloo/chconn/column"
 )
@@ -310,6 +311,46 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 		// TODO: performance improvement
 		j.out = append(j.out, doubleQuoteJSON)
 		j.out = v.Row(row).AppendFormat(j.out, "2006-01-02 15:04:05")
+		j.out = append(j.out, doubleQuoteJSON)
+	case *column.Enum8:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
+		// it should return error
+		m, _ := v.IntToStringMap()
+		j.out = jsonString(j.out, m[v.Row(row)])
+	case *column.Enum16:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
+		// it should return error
+		m, _ := v.IntToStringMap()
+		j.out = jsonString(j.out, m[v.Row(row)])
+	case *column.UUID:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
+		j.out = append(j.out, doubleQuoteJSON)
+		j.out = append(j.out, uuid.UUID(v.Row(row)).String()...)
+		j.out = append(j.out, doubleQuoteJSON)
+	case *column.IPv4:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
+		j.out = append(j.out, doubleQuoteJSON)
+		j.out = append(j.out, v.Row(row).String()...)
+		j.out = append(j.out, doubleQuoteJSON)
+	case *column.IPv6:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
+		j.out = append(j.out, doubleQuoteJSON)
+		j.out = append(j.out, v.Row(row).String()...)
 		j.out = append(j.out, doubleQuoteJSON)
 	case *column.LC:
 		// currently only support String and FixedString
