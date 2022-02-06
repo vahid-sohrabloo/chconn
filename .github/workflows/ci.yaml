@@ -72,7 +72,7 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v2
-        
+
       - name: Test
         run: make test-purego
   build:
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERBOSE: 1
-      GOFLAGS: -mod=readonlyp
+      GOFLAGS: -mod=readonly
 
     steps:
       - name: Set up Go
