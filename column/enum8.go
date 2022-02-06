@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+//  Enum8 use for Enum8 ClickHouse DataType
 type Enum8 struct {
 	Int8
 	oldChType      []byte
