@@ -7,7 +7,6 @@ import (
 )
 
 // Enum16 use for Enum16 ClickHouse DataType
-
 type Enum16 struct {
 	Int16
 	oldChType      []byte
