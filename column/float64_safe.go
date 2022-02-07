@@ -37,7 +37,7 @@ func (c *Float64) Row(row int) float64 {
 	return math.Float64frombits(binary.LittleEndian.Uint64(c.b[i : i+Float64Size]))
 }
 
-// Row[ return the value of given row for nullable data
+// RowP return the value of given row for nullable data
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
