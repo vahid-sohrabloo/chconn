@@ -222,5 +222,5 @@ func TestDecimal32(t *testing.T) {
 
 	selectStmt.Close()
 
-	conn.Close(context.Background())
+	conn.Close()
 }

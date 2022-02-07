@@ -219,7 +219,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 			if p.afterConnect != nil {
 				err = p.afterConnect(ctx, c)
 				if err != nil {
-					c.Close(ctx)
+					c.Close()
 					return nil, err
 				}
 			}
@@ -232,10 +232,7 @@ func ConnectConfig(ctx context.Context, config *Config) (Pool, error) {
 			return cr, nil
 		},
 		func(value interface{}) {
-			ctxDestroy, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			conn := value.(*connResource).conn
-			conn.Close(ctxDestroy)
-			cancel()
+			value.(*connResource).conn.Close()
 		},
 		config.MaxConns,
 	)

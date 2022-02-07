@@ -257,5 +257,5 @@ func TestInt8LC(t *testing.T) {
 
 	assert.Equal(t, colInsert, colData)
 	assert.Equal(t, colNilInsert, colNilData)
-	conn.Close(context.Background())
+	conn.Close()
 }

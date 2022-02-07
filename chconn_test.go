@@ -23,13 +23,12 @@ func TestConnect(t *testing.T) {
 	require.NoError(t, conn.Ping(context.Background()))
 
 	require.NotEmpty(t, conn.ServerInfo().String())
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	require.Nil(t, conn.Close(ctx))
+
+	require.Nil(t, conn.Close())
 	require.True(t, conn.IsClosed())
 	// test protected two close
 
-	require.Nil(t, conn.Close(context.Background()))
+	require.Nil(t, conn.Close())
 }
 
 func TestConnectError(t *testing.T) {
@@ -229,7 +228,7 @@ func TestExecError(t *testing.T) {
 	require.EqualError(t, err, "conn uninitialized")
 	require.Nil(t, res)
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
-	c.Close(context.Background())
+	c.Close()
 
 	config.WriterFunc = func(w io.Writer) io.Writer {
 		return &writerErrorHelper{

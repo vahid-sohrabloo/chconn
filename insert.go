@@ -63,7 +63,7 @@ func (ch *conn) InsertWithSetting(
 		ch.unlock()
 		ch.contextWatcher.Unwatch()
 		if hasError {
-			ch.Close(context.Background())
+			ch.Close()
 		}
 	}()
 	err = ch.sendQueryWithOption(ctx, query, queryID, settings)

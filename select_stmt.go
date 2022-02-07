@@ -2,7 +2,6 @@ package chconn
 
 import (
 	"bytes"
-	"context"
 	"strconv"
 
 	"github.com/vahid-sohrabloo/chconn/column"
@@ -119,13 +118,13 @@ func (s *selectStmt) Err() error {
 // Close after reads all data should call this function to unlock connection
 // NOTE: You should read all blocks and then call this function
 func (s *selectStmt) Close() {
-	s.conn.contextWatcher.Unwatch()
 	s.conn.reader.SetCompress(false)
 	if !s.closed {
 		s.closed = true
+		s.conn.contextWatcher.Unwatch()
 		s.conn.unlock()
 		if s.Err() != nil || !s.readAll {
-			s.conn.Close(context.Background())
+			s.conn.Close()
 		}
 	}
 	s.numberColumnRead = 0
@@ -141,19 +140,19 @@ func (s *selectStmt) NextColumn(colData column.Column) error {
 			Available: s.block.NumColumns,
 		}
 		s.Close()
-		s.conn.Close(context.Background())
+		s.conn.Close()
 		return err
 	}
 	err := colData.HeaderReader(s.conn.reader, true)
 	if err != nil {
 		s.Close()
-		s.conn.Close(context.Background())
+		s.conn.Close()
 		return err
 	}
 	err = colData.ReadRaw(s.RowsInBlock(), s.conn.reader)
 	if err != nil {
 		s.Close()
-		s.conn.Close(context.Background())
+		s.conn.Close()
 	}
 	return err
 }
@@ -162,7 +161,7 @@ func (s *selectStmt) NextColumn(colData column.Column) error {
 func (s *selectStmt) ReadColumns(columns ...column.Column) error {
 	if int(s.block.NumColumns) != len(columns) {
 		s.Close()
-		s.conn.Close(context.Background())
+		s.conn.Close()
 		return &ColumnNumberReadError{
 			Read:      len(columns),
 			Available: s.block.NumColumns,
@@ -175,13 +174,13 @@ func (s *selectStmt) ReadColumns(columns ...column.Column) error {
 		err := col.HeaderReader(s.conn.reader, true)
 		if err != nil {
 			s.Close()
-			s.conn.Close(context.Background())
+			s.conn.Close()
 			return err
 		}
 		err = col.ReadRaw(s.RowsInBlock(), s.conn.reader)
 		if err != nil {
 			s.Close()
-			s.conn.Close(context.Background())
+			s.conn.Close()
 			return err
 		}
 	}
@@ -206,7 +205,7 @@ func (s *selectStmt) GetColumns() ([]column.Column, error) {
 		chColumn, err := s.block.nextColumn(s.conn)
 		if err != nil {
 			s.Close()
-			s.conn.Close(context.Background())
+			s.conn.Close()
 			return nil, err
 		}
 		s.columnByType(&columns, chColumn.ChType, false)
@@ -216,13 +215,13 @@ func (s *selectStmt) GetColumns() ([]column.Column, error) {
 		err = columns[readColumn].HeaderReader(s.conn.reader, false)
 		if err != nil {
 			s.Close()
-			s.conn.Close(context.Background())
+			s.conn.Close()
 			return nil, err
 		}
 		err = columns[readColumn].ReadRaw(s.RowsInBlock(), s.conn.reader)
 		if err != nil {
 			s.Close()
-			s.conn.Close(context.Background())
+			s.conn.Close()
 			return nil, err
 		}
 		columnsForRead = append(columnsForRead, columns[readColumn])

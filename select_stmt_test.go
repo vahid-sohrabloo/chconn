@@ -30,7 +30,7 @@ func TestSelectError(t *testing.T) {
 	require.Nil(t, res)
 	require.EqualError(t, err, "conn uninitialized")
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
-	c.Close(context.Background())
+	c.Close()
 
 	config.WriterFunc = func(w io.Writer) io.Writer {
 		return &writerErrorHelper{
@@ -65,7 +65,7 @@ func TestSelectError(t *testing.T) {
 		require.EqualError(t, err, "read 2 column(s), but available 1 column(s)")
 	}
 
-	c.Close(context.Background())
+	c.Close()
 
 	// test read more column error
 	config, err = ParseConfig(connString)
@@ -83,7 +83,7 @@ func TestSelectError(t *testing.T) {
 	}
 	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
 
-	c.Close(context.Background())
+	c.Close()
 
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestSelectError(t *testing.T) {
 		require.EqualError(t, err, "read 1 column(s), but available 2 column(s)")
 	}
 
-	c.Close(context.Background())
+	c.Close()
 }
 
 func TestSelectprogress(t *testing.T) {
@@ -131,7 +131,7 @@ func TestSelectprogress(t *testing.T) {
 	}
 	require.NoError(t, res.Err())
 
-	c.Close(context.Background())
+	c.Close()
 }
 
 func TestSelectReadError(t *testing.T) {

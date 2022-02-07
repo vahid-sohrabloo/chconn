@@ -140,5 +140,5 @@ func TestMap(t *testing.T) {
 	require.NoError(t, selectStmt.Err())
 	selectStmt.Close()
 
-	conn.Close(context.Background())
+	conn.Close()
 }

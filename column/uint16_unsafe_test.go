@@ -72,5 +72,5 @@ func TestUint16Unsafe(t *testing.T) {
 
 	selectStmt.Close()
 
-	conn.Close(context.Background())
+	conn.Close()
 }

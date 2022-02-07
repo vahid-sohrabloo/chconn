@@ -18,7 +18,7 @@ func TestPing(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 	require.NoError(t, conn.Ping(context.Background()))
-	conn.Close(context.Background())
+	conn.Close()
 }
 
 func TestPingWriteError(t *testing.T) {
@@ -42,7 +42,7 @@ func TestPingWriteError(t *testing.T) {
 	require.EqualError(t, err, "ping: write packet type (timeout)")
 	require.EqualError(t, errors.Unwrap(err), "timeout")
 
-	c.Close(context.Background())
+	c.Close()
 
 	config.WriterFunc = nil
 

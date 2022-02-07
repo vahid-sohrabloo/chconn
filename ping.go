@@ -14,7 +14,7 @@ func (ch *conn) Ping(ctx context.Context) error {
 	var hasError bool
 	defer func() {
 		if hasError {
-			ch.Close(context.Background())
+			ch.Close()
 		}
 	}()
 	if _, err := ch.writer.WriteTo(ch.writerTo); err != nil {

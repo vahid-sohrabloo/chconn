@@ -104,7 +104,7 @@ type Conn interface {
 	// RawConn Get Raw Connection. Do not use unless you know what you want to do
 	RawConn() net.Conn
 	// Close the connection to database
-	Close(ctx context.Context) error
+	Close() error
 	// IsClosed reports if the connection has been closed.
 	IsClosed() bool
 	// IsBusy reports if the connection is busy.
@@ -468,16 +468,12 @@ func (ch *conn) sendEmptyBlock() error {
 	return ch.sendData(ch.block, 0)
 }
 
-func (ch *conn) Close(ctx context.Context) error {
+func (ch *conn) Close() error {
 	if ch.status == connStatusClosed {
 		return nil
 	}
+	ch.contextWatcher.Unwatch()
 	ch.status = connStatusClosed
-
-	if ctx != context.Background() {
-		ch.contextWatcher.Watch(ctx)
-		defer ch.contextWatcher.Unwatch()
-	}
 	return ch.conn.Close()
 }
 
@@ -515,7 +511,7 @@ func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{},
 		return &pong{}, err
 	case serverException:
 		err := &ChError{}
-		defer ch.Close(context.Background())
+		defer ch.Close()
 		if errRead := err.read(ch.reader); errRead != nil {
 			return nil, errRead
 		}
@@ -561,7 +557,7 @@ func (ch *conn) ExecCallback(
 	var hasError bool
 	defer func() {
 		if hasError {
-			ch.Close(context.Background())
+			ch.Close()
 		}
 	}()
 
@@ -613,7 +609,7 @@ func (ch *conn) SelectCallback(
 	var hasError bool
 	defer func() {
 		if hasError {
-			ch.Close(context.Background())
+			ch.Close()
 		}
 	}()
 	err = ch.sendQueryWithOption(ctx, query, queryID, settings)

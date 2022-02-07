@@ -29,7 +29,7 @@ func TestInsertError(t *testing.T) {
 	err = c.Insert(context.Background(), "insert into system.numbers VALUES")
 	require.EqualError(t, err, "conn uninitialized")
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
-	c.Close(context.Background())
+	c.Close()
 
 	// test write block info error
 	config.WriterFunc = func(w io.Writer) io.Writer {

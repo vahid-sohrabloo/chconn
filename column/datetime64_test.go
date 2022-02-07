@@ -230,5 +230,5 @@ func TestDateTime64(t *testing.T) {
 
 	selectStmt.Close()
 
-	conn.Close(context.Background())
+	conn.Close()
 }
