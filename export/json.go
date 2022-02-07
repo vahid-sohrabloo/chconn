@@ -251,7 +251,7 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 			j.out = append(j.out, nullJSON...)
 			return
 		}
-		j.out = strconv.AppendFloat(j.out, val, 'f', 7, 32)
+		j.out = strconv.AppendFloat(j.out, val, 'g', -1, 32)
 	case *column.Float64:
 		if col.RowIsNil(row) {
 			j.out = append(j.out, nullJSON...)
@@ -263,7 +263,7 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 			j.out = append(j.out, nullJSON...)
 			return
 		}
-		j.out = strconv.AppendFloat(j.out, val, 'f', 7, 64)
+		j.out = strconv.AppendFloat(j.out, val, 'g', -1, 64)
 	case *column.Decimal32:
 		if col.RowIsNil(row) {
 			j.out = append(j.out, nullJSON...)
