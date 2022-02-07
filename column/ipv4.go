@@ -64,7 +64,7 @@ func (c *IPv4) Row(row int) net.IP {
 	return net.IPv4(b[3], b[2], b[1], b[0]).To4()
 }
 
-// Row return the value of given row for nullable data
+// Row[ return the value of given row for nullable data
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.

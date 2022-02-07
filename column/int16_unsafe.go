@@ -44,7 +44,7 @@ func (c *Int16) Row(row int) int16 {
 	return *(*int16)(unsafe.Pointer(&c.b[i]))
 }
 
-// Row return the value of given row for nullable data
+// Row[ return the value of given row for nullable data
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.

@@ -34,7 +34,7 @@ func (c *Int32) Row(row int) int32 {
 	return int32(binary.LittleEndian.Uint32(c.b[i : i+Int32Size]))
 }
 
-// Row return the value of given row for nullable data
+// Row[ return the value of given row for nullable data
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.

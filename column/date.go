@@ -64,7 +64,7 @@ func (c *Date) Row(row int) time.Time {
 	return time.Unix(int64(binary.LittleEndian.Uint16(c.b[i:i+DateSize]))*daySeconds, 0)
 }
 
-// Row return the value of given row for nullable data
+// Row[ return the value of given row for nullable data
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `ValueIsNil()` to check if it is null.
