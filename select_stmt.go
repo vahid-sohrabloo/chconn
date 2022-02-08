@@ -3,6 +3,7 @@ package chconn
 import (
 	"bytes"
 	"strconv"
+	"time"
 
 	"github.com/vahid-sohrabloo/chconn/column"
 )
@@ -266,9 +267,16 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 	case string(chType) == "Date32":
 		*columns = append(*columns, column.NewDate32(nullable))
 	case string(chType) == "DateTime" || bytes.HasPrefix(chType, []byte("DateTime(")):
-		*columns = append(*columns, column.NewDateTime(nullable))
+		params := bytes.Split(chType[len("DateTime("):len(chType)-1], []byte(", "))
+		col := column.NewDateTime(nullable)
+		if len(params) > 0 && len(params[0]) >= 3 {
+			if loc, err := time.LoadLocation(string(params[0][1 : len(params[0])-1])); err == nil {
+				col.SetLocation(loc)
+			}
+		}
+		*columns = append(*columns, col)
 	case bytes.HasPrefix(chType, []byte("DateTime64(")):
-		params := bytes.Split(chType[len("DateTime64("):len(chType)-1], []byte(","))
+		params := bytes.Split(chType[len("DateTime64("):len(chType)-1], []byte(", "))
 		if len(params) == 0 {
 			panic("DateTime64 invalid params")
 		}
@@ -276,7 +284,13 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 		if err != nil {
 			panic("DateTime64 invalid precision: " + err.Error())
 		}
-		*columns = append(*columns, column.NewDateTime64(precision, nullable))
+		col := column.NewDateTime64(precision, nullable)
+		if len(params) > 1 && len(params[1]) >= 3 {
+			if loc, err := time.LoadLocation(string(params[1][1 : len(params[1])-1])); err == nil {
+				col.SetLocation(loc)
+			}
+		}
+		*columns = append(*columns, col)
 	case bytes.HasPrefix(chType, []byte("Decimal(")):
 		params := bytes.Split(chType[len("Decimal("):len(chType)-1], []byte(", "))
 		precision, _ := strconv.Atoi(string(params[0]))

@@ -10,18 +10,25 @@ import (
 type DateTime64 struct {
 	column
 	precision int64
+	loc       *time.Location
 }
 
 // NewDateTime64 return new DateTime for DateTime ClickHouse DataType
 func NewDateTime64(precision int, nullable bool) *DateTime64 {
 	return &DateTime64{
 		precision: int64(math.Pow10(9 - precision)),
+		loc:       time.Local,
 		column: column{
 			nullable:    nullable,
 			colNullable: newNullable(),
 			size:        Datetime64Size,
 		},
 	}
+}
+
+// SetLocation set location for time
+func (c *DateTime64) SetLocation(loc *time.Location) {
+	c.loc = loc
 }
 
 // Next forward pointer to the next value. Returns false if there are no more values.
@@ -84,7 +91,7 @@ func (c *DateTime64) toDate(usec int64) time.Time {
 	nano := usec * c.precision
 	sec := nano / int64(10e8)
 	nsec := nano - sec*10e8
-	return time.Unix(sec, nsec)
+	return time.Unix(sec, nsec).In(c.loc)
 }
 
 // ReadAllP read all value in this block and append to the input slice (for nullable data)

@@ -10,18 +10,25 @@ type DateTime struct {
 	column
 	dict map[time.Time]int
 	keys []int
+	loc  *time.Location
 }
 
 // NewDateTime return new DateTime for DateTime ClickHouse DataType
 func NewDateTime(nullable bool) *DateTime {
 	return &DateTime{
 		dict: make(map[time.Time]int),
+		loc:  time.Local,
 		column: column{
 			nullable:    nullable,
 			colNullable: newNullable(),
 			size:        DatetimeSize,
 		},
 	}
+}
+
+// SetLocation set location for time
+func (c *DateTime) SetLocation(loc *time.Location) {
+	c.loc = loc
 }
 
 // Next forward pointer to the next value. Returns false if there are no more values.
@@ -61,7 +68,7 @@ func (c *DateTime) ReadAllP(value *[]*time.Time) {
 // NOTE: Row number start from zero
 func (c *DateTime) Row(row int) time.Time {
 	i := row * DatetimeSize
-	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+DatetimeSize])), 0)
+	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+DatetimeSize])), 0).In(c.loc)
 }
 
 // RowP return the value of given row for nullable data
@@ -74,7 +81,7 @@ func (c *DateTime) RowP(row int) *time.Time {
 		return nil
 	}
 	i := row * DatetimeSize
-	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+DatetimeSize])), 0)
+	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+DatetimeSize])), 0).In(c.loc)
 	return &val
 }
 
@@ -82,7 +89,7 @@ func (c *DateTime) RowP(row int) *time.Time {
 //
 // Use with Next()
 func (c *DateTime) Value() time.Time {
-	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-DatetimeSize:c.i])), 0)
+	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-DatetimeSize:c.i])), 0).In(c.loc)
 }
 
 // ValueP Value of current pointer for nullable data
@@ -94,7 +101,7 @@ func (c *DateTime) ValueP() *time.Time {
 	if c.colNullable.b[(c.i-DatetimeSize)/(DatetimeSize)] == 1 {
 		return nil
 	}
-	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-DatetimeSize:c.i])), 0)
+	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-DatetimeSize:c.i])), 0).In(c.loc)
 	return &val
 }
 
@@ -103,7 +110,7 @@ func (c *DateTime) ValueP() *time.Time {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *DateTime) Fill(value []time.Time) {
 	for i := range value {
-		value[i] = time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+DatetimeSize])), 0)
+		value[i] = time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+DatetimeSize])), 0).In(c.loc)
 		c.i += DatetimeSize
 	}
 }
@@ -120,7 +127,7 @@ func (c *DateTime) FillP(value []*time.Time) {
 			c.i += DatetimeSize
 			continue
 		}
-		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+DatetimeSize])), 0)
+		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+DatetimeSize])), 0).In(c.loc)
 		value[i] = &val
 		c.i += DatetimeSize
 	}

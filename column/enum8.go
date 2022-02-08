@@ -55,7 +55,6 @@ func (c *Enum8) fillMaps() error {
 	if bytes.HasPrefix(chType, []byte("Nullable(")) {
 		chType = chType[len("Nullable(") : len(chType)-1]
 	}
-	fmt.Println(string(chType), len(chType)-1)
 	enums := bytes.Split(chType[len("Enum8("):len(chType)-1], []byte(", "))
 	c.intToStringMap = make(map[int8]string)
 	c.stringToIntMap = make(map[string]int8)
