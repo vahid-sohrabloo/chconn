@@ -57,8 +57,8 @@ func TestDate32(t *testing.T) {
 		colArrayNil.Reset()
 		colNil.Reset()
 		for i := 0; i < rows; i++ {
-			val := zeroTime.AddDate(i, 0, 0).Truncate(time.Hour * 24)
-			valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).Truncate(time.Hour * 24)}
+			val := zeroTime.AddDate(i, 0, 0).In(time.UTC).Truncate(time.Hour * 24)
+			valArray := []time.Time{val, zeroTime.AddDate(i+1, 0, 0).In(time.UTC).Truncate(time.Hour * 24)}
 			valArrayNil := []*time.Time{&val, nil}
 
 			col.Append(val)

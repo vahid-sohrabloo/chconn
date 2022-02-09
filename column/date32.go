@@ -39,7 +39,7 @@ func (c *Date32) Next() bool {
 func (c *Date32) ReadAll(value *[]time.Time) {
 	for i := 0; i < c.totalByte; i += Date32Size {
 		*value = append(*value,
-			time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0))
+			time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0).In(time.UTC))
 	}
 }
 
@@ -52,7 +52,7 @@ func (c *Date32) ReadAllP(value *[]*time.Time) {
 			*value = append(*value, nil)
 			continue
 		}
-		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0)
+		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0).In(time.UTC)
 		*value = append(*value, &val)
 	}
 }
@@ -61,7 +61,7 @@ func (c *Date32) ReadAllP(value *[]*time.Time) {
 // NOTE: Row number start from zero
 func (c *Date32) Row(row int) time.Time {
 	i := row * Date32Size
-	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0)
+	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0).In(time.UTC)
 }
 
 // RowP return the value of given row for nullable data
@@ -74,7 +74,7 @@ func (c *Date32) RowP(row int) *time.Time {
 		return nil
 	}
 	i := row * Date32Size
-	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0)
+	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[i:i+Date32Size])*daySeconds), 0).In(time.UTC)
 	return &val
 }
 
@@ -82,7 +82,7 @@ func (c *Date32) RowP(row int) *time.Time {
 //
 // Use with Next()
 func (c *Date32) Value() time.Time {
-	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-Date32Size:c.i])*daySeconds), 0)
+	return time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-Date32Size:c.i])*daySeconds), 0).In(time.UTC)
 }
 
 // ValueP Value of current pointer for nullable data
@@ -94,7 +94,7 @@ func (c *Date32) ValueP() *time.Time {
 	if c.colNullable.b[(c.i-Date32Size)/(Date32Size)] == 1 {
 		return nil
 	}
-	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-Date32Size:c.i])*daySeconds), 0)
+	val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i-Date32Size:c.i])*daySeconds), 0).In(time.UTC)
 	return &val
 }
 
@@ -103,7 +103,7 @@ func (c *Date32) ValueP() *time.Time {
 // NOTE: A slice that is longer than the remaining data is not safe to pass.
 func (c *Date32) Fill(value []time.Time) {
 	for i := range value {
-		value[i] = time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+Date32Size])*daySeconds), 0)
+		value[i] = time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+Date32Size])*daySeconds), 0).In(time.UTC)
 		c.i += Date32Size
 	}
 }
@@ -120,7 +120,7 @@ func (c *Date32) FillP(value []*time.Time) {
 			c.i += Date32Size
 			continue
 		}
-		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+Date32Size])*daySeconds), 0)
+		val := time.Unix(int64(binary.LittleEndian.Uint32(c.b[c.i:c.i+Date32Size])*daySeconds), 0).In(time.UTC)
 		value[i] = &val
 		c.i += Date32Size
 	}
