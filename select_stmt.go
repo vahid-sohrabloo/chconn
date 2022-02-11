@@ -57,6 +57,7 @@ func (s *selectStmt) Next() bool {
 			Read:      s.numberColumnRead,
 			Available: s.block.NumColumns,
 		}
+		s.Close()
 		return false
 	}
 
@@ -64,6 +65,7 @@ func (s *selectStmt) Next() bool {
 	res, err := s.conn.receiveAndProccessData(nil)
 	if err != nil {
 		s.lastErr = err
+		s.Close()
 		return false
 	}
 	s.conn.reader.SetCompress(s.conn.compress)
@@ -72,6 +74,7 @@ func (s *selectStmt) Next() bool {
 			err = block.readColumns(s.conn)
 			if err != nil {
 				s.lastErr = err
+				s.Close()
 				return false
 			}
 			return s.Next()

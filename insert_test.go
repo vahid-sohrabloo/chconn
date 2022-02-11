@@ -44,6 +44,7 @@ func TestInsertError(t *testing.T) {
 
 	err = c.Insert(context.Background(), "insert into system.numbers VALUES")
 	require.EqualError(t, err, "write block info (timeout)")
+	assert.True(t, c.IsClosed())
 
 	// test insert server error
 	config.WriterFunc = nil
@@ -52,12 +53,14 @@ func TestInsertError(t *testing.T) {
 
 	err = c.Insert(context.Background(), "insert into system.numbers VALUES")
 	require.EqualError(t, err, " DB::Exception (48): Method write is not supported by storage SystemNumbers")
+	assert.True(t, c.IsClosed())
 
 	// test not block data error
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	err = c.Insert(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "Unexpected packet from server (expected serverData got <nil>)")
+	assert.True(t, c.IsClosed())
 
 	// test read column error
 	c, err = ConnectConfig(context.Background(), config)
@@ -85,6 +88,7 @@ func TestInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	require.EqualError(t, err, "block: read column name (timeout)")
+	assert.True(t, c.IsClosed())
 
 	config, err = ParseConfig(connString)
 	require.NoError(t, err)
@@ -95,6 +99,7 @@ func TestInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	require.EqualError(t, err, ErrInsertMinColumn.Error())
+	assert.True(t, c.IsClosed())
 }
 
 func TestInsertMoreColumnsError(t *testing.T) {
@@ -121,6 +126,7 @@ func TestInsertMoreColumnsError(t *testing.T) {
 			int8
 		) VALUES`, column.NewInt8(false), column.NewInt8(false))
 	require.EqualError(t, err, "write 2 column(s) but insert query needs 1 column(s)")
+	assert.True(t, c.IsClosed())
 }
 
 func TestInsertMoreRowsError(t *testing.T) {
@@ -153,6 +159,7 @@ func TestInsertMoreRowsError(t *testing.T) {
 			int16
 		) VALUES`, col1, col2)
 	require.EqualError(t, err, "first column has 2 rows but \"int16\" column has 1 rows")
+	assert.True(t, c.IsClosed())
 }
 
 func TestInsert(t *testing.T) {
@@ -328,6 +335,7 @@ func TestInsertColumnError(t *testing.T) {
 				col,
 			)
 			require.EqualError(t, err, tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
@@ -393,6 +401,7 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 				col,
 			)
 			require.EqualError(t, err, tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
@@ -474,6 +483,7 @@ func TestInsertColumnLowCardinality(t *testing.T) {
 				colLC,
 			)
 			require.EqualError(t, err, tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
