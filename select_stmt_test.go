@@ -44,6 +44,7 @@ func TestSelectError(t *testing.T) {
 	res, err = c.Select(context.Background(), "select * from system.numbers limit 5")
 	require.EqualError(t, err, "write block info (timeout)")
 	require.Nil(t, res)
+	assert.True(t, c.IsClosed())
 
 	// test read more column error
 	config, err = ParseConfig(connString)
@@ -65,7 +66,7 @@ func TestSelectError(t *testing.T) {
 		require.EqualError(t, err, "read 2 column(s), but available 1 column(s)")
 	}
 
-	c.Close()
+	assert.True(t, c.IsClosed())
 
 	// test read more column error
 	config, err = ParseConfig(connString)
@@ -83,7 +84,7 @@ func TestSelectError(t *testing.T) {
 	}
 	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
 
-	c.Close()
+	assert.True(t, c.IsClosed())
 
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
@@ -95,7 +96,7 @@ func TestSelectError(t *testing.T) {
 		require.EqualError(t, err, "read 1 column(s), but available 2 column(s)")
 	}
 
-	c.Close()
+	assert.True(t, c.IsClosed())
 }
 
 func TestSelectprogress(t *testing.T) {

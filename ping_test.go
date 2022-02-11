@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +43,7 @@ func TestPingWriteError(t *testing.T) {
 	require.EqualError(t, err, "ping: write packet type (timeout)")
 	require.EqualError(t, errors.Unwrap(err), "timeout")
 
-	c.Close()
+	assert.True(t, c.IsClosed())
 
 	config.WriterFunc = nil
 
@@ -58,4 +59,5 @@ func TestPingWriteError(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualError(t, c.Ping(context.Background()), "packet: read packet type (timeout)")
+	assert.True(t, c.IsClosed())
 }

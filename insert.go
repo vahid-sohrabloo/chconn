@@ -101,5 +101,7 @@ func (ch *conn) InsertWithSetting(
 		return err
 	}
 
-	return commit(ch, blockData, columns...)
+	err = commit(ch, blockData, columns...)
+	hasError = err != nil
+	return err
 }

@@ -243,6 +243,7 @@ func TestExecError(t *testing.T) {
 	res, err = c.Exec(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "write block info (timeout)")
 	require.Nil(t, res)
+	assert.True(t, c.IsClosed())
 }
 
 func TestRecivePackError(t *testing.T) {
@@ -265,4 +266,5 @@ func TestRecivePackError(t *testing.T) {
 	res, err := c.Exec(context.Background(), `SELECT * FROM system.numbers limit 1`)
 	require.EqualError(t, err, "packet: read packet type (timeout)")
 	require.Nil(t, res)
+	assert.True(t, c.IsClosed())
 }
