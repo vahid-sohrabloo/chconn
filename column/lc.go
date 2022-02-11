@@ -43,9 +43,6 @@ func NewLowCardinality(dictColumn LCDictColumn) *LC {
 
 // NewLC return new LC for LowCardinality ClickHouse DataTypes
 func NewLC(dictColumn LCDictColumn) *LC {
-	if dictColumn.IsNullable() {
-		dictColumn.AppendEmpty()
-	}
 	l := &LC{
 		DictColumn: dictColumn,
 	}
@@ -87,16 +84,17 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return err
 	}
-
-	switch intType {
-	case 0:
-		c.indices = NewUint8(false)
-	case 1:
-		c.indices = NewUint16(false)
-	case 2:
-		c.indices = NewUint32(false)
-	case 3:
-		panic("cannot handle this amount of data fo lc")
+	if c.indices == nil {
+		switch intType {
+		case 0:
+			c.indices = NewUint8(false)
+		case 1:
+			c.indices = NewUint16(false)
+		case 2:
+			c.indices = NewUint32(false)
+		case 3:
+			panic("cannot handle this amount of data fo lc")
+		}
 	}
 
 	return c.indices.ReadRaw(c.numRow, c.r)
@@ -167,8 +165,12 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	dictionarySize := c.DictColumn.NumRow()
 	// Do not write anything for empty column.
 	// May happen while writing empty arrays.
-	if dictionarySize == 0 || (c.DictColumn.IsNullable() && dictionarySize <= 1) {
+	if dictionarySize == 0 {
 		return 0, nil
+	}
+	dictNullable := c.DictColumn.IsNullable()
+	if dictNullable {
+		dictionarySize++
 	}
 	var n int64
 	intType := int(math.Log2(float64(dictionarySize)) / 8)
@@ -185,7 +187,14 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionarySize: %w", err)
 	}
-	dictNullable := c.DictColumn.IsNullable()
+
+	if dictNullable {
+		nw, err = w.Write(c.DictColumn.GetEmpty())
+		n += int64(nw)
+		if err != nil {
+			return n, fmt.Errorf("error writing null empty data: %w", err)
+		}
+	}
 	c.DictColumn.setNullable(false)
 	nwd, err := c.DictColumn.WriteTo(w)
 	c.DictColumn.setNullable(dictNullable)
@@ -242,6 +251,12 @@ func (c *LC) setNullable(nullable bool) {
 //
 // it does nothing for low cardinality column
 func (c *LC) AppendEmpty() {
+}
+
+// GetEmpty return empty value for insert
+// it does nothing for low cardinality column
+func (c *LC) GetEmpty() []byte {
+	return emptyByte[:c.size]
 }
 
 // Reset reset column
