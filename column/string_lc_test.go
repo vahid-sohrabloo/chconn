@@ -52,62 +52,73 @@ func TestStringLC(t *testing.T) {
 	var colInsertArray [][][]byte
 	var colInsertArrayNil [][]*[]byte
 	var colNilInsert []*[]byte
+	for insertN := 0; insertN < 2; insertN++ {
+		col.Reset()
+		colLC.Reset()
+		colNil.Reset()
+		colNilLC.Reset()
+		colArrayValues.Reset()
+		collArrayLC.Reset()
+		colArray.Reset()
+		colArrayValuesNil.Reset()
+		collArrayLCNil.Reset()
+		colArrayNil.Reset()
+		rows := 10
+		for i := 1; i <= rows; i++ {
+			val := []byte(fmt.Sprintf("%d", i))
+			valArray := [][]byte{val, []byte(fmt.Sprintf("%d", i+1))}
+			valArrayNil := []*[]byte{&val, nil}
 
-	rows := 10
-	for i := 1; i <= rows; i++ {
-		val := []byte(fmt.Sprintf("%d", i))
-		valArray := [][]byte{val, []byte(fmt.Sprintf("%d", i+1))}
-		valArrayNil := []*[]byte{&val, nil}
+			col.AppendDict(val)
+			colInsert = append(colInsert, val)
 
-		col.AppendDict(val)
-		colInsert = append(colInsert, val)
-
-		// // example insert array
-		colInsertArray = append(colInsertArray, valArray)
-		colArray.AppendLen(len(valArray))
-		for _, v := range valArray {
-			colArrayValues.AppendDict(v)
-		}
-
-		// example insert nullable array
-		colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-		colArrayNil.AppendLen(len(valArrayNil))
-		for _, v := range valArrayNil {
-			colArrayValuesNil.AppendDictP(v)
-		}
-
-		// example add nullable
-		if i%2 == 0 {
-			colNilInsert = append(colNilInsert, &val)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendDictP(&val)
-			} else {
-				// example to without pointer
-				colNil.AppendDict(val)
+			// // example insert array
+			colInsertArray = append(colInsertArray, valArray)
+			colArray.AppendLen(len(valArray))
+			for _, v := range valArray {
+				colArrayValues.AppendDict(v)
 			}
-		} else {
-			colNilInsert = append(colNilInsert, nil)
-			if i <= rows/2 {
-				// example to add by pointer
-				colNil.AppendDictP(nil)
+
+			// example insert nullable array
+			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
+			colArrayNil.AppendLen(len(valArrayNil))
+			for _, v := range valArrayNil {
+				colArrayValuesNil.AppendDictP(v)
+			}
+
+			// example add nullable
+			if i%2 == 0 {
+				colNilInsert = append(colNilInsert, &val)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendDictP(&val)
+				} else {
+					// example to without pointer
+					colNil.AppendDict(val)
+				}
 			} else {
-				// example to add without pointer
-				colNil.AppendDictNil()
+				colNilInsert = append(colNilInsert, nil)
+				if i <= rows/2 {
+					// example to add by pointer
+					colNil.AppendDictP(nil)
+				} else {
+					// example to add without pointer
+					colNil.AppendDictNil()
+				}
 			}
 		}
-	}
 
-	err = conn.Insert(context.Background(), `INSERT INTO
+		err = conn.Insert(context.Background(), `INSERT INTO
 		test_lc_string(string_lc,string_lc_nullable,string_lc_array,string_lc_array_nullable)
 	VALUES`,
-		colLC,
-		colNilLC,
-		colArray,
-		colArrayNil,
-	)
+			colLC,
+			colNilLC,
+			colArray,
+			colArrayNil,
+		)
 
-	require.NoError(t, err)
+		require.NoError(t, err)
+	}
 
 	// example read all
 	selectStmt, err := conn.Select(context.Background(), `SELECT
@@ -150,12 +161,14 @@ func TestStringLC(t *testing.T) {
 		err = selectStmt.ReadColumns(colLCRead, colNilLCRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
 		colRead.ReadAll(&colDataDict)
+		colDataKeys = colDataKeys[:0]
 		colLCRead.ReadAll(&colDataKeys)
 
 		for _, k := range colDataKeys {
 			colData = append(colData, colDataDict[k])
 		}
 		colNilRead.ReadAll(&colNilDataDict)
+		colNilDataKeys = colNilDataKeys[:0]
 		colNilLCRead.ReadAll(&colNilDataKeys)
 
 		for _, k := range colNilDataKeys {

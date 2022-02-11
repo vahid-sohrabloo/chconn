@@ -18,6 +18,7 @@ type Column interface {
 	IsNullable() bool
 	setNullable(nullable bool)
 	AppendEmpty()
+	GetEmpty() []byte
 	Name() []byte
 	Type() []byte
 	SetName(v []byte)
@@ -235,6 +236,11 @@ func (c *column) setParent(parent Column) {
 func (c *column) AppendEmpty() {
 	c.numRow++
 	c.writerData = append(c.writerData, emptyByte[:c.size]...)
+}
+
+// GetEmpty return empty value for insert
+func (c *column) GetEmpty() []byte {
+	return emptyByte[:c.size]
 }
 
 // HasParent check if the column has parent or not
