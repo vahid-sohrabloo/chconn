@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"bytes"
+	"context"
 	"strconv"
 	"time"
 
@@ -20,8 +21,6 @@ type SelectStmt interface {
 	// Close after reads all data should call this function to unlock connection
 	// NOTE: You shoud read all data and then call this function
 	Close()
-	// Deprecated: use ReadColumns instead
-	NextColumn(colData column.Column) error
 	// ReadColumns read all columns of block
 	ReadColumns(columns ...column.Column) error
 	// GetColumns get and read all columns of block
@@ -29,20 +28,21 @@ type SelectStmt interface {
 	GetColumns() ([]column.Column, error)
 }
 type selectStmt struct {
-	block            *block
-	conn             *conn
-	query            string
-	queryID          string
-	clientInfo       *ClientInfo
-	onProgress       func(*Progress)
-	onProfile        func(*Profile)
-	lastErr          error
-	ProfileInfo      *Profile
-	Progress         *Progress
-	closed           bool
-	numberColumnRead int
-	readAll          bool
-	columnsForRead   []column.Column
+	block          *block
+	conn           *conn
+	query          string
+	queryID        string
+	clientInfo     *ClientInfo
+	onProgress     func(*Progress)
+	onProfile      func(*Profile)
+	lastErr        error
+	ProfileInfo    *Profile
+	Progress       *Progress
+	closed         bool
+	columnsForRead []column.Column
+	ctx            context.Context
+	needReadData   bool
+	finishSelect   bool
 }
 
 var _ SelectStmt = &selectStmt{}
@@ -50,17 +50,6 @@ var _ SelectStmt = &selectStmt{}
 // Next get the next block, if available return true else return false
 // if the server sends an error return false and we can get the last error with Err() function
 func (s *selectStmt) Next() bool {
-	if s.lastErr == nil &&
-		s.block != nil &&
-		s.numberColumnRead < int(s.block.NumColumns) {
-		s.lastErr = &ColumnNumberReadError{
-			Read:      s.numberColumnRead,
-			Available: s.block.NumColumns,
-		}
-		s.Close()
-		return false
-	}
-
 	s.conn.reader.SetCompress(false)
 	res, err := s.conn.receiveAndProccessData(nil)
 	if err != nil {
@@ -79,7 +68,7 @@ func (s *selectStmt) Next() bool {
 			}
 			return s.Next()
 		}
-		s.numberColumnRead = 0
+		s.needReadData = true
 		s.block = block
 		return true
 	}
@@ -100,7 +89,7 @@ func (s *selectStmt) Next() bool {
 	}
 
 	if res == nil {
-		s.readAll = true
+		s.finishSelect = true
 		s.columnsForRead = nil
 		return false
 	}
@@ -116,7 +105,7 @@ func (s *selectStmt) RowsInBlock() int {
 
 // Err When calls Next() func, if server send an error, we can get error from this function
 func (s *selectStmt) Err() error {
-	return s.lastErr
+	return preferContextOverNetTimeoutError(s.ctx, s.lastErr)
 }
 
 // Close after reads all data should call this function to unlock connection
@@ -127,38 +116,10 @@ func (s *selectStmt) Close() {
 		s.closed = true
 		s.conn.contextWatcher.Unwatch()
 		s.conn.unlock()
-		if s.Err() != nil || !s.readAll {
+		if s.Err() != nil || s.needReadData || !s.finishSelect {
 			s.conn.Close()
 		}
 	}
-	s.numberColumnRead = 0
-	s.readAll = false
-}
-
-// Deprecated: use ReadColumns instead
-func (s *selectStmt) NextColumn(colData column.Column) error {
-	s.numberColumnRead++
-	if s.numberColumnRead > int(s.block.NumColumns) {
-		err := &ColumnNumberReadError{
-			Read:      s.numberColumnRead,
-			Available: s.block.NumColumns,
-		}
-		s.Close()
-		s.conn.Close()
-		return err
-	}
-	err := colData.HeaderReader(s.conn.reader, true)
-	if err != nil {
-		s.Close()
-		s.conn.Close()
-		return err
-	}
-	err = colData.ReadRaw(s.RowsInBlock(), s.conn.reader)
-	if err != nil {
-		s.Close()
-		s.conn.Close()
-	}
-	return err
 }
 
 // ReadColumns read all columns of block
@@ -171,21 +132,25 @@ func (s *selectStmt) ReadColumns(columns ...column.Column) error {
 			Available: s.block.NumColumns,
 		}
 	}
-	s.numberColumnRead = int(s.block.NumColumns)
 	// todo: validate number of bytes
 
+	if !s.needReadData {
+		return nil
+	}
+
+	s.needReadData = false
 	for _, col := range columns {
 		err := col.HeaderReader(s.conn.reader, true)
 		if err != nil {
 			s.Close()
 			s.conn.Close()
-			return err
+			return preferContextOverNetTimeoutError(s.ctx, err)
 		}
 		err = col.ReadRaw(s.RowsInBlock(), s.conn.reader)
 		if err != nil {
 			s.Close()
 			s.conn.Close()
-			return err
+			return preferContextOverNetTimeoutError(s.ctx, err)
 		}
 	}
 	return nil
@@ -194,23 +159,29 @@ func (s *selectStmt) ReadColumns(columns ...column.Column) error {
 // GetColumns get and read all columns of block
 // If you know the columns  it's better to use ReadColumns func
 func (s *selectStmt) GetColumns() ([]column.Column, error) {
-	if len(s.columnsForRead) > 0 {
-		return s.columnsForRead, s.ReadColumns(s.columnsForRead...)
-	}
-
 	if s.block == nil {
 		return nil, nil
 	}
 
-	s.numberColumnRead = int(s.block.NumColumns)
-	columns := make([]column.Column, 0, s.numberColumnRead)
-	columnsForRead := make([]column.Column, 0, s.numberColumnRead)
+	if !s.needReadData {
+		return nil, nil
+	}
+
+	if len(s.columnsForRead) > 0 {
+		return s.columnsForRead, s.ReadColumns(s.columnsForRead...)
+	}
+
+	s.needReadData = false
+
+	numberColumnRead := int(s.block.NumColumns)
+	columns := make([]column.Column, 0, numberColumnRead)
+	columnsForRead := make([]column.Column, 0, numberColumnRead)
 	for i := 0; i < int(s.block.NumColumns); i++ {
 		chColumn, err := s.block.nextColumn(s.conn)
 		if err != nil {
 			s.Close()
 			s.conn.Close()
-			return nil, err
+			return nil, preferContextOverNetTimeoutError(s.ctx, err)
 		}
 		s.columnByType(&columns, chColumn.ChType, false)
 		readColumn := len(columns) - 1
@@ -220,13 +191,13 @@ func (s *selectStmt) GetColumns() ([]column.Column, error) {
 		if err != nil {
 			s.Close()
 			s.conn.Close()
-			return nil, err
+			return nil, preferContextOverNetTimeoutError(s.ctx, err)
 		}
 		err = columns[readColumn].ReadRaw(s.RowsInBlock(), s.conn.reader)
 		if err != nil {
 			s.Close()
 			s.conn.Close()
-			return nil, err
+			return nil, preferContextOverNetTimeoutError(s.ctx, err)
 		}
 		columnsForRead = append(columnsForRead, columns[readColumn])
 	}

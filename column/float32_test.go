@@ -233,3 +233,10 @@ func TestFloat32(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestFloat32FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewFloat32(false)
+	col.Fill([]float32{})
+	col.Fill(nil)
+}

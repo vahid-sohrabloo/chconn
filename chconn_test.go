@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -198,7 +199,7 @@ func TestLockError(t *testing.T) {
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 }
 
-func TestUlockError(t *testing.T) {
+func TestUnlockError(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -246,7 +247,40 @@ func TestExecError(t *testing.T) {
 	assert.True(t, c.IsClosed())
 }
 
-func TestRecivePackError(t *testing.T) {
+func TestExecCtxError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res, err := c.Exec(ctx, "select * from system.numbers limit 1")
+	require.EqualError(t, err, "timeout: context already done: context canceled")
+	require.Nil(t, res)
+	assert.False(t, c.IsClosed())
+
+	config.WriterFunc = func(w io.Writer) io.Writer {
+		return &writerSlowHelper{
+			w:     w,
+			sleep: time.Second,
+		}
+	}
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	res, err = c.Exec(ctx, "select * from system.numbers")
+	require.EqualError(t, errors.Unwrap(err), "context deadline exceeded")
+	require.Nil(t, res)
+	assert.True(t, c.IsClosed())
+}
+
+func TestReceivePackError(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")

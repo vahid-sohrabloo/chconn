@@ -554,8 +554,7 @@ func TestPoolInsert(t *testing.T) {
 	colInt8 := column.NewInt8(false)
 
 	for selectStmt.Next() {
-		//nolint:staticcheck // for unit test NextColumn
-		err := selectStmt.NextColumn(colInt8)
+		err := selectStmt.ReadColumns(colInt8)
 		require.NoError(t, err)
 		colInt8.ReadAll(&int8Data)
 		require.NoError(t, err)

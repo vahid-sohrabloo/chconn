@@ -233,3 +233,10 @@ func TestInt8(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestInt8FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewInt8(false)
+	col.Fill([]int8{})
+	col.Fill(nil)
+}

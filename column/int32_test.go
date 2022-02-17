@@ -233,3 +233,10 @@ func TestInt32(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestInt32FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewInt32(false)
+	col.Fill([]int32{})
+	col.Fill(nil)
+}

@@ -30,7 +30,7 @@ func NewArray(dataColumn Column) *Array {
 	return a
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *Array) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	err := c.Uint64.ReadRaw(num, r)

@@ -233,3 +233,10 @@ func TestUint32(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestUint32FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewUint32(false)
+	col.Fill([]uint32{})
+	col.Fill(nil)
+}

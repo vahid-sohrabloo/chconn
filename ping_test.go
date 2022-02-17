@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,5 +60,40 @@ func TestPingWriteError(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualError(t, c.Ping(context.Background()), "packet: read packet type (timeout)")
+	assert.True(t, c.IsClosed())
+}
+
+func TestPingCtxError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = c.Ping(ctx)
+	require.EqualError(t, err, "timeout: context already done: context canceled")
+	require.EqualError(t, errors.Unwrap(err), "context already done: context canceled")
+
+	assert.False(t, c.IsClosed())
+
+	config.WriterFunc = func(w io.Writer) io.Writer {
+		return &writerSlowHelper{
+			w:     w,
+			sleep: time.Second,
+		}
+	}
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	err = c.Ping(ctx)
+	require.EqualError(t, errors.Unwrap(errors.Unwrap(err)), "context deadline exceeded")
 	assert.True(t, c.IsClosed())
 }

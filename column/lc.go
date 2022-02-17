@@ -50,7 +50,7 @@ func NewLC(dictColumn LCDictColumn) *LC {
 	return l
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
@@ -85,16 +85,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 		return err
 	}
 	if c.indices == nil {
-		switch intType {
-		case 0:
-			c.indices = NewUint8(false)
-		case 1:
-			c.indices = NewUint16(false)
-		case 2:
-			c.indices = NewUint32(false)
-		case 3:
-			panic("cannot handle this amount of data fo lc")
-		}
+		c.indices = getLCIndicate(int(intType))
 	}
 
 	return c.indices.ReadRaw(c.numRow, c.r)
@@ -208,23 +199,28 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("error writing keys len: %w", err)
 	}
-
-	switch intType {
-	case 0:
-		c.indices = NewUint8(false)
-	case 1:
-		c.indices = NewUint16(false)
-	case 2:
-		c.indices = NewUint32(false)
-	case 3:
-		panic("cannot handle this amount of data fo lc")
-	}
+	c.indices = getLCIndicate(intType)
 	c.indices.appendInts(keys)
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
 		return n, fmt.Errorf("error writing indices: %w", err)
 	}
 	return n + nwt, err
+}
+
+func getLCIndicate(intType int) indicesColumn {
+	switch intType {
+	case 0:
+		return NewUint8(false)
+	case 1:
+		return NewUint16(false)
+	case 2:
+		return NewUint32(false)
+	case 3:
+		panic("cannot handle this amount of data fo lc")
+	}
+	// this should never happen unless something wrong with the code
+	panic("cannot not find indicate type")
 }
 
 func (c *LC) writeUint64(w io.Writer, v uint64) (int, error) {

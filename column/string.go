@@ -25,7 +25,7 @@ func NewString(nullable bool) *String {
 	}
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *String) ReadRaw(num int, r *readerwriter.Reader) error {
 	err := c.column.ReadRaw(num, r)
 	if err != nil {

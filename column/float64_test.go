@@ -233,3 +233,10 @@ func TestFloat64(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestFloat64FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewFloat64(false)
+	col.Fill([]float64{})
+	col.Fill(nil)
+}

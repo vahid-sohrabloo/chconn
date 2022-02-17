@@ -2,7 +2,6 @@ package chconn
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
 )
@@ -15,7 +14,7 @@ type ServerInfo struct {
 	MajorVersion       uint64
 	ServerDisplayName  string
 	ServerVersionPatch uint64
-	Timezone           *time.Location
+	Timezone           string
 }
 
 func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
@@ -32,13 +31,8 @@ func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
 		return &readError{"ServerInfo: could not read server revision", err}
 	}
 	if srv.Revision >= dbmsMinRevisionWithServerTimezone {
-		var timezone string
-		timezone, err = r.String()
-		if err != nil {
+		if srv.Timezone, err = r.String(); err != nil {
 			return &readError{"ServerInfo: could not read server timezone", err}
-		}
-		if srv.Timezone, err = time.LoadLocation(timezone); err != nil {
-			return &readError{"ServerInfo: could not load time location", err}
 		}
 	}
 	if srv.Revision >= dbmsMinRevisionWithServerDisplayName {
@@ -54,7 +48,7 @@ func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
 	return nil
 }
 
-func (srv ServerInfo) String() string {
+func (srv *ServerInfo) String() string {
 	return fmt.Sprintf("%s %d.%d.%d (%s) %s %d",
 		srv.Name,
 		srv.MajorVersion,
@@ -66,6 +60,6 @@ func (srv ServerInfo) String() string {
 }
 
 // ServerInfo get server info
-func (ch *conn) ServerInfo() ServerInfo {
+func (ch *conn) ServerInfo() *ServerInfo {
 	return ch.serverInfo
 }

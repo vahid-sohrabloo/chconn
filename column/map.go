@@ -33,7 +33,7 @@ func NewMap(columnKey, columnValue Column) *Map {
 	return m
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *Map) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	err := c.Uint64.ReadRaw(num, r)

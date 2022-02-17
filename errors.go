@@ -1,8 +1,10 @@
 package chconn
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -92,6 +94,61 @@ func (e *ChError) Error() string {
 		return fmt.Sprintf(" %s (%d): %s", e.Name, e.Code, e.Message)
 	}
 	return fmt.Sprintf(" %s (%d): %s (%s)", e.Name, e.Code, e.Message, e.err)
+}
+
+// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
+// true. Otherwise returns err.
+func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	var timeoutError net.Error
+	errors.As(err, &timeoutError)
+	if timeoutError != nil && timeoutError.Timeout() &&
+		ctx.Err() != nil {
+		return &errTimeout{
+			mainError: err,
+			err:       ctx.Err(),
+		}
+	}
+	return err
+}
+
+// errTimeout occurs when an error was caused by a timeout. Specifically, it wraps an error which is
+// context.Canceled, context.DeadlineExceeded, or an implementer of net.Error where Timeout() is true.
+type errTimeout struct {
+	err       error
+	mainError error
+}
+
+func (e *errTimeout) Error() string {
+	if e.mainError == nil {
+		return fmt.Sprintf("timeout: %s", e.err.Error())
+	}
+	return fmt.Sprintf("timeout: %s - %s", e.err.Error(), e.mainError.Error())
+}
+
+func (e *errTimeout) Unwrap() error {
+	return e.err
+}
+
+type contextAlreadyDoneError struct {
+	err error
+}
+
+func (e *contextAlreadyDoneError) Error() string {
+	return fmt.Sprintf("context already done: %s", e.err.Error())
+}
+
+func (e *contextAlreadyDoneError) Unwrap() error {
+	return e.err
+}
+
+// newContextAlreadyDoneError double-wraps a context error in `contextAlreadyDoneError` and `errTimeout`.
+func newContextAlreadyDoneError(ctx context.Context) (err error) {
+	return &errTimeout{
+		err: &contextAlreadyDoneError{err: ctx.Err()},
+	}
 }
 
 type unexpectedPacket struct {

@@ -234,3 +234,10 @@ func TestIPv4(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestIPv4FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewIPv4(false)
+	col.Fill([]net.IP{})
+	col.Fill(nil)
+}

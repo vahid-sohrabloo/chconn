@@ -233,3 +233,10 @@ func TestUint64(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestUint64FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewUint64(false)
+	col.Fill([]uint64{})
+	col.Fill(nil)
+}

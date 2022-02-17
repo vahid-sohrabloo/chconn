@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,6 +100,45 @@ func TestInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	require.EqualError(t, err, ErrInsertMinColumn.Error())
+	assert.True(t, c.IsClosed())
+}
+
+func TestInsertCtxError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = c.Insert(ctx, `INSERT INTO clickhouse_test_insert_error (
+				int8
+			) VALUES`)
+	require.EqualError(t, err, "timeout: context already done: context canceled")
+	assert.False(t, c.IsClosed())
+
+	config, err = ParseConfig(connString)
+	require.NoError(t, err)
+
+	config.WriterFunc = func(w io.Writer) io.Writer {
+		return &writerSlowHelper{
+			w:     w,
+			sleep: time.Second,
+		}
+	}
+
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	err = c.Insert(ctx, `INSERT INTO clickhouse_test_insert_error (
+		int8
+	) VALUES`)
+	require.EqualError(t, errors.Unwrap(err), "context deadline exceeded")
 	assert.True(t, c.IsClosed())
 }
 
@@ -207,7 +247,7 @@ func TestInsert(t *testing.T) {
 	var colData []int8
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead)
 		require.NoError(t, err)
 		colRead.ReadAll(&colData)
 	}
@@ -267,7 +307,7 @@ func TestCompressInsert(t *testing.T) {
 	var colData []int8
 
 	for selectStmt.Next() {
-		err = selectStmt.NextColumn(colRead)
+		err = selectStmt.ReadColumns(colRead)
 		require.NoError(t, err)
 		colRead.ReadAll(&colData)
 	}
@@ -352,10 +392,10 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
-	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error`)
+	_, err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_compress`)
 	require.NoError(t, err)
 
-	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error (
+	_, err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_compress (
 		int8  Int8
 	) Engine=Memory`)
 
@@ -397,7 +437,7 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 			require.NoError(t, err)
 			col := column.NewInt8(false)
 			err = c.Insert(context.Background(),
-				"insert into clickhouse_test_insert_column_error (int8) VALUES",
+				"insert into clickhouse_test_insert_column_error_compress (int8) VALUES",
 				col,
 			)
 			require.EqualError(t, err, tt.wantErr)

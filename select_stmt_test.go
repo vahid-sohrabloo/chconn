@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,60 +47,109 @@ func TestSelectError(t *testing.T) {
 	require.Nil(t, res)
 	assert.True(t, c.IsClosed())
 
-	// test read more column error
-	config, err = ParseConfig(connString)
-	require.NoError(t, err)
+	config.WriterFunc = nil
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-
-	res, err = c.Select(context.Background(), "select * from system.numbers limit 1")
-	require.NotNil(t, res)
+	res, err = c.Select(context.Background(), "select number,toNullable(number) from system.numbers limit 5")
 	require.NoError(t, err)
-	col := column.NewUint64(false)
-	col2 := column.NewUint64(false)
+	colNumber := column.NewUint64(false)
 	for res.Next() {
-		errNext := res.NextColumn(col)
-		assert.NoError(t, errNext)
-		assert.Equal(t, string(col.Name()), "number")
-		assert.Equal(t, string(col.Type()), "UInt64")
-		err = res.NextColumn(col2)
-		require.EqualError(t, err, "read 2 column(s), but available 1 column(s)")
-	}
-
-	assert.True(t, c.IsClosed())
-
-	// test read more column error
-	config, err = ParseConfig(connString)
-	require.NoError(t, err)
-	c, err = ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	settings := setting.NewSettings()
-	settings.MaxRowsInSet(1000)
-	res, err = c.SelectWithSetting(context.Background(), "select number,number+1 from system.numbers limit 1", settings)
-	require.NotNil(t, res)
-	require.NoError(t, err)
-	for res.Next() {
-		err = res.NextColumn(col)
-		require.NoError(t, err)
-	}
-	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
-
-	assert.True(t, c.IsClosed())
-
-	c, err = ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	res, err = c.Select(context.Background(), "select number,number+1 from system.numbers limit 1")
-	require.NoError(t, err)
-	require.NotNil(t, res)
-	for res.Next() {
-		err = res.ReadColumns(col)
+		err := res.ReadColumns(colNumber)
 		require.EqualError(t, err, "read 1 column(s), but available 2 column(s)")
 	}
-
 	assert.True(t, c.IsClosed())
 }
 
-func TestSelectprogress(t *testing.T) {
+func TestSelectGetColumn(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	config.WriterFunc = nil
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	set := setting.NewSettings()
+	set.MaxBlockSize(2)
+	res, err := c.SelectWithSetting(context.Background(), "select number,toNullable(number) from system.numbers limit 5", set)
+	require.NoError(t, err)
+	cols, err := res.GetColumns()
+	assert.Nil(t, cols)
+	assert.NoError(t, err)
+	for res.Next() {
+		cols, err := res.GetColumns()
+		assert.Len(t, cols, 2)
+		assert.NoError(t, err)
+	}
+	assert.False(t, c.IsClosed())
+}
+
+func TestSelectCallMultipleRead(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	config.WriterFunc = nil
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	set := setting.NewSettings()
+	set.MaxBlockSize(2)
+	res, err := c.SelectWithSetting(context.Background(), "select number,toNullable(number) from system.numbers limit 5", set)
+	require.NoError(t, err)
+	cols, err := res.GetColumns()
+	assert.Nil(t, cols)
+	assert.NoError(t, err)
+	for res.Next() {
+		cols, err := res.GetColumns()
+		assert.Len(t, cols, 2)
+		assert.NoError(t, err)
+
+		cols, err = res.GetColumns()
+		assert.Len(t, cols, 0)
+		assert.NoError(t, err)
+	}
+	assert.False(t, c.IsClosed())
+}
+
+func TestSelectCtxError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res, err := c.Select(ctx, "select * from system.numbers limit 1")
+	require.EqualError(t, err, "timeout: context already done: context canceled")
+	require.Nil(t, res)
+	assert.False(t, c.IsClosed())
+
+	config.WriterFunc = func(w io.Writer) io.Writer {
+		return &writerSlowHelper{
+			w:     w,
+			sleep: time.Second,
+		}
+	}
+	c, err = ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	res, err = c.Select(ctx, "select * from system.numbers")
+	require.EqualError(t, errors.Unwrap(err), "context deadline exceeded")
+	require.Nil(t, res)
+	assert.True(t, c.IsClosed())
+}
+
+func TestSelectProgress(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
@@ -125,9 +175,11 @@ func TestSelectprogress(t *testing.T) {
 	colNumber := column.NewUint64(false)
 	colSleep := column.NewUint8(false)
 	for res.Next() {
-		err = res.NextColumn(colSleep)
+		err = res.ReadColumns(colSleep, colNumber)
 		require.NoError(t, err)
-		err = res.NextColumn(colNumber)
+
+		// check multiple read
+		err = res.ReadColumns(colSleep, colNumber)
 		require.NoError(t, err)
 	}
 	require.NoError(t, res.Err())
@@ -194,6 +246,68 @@ func TestSelectReadError(t *testing.T) {
 			require.True(t, stmt.Next())
 
 			err = stmt.ReadColumns(col)
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSelectGetColumnReadError(t *testing.T) {
+	startValidReader := 35
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "read column name error",
+			wantErr:     "block: read column name (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "read column name",
+			wantErr:     "block: read column name (timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "read column type error",
+			wantErr:     "block: read column type (timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "read column type",
+			wantErr:     "block: read column type (timeout)",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "read nullable data",
+			wantErr:     "read nullable data: read data: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "read data error",
+			wantErr:     "read data: timeout",
+			numberValid: startValidReader + 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+			require.NoError(t, err)
+			config.ReaderFunc = func(r io.Reader) io.Reader {
+				return &readErrorHelper{
+					err:         errors.New("timeout"),
+					r:           r,
+					numberValid: tt.numberValid,
+				}
+			}
+
+			c, err := ConnectConfig(context.Background(), config)
+			assert.NoError(t, err)
+			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) FROM system.numbers LIMIT 1;")
+			require.NoError(t, err)
+			require.True(t, stmt.Next())
+			_, err = stmt.GetColumns()
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
@@ -346,6 +460,85 @@ func TestSelectReadErrorLowCardinality(t *testing.T) {
 
 			err = stmt.ReadColumns(col)
 			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSelectReadErrorGetColumnLowCardinality(t *testing.T) {
+	startValidReader := 35
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "read column name error",
+			wantErr:     "block: read column name (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "read column name",
+			wantErr:     "block: read column name (timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "read column type error",
+			wantErr:     "block: read column type (timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "read column type",
+			wantErr:     "block: read column type (timeout)",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "error reading keys serialization version",
+			wantErr:     "error reading keys serialization version: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "error reading serialization type",
+			wantErr:     "error reading serialization type: timeout",
+			numberValid: startValidReader + 5,
+		},
+		{
+			name:        "error reading dictionary size",
+			wantErr:     "error reading dictionary size: timeout",
+			numberValid: startValidReader + 6,
+		},
+		{
+			name:        "error reading dictionary",
+			wantErr:     "error reading dictionary: read data: timeout",
+			numberValid: startValidReader + 7,
+		},
+		{
+			name:        "error reading keys",
+			wantErr:     "timeout",
+			numberValid: startValidReader + 8,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+			require.NoError(t, err)
+			config.ReaderFunc = func(r io.Reader) io.Reader {
+				return &readErrorHelper{
+					err:         errors.New("timeout"),
+					r:           r,
+					numberValid: tt.numberValid,
+				}
+			}
+
+			c, err := ConnectConfig(context.Background(), config)
+			assert.NoError(t, err)
+			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(number) FROM system.numbers LIMIT 1;")
+			require.NoError(t, err)
+			require.True(t, stmt.Next())
+
+			cols, err := stmt.GetColumns()
+			assert.EqualError(t, err, tt.wantErr)
+			assert.Len(t, cols, 0)
 		})
 	}
 }

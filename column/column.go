@@ -46,7 +46,7 @@ type column struct {
 	ownReadBuffer bool
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *column) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	c.r = r

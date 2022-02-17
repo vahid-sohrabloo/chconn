@@ -234,3 +234,10 @@ func TestDate32(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestDate32FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewDate32(false)
+	col.Fill([]time.Time{})
+	col.Fill(nil)
+}

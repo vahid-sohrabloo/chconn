@@ -130,7 +130,6 @@ func generateColumns(packageName, structName string, columns []chColumns) {
 	var initColumns []jen.Code
 	initColumns = append(initColumns, jen.Id("t:=&"+structName+"Columns{}"))
 	var mainColumnsField []jen.Code
-	readAllColumn := jen.Var().Id("err").Error()
 	for i, c := range columns {
 		fn, fieldName := getNewFunc(c.Name, c.Type, false)
 		initColumns = append(initColumns, fn)
@@ -141,12 +140,7 @@ func generateColumns(packageName, structName string, columns []chColumns) {
 			field = jen.Line().Id(fieldName)
 		}
 		mainColumnsField = append(mainColumnsField, field)
-
-		readAllColumn.Line().Id("err").Op("=").Id("stmt").Op(".").Id("NextColumn").Call(jen.Id(fieldName)).
-			Line().If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err()))
 	}
-
-	readAllColumn.Line().Return(jen.Nil())
 
 	initColumns = append(initColumns, jen.Return(jen.Id("t")))
 	f.Func().
@@ -199,7 +193,7 @@ func generateColumns(packageName, structName string, columns []chColumns) {
 	).
 		Params(jen.Error()).
 		Block(
-			jen.Return(jen.Id("stmt").Op(".").Id("ReadColumns").Call(mainColumnsField[1:]...)),
+			jen.Return(jen.Id("stmt").Op(".").Id("ReadColumns").Call(mainColumnsField...)),
 		).Line()
 
 	err := f.Save(strings.ToLower(structName) + "_column.go")

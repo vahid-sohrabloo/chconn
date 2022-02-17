@@ -244,3 +244,10 @@ func TestIPv6(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestIPv6FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewIPv6(false)
+	col.Fill([]net.IP{})
+	col.Fill(nil)
+}

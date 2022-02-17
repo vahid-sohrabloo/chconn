@@ -27,7 +27,7 @@ func NewTuple(columns ...Column) *Tuple {
 	return m
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `NextColumn()`
+// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
 func (c *Tuple) ReadRaw(num int, r *readerwriter.Reader) error {
 	var err error
 	for _, col := range c.columns {

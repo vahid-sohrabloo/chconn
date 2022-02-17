@@ -57,19 +57,28 @@ func (ch *conn) InsertWithSetting(
 	if err != nil {
 		return err
 	}
-	ch.contextWatcher.Watch(ctx)
 	var hasError bool
 	defer func() {
 		ch.unlock()
-		ch.contextWatcher.Unwatch()
 		if hasError {
 			ch.Close()
 		}
 	}()
+
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return newContextAlreadyDoneError(ctx)
+		default:
+		}
+		ch.contextWatcher.Watch(ctx)
+		defer ch.contextWatcher.Unwatch()
+	}
+
 	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	var blockData *block
@@ -78,7 +87,7 @@ func (ch *conn) InsertWithSetting(
 		res, err = ch.receiveAndProccessData(emptyOnProgress)
 		if err != nil {
 			hasError = true
-			return err
+			return preferContextOverNetTimeoutError(ctx, err)
 		}
 		if b, ok := res.(*block); ok {
 			blockData = b
@@ -98,10 +107,10 @@ func (ch *conn) InsertWithSetting(
 	err = blockData.readColumns(ch)
 	if err != nil {
 		hasError = true
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	err = commit(ch, blockData, columns...)
 	hasError = err != nil
-	return err
+	return preferContextOverNetTimeoutError(ctx, err)
 }

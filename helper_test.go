@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"io"
+	"time"
 )
 
 type readErrorHelper struct {
@@ -31,5 +32,15 @@ func (w *writerErrorHelper) Write(p []byte) (int, error) {
 	if w.count > w.numberValid {
 		return 0, w.err
 	}
+	return w.w.Write(p)
+}
+
+type writerSlowHelper struct {
+	w     io.Writer
+	sleep time.Duration
+}
+
+func (w *writerSlowHelper) Write(p []byte) (int, error) {
+	time.Sleep(w.sleep)
 	return w.w.Write(p)
 }

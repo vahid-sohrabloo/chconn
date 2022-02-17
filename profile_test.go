@@ -64,7 +64,7 @@ func TestProfileReadError(t *testing.T) {
 			require.NoError(t, err)
 			col := column.NewUint64(false)
 			for stmt.Next() {
-				stmt.NextColumn(col)
+				stmt.ReadColumns(col)
 			}
 			require.Error(t, stmt.Err())
 			readErr, ok := stmt.Err().(*readError)

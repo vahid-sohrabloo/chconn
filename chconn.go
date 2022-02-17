@@ -110,7 +110,7 @@ type Conn interface {
 	// IsBusy reports if the connection is busy.
 	IsBusy() bool
 	// ServerInfo get Server info
-	ServerInfo() ServerInfo
+	ServerInfo() *ServerInfo
 	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
 	// Exec executes a query without returning any rows.
@@ -159,7 +159,7 @@ type writeFlusher interface {
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
-	serverInfo        ServerInfo
+	serverInfo        *ServerInfo
 	clientInfo        *ClientInfo
 
 	config *Config
@@ -301,8 +301,16 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		},
 	)
 
-	c.contextWatcher.Watch(ctx)
-	defer c.contextWatcher.Unwatch()
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return nil, newContextAlreadyDoneError(ctx)
+		default:
+		}
+		c.contextWatcher.Watch(ctx)
+		defer c.contextWatcher.Unwatch()
+	}
+
 	c.writer = readerwriter.NewWriter()
 	if config.ReaderFunc != nil {
 		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
@@ -320,12 +328,10 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.writerToCompress = c.writerTo
 	}
 
-	c.serverInfo = ServerInfo{
-		Timezone: time.Local,
-	}
+	c.serverInfo = &ServerInfo{}
 	err = c.hello()
 	if err != nil {
-		return nil, err
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 	c.block = newBlock()
 	c.status = connStatusIdle
@@ -478,6 +484,7 @@ func (ch *conn) Close() error {
 }
 
 func (ch *conn) readTableColumn() {
+	// todo check errors
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
@@ -521,7 +528,6 @@ func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{},
 
 	case serverTableColumns:
 		ch.readTableColumn()
-
 		return ch.receiveAndProccessData(onProgress)
 	}
 	return nil, &notImplementedPacket{packet: packet}
@@ -550,35 +556,36 @@ func (ch *conn) ExecCallback(
 	if err != nil {
 		return nil, err
 	}
-	defer ch.unlock()
-
-	ch.contextWatcher.Watch(ctx)
-	defer ch.contextWatcher.Unwatch()
 	var hasError bool
 	defer func() {
+		ch.unlock()
 		if hasError {
 			ch.Close()
 		}
 	}()
 
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return nil, newContextAlreadyDoneError(ctx)
+		default:
+		}
+		ch.contextWatcher.Watch(ctx)
+		defer ch.contextWatcher.Unwatch()
+	}
+
 	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
-		return nil, err
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 	if onProgress == nil {
 		onProgress = emptyOnProgress
 	}
-	if err != nil {
-		hasError = true
-		return nil, err
-	}
+
 	res, err := ch.receiveAndProccessData(onProgress)
-	if err != nil {
-		hasError = true
-		return nil, err
-	}
-	return res, nil
+	hasError = err != nil
+	return res, preferContextOverNetTimeoutError(ctx, err)
 }
 
 // Select send query for select and prepare SelectStmt
@@ -605,17 +612,26 @@ func (ch *conn) SelectCallback(
 		return nil, err
 	}
 
-	ch.contextWatcher.Watch(ctx)
 	var hasError bool
 	defer func() {
 		if hasError {
 			ch.Close()
 		}
 	}()
+
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return nil, newContextAlreadyDoneError(ctx)
+		default:
+		}
+		ch.contextWatcher.Watch(ctx)
+	}
+
 	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
 	if err != nil {
 		hasError = true
-		return nil, err
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 	return &selectStmt{
 		conn:       ch,
@@ -624,5 +640,6 @@ func (ch *conn) SelectCallback(
 		onProfile:  onProfile,
 		queryID:    queryID,
 		clientInfo: nil,
+		ctx:        ctx,
 	}, nil
 }

@@ -234,3 +234,10 @@ func TestDateTime(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestDateTimeFillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewDateTime(false)
+	col.Fill([]time.Time{})
+	col.Fill(nil)
+}

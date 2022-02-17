@@ -8,8 +8,15 @@ type pong struct{}
 
 // Check that connection to the server is alive.
 func (ch *conn) Ping(ctx context.Context) error {
-	ch.contextWatcher.Watch(ctx)
-	defer ch.contextWatcher.Unwatch()
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return newContextAlreadyDoneError(ctx)
+		default:
+		}
+		ch.contextWatcher.Watch(ctx)
+		defer ch.contextWatcher.Unwatch()
+	}
 	ch.writer.Uvarint(clientPing)
 	var hasError bool
 	defer func() {
@@ -19,13 +26,13 @@ func (ch *conn) Ping(ctx context.Context) error {
 	}()
 	if _, err := ch.writer.WriteTo(ch.writerTo); err != nil {
 		hasError = true
-		return &writeError{"ping: write packet type", err}
+		return &writeError{"ping: write packet type", preferContextOverNetTimeoutError(ctx, err)}
 	}
 
 	res, err := ch.receiveAndProccessData(emptyOnProgress)
 	if err != nil {
 		hasError = true
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 	if _, ok := res.(*pong); !ok {
 		hasError = true

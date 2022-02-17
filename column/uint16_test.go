@@ -233,3 +233,10 @@ func TestUint16(t *testing.T) {
 
 	conn.Close()
 }
+
+func TestUint16FillEmpty(t *testing.T) {
+	t.Parallel()
+	col := column.NewUint16(false)
+	col.Fill([]uint16{})
+	col.Fill(nil)
+}
