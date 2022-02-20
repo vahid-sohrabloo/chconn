@@ -16,6 +16,7 @@ type indicesColumn interface {
 	fillInt([]int)
 	appendInts([]int)
 	rowInt(int) int
+	Reset()
 }
 
 // uint8 indices

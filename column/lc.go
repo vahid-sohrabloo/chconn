@@ -29,9 +29,10 @@ type LCDictColumn interface {
 // LC use for LowCardinality ClickHouse DataTypes
 type LC struct {
 	column
-	DictColumn LCDictColumn
-	indices    indicesColumn
-	scratch    [8]byte
+	DictColumn     LCDictColumn
+	indices        indicesColumn
+	oldIndicesType int
+	scratch        [8]byte
 }
 
 var _ Column = &LC{}
@@ -64,7 +65,7 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return fmt.Errorf("error reading serialization type: %w", err)
 	}
-	intType := serializationType & 0xf
+	intType := int(serializationType & 0xf)
 
 	dictionarySize, err := c.r.Uint64()
 	if err != nil {
@@ -84,8 +85,9 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return err
 	}
-	if c.indices == nil {
-		c.indices = getLCIndicate(int(intType))
+	if c.indices == nil || c.oldIndicesType != intType {
+		c.indices = getLCIndicate(intType)
+		c.oldIndicesType = intType
 	}
 
 	return c.indices.ReadRaw(c.numRow, c.r)
@@ -198,6 +200,12 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	n += int64(nw)
 	if err != nil {
 		return n, fmt.Errorf("error writing keys len: %w", err)
+	}
+	if c.indices == nil || c.oldIndicesType != intType {
+		c.indices = getLCIndicate(intType)
+		c.oldIndicesType = intType
+	} else {
+		c.indices.Reset()
 	}
 	c.indices = getLCIndicate(intType)
 	c.indices.appendInts(keys)
