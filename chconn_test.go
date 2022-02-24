@@ -139,7 +139,7 @@ func TestException(t *testing.T) {
 	require.Nil(t, res)
 	var chError *ChError
 	require.True(t, errors.As(err, &chError))
-	require.Equal(t, chError.Code, int32(62))
+	require.Equal(t, chError.Code, ChErrorSyntaxError)
 	require.Equal(t, chError.Name, "DB::Exception")
 }
 
