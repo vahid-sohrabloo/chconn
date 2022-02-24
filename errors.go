@@ -44,7 +44,7 @@ var ErrInsertMinColumn = errors.New("you should pass at least one column")
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
-	Code       int32
+	Code       ChErrorType
 	Name       string
 	Message    string
 	StackTrace string
@@ -55,10 +55,12 @@ func (e *ChError) read(r *readerwriter.Reader) error {
 	var (
 		err       error
 		hasNested uint8
+		errCode   int32
 	)
-	if e.Code, err = r.Int32(); err != nil {
+	if errCode, err = r.Int32(); err != nil {
 		return &readError{"ChError: read code", err}
 	}
+	e.Code = ChErrorType(errCode)
 	if e.Name, err = r.String(); err != nil {
 		return &readError{"ChError: read name", err}
 	}
