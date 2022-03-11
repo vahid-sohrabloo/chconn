@@ -241,7 +241,10 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 	case string(chType) == "Date32":
 		*columns = append(*columns, column.NewDate32(nullable))
 	case string(chType) == "DateTime" || bytes.HasPrefix(chType, []byte("DateTime(")):
-		params := bytes.Split(chType[len("DateTime("):len(chType)-1], []byte(", "))
+		var params [][]byte
+		if bytes.HasPrefix(chType, []byte("DateTime(")) {
+			params = bytes.Split(chType[len("DateTime("):len(chType)-1], []byte(", "))
+		}
 		col := column.NewDateTime(nullable)
 		if len(params) > 0 && len(params[0]) >= 3 {
 			if loc, err := time.LoadLocation(string(params[0][1 : len(params[0])-1])); err == nil {
