@@ -165,7 +165,7 @@ func TestInsertMoreColumnsError(t *testing.T) {
 	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error_column (
 			int8
 		) VALUES`, column.NewInt8(false), column.NewInt8(false))
-	require.EqualError(t, err, "write 2 column(s) but insert query needs 1 column(s)")
+	require.EqualError(t, err, "failed to insert data: remoteAddr:127.0.0.1:9000 - write 2 column(s) but insert query needs 1 column(s)")
 	assert.True(t, c.IsClosed())
 }
 
@@ -198,7 +198,7 @@ func TestInsertMoreRowsError(t *testing.T) {
 			int8,
 			int16
 		) VALUES`, col1, col2)
-	require.EqualError(t, err, "first column has 2 rows but \"int16\" column has 1 rows")
+	require.EqualError(t, err, "failed to insert data: remoteAddr:127.0.0.1:9000 - first column has 2 rows but \"int16\" column has 1 rows")
 	assert.True(t, c.IsClosed())
 }
 
@@ -349,12 +349,12 @@ func TestInsertColumnError(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "block: write header block data for column int8 (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write header block data for column int8 (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "write block data",
-			wantErr:     "block: write block data for column int8 (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column int8 (timeout)",
 			numberValid: startValidReader + 1,
 		},
 	}
@@ -410,17 +410,17 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "failed to insert data: write block info (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - write block info (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "flush block info",
-			wantErr:     "failed to insert data: flush block info (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - flush block info (timeout)",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "flush data",
-			wantErr:     "block: flush block data (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: flush block data (timeout)",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -475,32 +475,36 @@ func TestInsertColumnLowCardinality(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "block: write header block data for column col (timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write header block data for column col (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "write stype",
-			wantErr:     "block: write block data for column col (error writing stype: timeout)",
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing stype: timeout)",
 			numberValid: startValidReader + 1,
 		},
 		{
-			name:        "write dictionarySize",
-			wantErr:     "block: write block data for column col (error writing dictionarySize: timeout)",
+			name: "write dictionarySize",
+			//nolint:lll
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing dictionarySize: timeout)",
 			numberValid: startValidReader + 2,
 		},
 		{
-			name:        "write dictionary",
-			wantErr:     "block: write block data for column col (error writing dictionary: timeout)",
+			name: "write dictionary",
+			//nolint:lll
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing dictionary: timeout)",
 			numberValid: startValidReader + 3,
 		},
 		{
-			name:        "write keys len",
-			wantErr:     "block: write block data for column col (error writing keys len: timeout)",
+			name: "write keys len",
+			//nolint:lll
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing keys len: timeout)",
 			numberValid: startValidReader + 4,
 		},
 		{
-			name:        "write indices",
-			wantErr:     "block: write block data for column col (error writing indices: timeout)",
+			name: "write indices",
+			//nolint:lll
+			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing indices: timeout)",
 			numberValid: startValidReader + 5,
 		},
 	}

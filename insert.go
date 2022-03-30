@@ -14,24 +14,34 @@ func commit(c *conn, b *block, columns ...column.Column) error {
 	err := c.sendData(b, columns[0].NumRow())
 	if err != nil {
 		return &InsertError{
-			err: err,
+			err:        err,
+			remoteAddr: c.RawConn().RemoteAddr(),
 		}
 	}
 
 	err = b.writeColumnsBuffer(c, columns...)
 	if err != nil {
-		return err
+		return &InsertError{
+			err:        err,
+			remoteAddr: c.RawConn().RemoteAddr(),
+		}
 	}
 
 	err = c.sendEmptyBlock()
 
 	if err != nil {
-		return err
+		return &InsertError{
+			err:        err,
+			remoteAddr: c.RawConn().RemoteAddr(),
+		}
 	}
 
 	res, err := c.receiveAndProccessData(emptyOnProgress)
 	if err != nil {
-		return err
+		return &InsertError{
+			err:        err,
+			remoteAddr: c.RawConn().RemoteAddr(),
+		}
 	}
 
 	if res != nil {

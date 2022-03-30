@@ -266,12 +266,13 @@ func redactURL(u *url.URL) string {
 
 // InsertError represents an error when insert error
 type InsertError struct {
-	err error
+	err        error
+	remoteAddr net.Addr
 }
 
 // Error return string error
 func (e *InsertError) Error() string {
-	return fmt.Sprintf("failed to insert data: %s", e.err.Error())
+	return fmt.Sprintf("failed to insert data: remoteAddr:%s - %s", e.remoteAddr.String(), e.err.Error())
 }
 
 // Unwrap returns the underlying error
