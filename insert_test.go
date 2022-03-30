@@ -165,7 +165,8 @@ func TestInsertMoreColumnsError(t *testing.T) {
 	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error_column (
 			int8
 		) VALUES`, column.NewInt8(false), column.NewInt8(false))
-	require.EqualError(t, err, "failed to insert data: remoteAddr:127.0.0.1:9000 - write 2 column(s) but insert query needs 1 column(s)")
+	remoteAddr := c.RawConn().RemoteAddr().String()
+	require.EqualError(t, err, "failed to insert data: remoteAddr: "+remoteAddr+" - write 2 column(s) but insert query needs 1 column(s)")
 	assert.True(t, c.IsClosed())
 }
 
@@ -198,7 +199,8 @@ func TestInsertMoreRowsError(t *testing.T) {
 			int8,
 			int16
 		) VALUES`, col1, col2)
-	require.EqualError(t, err, "failed to insert data: remoteAddr:127.0.0.1:9000 - first column has 2 rows but \"int16\" column has 1 rows")
+	remoteAddr := c.RawConn().RemoteAddr().String()
+	require.EqualError(t, err, "failed to insert data: remoteAddr: "+remoteAddr+" - first column has 2 rows but \"int16\" column has 1 rows")
 	assert.True(t, c.IsClosed())
 }
 
@@ -349,12 +351,12 @@ func TestInsertColumnError(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write header block data for column int8 (timeout)",
+			wantErr:     "block: write header block data for column int8 (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "write block data",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column int8 (timeout)",
+			wantErr:     "block: write block data for column int8 (timeout)",
 			numberValid: startValidReader + 1,
 		},
 	}
@@ -374,7 +376,7 @@ func TestInsertColumnError(t *testing.T) {
 				"insert into clickhouse_test_insert_column_error (int8) VALUES",
 				col,
 			)
-			require.EqualError(t, err, tt.wantErr)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
 			assert.True(t, c.IsClosed())
 		})
 	}
@@ -410,17 +412,17 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - write block info (timeout)",
+			wantErr:     "write block info (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "flush block info",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - flush block info (timeout)",
+			wantErr:     "flush block info (timeout)",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "flush data",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: flush block data (timeout)",
+			wantErr:     "block: flush block data (timeout)",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -440,7 +442,7 @@ func TestInsertColumnErrorCompress(t *testing.T) {
 				"insert into clickhouse_test_insert_column_error_compress (int8) VALUES",
 				col,
 			)
-			require.EqualError(t, err, tt.wantErr)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
 			assert.True(t, c.IsClosed())
 		})
 	}
@@ -475,36 +477,32 @@ func TestInsertColumnLowCardinality(t *testing.T) {
 	}{
 		{
 			name:        "write header",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write header block data for column col (timeout)",
+			wantErr:     "block: write header block data for column col (timeout)",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "write stype",
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing stype: timeout)",
+			wantErr:     "block: write block data for column col (error writing stype: timeout)",
 			numberValid: startValidReader + 1,
 		},
 		{
-			name: "write dictionarySize",
-			//nolint:lll
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing dictionarySize: timeout)",
+			name:        "write dictionarySize",
+			wantErr:     "block: write block data for column col (error writing dictionarySize: timeout)",
 			numberValid: startValidReader + 2,
 		},
 		{
-			name: "write dictionary",
-			//nolint:lll
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing dictionary: timeout)",
+			name:        "write dictionary",
+			wantErr:     "block: write block data for column col (error writing dictionary: timeout)",
 			numberValid: startValidReader + 3,
 		},
 		{
-			name: "write keys len",
-			//nolint:lll
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing keys len: timeout)",
+			name:        "write keys len",
+			wantErr:     "block: write block data for column col (error writing keys len: timeout)",
 			numberValid: startValidReader + 4,
 		},
 		{
-			name: "write indices",
-			//nolint:lll
-			wantErr:     "failed to insert data: remoteAddr:127.0.0.1:9000 - block: write block data for column col (error writing indices: timeout)",
+			name:        "write indices",
+			wantErr:     "block: write block data for column col (error writing indices: timeout)",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -526,7 +524,7 @@ func TestInsertColumnLowCardinality(t *testing.T) {
 				"insert into clickhouse_test_insert_column_error_lc (col) VALUES",
 				colLC,
 			)
-			require.EqualError(t, err, tt.wantErr)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
 			assert.True(t, c.IsClosed())
 		})
 	}

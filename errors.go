@@ -272,7 +272,7 @@ type InsertError struct {
 
 // Error return string error
 func (e *InsertError) Error() string {
-	return fmt.Sprintf("failed to insert data: remoteAddr:%s - %s", e.remoteAddr.String(), e.err.Error())
+	return fmt.Sprintf("failed to insert data: remoteAddr: %s - %s", e.remoteAddr.String(), e.err.Error())
 }
 
 // Unwrap returns the underlying error
