@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
@@ -9,7 +10,8 @@ import (
 // Tuple use for Tuple ClickHouse DataTypes
 type Tuple struct {
 	column
-	columns []Column
+	columns       []Column
+	needSetChtype bool
 }
 
 // NewTuple return new Tuple for Tuple ClickHouse DataTypes
@@ -18,7 +20,8 @@ func NewTuple(columns ...Column) *Tuple {
 		column: column{
 			size: 0,
 		},
-		columns: columns,
+		needSetChtype: true,
+		columns:       columns,
 	}
 	for _, col := range columns {
 		col.setParent(m)
@@ -54,12 +57,50 @@ func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 	if err != nil {
 		return err
 	}
-	for _, col := range c.columns {
+	var columnsTuple [][]byte
+	if c.needSetChtype {
+		var openFunc int
+		cur := 0
+		// for between `Tuple(` and `)`
+		idx := 1
+		tupleTypes := c.chType[6 : len(c.chType)-1]
+
+		for i, char := range tupleTypes {
+			if char == ',' {
+				if openFunc == 0 {
+					columnsTuple = append(columnsTuple, tupleTypes[cur:i])
+					idx++
+					cur = i + 2
+				}
+				continue
+			}
+			if char == '(' {
+				openFunc++
+				continue
+			}
+			if char == ')' {
+				openFunc--
+				continue
+			}
+		}
+		columnsTuple = append(columnsTuple, tupleTypes[cur:])
+		if len(columnsTuple) != len(c.columns) {
+			//nolint:goerr113
+			return fmt.Errorf("columns number is not equal to tuple columns number: %d != %d", len(columnsTuple), len(c.columns))
+		}
+	}
+
+	for i, col := range c.columns {
 		err = col.HeaderReader(r, readColumn)
 		if err != nil {
 			return err
 		}
+		if c.needSetChtype {
+			col.SetType(columnsTuple[i])
+		}
 	}
+	c.needSetChtype = false
+
 	return err
 }
 
