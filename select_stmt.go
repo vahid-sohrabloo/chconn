@@ -249,6 +249,8 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 		if len(params) > 0 && len(params[0]) >= 3 {
 			if loc, err := time.LoadLocation(string(params[0][1 : len(params[0])-1])); err == nil {
 				col.SetLocation(loc)
+			} else if loc, err := time.LoadLocation(s.conn.serverInfo.Timezone); err == nil {
+				col.SetLocation(loc)
 			}
 		}
 		*columns = append(*columns, col)
@@ -264,6 +266,8 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 		col := column.NewDateTime64(precision, nullable)
 		if len(params) > 1 && len(params[1]) >= 3 {
 			if loc, err := time.LoadLocation(string(params[1][1 : len(params[1])-1])); err == nil {
+				col.SetLocation(loc)
+			} else if loc, err := time.LoadLocation(s.conn.serverInfo.Timezone); err == nil {
 				col.SetLocation(loc)
 			}
 		}
