@@ -91,6 +91,7 @@ func Int256FromBigEx(i *big.Int) (Int256, bool) {
 }
 
 // Big returns 256-bit value as a *big.Int.
+//nolint:dupl
 func (u Int256) Big() *big.Int {
 	t := new(big.Int)
 	i := new(big.Int).SetInt64(u.Hi.Hi)
@@ -111,14 +112,13 @@ func (u Int256) Equals(v Int256) bool {
 }
 
 // Neg returns the additive inverse of an Int256
-func (x Int256) Neg() (z Int256) {
-	z.Hi = z.Hi.Neg()
-	z.Lo.Lo = -z.Lo.Lo
-	z.Lo.Hi = -z.Lo.Hi
+func (u Int256) Neg() (z Int256) {
+	z.Hi = u.Hi.Neg()
+	z.Lo.Lo = -u.Lo.Lo
+	z.Lo.Hi = -u.Lo.Hi
 	// TODO, I'm not sure here.
 	if z.Lo.Hi > 0 || z.Lo.Lo > 0 {
 		z.Hi.Lo--
 	}
 	return z
-
 }

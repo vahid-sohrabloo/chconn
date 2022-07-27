@@ -113,12 +113,12 @@ func TestNullableAsNormal(t *testing.T) {
 	var colDataNilData []bool
 
 	for selectStmt.Next() {
-		colNullableRead.Read(&colData)
-		colNullableRead.ReadNil(&colDataNilRead)
+		colData = colNullableRead.Read(colData)
+		colDataNilRead = colNullableRead.ReadNil(colDataNilRead)
 		colDataNilData = append(colDataNilData, colNullableRead.DataNil()...)
-		colNullableArrayRead.Read(&colArrayData)
-		colLCNullableRead.Read(&colLCData)
-		colArrayLCNullableRead.Read(&colLCArrayData)
+		colArrayData = colNullableArrayRead.Read(colArrayData)
+		colLCData = colLCNullableRead.Read(colLCData)
+		colLCArrayData = colArrayLCNullableRead.Read(colLCArrayData)
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -155,7 +155,6 @@ func TestNullableAsNormal(t *testing.T) {
 	colLCArrayData = colLCArrayData[:0]
 
 	for selectStmt.Next() {
-
 		for i := 0; i < selectStmt.RowsInBlock(); i++ {
 			colData = append(colData, colNullableRead.Row(i))
 			colArrayData = append(colArrayData, colNullableArrayRead.Row(i))

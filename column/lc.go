@@ -63,10 +63,11 @@ func (c *LowCardinality[T]) Data() []T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *LowCardinality[T]) Read(value *[]T) {
+func (c *LowCardinality[T]) Read(value []T) []T {
 	for _, k := range c.readedKeys {
-		*value = append(*value, c.readedDict[k])
+		value = append(value, c.readedDict[k])
 	}
+	return value
 }
 
 // Row return the value of given row.
@@ -188,7 +189,7 @@ func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	}
 	c.readedDict = c.readedDict[:0]
 	c.readedKeys = c.readedKeys[:0]
-	c.dictColumn.Read(&c.readedDict)
+	c.readedDict = c.dictColumn.Read(c.readedDict)
 	c.indices.readInt(&c.readedKeys)
 	return nil
 }
@@ -231,7 +232,6 @@ func (c *LowCardinality[T]) Validate() error {
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
-
 	} else {
 		if !helper.IsNullableLowCardinality(chType) {
 			return &ErrInvalidType{

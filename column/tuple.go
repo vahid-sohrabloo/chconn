@@ -108,7 +108,12 @@ func (c *Tuple) Validate() error {
 	columnsTuple := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
 	if len(columnsTuple) != len(c.columns) {
 		//nolint:goerr113
-		return fmt.Errorf("columns number for %s (%s) is not equal to tuple columns number: %d != %d", string(c.name), string(c.Type()), len(columnsTuple), len(c.columns))
+		return fmt.Errorf("columns number for %s (%s) is not equal to tuple columns number: %d != %d",
+			string(c.name),
+			string(c.Type()),
+			len(columnsTuple),
+			len(c.columns),
+		)
 	}
 
 	for i, col := range c.columns {
@@ -135,10 +140,11 @@ func (c *Tuple) columnType() string {
 func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 	var n int64
 	for i, col := range c.columns {
-		n, err := col.WriteTo(w)
+		nw, err := col.WriteTo(w)
 		if err != nil {
 			return n, fmt.Errorf("tuple: write column index %d: %w", i, err)
 		}
+		n += nw
 	}
 	return n, nil
 }

@@ -36,23 +36,24 @@ func (c *String[T]) DataBytes() [][]byte {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *String[T]) Read(value *[]T) {
-	if cap(*value)-len(*value) >= len(c.vals) {
-		*value = (*value)[:len(*value)+len(c.vals)]
+func (c *String[T]) Read(value []T) []T {
+	if cap(value)-len(value) >= len(c.vals) {
+		value = (value)[:len(value)+len(c.vals)]
 	} else {
-		*value = append(*value, make([]T, len(c.vals))...)
+		value = append(value, make([]T, len(c.vals))...)
 	}
-	val := (*value)[len(*value)-len(c.vals):]
+	val := (value)[len(value)-len(c.vals):]
 	for i, v := range c.vals {
 		val[i] = T(v)
 	}
+	return value
 }
 
 // Read reads all the data as `[]byte` in current block and append to the input.
 //
 // data is valid only in the current block.
-func (c *String[T]) ReadBytes(value *[][]byte) {
-	*value = append(*value, c.vals...)
+func (c *String[T]) ReadBytes(value [][]byte) [][]byte {
+	return append(value, c.vals...)
 }
 
 // Row return the value of given row.

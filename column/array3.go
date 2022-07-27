@@ -26,16 +26,17 @@ func (c *Array3[T]) Data() [][][][]T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Array3[T]) Read(value *[][][][]T) {
-	if cap(*value)-len(*value) >= c.NumRow() {
-		*value = (*value)[:len(*value)+c.NumRow()]
+func (c *Array3[T]) Read(value [][][][]T) [][][][]T {
+	if cap(value)-len(value) >= c.NumRow() {
+		value = (value)[:len(value)+c.NumRow()]
 	} else {
-		*value = append(*value, make([][][][]T, c.NumRow())...)
+		value = append(value, make([][][][]T, c.NumRow())...)
 	}
-	val := (*value)[len(*value)-c.NumRow():]
+	val := (value)[len(value)-c.NumRow():]
 	for i := 0; i < c.NumRow(); i++ {
 		val[i] = c.Row(i)
 	}
+	return value
 }
 
 // Row return the value of given row.
@@ -55,7 +56,7 @@ func (c *Array3[T]) Row(row int) [][][]T {
 
 // Append value for insert
 func (c *Array3[T]) Append(v [][][]T) {
-	c.AppendLen(uint64(len(v)))
+	c.AppendLen(len(v))
 	c.dataColumn.(*Array2[T]).AppendSlice(v)
 }
 

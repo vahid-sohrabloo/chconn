@@ -260,9 +260,9 @@ func TestInsert(t *testing.T) {
 	var col32Data []int32
 
 	for selectStmt.Next() {
-		col8Read.Read(&col8Data)
-		col16Read.Read(&col16Data)
-		col32Read.Read(&col32Data)
+		col8Data = col8Read.Read(col8Data)
+		col16Data = col16Read.Read(col16Data)
+		col32Data = col32Read.Read(col32Data)
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -303,7 +303,10 @@ func TestInsertNotFoundColumn(t *testing.T) {
 	// send in invalid order to test sorted columns by name
 	err = conn.Insert(context.Background(), `INSERT INTO test_insert_not_found_column (int8) VALUES`, col8)
 
-	require.Equal(t, errors.Unwrap(err).Error(), "the input columns do not contain column \"int8\". The column name must be set using the `SetName` method")
+	require.Equal(
+		t,
+		errors.Unwrap(err).Error(),
+		"the input columns do not contain column \"int8\". The column name must be set using the `SetName` method")
 
 	conn.RawConn().Close()
 }
@@ -371,7 +374,7 @@ func TestCompressInsert(t *testing.T) {
 			var colData []int8
 
 			for selectStmt.Next() {
-				colRead.Read(&colData)
+				colData = colRead.Read(colData)
 			}
 
 			assert.Equal(t, colInsert, colData)
@@ -382,7 +385,6 @@ func TestCompressInsert(t *testing.T) {
 			conn.RawConn().Close()
 		})
 	}
-
 }
 
 func TestInsertColumnError(t *testing.T) {
@@ -627,5 +629,4 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 	)
 	require.EqualError(t, err, "mismatch column type: ClickHouse Type: LowCardinality(String), column types: String")
 	assert.True(t, c.IsClosed())
-
 }

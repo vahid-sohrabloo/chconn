@@ -90,6 +90,7 @@ func (r *compressReader) readBlock() error {
 			DataSize:  dataSize,
 		}
 	}
+	//nolint:exhaustive
 	switch m := CompressMethod(r.header[hMethod]); m {
 	case CompressLZ4:
 		n, err := lz4.UncompressBlock(r.raw[headerSize:], r.data)

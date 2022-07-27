@@ -50,7 +50,6 @@ func TestLcIndicator16(t *testing.T) {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)
-
 	}
 
 	err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
@@ -77,7 +76,7 @@ func TestLcIndicator16(t *testing.T) {
 	var colData []int64
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
+		colData = colRead.Read(colData)
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -122,7 +121,6 @@ func TestLcIndicator32(t *testing.T) {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)
-
 	}
 
 	err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
@@ -149,7 +147,7 @@ func TestLcIndicator32(t *testing.T) {
 	var colData []int64
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
+		colData = colRead.Read(colData)
 	}
 
 	require.NoError(t, selectStmt.Err())

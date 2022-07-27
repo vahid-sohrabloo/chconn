@@ -259,23 +259,23 @@ func TestTuple(t *testing.T) {
 	var colLCNullableArrayIntData [][]*int64
 
 	for selectStmt.Next() {
-		colStringRead.Read(&colStringData)
-		colNullableStringRead.ReadP(&colNullableStringData)
-		colArrayStringRead.Read(&colArrayStringData)
-		colNullableArrayStringRead.ReadP(&colArrayNullableStringData)
-		colLCStringRead.Read(&colLCStringData)
-		colLCNullableStringRead.ReadP(&colLCNullableStringData)
-		colArrayLCStringRead.Read(&colLCArrayStringData)
-		colArrayLCNullableStringRead.ReadP(&colLCNullableArrayStringData)
+		colStringData = colStringRead.Read(colStringData)
+		colNullableStringData = colNullableStringRead.ReadP(colNullableStringData)
+		colArrayStringData = colArrayStringRead.Read(colArrayStringData)
+		colArrayNullableStringData = colNullableArrayStringRead.ReadP(colArrayNullableStringData)
+		colLCStringData = colLCStringRead.Read(colLCStringData)
+		colLCNullableStringData = colLCNullableStringRead.ReadP(colLCNullableStringData)
+		colLCArrayStringData = colArrayLCStringRead.Read(colLCArrayStringData)
+		colLCNullableArrayStringData = colArrayLCNullableStringRead.ReadP(colLCNullableArrayStringData)
 
-		colIntRead.Read(&colIntData)
-		colNullableIntRead.ReadP(&colNullableIntData)
-		colArrayIntRead.Read(&colArrayIntData)
-		colNullableArrayIntRead.ReadP(&colArrayNullableIntData)
-		colLCIntRead.Read(&colLCIntData)
-		colLCNullableIntRead.ReadP(&colLCNullableIntData)
-		colArrayLCIntRead.Read(&colLCArrayIntData)
-		colArrayLCNullableIntRead.ReadP(&colLCNullableArrayIntData)
+		colIntData = colIntRead.Read(colIntData)
+		colNullableIntData = colNullableIntRead.ReadP(colNullableIntData)
+		colArrayIntData = colArrayIntRead.Read(colArrayIntData)
+		colArrayNullableIntData = colNullableArrayIntRead.ReadP(colArrayNullableIntData)
+		colLCIntData = colLCIntRead.Read(colLCIntData)
+		colLCNullableIntData = colLCNullableIntRead.ReadP(colLCNullableIntData)
+		colLCArrayIntData = colArrayLCIntRead.Read(colLCArrayIntData)
+		colLCNullableArrayIntData = colArrayLCNullableIntRead.ReadP(colLCNullableArrayIntData)
 	}
 
 	require.NoError(t, selectStmt.Err())
@@ -344,7 +344,6 @@ func TestTuple(t *testing.T) {
 	}
 	require.NoError(t, selectStmt.Err())
 	selectStmt.Close()
-
 }
 
 func TestTupleNoColumn(t *testing.T) {
@@ -518,10 +517,10 @@ func TestGeo(t *testing.T) {
 	var multiPolygonData [][][][]types.Point
 
 	for selectStmt.Next() {
-		colPointRead.Read(&pointData)
-		colRingRead.Read(&ringData)
-		colPolygonRead.Read(&polygonData)
-		colMultiPolygonRead.Read(&multiPolygonData)
+		pointData = colPointRead.Read(pointData)
+		ringData = colRingRead.Read(ringData)
+		polygonData = colPolygonRead.Read(polygonData)
+		multiPolygonData = colMultiPolygonRead.Read(multiPolygonData)
 	}
 
 	require.NoError(t, selectStmt.Err())

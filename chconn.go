@@ -56,27 +56,28 @@ const (
 	// Columns' description for default values calculation
 	serverTableColumns = 11
 	// list of unique parts ids.
+	//nolint:deadcode,unused,varcheck
 	serverPartUUIDs = 12
 	// String (UUID) describes a request for which next task is needed
+	//nolint:deadcode,unused,varcheck
 	serverReadTaskRequest = 13
 	// Packet with profile events from server
 	serverProfileEvents = 14
 )
 
 const (
-	dbmsMinRevisionWithClientInfo                      = 54032
-	dbmsMinRevisionWithServerTimezone                  = 54058
-	dbmsMinRevisionWithQuotaKeyInClientInfo            = 54060
-	dbmsMinRevisionWithServerDisplayName               = 54372
-	dbmsMinRevisionWithVersionPatch                    = 54401
-	dbmsMinRevisionWithClientWriteInfo                 = 54420
-	dbmsMinRevisionWithSettingsSerializedAsStrings     = 54429
-	dbmsMinRevisionWithInterServerSecret               = 54441
-	dbmsMinRevisionWithOpenTelemetry                   = 54442
-	dbmsMinProtocolVersionWithDistributedDepth         = 54448
-	dbmsMinProtocolVersionWithInitialQueryStartTime    = 54449
-	dbmsMinProtocolVersionWithIncrementalProfileEvents = 54451
-	dbmsMinProtocolVersionWithParallelReplicas         = 54453
+	dbmsMinRevisionWithClientInfo                   = 54032
+	dbmsMinRevisionWithServerTimezone               = 54058
+	dbmsMinRevisionWithQuotaKeyInClientInfo         = 54060
+	dbmsMinRevisionWithServerDisplayName            = 54372
+	dbmsMinRevisionWithVersionPatch                 = 54401
+	dbmsMinRevisionWithClientWriteInfo              = 54420
+	dbmsMinRevisionWithSettingsSerializedAsStrings  = 54429
+	dbmsMinRevisionWithInterServerSecret            = 54441
+	dbmsMinRevisionWithOpenTelemetry                = 54442
+	dbmsMinProtocolVersionWithDistributedDepth      = 54448
+	dbmsMinProtocolVersionWithInitialQueryStartTime = 54449
+	dbmsMinProtocolVersionWithParallelReplicas      = 54453
 )
 
 const (

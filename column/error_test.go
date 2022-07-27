@@ -836,12 +836,11 @@ func TestSelectReadTupleError(t *testing.T) {
 
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			// we can't use tuple(toLowCardinality('1')) so we use this tricky way
+			// we can't use tupp[le(toLowCardinality('1')) so we use this tricky way
 			// https://github.com/ClickHouse/ClickHouse/issues/39109
 			var col column.ColumnBasic
 			if tt.lc {
 				col = column.New[uint64]().LC()
-
 			} else {
 				col = column.New[uint8]()
 			}
@@ -850,7 +849,6 @@ func TestSelectReadTupleError(t *testing.T) {
 			require.NoError(t, err)
 			stmt.Next()
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
-
 		})
 	}
 }
@@ -1003,7 +1001,6 @@ func TestSelectReadMapError(t *testing.T) {
 			if tt.lc {
 				colKey = column.New[uint64]().LC()
 				colValue = column.New[uint64]().LC()
-
 			} else {
 				colKey = column.New[uint64]()
 				colValue = column.New[uint64]()
@@ -1118,8 +1115,11 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "invalid nullable LowCardinality",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			column:         column.New[int64]().Nullable().LC(),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			}, ""),
+			column: column.New[int64]().Nullable().LC(),
 		},
 		{
 			name:           "invalid nullable LowCardinality inside",
@@ -1172,8 +1172,11 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "invalid tuple",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
-			column:         column.NewTuple(column.New[int64](), column.New[int8]()),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+				"Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
+			}, ""),
+			column: column.NewTuple(column.New[int64](), column.New[int8]()),
 		},
 		{
 			name:           "invalid tuple inside",
@@ -1190,14 +1193,20 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "date time with timezone",
 			columnSelector: "toDateTime('2010-01-01', 'America/New_York') + number",
-			wantErr:        "mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: Int64|UInt64|Float64|Decimal64|DateTime64",
-			column:         column.New[uint64](),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: ",
+				"Int64|UInt64|Float64|Decimal64|DateTime64",
+			}, ""),
+			column: column.New[uint64](),
 		},
 		{
 			name:           "date time 64 with timezone",
 			columnSelector: "toDateTime64('2010-01-01', 3, 'America/New_York') + number",
-			wantErr:        "mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
-			column:         column.New[uint32](),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: ",
+				"Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
+			}, ""),
+			column: column.New[uint32](),
 		},
 		{
 			name:           "Decimal",
@@ -1214,20 +1223,29 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "Array2 inside",
 			columnSelector: "array(number,number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			column:         column.New[uint64]().Array().Array(),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: Array(UInt64), column types:",
+				" Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			}, ""),
+			column: column.New[uint64]().Array().Array(),
 		},
 		{
 			name:           "Array3",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-			column:         column.New[uint64]().Array().Array().Array(),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			}, ""),
+			column: column.New[uint64]().Array().Array().Array(),
 		},
 		{
 			name:           "Array3 inside",
 			columnSelector: "array(number,number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-			column:         column.New[uint64]().Array().Array().Array(),
+			wantErr: strings.Join([]string{
+				"mismatch column type: ClickHouse Type: Array(UInt64), column types: ",
+				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			}, ""),
+			column: column.New[uint64]().Array().Array().Array(),
 		},
 	}
 	for _, tt := range tests {
@@ -1288,7 +1306,6 @@ func TestInvalidDate(t *testing.T) {
 	err := m.Validate()
 	assert.NoError(t, err)
 	assert.Equal(t, m.Location(), time.Local)
-
 }
 
 func TestInvalidSimpleAggregateFunction(t *testing.T) {

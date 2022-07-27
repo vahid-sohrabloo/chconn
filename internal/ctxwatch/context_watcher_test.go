@@ -83,6 +83,7 @@ func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
 	<-ctx.Done()
 }
 
+//nolint:govet
 func TestContextWatcherStress(t *testing.T) {
 	var cancelFuncCalls int64
 	var cleanupFuncCalls int64
@@ -96,13 +97,15 @@ func TestContextWatcherStress(t *testing.T) {
 	cycleCount := 100000
 
 	for i := 0; i < cycleCount; i++ {
+		//nolint:govet
 		ctx, cancel := context.WithCancel(context.Background())
 		cw.Watch(ctx)
 		if i%2 == 0 {
 			cancel()
 		}
 
-		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen. This gives us a better mix.
+		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen.
+		// This gives us a better mix.
 		if i%3 == 0 {
 			time.Sleep(time.Nanosecond)
 		}

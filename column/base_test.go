@@ -438,15 +438,15 @@ func testColumn[T comparable](
 	var colLCNullableArrayData [][]*T
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
-		colNullableRead.ReadP(&colNullableData)
-		colArrayRead.Read(&colArrayData)
-		colNullableArrayRead.ReadP(&colArrayNullableData)
+		colData = colRead.Read(colData)
+		colNullableData = colNullableRead.ReadP(colNullableData)
+		colArrayData = colArrayRead.Read(colArrayData)
+		colArrayNullableData = colNullableArrayRead.ReadP(colArrayNullableData)
 		if isLC {
-			colLCRead.Read(&colLCData)
-			colLCNullableRead.ReadP(&colLCNullableData)
-			colArrayLCRead.Read(&colLCArrayData)
-			colArrayLCNullableRead.ReadP(&colLCNullableArrayData)
+			colLCData = colLCRead.Read(colLCData)
+			colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
+			colLCArrayData = colArrayLCRead.Read(colLCArrayData)
+			colLCNullableArrayData = colArrayLCNullableRead.ReadP(colLCNullableArrayData)
 			dictData = colLCRead.Dicts()
 			dictKey = colLCRead.Keys()
 			// get data from dict and keys
@@ -597,7 +597,6 @@ func testColumn[T comparable](
 			assert.IsType(t, colArrayLCRead, autoColumns[6])
 			assert.IsType(t, colArrayLCNullableRead, autoColumns[7])
 		}
-
 	} else {
 		assert.Len(t, autoColumns, 4)
 		assert.IsType(t, colRead, autoColumns[0])
@@ -699,10 +698,10 @@ func TestEmptyCollection(t *testing.T) {
 	var colLCNullableArrayData [][]*uint16
 
 	for selectStmt.Next() {
-		colArrayRead.Read(&colArrayData)
-		colNullableArrayRead.ReadP(&colArrayNullableData)
-		colArrayLCRead.Read(&colLCArrayData)
-		colArrayLCNullableRead.ReadP(&colLCNullableArrayData)
+		colArrayData = colArrayRead.Read(colArrayData)
+		colArrayNullableData = colNullableArrayRead.ReadP(colArrayNullableData)
+		colLCArrayData = colArrayLCRead.Read(colLCArrayData)
+		colLCNullableArrayData = colArrayLCNullableRead.ReadP(colLCNullableArrayData)
 	}
 
 	require.NoError(t, selectStmt.Err())

@@ -39,13 +39,14 @@ func (c *ArrayNullable[T]) DataP() [][]*T {
 }
 
 // Read reads all the nullable data in current block as a slice pointer and append to the input.
-func (c *ArrayNullable[T]) ReadP(value *[][]*T) {
+func (c *ArrayNullable[T]) ReadP(value [][]*T) [][]*T {
 	var lastOffset uint64
 	columnData := c.getColumnData()
 	for i := 0; i < c.offsetColumn.numRow; i++ {
-		*value = append(*value, columnData[lastOffset:c.offsetColumn.Row(i)])
+		value = append(value, columnData[lastOffset:c.offsetColumn.Row(i)])
 		lastOffset = c.offsetColumn.Row(i)
 	}
+	return value
 }
 
 // RowP return the nullable value of given row as a pointer
@@ -62,7 +63,7 @@ func (c *ArrayNullable[T]) RowP(row int) []*T {
 
 // AppendP a nullable value for insert
 func (c *ArrayNullable[T]) AppendP(v []*T) {
-	c.AppendLen(uint64(len(v)))
+	c.AppendLen(len(v))
 	c.dataColumn.AppendSliceP(v)
 }
 
@@ -75,7 +76,7 @@ func (c *ArrayNullable[T]) AppendSliceP(v [][]*T) {
 
 // ArrayOf return a Array type for this column
 func (c *ArrayNullable[T]) ArrayOf() *Array2Nullable[T] {
-	return NewArray2Nullable[T](c)
+	return NewArray2Nullable(c)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically

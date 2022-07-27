@@ -34,16 +34,17 @@ func (c *TupleOf[T]) Data() []T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *TupleOf[T]) Read(value *[]T) {
-	if cap(*value)-len(*value) >= c.NumRow() {
-		*value = (*value)[:len(*value)+c.NumRow()]
+func (c *TupleOf[T]) Read(value []T) []T {
+	if cap(value)-len(value) >= c.NumRow() {
+		value = (value)[:len(value)+c.NumRow()]
 	} else {
-		*value = append(*value, make([]T, c.NumRow())...)
+		value = append(value, make([]T, c.NumRow())...)
 	}
-	val := (*value)[len(*value)-c.NumRow():]
+	val := (value)[len(value)-c.NumRow():]
 	for i := 0; i < c.NumRow(); i++ {
 		val[i] = val[i].Get(c.columns, i)
 	}
+	return value
 }
 
 // Row return the value of given row.

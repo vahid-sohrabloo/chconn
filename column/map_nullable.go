@@ -47,8 +47,8 @@ func (c *MapNullable[T, V]) DataP() []map[T]*V {
 }
 
 // Read reads all the data in current block and append to column.
-func (c *MapNullable[T, V]) ReadP(value *[]map[T]*V) {
-	*value = append(*value, c.DataP()...)
+func (c *MapNullable[T, V]) ReadP(value []map[T]*V) []map[T]*V {
+	return append(value, c.DataP()...)
 }
 
 // Row return the value of given row.
@@ -68,7 +68,7 @@ func (c *MapNullable[T, V]) RowP(row int) map[T]*V {
 }
 
 func (c *MapNullable[K, V]) AppendP(v map[K]*V) {
-	c.AppendLen(uint64(len(v)))
+	c.AppendLen(len(v))
 	for k, d := range v {
 		c.keyColumn.(Column[K]).Append(k)
 		c.valueColumn.AppendP(d)

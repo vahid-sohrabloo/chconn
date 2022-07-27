@@ -94,16 +94,17 @@ func (c *Date[T]) Data() []time.Time {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Date[T]) Read(value *[]time.Time) {
-	if cap(*value)-len(*value) >= c.NumRow() {
-		*value = (*value)[:len(*value)+c.NumRow()]
+func (c *Date[T]) Read(value []time.Time) []time.Time {
+	if cap(value)-len(value) >= c.NumRow() {
+		value = (value)[:len(value)+c.NumRow()]
 	} else {
-		*value = append(*value, make([]time.Time, c.NumRow())...)
+		value = append(value, make([]time.Time, c.NumRow())...)
 	}
-	val := (*value)[len(*value)-c.NumRow():]
+	val := (value)[len(value)-c.NumRow():]
 	for i := 0; i < c.NumRow(); i++ {
 		val[i] = c.Row(i)
 	}
+	return value
 }
 
 // Row return the value of given row

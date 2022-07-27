@@ -41,15 +41,16 @@ func (c *LowCardinalityNullable[T]) DataP() []*T {
 }
 
 // Read reads all nullable data in current block and append to the input.
-func (c *LowCardinalityNullable[T]) ReadP(value *[]*T) {
+func (c *LowCardinalityNullable[T]) ReadP(value []*T) []*T {
 	for _, k := range c.readedKeys {
 		if k == 0 {
-			*value = append(*value, nil)
+			value = append(value, nil)
 		} else {
 			val := c.readedDict[k]
-			*value = append(*value, &val)
+			value = append(value, &val)
 		}
 	}
+	return value
 }
 
 // Row return nullable value of given row

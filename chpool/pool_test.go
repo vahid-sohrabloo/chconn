@@ -834,11 +834,14 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		stat := pool.Stat()
-		if stat.IdleConns() == 12 && stat.AcquireCount() == 0 && stat.TotalConns() == 12 && atomic.LoadInt64(&acquireAttempts) == 0 && atomic.LoadInt64(&connectAttempts) == 12 {
+		if stat.IdleConns() == 12 &&
+			stat.AcquireCount() == 0 &&
+			stat.TotalConns() == 12 &&
+			atomic.LoadInt64(&acquireAttempts) == 0 &&
+			atomic.LoadInt64(&connectAttempts) == 12 {
 			return
 		}
 	}
 
 	t.Fatal("did not reach min pool size")
-
 }

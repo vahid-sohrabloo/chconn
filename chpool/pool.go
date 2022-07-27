@@ -246,6 +246,7 @@ func NewConfig(config *Config) (Pool, error) {
 	)
 
 	go func() {
+		//nolint:errcheck // todo find a way to handle this error
 		p.createIdleResources(int(p.minConns))
 		p.backgroundHealthCheck()
 	}()
@@ -386,6 +387,7 @@ func (p *pool) isExpired(res *puddle.Resource[*connResource]) bool {
 	if p.maxConnLifetimeJitter == 0 {
 		return false
 	}
+	//nolint:gosec // rand is not used for security purposes
 	jitterSecs := rand.Float64() * p.maxConnLifetimeJitter.Seconds()
 	return now.Sub(res.CreationTime()) > p.maxConnLifetime+(time.Duration(jitterSecs)*time.Second)
 }

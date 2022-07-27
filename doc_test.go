@@ -91,13 +91,13 @@ func Example() {
 	// for more information about block, see: https://clickhouse.com/docs/en/development/architecture/#block
 	for selectStmt.Next() {
 		col1Data = col1Data[:0]
-		col1Read.Read(&col1Data)
+		col1Data = col1Read.Read(col1Data)
 
 		col2DataNil = col2DataNil[:0]
-		col2Read.ReadNil(&col2DataNil)
+		col2DataNil = col2Read.ReadNil(col2DataNil)
 
 		col2Data = col2Data[:0]
-		col2Read.Read(&col2Data)
+		col2Data = col2Read.Read(col2Data)
 	}
 
 	// check errors

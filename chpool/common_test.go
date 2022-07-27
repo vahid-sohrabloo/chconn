@@ -40,7 +40,7 @@ func testSelect(t *testing.T, db selecter) {
 	require.NoError(t, err)
 	for stmt.Next() {
 		assert.NoError(t, err)
-		col.Read(&num)
+		num = col.Read(num)
 		assert.NoError(t, err)
 	}
 	assert.NoError(t, stmt.Err())

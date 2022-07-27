@@ -26,7 +26,7 @@ type ColumnBasic interface {
 type Column[T any] interface {
 	ColumnBasic
 	Data() []T
-	Read(*[]T)
+	Read([]T) []T
 	Row(int) T
 	Append(T)
 	AppendSlice([]T)
@@ -35,7 +35,7 @@ type Column[T any] interface {
 type NullableColumn[T any] interface {
 	Column[T]
 	DataP() []*T
-	ReadP(*[]*T)
+	ReadP([]*T) []*T
 	RowP(int) *T
 	AppendP(*T)
 	AppendSliceP([]*T)

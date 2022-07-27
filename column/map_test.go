@@ -285,7 +285,7 @@ func testMapColumn[V comparable](
 			colArray.Append(valArray)
 			colArrayInsert = append(colArrayInsert, valArray)
 
-			colNullableArray.AppendLen(uint64(len(valArrayNil)))
+			colNullableArray.AppendLen(len(valArrayNil))
 			for k, v := range valArrayNil {
 				colNullableArray.KeyColumn().Append(k)
 				colNullableArray.ValueColumn().(*column.ArrayNullable[V]).AppendP(v)
@@ -299,7 +299,7 @@ func testMapColumn[V comparable](
 			colArrayLC.Append(valArray)
 
 			colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
-			colArrayLCNullable.AppendLen(uint64(len(valArrayNil)))
+			colArrayLCNullable.AppendLen(len(valArrayNil))
 			for k, v := range valArrayNil {
 				colArrayLCNullable.KeyColumn().Append(k)
 				colArrayLCNullable.ValueColumn().(*column.ArrayNullable[V]).AppendP(v)
@@ -395,9 +395,9 @@ func testMapColumn[V comparable](
 	require.True(t, conn.IsBusy())
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
-		colNullableRead.ReadP(&colNullableData)
-		colArrayRead.Read(&colArrayData)
+		colData = colRead.Read(colData)
+		colNullableData = colNullableRead.ReadP(colNullableData)
+		colArrayData = colArrayRead.Read(colArrayData)
 		colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 		colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
 		colNullableArrayRead.Each(func(start, end uint64) {
@@ -407,9 +407,9 @@ func testMapColumn[V comparable](
 			}
 			colArrayNullableData = append(colArrayNullableData, val)
 		})
-		colLCRead.Read(&colLCData)
-		colLCNullableRead.ReadP(&colLCNullableData)
-		colArrayLCRead.Read(&colLCArrayData)
+		colLCData = colLCRead.Read(colLCData)
+		colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
+		colLCArrayData = colArrayLCRead.Read(colLCArrayData)
 
 		colArrayLCNullableReadKey := colArrayLCNullableRead.KeyColumn().Data()
 		colArrayLCNullableReadValue := colArrayLCNullableRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
@@ -769,9 +769,9 @@ func TestMapEmpty(t *testing.T) {
 	require.True(t, conn.IsBusy())
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
-		colNullableRead.ReadP(&colNullableData)
-		colArrayRead.Read(&colArrayData)
+		colData = colRead.Read(colData)
+		colNullableData = colNullableRead.ReadP(colNullableData)
+		colArrayData = colArrayRead.Read(colArrayData)
 		colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 		colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[uint16]).DataP()
 		colNullableArrayRead.Each(func(start, end uint64) {
@@ -781,9 +781,9 @@ func TestMapEmpty(t *testing.T) {
 			}
 			colArrayNullableData = append(colArrayNullableData, val)
 		})
-		colLCRead.Read(&colLCData)
-		colLCNullableRead.ReadP(&colLCNullableData)
-		colArrayLCRead.Read(&colLCArrayData)
+		colLCData = colLCRead.Read(colLCData)
+		colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
+		colLCArrayData = colArrayLCRead.Read(colLCArrayData)
 
 		colArrayLCNullableReadKey := colArrayLCNullableRead.KeyColumn().Data()
 		colArrayLCNullableReadValue := colArrayLCNullableRead.ValueColumn().(*column.ArrayNullable[uint16]).DataP()

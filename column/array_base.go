@@ -31,8 +31,8 @@ func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 }
 
 // AppendLen Append len of array for insert
-func (c *ArrayBase) AppendLen(v uint64) {
-	c.offset += v
+func (c *ArrayBase) AppendLen(v int) {
+	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
 }
 
@@ -147,7 +147,7 @@ func (c *ArrayBase) WriteTo(w io.Writer) (int64, error) {
 	}
 	n, errDataColumn := c.dataColumn.WriteTo(w)
 
-	return int64(nw) + n, errDataColumn
+	return nw + n, errDataColumn
 }
 
 // HeaderWriter writes header data to writer

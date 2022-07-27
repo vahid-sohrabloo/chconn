@@ -49,8 +49,8 @@ func (c *Map[K, V]) Data() []map[K]V {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Map[K, V]) Read(value *[]map[K]V) {
-	*value = append(*value, c.Data()...)
+func (c *Map[K, V]) Read(value []map[K]V) []map[K]V {
+	return append(value, c.Data()...)
 }
 
 // Row return the value of given row.
@@ -73,7 +73,7 @@ func (c *Map[K, V]) Row(row int) map[K]V {
 
 // Append value for insert
 func (c *Map[K, V]) Append(v map[K]V) {
-	c.AppendLen(uint64(len(v)))
+	c.AppendLen(len(v))
 	for k, d := range v {
 		c.keyColumn.(Column[K]).Append(k)
 		c.valueColumn.(Column[V]).Append(d)

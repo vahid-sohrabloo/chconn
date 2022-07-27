@@ -13,5 +13,4 @@ func TestDecimal(t *testing.T) {
 	assert.Equal(t, d64.Float64(3), float64(12.234))
 	assert.Equal(t, Decimal32FromFloat64(12.2334, 3), Decimal32(12233))
 	assert.Equal(t, Decimal64FromFloat64(12.2334, 3), Decimal64(12233))
-
 }

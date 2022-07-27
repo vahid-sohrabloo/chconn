@@ -362,7 +362,6 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 		}
 		if precision <= 76 {
 			return column.New[types.Decimal256]().Elem(arrayLevel, nullable, lc), nil
-
 		}
 		panic("Decimal invalid precision: " + string(chType))
 
@@ -421,6 +420,7 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 	return nil, fmt.Errorf("unknown type: %s", chType)
 }
 
+//nolint:funlen,gocyclo
 func getFixedType(fixedLen, arrayLevel int, nullable, lc bool) (column.ColumnBasic, error) {
 	switch fixedLen {
 	case 1:
@@ -566,5 +566,4 @@ func getFixedType(fixedLen, arrayLevel int, nullable, lc bool) (column.ColumnBas
 	}
 
 	return nil, fmt.Errorf("fixed length %d is not supported", fixedLen)
-
 }

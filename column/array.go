@@ -36,7 +36,7 @@ func (c *Array[T]) Data() [][]T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Array[T]) Read(value *[][]T) {
+func (c *Array[T]) Read(value [][]T) [][]T {
 	offsets := c.Offsets()
 	var lastOffset uint64
 	columnData := c.getColumnData()
@@ -44,8 +44,9 @@ func (c *Array[T]) Read(value *[][]T) {
 		val := make([]T, offset-lastOffset)
 		copy(val, columnData[lastOffset:offset])
 		lastOffset = offset
-		*value = append(*value, val)
+		value = append(value, val)
 	}
+	return value
 }
 
 // Row return the value of given row.
@@ -62,7 +63,7 @@ func (c *Array[T]) Row(row int) []T {
 
 // Append value for insert
 func (c *Array[T]) Append(v []T) {
-	c.AppendLen(uint64(len(v)))
+	c.AppendLen(len(v))
 	c.dataColumn.(Column[T]).AppendSlice(v)
 }
 
@@ -74,8 +75,8 @@ func (c *Array[T]) AppendSlice(v [][]T) {
 }
 
 // AppendLen Append len of array for insert
-func (c *Array[T]) AppendLen(v uint64) {
-	c.offset += v
+func (c *Array[T]) AppendLen(v int) {
+	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
 }
 

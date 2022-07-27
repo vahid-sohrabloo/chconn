@@ -56,17 +56,19 @@ func (c *Nullable[T]) DataP() []*T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Nullable[T]) Read(value *[]T) {
-	c.dataColumn.Read(value)
+func (c *Nullable[T]) Read(value []T) []T {
+	return c.dataColumn.Read(value)
 }
 
 // ReadP read all value in this block and append to the input slice (for nullable data)
 //
-// As an alternative (for better performance) , You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`  to detect if value is null or not.
-func (c *Nullable[T]) ReadP(value *[]*T) {
+// As an alternative (for better performance), You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`
+// to detect if value is null or not.
+func (c *Nullable[T]) ReadP(value []*T) []*T {
 	for i := 0; i < c.numRow; i++ {
-		*value = append(*value, c.RowP(i))
+		value = append(value, c.RowP(i))
 	}
+	return value
 }
 
 // Append value for insert
@@ -88,8 +90,8 @@ func (c *Nullable[T]) RowP(row int) *T {
 }
 
 // ReadAll read all nils state in this block and append to the input
-func (c *Nullable[T]) ReadNil(value *[]bool) {
-	*value = append(*value, *(*[]bool)(unsafe.Pointer(&c.b))...)
+func (c *Nullable[T]) ReadNil(value []bool) []bool {
+	return append(value, *(*[]bool)(unsafe.Pointer(&c.b))...)
 }
 
 // DataNil get all nil state in this block
@@ -235,7 +237,7 @@ func (c *Nullable[T]) Validate() error {
 }
 
 func (c *Nullable[T]) columnType() string {
-	return strings.Replace(helper.NullableTypeStr, "<type>", string(c.dataColumn.columnType()), -1)
+	return strings.Replace(helper.NullableTypeStr, "<type>", c.dataColumn.columnType(), -1)
 }
 
 // WriteTo write data to ClickHouse.

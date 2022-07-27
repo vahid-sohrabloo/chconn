@@ -181,19 +181,19 @@ func TestString(t *testing.T) {
 	for selectStmt.Next() {
 		require.NoError(t, err)
 
-		colRead.Read(&colData)
-		colRead.ReadBytes(&colDataByte)
+		colData = colRead.Read(colData)
+		colDataByte = colRead.ReadBytes(colDataByte)
 		colDataByteByData = append(colDataByteByData, colRead.DataBytes()...)
 		for i := 0; i < selectStmt.RowsInBlock(); i++ {
 			colDataByteByRow = append(colDataByteByRow, colRead.RowBytes(i))
 		}
-		colNullableRead.ReadP(&colNullableData)
-		colArrayRead.Read(&colArrayData)
-		colNullableArrayRead.ReadP(&colArrayNullableData)
-		colLCRead.Read(&colLCData)
-		colLCNullableRead.ReadP(&colLCNullableData)
-		colArrayLCRead.Read(&colLCArrayData)
-		colArrayLCNullableRead.ReadP(&colLCNullableArrayData)
+		colNullableData = colNullableRead.ReadP(colNullableData)
+		colArrayData = colArrayRead.Read(colArrayData)
+		colArrayNullableData = colNullableArrayRead.ReadP(colArrayNullableData)
+		colLCData = colLCRead.Read(colLCData)
+		colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
+		colLCArrayData = colArrayLCRead.Read(colLCArrayData)
+		colLCNullableArrayData = colArrayLCNullableRead.ReadP(colLCNullableArrayData)
 	}
 
 	require.NoError(t, selectStmt.Err())

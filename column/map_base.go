@@ -62,7 +62,7 @@ func (c *MapBase) Each(f func(start, end uint64)) {
 }
 
 // AppendLen Append len for insert
-func (c *MapBase) AppendLen(v uint64) {
+func (c *MapBase) AppendLen(v int) {
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
 }
@@ -205,21 +205,21 @@ func (c *MapBase) columnType() string {
 func (c *MapBase) WriteTo(w io.Writer) (int64, error) {
 	nw, err := c.offsetColumn.WriteTo(w)
 	if err != nil {
-		return int64(nw), fmt.Errorf("write len data: %w", err)
+		return nw, fmt.Errorf("write len data: %w", err)
 	}
 	n, errDataColumn := c.keyColumn.WriteTo(w)
 	nw += n
 	if errDataColumn != nil {
-		return int64(nw), fmt.Errorf("write key data: %w", errDataColumn)
+		return nw, fmt.Errorf("write key data: %w", errDataColumn)
 	}
 
 	n, errDataColumn = c.valueColumn.WriteTo(w)
 	nw += n
 	if errDataColumn != nil {
-		return int64(nw), fmt.Errorf("write value data: %w", errDataColumn)
+		return nw, fmt.Errorf("write value data: %w", errDataColumn)
 	}
 
-	return int64(nw) + n, errDataColumn
+	return nw + n, errDataColumn
 }
 
 // HeaderWriter writes header data to writer

@@ -34,9 +34,9 @@ func (c *Base[T]) Data() []T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Base[T]) Read(value *[]T) {
+func (c *Base[T]) Read(value []T) []T {
 	v := *(*[]T)(unsafe.Pointer(&c.b))
-	*value = append(*value, v[:c.numRow]...)
+	return append(value, v[:c.numRow]...)
 }
 
 // Row return the value of given row.

@@ -58,28 +58,29 @@ func (cw *compressWriter) Write(buf []byte) (int, error) {
 }
 
 // Compress buf into Data.
-func (w *compressWriter) Flush() error {
-	if w.pos == 0 {
+func (cw *compressWriter) Flush() error {
+	if cw.pos == 0 {
 		return nil
 	}
-	maxSize := lz4.CompressBlockBound(len(w.data[:w.pos]))
-	w.zdata = append(w.zdata[:0], make([]byte, maxSize+headerSize)...)
-	_ = w.zdata[:headerSize]
-	w.zdata[hMethod] = byte(w.method)
+	maxSize := lz4.CompressBlockBound(len(cw.data[:cw.pos]))
+	cw.zdata = append(cw.zdata[:0], make([]byte, maxSize+headerSize)...)
+	_ = cw.zdata[:headerSize]
+	cw.zdata[hMethod] = byte(cw.method)
 
 	var n int
-	switch w.method {
+	//nolint:exhaustive
+	switch cw.method {
 	case CompressLZ4:
-		if w.lz4 == nil {
-			w.lz4 = &lz4.Compressor{}
+		if cw.lz4 == nil {
+			cw.lz4 = &lz4.Compressor{}
 		}
-		compressedSize, err := w.lz4.CompressBlock(w.data[:w.pos], w.zdata[headerSize:])
+		compressedSize, err := cw.lz4.CompressBlock(cw.data[:cw.pos], cw.zdata[headerSize:])
 		if err != nil {
 			return fmt.Errorf("lz4 compress error: %v", err)
 		}
 		n = compressedSize
 	case CompressZSTD:
-		if w.zstd == nil {
+		if cw.zstd == nil {
 			zw, err := zstd.NewWriter(nil,
 				zstd.WithEncoderLevel(zstd.SpeedDefault),
 				zstd.WithEncoderConcurrency(1),
@@ -88,23 +89,23 @@ func (w *compressWriter) Flush() error {
 			if err != nil {
 				return fmt.Errorf("zstd new error: %v", err)
 			}
-			w.zstd = zw
+			cw.zstd = zw
 		}
-		w.zdata = w.zstd.EncodeAll(w.data[:w.pos], w.zdata[:headerSize])
-		n = len(w.zdata) - headerSize
+		cw.zdata = cw.zstd.EncodeAll(cw.data[:cw.pos], cw.zdata[:headerSize])
+		n = len(cw.zdata) - headerSize
 	case CompressChecksum:
-		n = copy(w.zdata[headerSize:], w.data[:w.pos])
+		n = copy(cw.zdata[headerSize:], cw.data[:cw.pos])
 	}
 
-	w.zdata = w.zdata[:n+headerSize]
+	cw.zdata = cw.zdata[:n+headerSize]
 
-	binary.LittleEndian.PutUint32(w.zdata[hRawSize:], uint32(n+compressHeaderSize))
-	binary.LittleEndian.PutUint32(w.zdata[hDataSize:], uint32(w.pos))
-	h := city.CH128(w.zdata[hMethod:])
-	binary.LittleEndian.PutUint64(w.zdata[0:8], h.Low)
-	binary.LittleEndian.PutUint64(w.zdata[8:16], h.High)
+	binary.LittleEndian.PutUint32(cw.zdata[hRawSize:], uint32(n+compressHeaderSize))
+	binary.LittleEndian.PutUint32(cw.zdata[hDataSize:], uint32(cw.pos))
+	h := city.CH128(cw.zdata[hMethod:])
+	binary.LittleEndian.PutUint64(cw.zdata[0:8], h.Low)
+	binary.LittleEndian.PutUint64(cw.zdata[8:16], h.High)
 
-	_, err := w.writer.Write(w.zdata)
-	w.pos = 0
+	_, err := cw.writer.Write(cw.zdata)
+	cw.pos = 0
 	return err
 }

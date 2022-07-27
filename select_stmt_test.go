@@ -201,7 +201,6 @@ func TestSelectProgressError(t *testing.T) {
 }
 
 func TestGetFixedColumnType(t *testing.T) {
-
 	tests := []struct {
 		name string
 		len  int

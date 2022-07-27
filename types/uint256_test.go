@@ -23,6 +23,5 @@ func TestUint256(t *testing.T) {
 		if got := Uint256FromBig(new(big.Int).Lsh(big.NewInt(1), 257)); !got.Equals(Uint256Max()) {
 			t.Fatalf("Uint256FromBig(2^129) does not equal to Max(), got %#x", got)
 		}
-
 	})
 }

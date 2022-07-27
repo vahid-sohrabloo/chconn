@@ -285,15 +285,15 @@ func testDateColumn[T column.DateType[T]](
 	var colLCNullableArrayData [][]*time.Time
 
 	for selectStmt.Next() {
-		colRead.Read(&colData)
-		colNullableRead.ReadP(&colNullableData)
-		colArrayRead.Read(&colArrayData)
-		colNullableArrayRead.ReadP(&colArrayNullableData)
+		colData = colRead.Read(colData)
+		colNullableData = colNullableRead.ReadP(colNullableData)
+		colArrayData = colArrayRead.Read(colArrayData)
+		colArrayNullableData = colNullableArrayRead.ReadP(colArrayNullableData)
 		if isLC {
-			colLCRead.Read(&colLCData)
-			colLCNullableRead.ReadP(&colLCNullableData)
-			colArrayLCRead.Read(&colLCArrayData)
-			colArrayLCNullableRead.ReadP(&colLCNullableArrayData)
+			colLCData = colLCRead.Read(colLCData)
+			colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
+			colLCArrayData = colArrayLCRead.Read(colLCArrayData)
+			colLCNullableArrayData = colArrayLCNullableRead.ReadP(colLCNullableArrayData)
 		}
 	}
 
