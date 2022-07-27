@@ -1,11 +1,11 @@
 package chconn
 
 import (
-	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
-// Column contains details of ClickHouse column with Buffer index in inserting
+// Column contains details of ClickHouse column
 type chColumn struct {
 	ChType []byte
 	Name   []byte
@@ -36,9 +36,9 @@ func (block *block) read(ch *conn) error {
 	if _, err := ch.reader.ByteString(); err != nil { // temporary table
 		return &readError{"block: temporary table", err}
 	}
-
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
+
 	var err error
 	err = block.info.read(ch.reader)
 	if err != nil {
@@ -72,6 +72,54 @@ func (block *block) readColumns(ch *conn) error {
 	return nil
 }
 
+func (block *block) readColumnsData(ch *conn, needValidateData bool, columns ...column.ColumnBasic) error {
+	ch.reader.SetCompress(ch.compress)
+	defer ch.reader.SetCompress(false)
+	for _, col := range columns {
+		err := col.HeaderReader(ch.reader, true)
+		if err != nil {
+			return err
+		}
+		if needValidateData {
+			if errValidate := col.Validate(); errValidate != nil {
+				return errValidate
+			}
+		}
+		err = col.ReadRaw(int(block.NumRows), ch.reader)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (block *block) reorderColumns(columns []column.ColumnBasic) ([]column.ColumnBasic, error) {
+	for i, c := range block.Columns {
+		// check if already sorted
+		if string(columns[i].Name()) == string(block.Columns[i].Name) {
+			continue
+		}
+		index, col := findColumn(columns, c.Name)
+		if col == nil {
+			return nil, &ColumnNotFoundError{
+				Column: string(c.Name),
+			}
+		}
+		columns[index] = columns[i]
+		columns[i] = col
+	}
+	return columns, nil
+}
+
+func findColumn(columns []column.ColumnBasic, name []byte) (int, column.ColumnBasic) {
+	for i, col := range columns {
+		if string(col.Name()) == string(name) {
+			return i, col
+		}
+	}
+	return 0, nil
+}
+
 func (block *block) nextColumn(ch *conn) (chColumn, error) {
 	col := chColumn{}
 	var err error
@@ -102,13 +150,7 @@ func (block *block) writeHeader(ch *conn, numRows int) error {
 	return nil
 }
 
-func (block *block) writeColumnsBuffer(ch *conn, columns ...column.Column) error {
-	if int(block.NumColumns) != len(columns) {
-		return &ColumnNumberWriteError{
-			WriteColumn: len(columns),
-			NeedColumn:  block.NumColumns,
-		}
-	}
+func (block *block) writeColumnsBuffer(ch *conn, columns ...column.ColumnBasic) error {
 	numRows := columns[0].NumRow()
 	for i, column := range block.Columns {
 		if numRows != columns[i].NumRow() {
@@ -116,6 +158,7 @@ func (block *block) writeColumnsBuffer(ch *conn, columns ...column.Column) error
 				FirstNumRow: numRows,
 				NumRow:      columns[i].NumRow(),
 				Column:      string(column.Name),
+				FirstColumn: string(block.Columns[0].Name),
 			}
 		}
 		block.headerWriter.Reset()

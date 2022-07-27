@@ -2,43 +2,43 @@ package chpool
 
 import (
 	"context"
-	"time"
+	"sync/atomic"
 
-	"github.com/jackc/puddle"
-	"github.com/vahid-sohrabloo/chconn"
-	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/setting"
+	puddle "github.com/jackc/puddle/puddleg"
+	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
 // Conn is an acquired *chconn.Conn from a Pool.
 type Conn interface {
 	Release()
-	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
+	// ExecWithOption executes a query without returning any rows with Query options.
 	// NOTE: don't use it for insert and select query
-	ExecCallback(
+	ExecWithOption(
 		ctx context.Context,
 		query string,
-		settings *setting.Settings,
-		queryID string,
-		onProgress func(*chconn.Progress)) (interface{}, error)
-	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
+		queryOptions *chconn.QueryOptions,
+	) error
+	// Select executes a query with the the query options and return select stmt.
 	// NOTE: only use for select query
-	SelectCallback(
+	SelectWithOption(
 		ctx context.Context,
 		query string,
-		settings *setting.Settings,
-		queryID string,
-		onProgress func(*chconn.Progress),
-		onProfile func(*chconn.Profile),
+		queryOptions *chconn.QueryOptions,
+		columns ...column.ColumnBasic,
 	) (chconn.SelectStmt, error)
-	// InsertWithSetting executes a query with the setting option and return insert stmt.
+	// InsertWithSetting executes a query with the query options and commit all columns data.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string, columns ...column.Column) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	// Conn get the underlying chconn.Conn
 	Conn() chconn.Conn
+	// Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
+	// will panic if called on an already released or hijacked connection.
+	Hijack() chconn.Conn
 	Ping(ctx context.Context) error
 }
 type conn struct {
-	res *puddle.Resource
+	res *puddle.Resource[*connResource]
 	p   *pool
 }
 
@@ -53,9 +53,23 @@ func (c *conn) Release() {
 	res := c.res
 	c.res = nil
 
-	now := time.Now()
-	if conn.IsClosed() || conn.IsBusy() || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
+	if conn.IsClosed() || conn.IsBusy() {
 		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
+		return
+	}
+
+	// If the pool is consistently being used, we might never get to check the
+	// lifetime of a connection since we only check idle connections in checkConnsHealth
+	// so we also check the lifetime here and force a health check
+	if c.p.isExpired(res) {
+		atomic.AddInt64(&c.p.lifetimeDestroyCount, 1)
+		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
 		return
 	}
 
@@ -69,32 +83,48 @@ func (c *conn) Release() {
 			res.Release()
 		} else {
 			res.Destroy()
+			// Signal to the health check to run since we just destroyed a connections
+			// and we might be below minConns now
+			c.p.triggerHealthCheck()
 		}
 	}()
 }
 
-func (c *conn) ExecCallback(
+// Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
+// will panic if called on an already released or hijacked connection.
+func (c *conn) Hijack() chconn.Conn {
+	if c.res == nil {
+		panic("cannot hijack already released or hijacked connection")
+	}
+
+	conn := c.Conn()
+	res := c.res
+	c.res = nil
+
+	res.Hijack()
+
+	return conn
+}
+
+func (c *conn) ExecWithOption(
 	ctx context.Context,
 	query string,
-	settings *setting.Settings,
-	queryID string,
-	onProgress func(*chconn.Progress)) (interface{}, error) {
-	return c.Conn().ExecCallback(ctx, query, settings, queryID, onProgress)
+	queryOptions *chconn.QueryOptions,
+) error {
+	return c.Conn().ExecWithOption(ctx, query, queryOptions)
 }
 
 func (c *conn) Ping(ctx context.Context) error {
 	return c.Conn().Ping(ctx)
 }
 
-func (c *conn) SelectCallback(
+func (c *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
-	settings *setting.Settings,
-	queryID string,
-	onProgress func(*chconn.Progress),
-	onProfile func(*chconn.Profile),
+	queryOptions *chconn.QueryOptions,
+	columns ...column.ColumnBasic,
 ) (chconn.SelectStmt, error) {
-	s, err := c.Conn().SelectCallback(ctx, query, settings, queryID, onProgress, onProfile)
+	s, err := c.Conn().SelectWithOption(ctx, query, queryOptions, columns...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,13 +134,8 @@ func (c *conn) SelectCallback(
 	}, nil
 }
 
-func (c *conn) InsertWithSetting(
-	ctx context.Context,
-	query string,
-	settings *setting.Settings,
-	queryID string,
-	columns ...column.Column) error {
-	return c.Conn().InsertWithSetting(ctx, query, settings, queryID, columns...)
+func (c *conn) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
+	return c.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
 }
 
 func (c *conn) Conn() chconn.Conn {
@@ -118,5 +143,5 @@ func (c *conn) Conn() chconn.Conn {
 }
 
 func (c *conn) connResource() *connResource {
-	return c.res.Value().(*connResource)
+	return c.res.Value()
 }

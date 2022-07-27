@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
 )
 
 func TestContextWatcherContextCancelled(t *testing.T) {
@@ -59,7 +59,30 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
-//nolint:govet //for test
+func TestContextWatcherUnwatchWhenNotWatchingIsSafe(t *testing.T) {
+	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
+	cw.Unwatch() // unwatch when not / never watching
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cw.Watch(ctx)
+	cw.Unwatch()
+	cw.Unwatch() // double unwatch
+}
+
+func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
+	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	cw.Watch(ctx)
+
+	go cw.Unwatch()
+	go cw.Unwatch()
+
+	<-ctx.Done()
+}
+
 func TestContextWatcherStress(t *testing.T) {
 	var cancelFuncCalls int64
 	var cleanupFuncCalls int64
@@ -79,8 +102,7 @@ func TestContextWatcherStress(t *testing.T) {
 			cancel()
 		}
 
-		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen.
-		// This gives us a better mix.
+		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen. This gives us a better mix.
 		if i%3 == 0 {
 			time.Sleep(time.Nanosecond)
 		}

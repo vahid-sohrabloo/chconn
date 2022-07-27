@@ -1,153 +1,99 @@
 package column
 
-import (
-	"encoding/binary"
-	"fmt"
-	"io"
-
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
-)
-
-// Array use for Array ClickHouse DataTypes
-type Array struct {
-	Uint64
-	offset     int
-	val        int
-	dataColumn Column
+// Array is a column of Array(T) ClickHouse data type
+type Array[T any] struct {
+	ArrayBase
+	columnData []T
 }
 
-// NewArray return new Array for Array ClickHouse DataTypes
-func NewArray(dataColumn Column) *Array {
-	a := &Array{
-		dataColumn: dataColumn,
-		Uint64: Uint64{
-			column: column{
-				size: ArraylenSize,
-			},
+// NewArray create a new array column of Array(T) ClickHouse data type
+func NewArray[T any](dataColumn Column[T]) *Array[T] {
+	a := &Array[T]{
+		ArrayBase: ArrayBase{
+			dataColumn:   dataColumn,
+			offsetColumn: New[uint64](),
 		},
 	}
-	dataColumn.setParent(a)
+	a.resetHook = func() {
+		a.columnData = a.columnData[:0]
+	}
 	return a
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
-func (c *Array) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.Reset()
-	err := c.Uint64.ReadRaw(num, r)
-	if err != nil {
-		return err
+// Data get all the data in current block as a slice.
+func (c *Array[T]) Data() [][]T {
+	values := make([][]T, c.offsetColumn.numRow)
+	offsets := c.Offsets()
+	var lastOffset uint64
+	columnData := c.getColumnData()
+	for i, offset := range offsets {
+		val := make([]T, offset-lastOffset)
+		copy(val, columnData[lastOffset:offset])
+		values[i] = val
+		lastOffset = offset
 	}
-	return c.dataColumn.ReadRaw(c.TotalRows(), r)
+	return values
 }
 
-// TotalRows return total rows on this block of array data
-func (c *Array) TotalRows() int {
-	return int(binary.LittleEndian.Uint64(c.b[c.totalByte-c.size : c.totalByte]))
-}
-
-// HeaderWriter writes header data to writer
-// it uses internally
-func (c *Array) HeaderWriter(w *readerwriter.Writer) {
-	c.dataColumn.HeaderWriter(w)
-}
-
-// HeaderReader reads header data from read
-// it uses internally
-func (c *Array) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
-	err := c.Uint64.HeaderReader(r, readColumn)
-	if err != nil {
-		return err
+// Read reads all the data in current block and append to the input.
+func (c *Array[T]) Read(value *[][]T) {
+	offsets := c.Offsets()
+	var lastOffset uint64
+	columnData := c.getColumnData()
+	for _, offset := range offsets {
+		val := make([]T, offset-lastOffset)
+		copy(val, columnData[lastOffset:offset])
+		lastOffset = offset
+		*value = append(*value, val)
 	}
-	err = c.dataColumn.HeaderReader(r, readColumn)
-	if err != nil {
-		return err
-	}
-	c.dataColumn.SetType(c.Type()[len("Array(") : len(c.Type())-1])
-	return err
 }
 
-// Reset all status and buffer data
-//
-// Reading data does not require a reset after each read. The reset will be triggered automatically.
-//
-// However, writing data requires a reset after each write.
-func (c *Array) Reset() {
-	c.Uint64.Reset()
-	c.offset = 0
-}
-
-// Next forward pointer to the next value. Returns false if there are no more values.
-//
-// Use with Value()
-func (c *Array) Next() bool {
-	ok := c.Uint64.Next()
-	if !ok {
-		return false
-	}
-	offset := int(c.Uint64.Value())
-	c.val = offset - c.offset
-	c.offset = offset
-	return true
-}
-
-// Value of current pointer
-//
-// Use with Next()
-func (c *Array) Value() int {
-	return c.val
-}
-
-// Value of current pointer
+// Row return the value of given row.
 // NOTE: Row number start from zero
-func (c *Array) Row(i int) int {
-	if i == 0 {
-		return int(c.Uint64.Row(i))
+func (c *Array[T]) Row(row int) []T {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
 	}
-	return int(c.Uint64.Row(i) - c.Uint64.Row(i-1))
+	var val []T
+	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
+	return val
 }
 
-// ReadAll read all lens in this block and append to the input slice
-func (c *Array) ReadAll(value *[]int) error {
-	var offset uint64
-	var prevOffset uint64
-	for i := 0; i < c.totalByte; i += c.size {
-		offset = binary.LittleEndian.Uint64(c.b[i : i+c.size])
-		*value = append(*value, int(offset-prevOffset))
-		prevOffset = offset
-	}
-	c.offset = int(offset)
-	return nil
+// Append value for insert
+func (c *Array[T]) Append(v []T) {
+	c.AppendLen(uint64(len(v)))
+	c.dataColumn.(Column[T]).AppendSlice(v)
 }
 
-// AppendLen Append len for insert
-func (c *Array) AppendLen(v int) {
-	c.numRow++
+// AppendSlice append slice of value for insert
+func (c *Array[T]) AppendSlice(v [][]T) {
+	for _, vv := range v {
+		c.Append(vv)
+	}
+}
+
+// AppendLen Append len of array for insert
+func (c *Array[T]) AppendLen(v uint64) {
 	c.offset += v
-	c.writerData = append(c.writerData,
-		byte(c.offset),
-		byte(c.offset>>8),
-		byte(c.offset>>16),
-		byte(c.offset>>24),
-		byte(c.offset>>32),
-		byte(c.offset>>40),
-		byte(c.offset>>48),
-		byte(c.offset>>56),
-	)
+	c.offsetColumn.Append(c.offset)
 }
 
-// WriteTo write data clickhouse
-// it uses internally
-func (c *Array) WriteTo(w io.Writer) (int64, error) {
-	nw, err := w.Write(c.writerData)
-	if err != nil {
-		return 0, fmt.Errorf("write len data: %w", err)
+// Array return a Array type for this column
+func (c *Array[T]) Array() *Array2[T] {
+	return NewArray2(c)
+}
+
+func (c *Array[T]) getColumnData() []T {
+	if len(c.columnData) == 0 {
+		c.columnData = c.dataColumn.(Column[T]).Data()
 	}
-	n, errdataColumn := c.dataColumn.WriteTo(w)
-
-	return int64(nw) + n, errdataColumn
+	return c.columnData
 }
 
-// DataColumn return data column
-func (c *Array) DataColumn() Column {
-	return c.dataColumn
+func (c *Array[T]) elem(arrayLevel int) ColumnBasic {
+	if arrayLevel > 0 {
+		return c.Array().elem(arrayLevel - 1)
+	}
+	return c
 }

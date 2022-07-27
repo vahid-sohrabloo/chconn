@@ -7,48 +7,46 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn"
-	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
 // Conn.Release is an asynchronous process that returns immediately. There is no signal when the actual work is
 // completed. To test something that relies on the actual work for Conn.Release being completed we must simply wait.
 // This function wraps the sleep so there is more meaning for the callers.
 func waitForReleaseToComplete() {
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }
 
 type execer interface {
-	Exec(ctx context.Context, sql string) (interface{}, error)
+	Exec(ctx context.Context, sql string) error
 }
 
 func testExec(t *testing.T, db execer) {
-	results, err := db.Exec(context.Background(), "SET enable_http_compression=1")
+	err := db.Exec(context.Background(), "SET enable_http_compression=1")
 	require.NoError(t, err)
-	assert.EqualValues(t, nil, results)
 }
 
 type selecter interface {
-	Select(ctx context.Context, sql string) (chconn.SelectStmt, error)
+	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error)
 }
 
 func testSelect(t *testing.T, db selecter) {
 	var (
-		nums []uint64
+		num []uint64
 	)
-	stmt, err := db.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
+	col := column.New[uint64]()
+	stmt, err := db.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", col)
 	require.NoError(t, err)
-	col := column.NewUint64(false)
 	for stmt.Next() {
-		err := stmt.ReadColumns(col)
 		assert.NoError(t, err)
-		col.ReadAll(&nums)
+		col.Read(&num)
 		assert.NoError(t, err)
 	}
 	assert.NoError(t, stmt.Err())
-	assert.Equal(t, 5, len(nums))
+	assert.Equal(t, 5, len(num))
 	stmt.Close()
-	assert.ElementsMatch(t, []uint64{0, 1, 2, 3, 4}, nums)
+	assert.ElementsMatch(t, []uint64{0, 1, 2, 3, 4}, num)
 }
 
 func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string) {
@@ -71,7 +69,6 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 	assert.Equalf(t, expected.MaxConns, actual.MaxConns, "%s - MaxConns", testName)
 	assert.Equalf(t, expected.MinConns, actual.MinConns, "%s - MinConns", testName)
 	assert.Equalf(t, expected.HealthCheckPeriod, actual.HealthCheckPeriod, "%s - HealthCheckPeriod", testName)
-	assert.Equalf(t, expected.LazyConnect, actual.LazyConnect, "%s - LazyConnect", testName)
 
 	assertConnConfigsEqual(t, expected.ConnConfig, actual.ConnConfig, testName)
 }

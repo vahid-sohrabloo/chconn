@@ -59,7 +59,7 @@ linters:
     - funlen
     - gochecknoinits
     - goconst
-    - gocritic
+    # - gocritic go 1.18
     - gocyclo
     - gofmt
     - goimports
@@ -83,7 +83,7 @@ linters:
     - unused
     - varcheck
     - whitespace
-    - goerr113
+    # - goerr113
 
   # don't enable:
   # - asciicheck

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn"
-	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
 func TestString(t *testing.T) {
@@ -19,244 +20,225 @@ func TestString(t *testing.T) {
 
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
-
-	res, err := conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_string`)
+	tableName := "string"
+	chType := "String"
+	err = conn.Exec(context.Background(),
+		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
+	)
 	require.NoError(t, err)
-	require.Nil(t, res)
-
-	res, err = conn.Exec(context.Background(), `CREATE TABLE test_string (
-				string String,
-				string_nullable Nullable(String),
-				string_array Array(String),
-				string_array_nullable Array(Nullable(String))
-			) Engine=Memory`)
+	set := chconn.Settings{
+		{
+			Name:  "allow_suspicious_low_cardinality_types",
+			Value: "true",
+		},
+	}
+	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
+			    block_id UInt8,
+				%[1]s %[2]s,
+				%[1]s_nullable Nullable(%[2]s),
+				%[1]s_array Array(%[2]s),
+				%[1]s_array_nullable Array(Nullable(%[2]s)),
+				%[1]s_lc LowCardinality(%[2]s),
+				%[1]s_nullable_lc LowCardinality(Nullable(%[2]s)),
+				%[1]s_array_lc Array(LowCardinality(%[2]s)),
+				%[1]s_array_lc_nullable Array(LowCardinality(Nullable(%[2]s)))
+			) Engine=Memory`, tableName, chType), &chconn.QueryOptions{
+		Settings: set,
+	})
 
 	require.NoError(t, err)
-	require.Nil(t, res)
 
-	col := column.NewString(false)
+	blockID := column.New[uint8]()
+	col := column.NewString[string]()
+	colNullable := column.NewString[string]().Nullable()
+	colArray := column.NewString[string]().Array()
+	colNullableArray := column.NewString[string]().Nullable().Array()
+	colLC := column.NewString[string]().LC()
+	colLCNullable := column.NewString[string]().Nullable().LC()
+	colArrayLC := column.NewString[string]().LC().Array()
+	colArrayLCNullable := column.NewString[string]().Nullable().LC().Array()
+	var colInsert []string
+	var colInsertByte [][]byte
+	var colNullableInsert []*string
+	var colArrayInsert [][]string
+	var colArrayNullableInsert [][]*string
+	var colLCInsert []string
+	var colLCNullableInsert []*string
+	var colLCArrayInsert [][]string
+	var colLCNullableArrayInsert [][]*string
 
-	colArrayValues := column.NewString(false)
-	colArray := column.NewArray(colArrayValues)
-
-	colArrayValuesNil := column.NewString(true)
-	colArrayNil := column.NewArray(colArrayValuesNil)
-
-	colNil := column.NewString(true)
-
-	var colInsert [][]byte
-	var colInsertArray [][][]byte
-	var colInsertArrayNil [][]*[]byte
-	var colNilInsert []*[]byte
 	for insertN := 0; insertN < 2; insertN++ {
 		rows := 10
-		col.Reset()
-		colArrayValues.Reset()
-		colArray.Reset()
-		colArrayValuesNil.Reset()
-		colArrayNil.Reset()
-		colNil.Reset()
-		for i := 1; i <= rows; i++ {
-			val := []byte(fmt.Sprintf("%d", i))
-			valArray := [][]byte{val, []byte(fmt.Sprintf("%d", i+1))}
-			valArrayNil := []*[]byte{&val, nil}
+		for i := 0; i < rows; i++ {
+			blockID.Append(uint8(insertN))
+			val := fmt.Sprintf("string %d", i)
+			val2 := strings.Repeat(val, 50)
+			valArray := []string{val, val2}
+			valArrayNil := []*string{&val, nil}
 
 			col.Append(val)
 			colInsert = append(colInsert, val)
-
-			// example insert array
-			colInsertArray = append(colInsertArray, valArray)
-			colArray.AppendLen(len(valArray))
-			for _, v := range valArray {
-				colArrayValues.Append(v)
-			}
-
-			// example insert nullable array
-			colInsertArrayNil = append(colInsertArrayNil, valArrayNil)
-			colArrayNil.AppendLen(len(valArrayNil))
-			for _, v := range valArrayNil {
-				colArrayValuesNil.AppendP(v)
-			}
+			colInsertByte = append(colInsertByte, []byte(val))
 
 			// example add nullable
 			if i%2 == 0 {
-				colNilInsert = append(colNilInsert, &val)
-				if i <= rows/2 {
-					// example to add by pointer
-					colNil.AppendP(&val)
-				} else {
-					// example to without pointer
-					colNil.Append(val)
-					colNil.AppendIsNil(false)
-				}
+				colNullableInsert = append(colNullableInsert, &val)
+				colNullable.Append(val)
+				colLCNullableInsert = append(colLCNullableInsert, &val)
+				colLCNullable.Append(val)
 			} else {
-				colNilInsert = append(colNilInsert, nil)
-				if i <= rows/2 {
-					// example to add by pointer
-					colNil.AppendP(nil)
-				} else {
-					// example to add without pointer
-					colNil.AppendEmpty()
-					colNil.AppendIsNil(true)
-				}
+				colNullableInsert = append(colNullableInsert, nil)
+				colNullable.AppendNil()
+				colLCNullableInsert = append(colLCNullableInsert, nil)
+				colLCNullable.AppendNil()
 			}
+
+			colArray.Append(valArray)
+			colArrayInsert = append(colArrayInsert, valArray)
+
+			colNullableArray.AppendP(valArrayNil)
+			colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
+
+			colLCInsert = append(colLCInsert, val)
+			colLC.Append(val)
+
+			colLCArrayInsert = append(colLCArrayInsert, valArray)
+			colArrayLC.Append(valArray)
+
+			colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
+			colArrayLCNullable.AppendP(valArrayNil)
 		}
 
-		err = conn.Insert(context.Background(), `INSERT INTO
-	test_string(string,string_nullable,string_array,string_array_nullable)
-	VALUES`,
+		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_nullable,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_lc,
+				%[1]s_nullable_lc,
+				%[1]s_array_lc,
+				%[1]s_array_lc_nullable
+			)
+		VALUES`, tableName),
+			blockID,
 			col,
-			colNil,
+			colNullable,
 			colArray,
-			colArrayNil,
+			colNullableArray,
+			colLC,
+			colLCNullable,
+			colArrayLC,
+			colArrayLCNullable,
 		)
+		require.NoError(t, err)
 	}
-
-	require.NoError(t, err)
 
 	// example read all
-	selectStmt, err := conn.Select(context.Background(), `SELECT
-		string,string_nullable,string_array,string_array_nullable
-	FROM test_string`)
+
+	colRead := column.NewString[string]()
+	colNullableRead := column.NewString[string]().Nullable()
+	colArrayRead := column.NewString[string]().Array()
+	colNullableArrayRead := column.NewString[string]().Nullable().Array()
+	colLCRead := column.NewString[string]().LC()
+	colLCNullableRead := column.NewString[string]().Nullable().LC()
+	colArrayLCRead := column.NewString[string]().LC().Array()
+	colArrayLCNullableRead := column.NewString[string]().Nullable().LC().Array()
+	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		%[1]s,
+		%[1]s_nullable,
+		%[1]s_array,
+		%[1]s_array_nullable,
+		%[1]s_lc,
+		%[1]s_nullable_lc,
+		%[1]s_array_lc,
+		%[1]s_array_lc_nullable
+	FROM test_%[1]s order by block_id`, tableName),
+		colRead,
+		colNullableRead,
+		colArrayRead,
+		colNullableArrayRead,
+		colLCRead,
+		colLCNullableRead,
+		colArrayLCRead,
+		colArrayLCNullableRead)
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colRead := column.NewString(false)
-	colNilRead := column.NewString(true)
-	colArrayReadData := column.NewString(false)
-	colArrayRead := column.NewArray(colArrayReadData)
-	colArrayReadDataNil := column.NewString(true)
-	colArrayReadNil := column.NewArray(colArrayReadDataNil)
-	var colData [][]byte
-	var colNilData []*[]byte
-	var colArrayData [][][]byte
-	var colArrayDataNil [][]*[]byte
-
-	var colArrayLens []int
+	var colData []string
+	var colDataByte [][]byte
+	var colDataByteByData [][]byte
+	var colDataByteByRow [][]byte
+	var colNullableData []*string
+	var colArrayData [][]string
+	var colArrayNullableData [][]*string
+	var colLCData []string
+	var colLCNullableData []*string
+	var colLCArrayData [][]string
+	var colLCNullableArrayData [][]*string
 
 	for selectStmt.Next() {
-		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
 		require.NoError(t, err)
-		colRead.ReadAll(&colData)
 
-		colNilRead.ReadAllP(&colNilData)
-
-		// read array
-		colArrayLens = colArrayLens[:0]
-		colArrayRead.ReadAll(&colArrayLens)
-
-		for _, l := range colArrayLens {
-			arr := make([][]byte, l)
-			colArrayReadData.Fill(arr)
-			colArrayData = append(colArrayData, arr)
+		colRead.Read(&colData)
+		colRead.ReadBytes(&colDataByte)
+		colDataByteByData = append(colDataByteByData, colRead.DataBytes()...)
+		for i := 0; i < selectStmt.RowsInBlock(); i++ {
+			colDataByteByRow = append(colDataByteByRow, colRead.RowBytes(i))
 		}
-
-		// read nullable array
-		colArrayLens = colArrayLens[:0]
-		colArrayRead.ReadAll(&colArrayLens)
-
-		for _, l := range colArrayLens {
-			arr := make([]*[]byte, l)
-			colArrayReadDataNil.FillP(arr)
-			colArrayDataNil = append(colArrayDataNil, arr)
-		}
+		colNullableRead.ReadP(&colNullableData)
+		colArrayRead.Read(&colArrayData)
+		colNullableArrayRead.ReadP(&colArrayNullableData)
+		colLCRead.Read(&colLCData)
+		colLCNullableRead.ReadP(&colLCNullableData)
+		colArrayLCRead.Read(&colLCArrayData)
+		colArrayLCNullableRead.ReadP(&colLCNullableArrayData)
 	}
+
+	require.NoError(t, selectStmt.Err())
 
 	assert.Equal(t, colInsert, colData)
-	assert.Equal(t, colNilInsert, colNilData)
-	assert.Equal(t, colInsertArray, colArrayData)
-	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
-	require.NoError(t, selectStmt.Err())
-	selectStmt.Close()
+	assert.Equal(t, colInsertByte, colDataByte)
+	assert.Equal(t, colInsertByte, colDataByteByData)
+	assert.Equal(t, colInsertByte, colDataByteByRow)
+	assert.Equal(t, colNullableInsert, colNullableData)
+	assert.Equal(t, colArrayInsert, colArrayData)
+	assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+	assert.Equal(t, colLCInsert, colLCData)
+	assert.Equal(t, colLCNullableInsert, colLCNullableData)
+	assert.Equal(t, colLCArrayInsert, colLCArrayData)
+	assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
 
-	// example one by one
-	selectStmt, err = conn.Select(context.Background(), `SELECT
-		string,string_nullable,string_array,string_array_nullable
-	FROM test_string`)
+	// check dynamic column
+	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		%[1]s,
+		%[1]s_nullable,
+		%[1]s_array,
+		%[1]s_array_nullable,
+		%[1]s_lc,
+		%[1]s_nullable_lc,
+		%[1]s_array_lc,
+		%[1]s_array_lc_nullable
+		FROM test_%[1]s order by block_id`, tableName),
+	)
+
 	require.NoError(t, err)
-	require.True(t, conn.IsBusy())
+	autoColumns := selectStmt.Columns()
 
-	colRead = column.NewString(false)
-	colNilRead = column.NewString(true)
-	colArrayReadData = column.NewString(false)
-	colArrayRead = column.NewArray(colArrayReadData)
-	colArrayReadDataNil = column.NewString(true)
-	colArrayReadNil = column.NewArray(colArrayReadDataNil)
-	colData = colData[:0]
-	colNilData = colNilData[:0]
-	colArrayData = colArrayData[:0]
-	colArrayDataNil = colArrayDataNil[:0]
+	assert.Len(t, autoColumns, 8)
+
+	assert.IsType(t, colRead, autoColumns[0])
+	assert.IsType(t, colNullableRead, autoColumns[1])
+	assert.IsType(t, colArrayRead, autoColumns[2])
+	assert.IsType(t, colNullableArrayRead, autoColumns[3])
+	assert.IsType(t, colLCRead, autoColumns[4])
+	assert.IsType(t, colLCNullableRead, autoColumns[5])
+	assert.IsType(t, colArrayLCRead, autoColumns[6])
+	assert.IsType(t, colArrayLCNullableRead, autoColumns[7])
 
 	for selectStmt.Next() {
-		err = selectStmt.ReadColumns(colRead, colNilRead, colArrayRead, colArrayReadNil)
-		require.NoError(t, err)
-		for colRead.Next() {
-			colData = append(colData, colRead.Value())
-		}
-
-		// read nullable
-		for colNilRead.Next() {
-			colNilData = append(colNilData, colNilRead.ValueP())
-		}
-
-		// read array
-		for colArrayRead.Next() {
-			arr := make([][]byte, colArrayRead.Value())
-			colArrayReadData.Fill(arr)
-			colArrayData = append(colArrayData, arr)
-		}
-
-		// read nullable array
-		for colArrayReadNil.Next() {
-			arr := make([]*[]byte, colArrayReadNil.Value())
-			colArrayReadDataNil.FillP(arr)
-			colArrayDataNil = append(colArrayDataNil, arr)
-		}
 	}
-
-	assert.Equal(t, colInsert, colData)
-	assert.Equal(t, colNilInsert, colNilData)
-	assert.Equal(t, colInsertArray, colArrayData)
-	assert.Equal(t, colInsertArrayNil, colArrayDataNil)
 	require.NoError(t, selectStmt.Err())
-
 	selectStmt.Close()
-
-	// another read null one by one
-	selectStmt, err = conn.Select(context.Background(), `SELECT
-		string_nullable,string_nullable	FROM test_string`)
-	require.NoError(t, err)
-	require.True(t, conn.IsBusy())
-
-	colNilRead = column.NewString(true)
-	colNilRead2 := column.NewString(true)
-	colNilData = colNilData[:0]
-	nilsData := make([]uint8, 0)
-
-	for selectStmt.Next() {
-		err = selectStmt.ReadColumns(colNilRead, colNilRead2)
-		require.NoError(t, err)
-		// read nullable
-		for colNilRead.Next() {
-			if colNilRead.ValueIsNil() {
-				colNilData = append(colNilData, nil)
-			} else {
-				val := colNilRead.Value()
-				colNilData = append(colNilData, &val)
-			}
-		}
-		// or this way to get nils status
-		colNilRead.ReadAllNil(&nilsData)
-
-		nilsFillData := make([]uint8, selectStmt.RowsInBlock())
-		// or this way to get nils status
-		colNilRead2.FillNil(nilsFillData)
-	}
-
-	assert.Equal(t, colNilInsert, colNilData)
-	require.NoError(t, selectStmt.Err())
-
-	selectStmt.Close()
-
-	conn.RawConn().Close()
 }

@@ -3,44 +3,66 @@ package chconn
 import (
 	"context"
 
-	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/setting"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
-func commit(c *conn, b *block, columns ...column.Column) error {
-	if len(columns) == 0 {
-		return ErrInsertMinColumn
-	}
-	err := c.sendData(b, columns[0].NumRow())
-	if err != nil {
+func (ch *conn) commit(b *block, columns ...column.ColumnBasic) error {
+	if int(b.NumColumns) != len(columns) {
 		return &InsertError{
-			err:        err,
-			remoteAddr: c.RawConn().RemoteAddr(),
+			err: &ColumnNumberWriteError{
+				WriteColumn: len(columns),
+				NeedColumn:  b.NumColumns,
+			},
+			remoteAddr: ch.RawConn().RemoteAddr(),
 		}
 	}
 
-	err = b.writeColumnsBuffer(c, columns...)
+	var err error
+	if len(columns[0].Name()) != 0 {
+		columns, err = b.reorderColumns(columns)
+		if err != nil {
+			return &InsertError{
+				err:        err,
+				remoteAddr: ch.RawConn().RemoteAddr(),
+			}
+		}
+	}
+	for i, col := range columns {
+		col.SetType(b.Columns[i].ChType)
+		if errValidate := col.Validate(); errValidate != nil {
+			return errValidate
+		}
+	}
+	err = ch.sendData(b, columns[0].NumRow())
 	if err != nil {
 		return &InsertError{
 			err:        err,
-			remoteAddr: c.RawConn().RemoteAddr(),
+			remoteAddr: ch.RawConn().RemoteAddr(),
 		}
 	}
 
-	err = c.sendEmptyBlock()
-
+	err = b.writeColumnsBuffer(ch, columns...)
 	if err != nil {
 		return &InsertError{
 			err:        err,
-			remoteAddr: c.RawConn().RemoteAddr(),
+			remoteAddr: ch.RawConn().RemoteAddr(),
 		}
 	}
 
-	res, err := c.receiveAndProccessData(emptyOnProgress)
+	err = ch.sendEmptyBlock()
+
 	if err != nil {
 		return &InsertError{
 			err:        err,
-			remoteAddr: c.RawConn().RemoteAddr(),
+			remoteAddr: ch.RawConn().RemoteAddr(),
+		}
+	}
+
+	res, err := ch.receiveAndProcessData(emptyOnProgress)
+	if err != nil {
+		return &InsertError{
+			err:        err,
+			remoteAddr: ch.RawConn().RemoteAddr(),
 		}
 	}
 
@@ -52,17 +74,16 @@ func commit(c *conn, b *block, columns ...column.Column) error {
 }
 
 // Insert send query for insert and commit columns
-func (ch *conn) Insert(ctx context.Context, query string, columns ...column.Column) error {
-	return ch.InsertWithSetting(ctx, query, nil, "", columns...)
+func (ch *conn) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
+	return ch.InsertWithOption(ctx, query, emptyQueryOptions, columns...)
 }
 
 // Insert send query for insert and prepare insert stmt with setting option
-func (ch *conn) InsertWithSetting(
+func (ch *conn) InsertWithOption(
 	ctx context.Context,
 	query string,
-	settings *setting.Settings,
-	queryID string,
-	columns ...column.Column) error {
+	queryOptions *QueryOptions,
+	columns ...column.ColumnBasic) error {
 	err := ch.lock()
 	if err != nil {
 		return err
@@ -85,7 +106,7 @@ func (ch *conn) InsertWithSetting(
 		defer ch.contextWatcher.Unwatch()
 	}
 
-	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
+	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)
 	if err != nil {
 		hasError = true
 		return preferContextOverNetTimeoutError(ctx, err)
@@ -94,7 +115,7 @@ func (ch *conn) InsertWithSetting(
 	var blockData *block
 	for {
 		var res interface{}
-		res, err = ch.receiveAndProccessData(emptyOnProgress)
+		res, err = ch.receiveAndProcessData(emptyOnProgress)
 		if err != nil {
 			hasError = true
 			return preferContextOverNetTimeoutError(ctx, err)
@@ -120,7 +141,13 @@ func (ch *conn) InsertWithSetting(
 		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
-	err = commit(ch, blockData, columns...)
-	hasError = err != nil
-	return preferContextOverNetTimeoutError(ctx, err)
+	err = ch.commit(blockData, columns...)
+	if err != nil {
+		hasError = true
+		return preferContextOverNetTimeoutError(ctx, err)
+	}
+	for _, column := range columns {
+		column.Reset()
+	}
+	return nil
 }

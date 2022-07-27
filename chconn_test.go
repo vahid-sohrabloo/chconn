@@ -112,7 +112,7 @@ func TestEndOfStream(t *testing.T) {
 	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	res, err := conn.Exec(context.Background(), `CREATE TABLE IF NOT EXISTS example (
+	err = conn.Exec(context.Background(), `CREATE TABLE IF NOT EXISTS example (
 				country_code FixedString(2),
 				os_id        UInt8,
 				browser_id   UInt8,
@@ -122,7 +122,6 @@ func TestEndOfStream(t *testing.T) {
 			) engine=Memory`)
 
 	require.NoError(t, err)
-	require.Nil(t, res)
 }
 
 func TestException(t *testing.T) {
@@ -134,9 +133,8 @@ func TestException(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, conn.Ping(context.Background()))
-	res, err := conn.Exec(context.Background(), `invalid query`)
+	err = conn.Exec(context.Background(), `invalid query`)
 
-	require.Nil(t, res)
 	var chError *ChError
 	require.True(t, errors.As(err, &chError))
 	require.Equal(t, chError.Code, ChErrorSyntaxError)
@@ -225,9 +223,8 @@ func TestExecError(t *testing.T) {
 	require.NoError(t, err)
 
 	c.(*conn).status = connStatusUninitialized
-	res, err := c.Exec(context.Background(), "SET enable_http_compression=1")
+	err = c.Exec(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "conn uninitialized")
-	require.Nil(t, res)
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 	c.Close()
 
@@ -241,9 +238,8 @@ func TestExecError(t *testing.T) {
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
-	res, err = c.Exec(context.Background(), "SET enable_http_compression=1")
+	err = c.Exec(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "write block info (timeout)")
-	require.Nil(t, res)
 	assert.True(t, c.IsClosed())
 }
 
@@ -259,9 +255,8 @@ func TestExecCtxError(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	res, err := c.Exec(ctx, "select * from system.numbers limit 1")
+	err = c.Exec(ctx, "select * from system.numbers limit 1")
 	require.EqualError(t, err, "timeout: context already done: context canceled")
-	require.Nil(t, res)
 	assert.False(t, c.IsClosed())
 
 	config.WriterFunc = func(w io.Writer) io.Writer {
@@ -274,9 +269,8 @@ func TestExecCtxError(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*50)
 	defer cancel()
-	res, err = c.Exec(ctx, "select * from system.numbers")
+	err = c.Exec(ctx, "select * from system.numbers")
 	require.EqualError(t, errors.Unwrap(err), "context deadline exceeded")
-	require.Nil(t, res)
 	assert.True(t, c.IsClosed())
 }
 
@@ -297,8 +291,7 @@ func TestReceivePackError(t *testing.T) {
 	}
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-	res, err := c.Exec(context.Background(), `SELECT * FROM system.numbers limit 1`)
+	err = c.Exec(context.Background(), `SELECT * FROM system.numbers limit 1`)
 	require.EqualError(t, err, "packet: read packet type (timeout)")
-	require.Nil(t, res)
 	assert.True(t, c.IsClosed())
 }

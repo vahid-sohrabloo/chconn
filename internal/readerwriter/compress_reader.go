@@ -1,22 +1,19 @@
 package readerwriter
 
+// copy from https://github.com/ClickHouse/ch-go/blob/4cde4e4bec24211c0bcdc6f385f4212d0ad522d9/compress/reader.go
+// some changes to compatible with chconn
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
+	"github.com/go-faster/city"
+	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
 )
 
-// ErrHeaderDecompressEOF is returned when the header is not fully read
-var ErrHeaderDecompressEOF = errors.New("lz4 decompression header EOF")
-
-// ErrDecompressSizeError is returned when the decompressed size is not equal to excepted size
-var ErrDecompressSizeError = errors.New("decompress read size not match")
-
 type invalidCompressErr struct {
-	method byte
+	method CompressMethod
 }
 
 func (e *invalidCompressErr) Error() string {
@@ -25,94 +22,112 @@ func (e *invalidCompressErr) Error() string {
 
 type compressReader struct {
 	reader io.Reader
-	// data uncompressed
-	data []byte
-	// data position
-	pos int
-	// data compressed
-	zdata []byte
-	// lz4 headers
+	data   []byte
+	pos    int64
+	raw    []byte
 	header []byte
+	zstd   *zstd.Decoder
 }
 
 // NewCompressReader wrap the io.Reader
 func NewCompressReader(r io.Reader) io.Reader {
-	p := &compressReader{
+	return &compressReader{
+		zstd:   nil, // lazily initialized
 		reader: r,
-		header: make([]byte, HeaderSize),
+		header: make([]byte, headerSize),
 	}
-	p.data = make([]byte, BlockMaxSize)
-
-	zlen := lz4.CompressBlockBound(BlockMaxSize) + HeaderSize
-	p.zdata = make([]byte, zlen)
-
-	p.pos = len(p.data)
-	return p
 }
 
-func (cr *compressReader) Read(buf []byte) (n int, err error) {
-	var bytesRead = 0
-	n = len(buf)
-
-	if cr.pos < len(cr.data) {
-		copyedSize := copy(buf, cr.data[cr.pos:])
-
-		bytesRead += copyedSize
-		cr.pos += copyedSize
-	}
-
-	for bytesRead < n {
-		if err := cr.readCompressedData(); err != nil {
-			return bytesRead, err
+func (r *compressReader) Read(buf []byte) (n int, err error) {
+	if r.pos >= int64(len(r.data)) {
+		if err := r.readBlock(); err != nil {
+			return 0, fmt.Errorf("read block: %w", err)
 		}
-		copyedSize := copy(buf[bytesRead:], cr.data)
-
-		bytesRead += copyedSize
-		cr.pos = copyedSize
 	}
+	n = copy(buf, r.data[r.pos:])
+	r.pos += int64(n)
 	return n, nil
 }
 
-func (cr *compressReader) readCompressedData() (err error) {
-	cr.pos = 0
-	var n int
-	n, err = cr.reader.Read(cr.header)
-	if err != nil {
-		return
-	}
-	if n != len(cr.header) {
-		return ErrHeaderDecompressEOF
+// readBlock reads next compressed data into raw and decompresses into data.
+func (r *compressReader) readBlock() error {
+	r.pos = 0
+
+	_ = r.header[headerSize-1]
+	if _, err := io.ReadFull(r.reader, r.header); err != nil {
+		return fmt.Errorf("read header: %w", err)
 	}
 
-	compressedSize := int(binary.LittleEndian.Uint32(cr.header[17:])) - 9
-	decompressedSize := int(binary.LittleEndian.Uint32(cr.header[21:]))
-	if compressedSize > cap(cr.zdata) {
-		cr.zdata = make([]byte, compressedSize)
+	var (
+		rawSize  = int(binary.LittleEndian.Uint32(r.header[hRawSize:])) - compressHeaderSize
+		dataSize = int(binary.LittleEndian.Uint32(r.header[hDataSize:]))
+	)
+	if dataSize < 0 || dataSize > maxDataSize {
+		return fmt.Errorf("data size should be %d < %d < %d", 0, dataSize, maxDataSize)
 	}
-	if decompressedSize > cap(cr.data) {
-		cr.data = make([]byte, decompressedSize)
+	if rawSize < 0 || rawSize > maxBlockSize {
+		return fmt.Errorf("raw size should be %d < %d < %d", 0, rawSize, maxBlockSize)
 	}
 
-	cr.zdata = cr.zdata[:compressedSize]
-	cr.data = cr.data[:decompressedSize]
+	r.data = append(r.data[:0], make([]byte, dataSize)...)
+	r.raw = append(r.raw[:0], r.header...)
+	r.raw = append(r.raw, make([]byte, rawSize)...)
+	_ = r.raw[:rawSize+headerSize-1]
 
-	// @TODO checksum
-	if cr.header[16] == LZ4 {
-		n, err = io.ReadFull(cr.reader, cr.zdata)
+	if _, err := io.ReadFull(r.reader, r.raw[headerSize:]); err != nil {
+		return fmt.Errorf("read raw: %w", err)
+	}
+	hGot := city.U128{
+		Low:  binary.LittleEndian.Uint64(r.raw[0:8]),
+		High: binary.LittleEndian.Uint64(r.raw[8:16]),
+	}
+	h := city.CH128(r.raw[hMethod:])
+	if hGot != h {
+		return &CorruptedDataErr{
+			Actual:    h,
+			Reference: hGot,
+			RawSize:   rawSize,
+			DataSize:  dataSize,
+		}
+	}
+	switch m := CompressMethod(r.header[hMethod]); m {
+	case CompressLZ4:
+		n, err := lz4.UncompressBlock(r.raw[headerSize:], r.data)
 		if err != nil {
-			return
+			return fmt.Errorf("lz4 decompress: %w", err)
 		}
-
-		if n != len(cr.zdata) {
-			return ErrDecompressSizeError
+		if n != dataSize {
+			return fmt.Errorf("unexpected uncompressed data size: %d (actual) != %d (got in header)",
+				n, dataSize,
+			)
 		}
-
-		_, err = lz4.UncompressBlock(cr.zdata, cr.data)
+	case CompressZSTD:
+		if r.zstd == nil {
+			// Lazily initializing to prevent spawning goroutines in NewReader.
+			// See https://github.com/golang/go/issues/47056#issuecomment-997436820
+			zstdReader, err := zstd.NewReader(nil,
+				zstd.WithDecoderConcurrency(1),
+				zstd.WithDecoderLowmem(true),
+			)
+			if err != nil {
+				return fmt.Errorf("zstd new: %w", err)
+			}
+			r.zstd = zstdReader
+		}
+		data, err := r.zstd.DecodeAll(r.raw[headerSize:], r.data[:0])
 		if err != nil {
-			return
+			return fmt.Errorf("zstd decompress: %w", err)
 		}
-	} else {
-		return &invalidCompressErr{cr.header[16]}
+		if len(data) != dataSize {
+			return fmt.Errorf("unexpected uncompressed data size: %d (actual) != %d (got in header)",
+				len(data), dataSize,
+			)
+		}
+		r.data = data
+	case CompressChecksum:
+		copy(r.data, r.raw[headerSize:])
+	default:
+		return &invalidCompressErr{m}
 	}
 
 	return nil

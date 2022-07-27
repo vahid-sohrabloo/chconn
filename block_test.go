@@ -20,7 +20,7 @@ func TestBlockReadError(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "blockInfo: read field1",
+			name:        "blockInfo: temporary table",
 			wantErr:     "block: temporary table",
 			numberValid: startValidReader - 1,
 		}, {
@@ -76,11 +76,10 @@ func TestBlockReadError(t *testing.T) {
 			c, err := ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
-			require.NoError(t, err)
-			require.False(t, stmt.Next())
+			require.Error(t, err)
+			require.Nil(t, stmt)
 
-			require.Error(t, stmt.Err())
-			readErr, ok := stmt.Err().(*readError)
+			readErr, ok := err.(*readError)
 			require.True(t, ok)
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")

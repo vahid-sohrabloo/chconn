@@ -9,10 +9,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
-	"github.com/vahid-sohrabloo/chconn/setting"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
 const (
@@ -54,28 +53,37 @@ const (
 	serverTotals = 7
 	// A block with minimums and maximums (compressed or not).
 	serverExtremes = 8
-
 	// Columns' description for default values calculation
 	serverTableColumns = 11
+	// list of unique parts ids.
+	serverPartUUIDs = 12
+	// String (UUID) describes a request for which next task is needed
+	serverReadTaskRequest = 13
+	// Packet with profile events from server
+	serverProfileEvents = 14
 )
 
 const (
-	dbmsMinRevisionWithClientInfo                  = 54032
-	dbmsMinRevisionWithServerTimezone              = 54058
-	dbmsMinRevisionWithQuotaKeyInClientInfo        = 54060
-	dbmsMinRevisionWithServerDisplayName           = 54372
-	dbmsMinRevisionWithVersionPatch                = 54401
-	dbmsMinRevisionWithClientWriteInfo             = 54420
-	dbmsMinRevisionWithSettingsSerializedAsStrings = 54429
-	dbmsMinRevisionWithInterserverSecret           = 54441
-	dbmsMinRevisionWithOpentelemetry               = 54442
+	dbmsMinRevisionWithClientInfo                      = 54032
+	dbmsMinRevisionWithServerTimezone                  = 54058
+	dbmsMinRevisionWithQuotaKeyInClientInfo            = 54060
+	dbmsMinRevisionWithServerDisplayName               = 54372
+	dbmsMinRevisionWithVersionPatch                    = 54401
+	dbmsMinRevisionWithClientWriteInfo                 = 54420
+	dbmsMinRevisionWithSettingsSerializedAsStrings     = 54429
+	dbmsMinRevisionWithInterServerSecret               = 54441
+	dbmsMinRevisionWithOpenTelemetry                   = 54442
+	dbmsMinProtocolVersionWithDistributedDepth         = 54448
+	dbmsMinProtocolVersionWithInitialQueryStartTime    = 54449
+	dbmsMinProtocolVersionWithIncrementalProfileEvents = 54451
+	dbmsMinProtocolVersionWithParallelReplicas         = 54453
 )
 
 const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54442
+	dbmsVersionRevision = 54453
 )
 
 type queryProcessingStage uint64
@@ -115,40 +123,31 @@ type Conn interface {
 	Ping(ctx context.Context) error
 	// Exec executes a query without returning any rows.
 	// NOTE: don't use it for insert and select query
-	Exec(ctx context.Context, query string) (interface{}, error)
-	// ExecWithSetting executes a query without returning any rows with the setting option.
+	Exec(ctx context.Context, query string) error
+	// ExecWithOption executes a query without returning any rows with Query options.
 	// NOTE: don't use it for insert and select query
-	ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error)
-	// ExecCallback executes a query without returning any rows with the setting option and on progress callback.
-	// NOTE: don't use it for insert and select query
-	ExecCallback(
+	ExecWithOption(
 		ctx context.Context,
 		query string,
-		settings *setting.Settings,
-		queryID string,
-		onProgress func(*Progress),
-	) (interface{}, error)
+		queryOptions *QueryOptions,
+	) error
 	// Insert executes a query and commit all columns data.
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string, columns ...column.Column) error
-	// InsertWithSetting executes a query with the setting option and commit all columns data.
+	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
+	// InsertWithSetting executes a query with the query options and commit all columns data.
 	// NOTE: only use for insert query
-	InsertWithSetting(ctx context.Context, query string, settings *setting.Settings, queryID string, columns ...column.Column) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *QueryOptions, columns ...column.ColumnBasic) error
 	// Select executes a query and return select stmt.
 	// NOTE: only use for select query
-	Select(ctx context.Context, query string) (SelectStmt, error)
-	// Select executes a query with the setting option and return select stmt.
+	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error)
+	// Select executes a query with the the query options and return select stmt.
 	// NOTE: only use for select query
-	SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (SelectStmt, error)
-	// Select executes a query with the setting option, on progress callback, on profile callback and return select stmt.
-	// NOTE: only use for select query
-	SelectCallback(
+	SelectWithOption(
 		ctx context.Context,
 		query string,
-		settings *setting.Settings,
-		queryID string,
-		onProgress func(*Progress),
-		onProfile func(*Profile)) (SelectStmt, error)
+		queryOptions *QueryOptions,
+		columns ...column.ColumnBasic,
+	) (SelectStmt, error)
 }
 
 type writeFlusher interface {
@@ -175,6 +174,8 @@ type conn struct {
 
 	contextWatcher *ctxwatch.ContextWatcher
 	block          *block
+
+	profileEvent *ProfileEvent
 }
 
 // Connect establishes a connection to a ClickHouse server using the environment and connString (in URL or DSN format)
@@ -276,7 +277,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	c := new(conn)
 	c.config = config
 
-	c.compress = config.Compress
+	c.compress = config.Compress != CompressNone
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
@@ -315,7 +316,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if config.ReaderFunc != nil {
 		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
 	} else {
-		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, 1024*128))
+		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, c.config.MinReadBufferSize))
 	}
 	if config.WriterFunc != nil {
 		c.writerTo = config.WriterFunc(c.conn)
@@ -323,7 +324,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.writerTo = c.conn
 	}
 	if c.compress {
-		c.writerToCompress = readerwriter.NewCompressWriter(c.writerTo)
+		c.writerToCompress = readerwriter.NewCompressWriter(c.writerTo, byte(config.Compress))
 	} else {
 		c.writerToCompress = c.writerTo
 	}
@@ -334,6 +335,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 	c.block = newBlock()
+	c.profileEvent = newProfileEvent()
 	c.status = connStatusIdle
 
 	return c, nil
@@ -365,7 +367,7 @@ func (ch *conn) hello() error {
 		return fmt.Errorf("write hello: %w", err)
 	}
 
-	res, err := ch.receiveAndProccessData(emptyOnProgress)
+	res, err := ch.receiveAndProcessData(emptyOnProgress)
 	if err != nil {
 		return err
 	}
@@ -410,10 +412,9 @@ func (ch *conn) unlock() {
 }
 
 func (ch *conn) sendQueryWithOption(
-	ctx context.Context, //nolint:unparam
 	query,
 	queryID string,
-	settings *setting.Settings,
+	settings Settings,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -429,15 +430,14 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	// setting
-	if settings != nil {
+	if settings != nil && ch.serverInfo.Revision >= dbmsMinRevisionWithSettingsSerializedAsStrings {
 		//nolint:errcheck // no need for bytes.Buffer
-		settings.WriteTo(ch.writer.Output(),
-			ch.serverInfo.Revision >= dbmsMinRevisionWithSettingsSerializedAsStrings)
+		settings.writeToBuffer(ch.writer.Output())
 	}
 
 	ch.writer.String("")
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithInterserverSecret {
+	if ch.serverInfo.Revision >= dbmsMinRevisionWithInterServerSecret {
 		ch.writer.String("")
 	}
 
@@ -445,9 +445,9 @@ func (ch *conn) sendQueryWithOption(
 
 	// compression
 	if ch.compress {
-		ch.writer.Uvarint(1)
+		ch.writer.Uint8(1)
 	} else {
-		ch.writer.Uvarint(0)
+		ch.writer.Uint8(0)
 	}
 
 	ch.writer.String(query)
@@ -459,7 +459,7 @@ func (ch *conn) sendData(block *block, numRows int) error {
 	// name
 	ch.writer.String("")
 
-	// if compress enable we must send to this part with uncompressed data
+	// if compress enable we must send this part with uncompressed data
 	if ch.compress {
 		_, err := ch.writer.WriteTo(ch.writerTo)
 		if err != nil {
@@ -488,7 +488,7 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}
@@ -508,7 +508,7 @@ func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{},
 		err = progress.read(ch)
 		if err == nil && onProgress != nil {
 			onProgress(progress)
-			return ch.receiveAndProccessData(onProgress)
+			return ch.receiveAndProcessData(onProgress)
 		}
 		return progress, err
 	case serverHello:
@@ -528,7 +528,23 @@ func (ch *conn) receiveAndProccessData(onProgress func(*Progress)) (interface{},
 
 	case serverTableColumns:
 		ch.readTableColumn()
-		return ch.receiveAndProccessData(onProgress)
+		return ch.receiveAndProcessData(onProgress)
+	case serverProfileEvents:
+		ch.block.reset()
+		oldCompress := ch.compress
+		defer func() {
+			ch.compress = oldCompress
+		}()
+		ch.compress = false
+		err = ch.block.read(ch)
+		if err != nil {
+			return nil, err
+		}
+		err := ch.profileEvent.read(ch)
+		if err != nil {
+			return nil, err
+		}
+		return ch.profileEvent, nil
 	}
 	return nil, &notImplementedPacket{packet: packet}
 }
@@ -537,29 +553,49 @@ var emptyOnProgress = func(*Progress) {
 
 }
 
-func (ch *conn) Exec(ctx context.Context, query string) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, nil, "", nil)
+var emptyQueryOptions = &QueryOptions{
+	OnProgress: emptyOnProgress,
 }
 
-func (ch *conn) ExecWithSetting(ctx context.Context, query string, settings *setting.Settings) (interface{}, error) {
-	return ch.ExecCallback(ctx, query, settings, "", nil)
+type QueryOptions struct {
+	QueryID        string
+	Settings       Settings
+	OnProgress     func(*Progress)
+	OnProfile      func(*Profile)
+	OnProfileEvent func(*ProfileEvent)
+	UseGoTime      bool
 }
 
-func (ch *conn) ExecCallback(
+func (s Settings) writeToBuffer(wt io.Writer) (int, error) {
+	w := readerwriter.NewWriter()
+	for _, st := range s {
+		w.String(st.Name)
+		if st.Important {
+			w.Uint8(1)
+		} else {
+			w.Uint8(0)
+		}
+		w.String(st.Value)
+	}
+	return wt.Write(w.Output().Bytes())
+}
+
+func (ch *conn) Exec(ctx context.Context, query string) error {
+	return ch.ExecWithOption(ctx, query, emptyQueryOptions)
+}
+
+func (ch *conn) ExecWithOption(
 	ctx context.Context,
 	query string,
-	settings *setting.Settings,
-	queryID string,
-	onProgress func(*Progress),
-) (interface{}, error) {
+	queryOptions *QueryOptions,
+) error {
 	err := ch.lock()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var hasError bool
 	defer func() {
 		ch.unlock()
-		if hasError {
+		if err != nil {
 			ch.Close()
 		}
 	}()
@@ -567,79 +603,21 @@ func (ch *conn) ExecCallback(
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
-			return nil, newContextAlreadyDoneError(ctx)
+			return newContextAlreadyDoneError(ctx)
 		default:
 		}
 		ch.contextWatcher.Watch(ctx)
 		defer ch.contextWatcher.Unwatch()
 	}
 
-	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
+	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)
 	if err != nil {
-		hasError = true
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
-	if onProgress == nil {
-		onProgress = emptyOnProgress
-	}
-
-	res, err := ch.receiveAndProccessData(onProgress)
-	hasError = err != nil
-	return res, preferContextOverNetTimeoutError(ctx, err)
-}
-
-// Select send query for select and prepare SelectStmt
-func (ch *conn) Select(ctx context.Context, query string) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, nil, "", nil, nil)
-}
-
-// Select send query for select and prepare SelectStmt with settion option
-func (ch *conn) SelectWithSetting(ctx context.Context, query string, settings *setting.Settings) (SelectStmt, error) {
-	return ch.SelectCallback(ctx, query, settings, "", nil, nil)
-}
-
-// Select send query for select and prepare SelectStmt on progress and on profile callback
-func (ch *conn) SelectCallback(
-	ctx context.Context,
-	query string,
-	settings *setting.Settings,
-	queryID string,
-	onProgress func(*Progress),
-	onProfile func(*Profile),
-) (SelectStmt, error) {
-	err := ch.lock()
-	if err != nil {
-		return nil, err
+	if queryOptions.OnProgress == nil {
+		queryOptions.OnProgress = emptyOnProgress
 	}
 
-	var hasError bool
-	defer func() {
-		if hasError {
-			ch.Close()
-		}
-	}()
-
-	if ctx != context.Background() {
-		select {
-		case <-ctx.Done():
-			return nil, newContextAlreadyDoneError(ctx)
-		default:
-		}
-		ch.contextWatcher.Watch(ctx)
-	}
-
-	err = ch.sendQueryWithOption(ctx, query, queryID, settings)
-	if err != nil {
-		hasError = true
-		return nil, preferContextOverNetTimeoutError(ctx, err)
-	}
-	return &selectStmt{
-		conn:       ch,
-		query:      query,
-		onProgress: onProgress,
-		onProfile:  onProfile,
-		queryID:    queryID,
-		clientInfo: nil,
-		ctx:        ctx,
-	}, nil
+	_, err = ch.receiveAndProcessData(queryOptions.OnProgress)
+	return preferContextOverNetTimeoutError(ctx, err)
 }

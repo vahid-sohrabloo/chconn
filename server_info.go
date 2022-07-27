@@ -3,7 +3,7 @@ package chconn
 import (
 	"fmt"
 
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
 // ServerInfo detail of server info

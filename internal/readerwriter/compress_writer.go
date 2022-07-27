@@ -1,11 +1,16 @@
 package readerwriter
 
+// copy from https://github.com/ClickHouse/ch-go/blob/4cde4e4bec24211c0bcdc6f385f4212d0ad522d9/compress/writer.go
+// some changes to compatible with chconn
+
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
+	"github.com/go-faster/city"
+	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
-	"github.com/vahid-sohrabloo/chconn/internal/cityhash102"
 )
 
 type compressWriter struct {
@@ -16,21 +21,25 @@ type compressWriter struct {
 	pos int
 	// data compressed
 	zdata []byte
+	// compression method
+	method CompressMethod
+
+	lz4  *lz4.Compressor
+	zstd *zstd.Encoder
 }
 
 // NewCompressWriter wrap the io.Writer
-func NewCompressWriter(w io.Writer) io.Writer {
-	p := &compressWriter{writer: w}
-	p.data = make([]byte, BlockMaxSize)
-
-	zlen := lz4.CompressBlockBound(BlockMaxSize) + HeaderSize
-	p.zdata = make([]byte, zlen)
+func NewCompressWriter(w io.Writer, method byte) io.Writer {
+	p := &compressWriter{
+		writer: w,
+		method: CompressMethod(method),
+		data:   make([]byte, maxBlockSize),
+	}
 	return p
 }
 
 func (cw *compressWriter) Write(buf []byte) (int, error) {
 	var n int
-
 	for len(buf) > 0 {
 		// Accumulate the data to be compressed.
 		m := copy(cw.data[cw.pos:], buf)
@@ -48,30 +57,54 @@ func (cw *compressWriter) Write(buf []byte) (int, error) {
 	return n, nil
 }
 
-func (cw *compressWriter) Flush() (err error) {
-	if cw.pos == 0 {
-		return
+// Compress buf into Data.
+func (w *compressWriter) Flush() error {
+	if w.pos == 0 {
+		return nil
+	}
+	maxSize := lz4.CompressBlockBound(len(w.data[:w.pos]))
+	w.zdata = append(w.zdata[:0], make([]byte, maxSize+headerSize)...)
+	_ = w.zdata[:headerSize]
+	w.zdata[hMethod] = byte(w.method)
+
+	var n int
+	switch w.method {
+	case CompressLZ4:
+		if w.lz4 == nil {
+			w.lz4 = &lz4.Compressor{}
+		}
+		compressedSize, err := w.lz4.CompressBlock(w.data[:w.pos], w.zdata[headerSize:])
+		if err != nil {
+			return fmt.Errorf("lz4 compress error: %v", err)
+		}
+		n = compressedSize
+	case CompressZSTD:
+		if w.zstd == nil {
+			zw, err := zstd.NewWriter(nil,
+				zstd.WithEncoderLevel(zstd.SpeedDefault),
+				zstd.WithEncoderConcurrency(1),
+				zstd.WithLowerEncoderMem(true),
+			)
+			if err != nil {
+				return fmt.Errorf("zstd new error: %v", err)
+			}
+			w.zstd = zw
+		}
+		w.zdata = w.zstd.EncodeAll(w.data[:w.pos], w.zdata[:headerSize])
+		n = len(w.zdata) - headerSize
+	case CompressChecksum:
+		n = copy(w.zdata[headerSize:], w.data[:w.pos])
 	}
 
-	compressedSize, err := lz4.CompressBlock(cw.data[:cw.pos], cw.zdata[HeaderSize:], nil)
-	if err != nil {
-		return err
-	}
+	w.zdata = w.zdata[:n+headerSize]
 
-	compressedSize += CompressHeaderSize
-	// fill the header, compressed_size_32 + uncompressed_size_32
-	cw.zdata[16] = LZ4
+	binary.LittleEndian.PutUint32(w.zdata[hRawSize:], uint32(n+compressHeaderSize))
+	binary.LittleEndian.PutUint32(w.zdata[hDataSize:], uint32(w.pos))
+	h := city.CH128(w.zdata[hMethod:])
+	binary.LittleEndian.PutUint64(w.zdata[0:8], h.Low)
+	binary.LittleEndian.PutUint64(w.zdata[8:16], h.High)
 
-	binary.LittleEndian.PutUint32(cw.zdata[17:], uint32(compressedSize))
-	binary.LittleEndian.PutUint32(cw.zdata[21:], uint32(cw.pos))
-
-	// fill the checksum
-	checkSum := cityhash102.CityHash128(cw.zdata[16:], uint32(compressedSize))
-
-	binary.LittleEndian.PutUint64(cw.zdata[0:], checkSum.Lower64())
-	binary.LittleEndian.PutUint64(cw.zdata[8:], checkSum.Higher64())
-
-	_, err = cw.writer.Write(cw.zdata[:compressedSize+ChecksumSize])
-	cw.pos = 0
+	_, err := w.writer.Write(w.zdata)
+	w.pos = 0
 	return err
 }

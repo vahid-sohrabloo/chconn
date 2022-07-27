@@ -1,157 +1,104 @@
 package column
 
-import (
-	"encoding/binary"
-	"fmt"
-	"io"
-
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
-)
-
-// Map use for Map ClickHouse DataTypes
-type Map struct {
-	Uint64
-	offset      int
-	val         int
-	columnKey   Column
-	columnValue Column
+// Map is a column of Map(K,V) ClickHouse data type
+// Map in clickhouse actually is a array of pair(K,V)
+type Map[K comparable, V any] struct {
+	MapBase
+	keyColumnData   []K
+	valueColumnData []V
 }
 
-// NewMap return new Map for Map ClickHouse DataTypes
-func NewMap(columnKey, columnValue Column) *Map {
-	m := &Map{
-		columnKey:   columnKey,
-		columnValue: columnValue,
-		Uint64: Uint64{
-			column: column{
-				size: MaplenSize,
-			},
+// NewMap create a new map column of Map(K,V) ClickHouse data type
+func NewMap[K comparable, V any](
+	keyColumn Column[K],
+	valueColumn Column[V],
+) *Map[K, V] {
+	a := &Map[K, V]{
+		MapBase: MapBase{
+			keyColumn:    keyColumn,
+			valueColumn:  valueColumn,
+			offsetColumn: New[uint64](),
 		},
 	}
-	columnKey.setParent(m)
-	columnValue.setParent(m)
-	return m
-}
-
-// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
-func (c *Map) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.Reset()
-	err := c.Uint64.ReadRaw(num, r)
-	if err != nil {
-		return fmt.Errorf("read len data: %w", err)
+	a.resetHook = func() {
+		a.keyColumnData = a.keyColumnData[:0]
+		a.valueColumnData = a.valueColumnData[:0]
 	}
-	err = c.columnKey.ReadRaw(c.TotalRows(), r)
-	if err != nil {
-		return fmt.Errorf("read key data: %w", err)
+	return a
+}
+
+// Data get all the data in current block as a slice.
+func (c *Map[K, V]) Data() []map[K]V {
+	values := make([]map[K]V, c.offsetColumn.numRow)
+	offsets := c.Offsets()
+	if len(offsets) == 0 {
+		return values
 	}
-	err = c.columnValue.ReadRaw(c.TotalRows(), r)
-	if err != nil {
-		return fmt.Errorf("read value data: %w", err)
+	keyColumnData := c.getKeyColumnData()
+	valueColumnData := c.getValueColumnData()
+	var lastOffset uint64
+	for i, offset := range offsets {
+		val := make(map[K]V)
+		for ki, key := range keyColumnData[lastOffset:offset] {
+			val[key] = valueColumnData[lastOffset:offset][ki]
+		}
+		values[i] = val
+		lastOffset = offset
 	}
-	return nil
+	return values
 }
 
-// TotalRows return total rows on this block of array data
-func (c *Map) TotalRows() int {
-	return int(binary.LittleEndian.Uint64(c.b[c.totalByte-c.size : c.totalByte]))
+// Read reads all the data in current block and append to the input.
+func (c *Map[K, V]) Read(value *[]map[K]V) {
+	*value = append(*value, c.Data()...)
 }
 
-// HeaderWriter writes header data to writer
-// it uses internally
-func (c *Map) HeaderWriter(w *readerwriter.Writer) {
-	c.columnKey.HeaderWriter(w)
-	c.columnValue.HeaderWriter(w)
-}
-
-// HeaderReader reads header data from read
-// it uses internally
-func (c *Map) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
-	err := c.Uint64.HeaderReader(r, readColumn)
-	if err != nil {
-		return err
+// Row return the value of given row.
+// NOTE: Row number start from zero
+func (c *Map[K, V]) Row(row int) map[K]V {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
 	}
-	err = c.columnKey.HeaderReader(r, readColumn)
-	if err != nil {
-		return err
+	keyColumnData := c.getKeyColumnData()
+	valueColumnData := c.getValueColumnData()
+
+	val := make(map[K]V)
+	offset := c.offsetColumn.Row(row)
+	for ki, key := range keyColumnData[lastOffset:offset] {
+		val[key] = valueColumnData[lastOffset:offset][ki]
 	}
-	return c.columnValue.HeaderReader(r, readColumn)
+	return val
 }
 
-// Reset all status and buffer data
-//
-// Reading data does not require a reset after each read. The reset will be triggered automatically.
-//
-// However, writing data requires a reset after each write.
-func (c *Map) Reset() {
-	c.Uint64.Reset()
-	c.offset = 0
-}
-
-// Next forward pointer to the next value. Returns false if there are no more values.
-//
-// Use with Value()
-func (c *Map) Next() bool {
-	ok := c.Uint64.Next()
-	if !ok {
-		return false
+// Append value for insert
+func (c *Map[K, V]) Append(v map[K]V) {
+	c.AppendLen(uint64(len(v)))
+	for k, d := range v {
+		c.keyColumn.(Column[K]).Append(k)
+		c.valueColumn.(Column[V]).Append(d)
 	}
-	offset := int(c.Uint64.Value())
-	c.val = offset - c.offset
-	c.offset = offset
-	return true
 }
 
-// Value of current pointer
-//
-// Use with Next()
-func (c *Map) Value() int {
-	return c.val
-}
-
-// ReadAll read all lens in this block and append to the input slice
-func (c *Map) ReadAll(value *[]int) error {
-	var offset uint64
-	var prevOffset uint64
-	for i := 0; i < c.totalByte; i += c.size {
-		offset = binary.LittleEndian.Uint64(c.b[i : i+c.size])
-		*value = append(*value, int(offset-prevOffset))
-		prevOffset = offset
+func (c Map[K, V]) getKeyColumnData() []K {
+	if len(c.keyColumnData) == 0 {
+		c.keyColumnData = c.keyColumn.(Column[K]).Data()
 	}
-	c.offset = int(offset)
-	return nil
+	return c.keyColumnData
+}
+func (c Map[K, V]) getValueColumnData() []V {
+	if len(c.valueColumnData) == 0 {
+		c.valueColumnData = c.valueColumn.(Column[V]).Data()
+	}
+	return c.valueColumnData
 }
 
-// AppendLen Append len for insert
-func (c *Map) AppendLen(v int) {
-	c.numRow++
-	c.offset += v
-	c.writerData = append(c.writerData,
-		byte(c.offset),
-		byte(c.offset>>8),
-		byte(c.offset>>16),
-		byte(c.offset>>24),
-		byte(c.offset>>32),
-		byte(c.offset>>40),
-		byte(c.offset>>48),
-		byte(c.offset>>56),
-	)
+// KeyColumn return the key column
+func (c *Map[K, V]) KeyColumn() Column[K] {
+	return c.keyColumn.(Column[K])
 }
 
-// WriteTo write data clickhouse
-// it uses internally
-func (c *Map) WriteTo(w io.Writer) (int64, error) {
-	var n int64
-	nw, err := w.Write(c.writerData)
-	n += int64(nw)
-	if err != nil {
-		return n, fmt.Errorf("write len data: %w", err)
-	}
-	nc, errSubColumn := c.columnKey.WriteTo(w)
-	n += nc
-	if errSubColumn != nil {
-		return n, errSubColumn
-	}
-	nc, errSubColumn = c.columnValue.WriteTo(w)
-	n += nc
-	return n, errSubColumn
+// ValueColumn return the value column
+func (c *Map[K, V]) ValueColumn() Column[V] {
+	return c.valueColumn.(Column[V])
 }

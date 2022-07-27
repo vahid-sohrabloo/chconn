@@ -6,21 +6,33 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn"
-	"github.com/vahid-sohrabloo/chconn/column"
-	"github.com/vahid-sohrabloo/chconn/setting"
+	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
-func TestConnect(t *testing.T) {
+func TestNew(t *testing.T) {
 	t.Parallel()
-
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	pool, err := New(connString)
 	require.NoError(t, err)
+	assert.Equal(t, connString, pool.Config().ConnString())
+	pool.Close()
+}
+
+func TestNewConfig(t *testing.T) {
+	t.Parallel()
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+	pool, err := NewConfig(config)
+	require.NoError(t, err)
+	assertConfigsEqual(t, config, pool.Config(), "Pool.Config() returns original config")
 	pool.Close()
 }
 
@@ -46,40 +58,13 @@ func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	assert.NotContains(t, config.ConnConfig.RuntimeParams, "pool_health_check_period")
 }
 
-func TestConnectCancel(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	pool, err := Connect(ctx, os.Getenv("CHX_TEST_TCP_CONN_STRING"))
-	assert.Nil(t, pool)
-	assert.Equal(t, context.Canceled, err)
-}
-
-func TestLazyConnect(t *testing.T) {
-	t.Parallel()
-
-	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
-	assert.NoError(t, err)
-	config.LazyConnect = true
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	pool, err := ConnectConfig(ctx, config)
-	assert.NoError(t, err)
-	settings := setting.NewSettings()
-	_, err = pool.ExecWithSetting(ctx, "SELECT 1", settings)
-	assert.Equal(t, fmt.Errorf("acquire: %w", context.Canceled), err)
-}
-
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	t.Parallel()
 
 	config := &Config{}
 
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() {
-		ConnectConfig(context.Background(), config)
+		NewConfig(config)
 	})
 }
 
@@ -93,14 +78,14 @@ func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	assertConfigsEqual(t, original, copied, t.Name())
 }
 
-func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
+func TestConfigCopyCanBeUsedToNew(t *testing.T) {
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
 	original, err := ParseConfig(connString)
 	require.NoError(t, err)
 
 	copied := original.Copy()
 	assert.NotPanics(t, func() {
-		_, err = ConnectConfig(context.Background(), copied)
+		_, err = NewConfig(copied)
 	})
 	assert.NoError(t, err)
 }
@@ -108,7 +93,7 @@ func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
 func TestPoolAcquireAndConnRelease(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -117,10 +102,39 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolAcquireAndConnHijack(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+
+	connsBeforeHijack := pool.Stat().TotalConns()
+
+	conn := c.Hijack()
+	defer conn.Close()
+
+	connsAfterHijack := pool.Stat().TotalConns()
+	require.Equal(t, connsBeforeHijack-1, connsAfterHijack)
+
+	col := column.New[uint64]()
+	stmt, err := conn.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", col)
+	require.NoError(t, err)
+	for stmt.Next() {
+	}
+
+	require.NoError(t, stmt.Err())
+}
+
 func TestPoolAcquireFunc(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -133,7 +147,7 @@ func TestPoolAcquireFunc(t *testing.T) {
 func TestPoolAcquireFuncReturnsFnError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -149,12 +163,12 @@ func TestPoolBeforeConnect(t *testing.T) {
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 
-	config.BeforeConnect = func(ctx context.Context, cfg *chconn.Config) error {
+	config.BeforeConnect = func(_ context.Context, cfg *chconn.Config) error {
 		cfg.ClientName = "chx2"
 		return nil
 	}
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	db.Close()
 
@@ -167,14 +181,17 @@ func TestPoolAfterConnect(t *testing.T) {
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	var trigger bool
-	config.AfterConnect = func(ctx context.Context, c chconn.Conn) error {
+	config.AfterConnect = func(_ context.Context, _ chconn.Conn) error {
 		trigger = true
 		return nil
 	}
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
+
+	err = db.Ping(context.Background())
+	require.NoError(t, err)
 
 	assert.True(t, trigger)
 }
@@ -192,7 +209,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 		return acquireAttempts%2 == 0
 	}
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -233,7 +250,7 @@ func TestPoolAfterRelease(t *testing.T) {
 		return afterReleaseCount%2 == 1
 	}
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -253,19 +270,11 @@ func TestPoolAfterRelease(t *testing.T) {
 func TestPoolAcquireAllIdle(t *testing.T) {
 	t.Parallel()
 
-	db, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	db, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer db.Close()
 
-	conns := db.AcquireAllIdle(context.Background())
-	assert.Len(t, conns, 1)
-
-	for _, c := range conns {
-		c.Release()
-	}
-	waitForReleaseToComplete()
-
-	conns = make([]Conn, 3)
+	conns := make([]Conn, 3)
 	for i := range conns {
 		conns[i], err = db.Acquire(context.Background())
 		assert.NoError(t, err)
@@ -294,7 +303,7 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 
 	config.MaxConnLifetime = 250 * time.Millisecond
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -313,18 +322,26 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 func TestConnReleaseClosesBusyConn(t *testing.T) {
 	t.Parallel()
 
-	db, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	db, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
-
-	_, err = c.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 10;", nil, "", nil, nil)
+	col := column.New[uint64]()
+	_, err = c.Conn().Select(context.Background(), "SELECT * FROM system.numbers LIMIT 10;", col)
 	require.NoError(t, err)
 
 	c.Release()
 	waitForReleaseToComplete()
+
+	// wait for the connection to actually be destroyed
+	for i := 0; i < 1000; i++ {
+		if db.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
@@ -339,7 +356,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	config.MaxConnLifetime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -350,6 +367,8 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 1, stats.MaxLifetimeDestroyCount())
 }
 
 func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
@@ -362,17 +381,26 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	config.MaxConnIdleTime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 150 * time.Millisecond
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
-	time.Sleep(config.HealthCheckPeriod + 50*time.Millisecond)
+	time.Sleep(config.HealthCheckPeriod)
+
+	for i := 0; i < 1000; i++ {
+		if db.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
+	assert.EqualValues(t, 1, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
 }
 
 func TestPoolBackgroundChecksMinConns(t *testing.T) {
@@ -384,20 +412,35 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	config.HealthCheckPeriod = 100 * time.Millisecond
 	config.MinConns = 2
 
-	db, err := ConnectConfig(context.Background(), config)
+	db, err := NewConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
-	time.Sleep(config.HealthCheckPeriod + 100*time.Millisecond)
+	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 2, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	assert.EqualValues(t, 2, stats.NewConnsCount())
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+	err = c.Conn().Close()
+	require.NoError(t, err)
+	c.Release()
+
+	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
+
+	stats = db.Stat()
+	assert.EqualValues(t, 2, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 3, stats.NewConnsCount())
 }
 
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -407,24 +450,23 @@ func TestPoolExec(t *testing.T) {
 func TestPoolExecError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 
 	testExec(t, pool)
 
 	pool.Close()
 
-	results, err := pool.Exec(context.Background(), "SET enable_http_compression=1")
+	err = pool.Exec(context.Background(), "SET enable_http_compression=1")
 	if assert.Error(t, err) {
 		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
-	assert.EqualValues(t, nil, results)
 }
 
 func TestPoolSelect(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -433,22 +475,17 @@ func TestPoolSelect(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// Test expected pool behavior
-	settings := setting.NewSettings()
-	stmt, err := pool.SelectWithSetting(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", settings)
+	col := column.New[uint64]()
+	stmt, err := pool.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", col)
 	require.NoError(t, err)
-	col := column.NewUint64(false)
-	for stmt.Next() {
-		err := stmt.ReadColumns(col)
-		assert.NoError(t, err)
-		col.ReadAll(&[]uint64{})
-		assert.NoError(t, err)
-	}
-
 	stats := pool.Stat()
 	assert.EqualValues(t, 1, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
+	for stmt.Next() {
+	}
 
-	stmt.Close()
+	require.NoError(t, stmt.Err())
+
 	waitForReleaseToComplete()
 
 	stats = pool.Stat()
@@ -457,7 +494,7 @@ func TestPoolSelect(t *testing.T) {
 
 	// more coverage
 
-	assert.EqualValues(t, 3, stats.AcquireCount())
+	assert.EqualValues(t, 2, stats.AcquireCount())
 	assert.GreaterOrEqual(t, int64(time.Second), int64(stats.AcquireDuration()))
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 0, stats.CanceledAcquireCount())
@@ -474,7 +511,7 @@ func TestPoolSelect(t *testing.T) {
 func TestPoolSelectError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -484,9 +521,8 @@ func TestPoolSelectError(t *testing.T) {
 
 	// Test expected pool behavior
 	stmt, err := pool.Select(context.Background(), "SELECT * FROM not_fount_table LIMIT 10;")
-	require.NoError(t, err)
-	require.False(t, stmt.Next())
-	require.Error(t, stmt.Err())
+	assert.Error(t, err)
+	assert.Nil(t, stmt)
 
 	pool.Close()
 
@@ -501,7 +537,7 @@ func TestPoolSelectError(t *testing.T) {
 func TestPoolAcquireSelectError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -513,7 +549,7 @@ func TestPoolAcquireSelectError(t *testing.T) {
 	conn, err := pool.Acquire(context.Background())
 	require.NoError(t, err)
 	conn.Conn().RawConn().Close()
-	_, err = conn.SelectCallback(context.Background(), "SELECT * FROM system.numbers LIMIT 5;", nil, "", nil, nil)
+	_, err = conn.Conn().Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 	conn.Release()
 	require.Error(t, err)
 }
@@ -521,23 +557,21 @@ func TestPoolAcquireSelectError(t *testing.T) {
 func TestPoolInsert(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
 	require.NoError(t, pool.Ping(context.Background()))
 
-	res, err := pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
+	err = pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
 	require.NoError(t, err)
-	require.Nil(t, res)
-	res, err = pool.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_pool (
+	err = pool.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_pool (
 				int8  Int8
 			) Engine=Memory`)
 
 	require.NoError(t, err)
-	require.Nil(t, res)
 
-	col := column.NewInt8(false)
+	col := column.New[int8]()
 	for i := 1; i <= 10; i++ {
 		col.Append(int8(-1 * i))
 	}
@@ -546,23 +580,18 @@ func TestPoolInsert(t *testing.T) {
 			) VALUES`, col)
 	require.NoError(t, err)
 
+	colInt8 := column.New[int8]()
 	selectStmt, err := pool.Select(context.Background(), `SELECT 
 				int8
-	 FROM clickhouse_test_insert_pool`)
+	 FROM clickhouse_test_insert_pool`, colInt8)
 	require.NoError(t, err)
-	var int8Data []int8
-	colInt8 := column.NewInt8(false)
 
-	for selectStmt.Next() {
-		err := selectStmt.ReadColumns(colInt8)
-		require.NoError(t, err)
-		colInt8.ReadAll(&int8Data)
-		require.NoError(t, err)
-	}
-	require.NoError(t, selectStmt.Err())
 	stats := pool.Stat()
 	assert.EqualValues(t, 1, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
+	for selectStmt.Next() {
+	}
+	require.NoError(t, selectStmt.Err())
 
 	selectStmt.Close()
 	waitForReleaseToComplete()
@@ -575,7 +604,7 @@ func TestPoolInsert(t *testing.T) {
 func TestPoolInsertError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 
 	err = pool.Insert(context.Background(), `INSERT INTO not_found_table (
@@ -601,7 +630,7 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := Connect(ctx, os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -610,10 +639,9 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	pid := c.Conn().RawConn().LocalAddr().String()
 
-	stmt, err := c.SelectCallback(ctx, "SELECT * FROM system.numbers2 LIMIT 5;", nil, "", nil, nil)
-	assert.NoError(t, err)
-	assert.False(t, stmt.Next())
-	assert.Error(t, stmt.Err())
+	stmt, err := c.Conn().Select(ctx, "SELECT * FROM system.numbers2 LIMIT 5;")
+	assert.Error(t, err)
+	assert.Nil(t, stmt)
 
 	c.Release()
 	waitForReleaseToComplete()
@@ -630,7 +658,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := Connect(ctx, os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -639,16 +667,27 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	c.Conn().Close()
 	err = c.Conn().Close()
 	require.NoError(t, err)
+
 	assert.EqualValues(t, 1, pool.Stat().TotalConns())
+
 	c.Release()
 	waitForReleaseToComplete()
+
+	// wait for the connection to actually be destroyed
+	for i := 0; i < 1000; i++ {
+		if pool.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
 	assert.EqualValues(t, 0, pool.Stat().TotalConns())
 }
 
 func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -703,6 +742,14 @@ func TestParseConfigError(t *testing.T) {
 			name:       "invalid pool_health_check_period",
 			connString: "pool_health_check_period=invalid",
 			err:        "invalid pool_health_check_period: time: invalid duration \"invalid\"",
+		}, {
+			name:       "invalid pool_max_conn_lifetime_jitter",
+			connString: "pool_max_conn_lifetime_jitter=invalid",
+			err:        "invalid pool_max_conn_lifetime_jitter: time: invalid duration \"invalid\"",
+		}, {
+			name:       "invalid pool_create_idle_timeout",
+			connString: "pool_create_idle_timeout=invalid",
+			err:        "invalid pool_create_idle_timeout: time: invalid duration \"invalid\"",
 		},
 	}
 
@@ -717,19 +764,21 @@ func TestParseConfigError(t *testing.T) {
 	}
 }
 
-func TestConnectParseError(t *testing.T) {
+func TestNewParseError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), "host>0")
+	pool, err := New("host>0")
 	assert.Nil(t, pool)
 	assert.Equal(t, "cannot parse `host>0`: failed to parse as DSN (invalid dsn)", err.Error())
 }
 
-func TestConnectError(t *testing.T) {
+func TestNewError(t *testing.T) {
 	t.Parallel()
 
-	pool, err := Connect(context.Background(), "host=invalidhost")
-	assert.Nil(t, pool)
+	pool, err := New("host=invalidhost")
+	assert.NotNil(t, pool)
+	assert.NoError(t, err)
+	err = pool.Ping(context.Background())
 	assert.Error(t, err)
 
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
@@ -738,6 +787,58 @@ func TestConnectError(t *testing.T) {
 		return errors.New("afterConnect err")
 	}
 
-	_, err = ConnectConfig(context.Background(), config)
-	assert.EqualError(t, err, "afterConnect err")
+	pool, err = NewConfig(config)
+	require.NoError(t, err)
+	err = pool.Ping(context.Background())
+	assert.Error(t, err)
+	assert.EqualError(t, err, "acquire: afterConnect err")
+}
+
+func TestIdempotentPoolClose(t *testing.T) {
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	// Close the open pool.
+	require.NotPanics(t, func() { pool.Close() })
+
+	// Close the already closed pool.
+	require.NotPanics(t, func() { pool.Close() })
+}
+
+func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
+	t.Parallel()
+
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(12)
+	config.MaxConns = int32(15)
+
+	acquireAttempts := int64(0)
+	connectAttempts := int64(0)
+
+	config.BeforeAcquire = func(ctx context.Context, conn chconn.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.BeforeConnect = func(ctx context.Context, cfg *chconn.Config) error {
+		atomic.AddInt64(&connectAttempts, 1)
+		return nil
+	}
+
+	pool, err := NewConfig(config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	for i := 0; i < 500; i++ {
+		time.Sleep(10 * time.Millisecond)
+
+		stat := pool.Stat()
+		if stat.IdleConns() == 12 && stat.AcquireCount() == 0 && stat.TotalConns() == 12 && atomic.LoadInt64(&acquireAttempts) == 0 && atomic.LoadInt64(&connectAttempts) == 12 {
+			return
+		}
+	}
+
+	t.Fatal("did not reach min pool size")
+
 }
