@@ -390,10 +390,10 @@ func TestGeo(t *testing.T) {
 	colPolygon := column.NewTupleOf[types.Point]().Array().Array()
 	colMultiPolygon := column.NewTupleOf[types.Point]().Array().Array().Array()
 
-	colPoint.SetWriteBuffer(20)
-	colRing.SetWriteBuffer(20)
-	colPolygon.SetWriteBuffer(20)
-	colMultiPolygon.SetWriteBuffer(20)
+	colPoint.SetWriteBufferSize(20)
+	colRing.SetWriteBufferSize(20)
+	colPolygon.SetWriteBufferSize(20)
+	colMultiPolygon.SetWriteBufferSize(20)
 
 	var pointInsert []types.Point
 	var ringInsert [][]types.Point

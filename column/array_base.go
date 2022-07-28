@@ -67,12 +67,12 @@ func (c *ArrayBase) TotalRows() int {
 	return int(binary.LittleEndian.Uint64(c.offsetColumn.b[c.offsetColumn.totalByte-8 : c.offsetColumn.totalByte]))
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *ArrayBase) SetWriteBuffer(row int) {
-	c.offsetColumn.SetWriteBuffer(row)
-	c.dataColumn.SetWriteBuffer(row)
+func (c *ArrayBase) SetWriteBufferSize(row int) {
+	c.offsetColumn.SetWriteBufferSize(row)
+	c.dataColumn.SetWriteBufferSize(row)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically

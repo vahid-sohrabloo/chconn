@@ -20,7 +20,7 @@ type ColumnBasic interface {
 	Name() []byte
 	Validate() error
 	columnType() string
-	SetWriteBuffer(int)
+	SetWriteBufferSize(int)
 }
 
 type Column[T any] interface {

@@ -49,12 +49,12 @@ func (c *Tuple) Reset() {
 	}
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *Tuple) SetWriteBuffer(row int) {
+func (c *Tuple) SetWriteBufferSize(row int) {
 	for _, col := range c.columns {
-		col.SetWriteBuffer(row)
+		col.SetWriteBufferSize(row)
 	}
 }
 

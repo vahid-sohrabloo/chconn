@@ -138,10 +138,10 @@ func (c *LowCardinality[T]) Reset() {
 	c.numRow = 0
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *LowCardinality[T]) SetWriteBuffer(row int) {
+func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
 	if cap(c.keys) < row {
 		c.keys = make([]int, 0, row)
 	}

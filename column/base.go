@@ -104,10 +104,10 @@ func (c *Base[T]) Reset() {
 	c.values = c.values[:0]
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *Base[T]) SetWriteBuffer(row int) {
+func (c *Base[T]) SetWriteBufferSize(row int) {
 	if cap(c.values) < row {
 		c.values = make([]T, 0, row)
 	}

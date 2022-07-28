@@ -98,13 +98,13 @@ func (c *MapBase) TotalRows() int {
 	return int(binary.LittleEndian.Uint64(c.offsetColumn.b[c.offsetColumn.totalByte-8 : c.offsetColumn.totalByte]))
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *MapBase) SetWriteBuffer(row int) {
-	c.offsetColumn.SetWriteBuffer(row)
-	c.keyColumn.SetWriteBuffer(row)
-	c.valueColumn.SetWriteBuffer(row)
+func (c *MapBase) SetWriteBufferSize(row int) {
+	c.offsetColumn.SetWriteBufferSize(row)
+	c.keyColumn.SetWriteBufferSize(row)
+	c.valueColumn.SetWriteBufferSize(row)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically

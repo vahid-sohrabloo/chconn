@@ -230,15 +230,15 @@ func testMapColumn[V comparable](
 	var colLCArrayInsert []map[string][]V
 	var colLCNullableArrayInsert []map[string][]*V
 
-	// SetWriteBuffer is not necessary. this just to show how to set write buffer
-	col.SetWriteBuffer(10)
-	colNullable.SetWriteBuffer(10)
-	colArray.SetWriteBuffer(10)
-	colNullableArray.SetWriteBuffer(10)
-	colLC.SetWriteBuffer(10)
-	colLCNullable.SetWriteBuffer(10)
-	colArrayLC.SetWriteBuffer(10)
-	colArrayLCNullable.SetWriteBuffer(10)
+	// SetWriteBufferSize is not necessary. this just to show how to set write buffer
+	col.SetWriteBufferSize(10)
+	colNullable.SetWriteBufferSize(10)
+	colArray.SetWriteBufferSize(10)
+	colNullableArray.SetWriteBufferSize(10)
+	colLC.SetWriteBufferSize(10)
+	colLCNullable.SetWriteBufferSize(10)
+	colArrayLC.SetWriteBufferSize(10)
+	colArrayLCNullable.SetWriteBufferSize(10)
 	for insertN := 0; insertN < 2; insertN++ {
 		rows := 10
 		for i := 0; i < rows; i++ {

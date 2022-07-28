@@ -130,10 +130,10 @@ func (c *String[T]) Reset() {
 	c.writerData = c.writerData[:0]
 }
 
-// SetWriteBuffer set write buffer (number of bytes)
+// SetWriteBufferSize set write buffer (number of bytes)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *String[T]) SetWriteBuffer(b int) {
+func (c *String[T]) SetWriteBufferSize(b int) {
 	if cap(c.writerData) < b {
 		c.writerData = make([]byte, 0, b)
 	}

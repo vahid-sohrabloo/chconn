@@ -173,14 +173,14 @@ func (c *Nullable[T]) Reset() {
 	c.dataColumn.Reset()
 }
 
-// SetWriteBuffer set write buffer (number of rows)
+// SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *Nullable[T]) SetWriteBuffer(row int) {
+func (c *Nullable[T]) SetWriteBufferSize(row int) {
 	if cap(c.writerData) < row {
 		c.writerData = make([]byte, 0, row)
 	}
-	c.dataColumn.SetWriteBuffer(row)
+	c.dataColumn.SetWriteBufferSize(row)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
