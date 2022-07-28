@@ -118,6 +118,7 @@ type pool struct {
 // modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	ConnConfig *chconn.Config
+
 	// BeforeConnect is called before a new connection is made. It is passed a copy of the underlying chconn.Config and
 	// will not impact any existing open connections.
 	BeforeConnect func(context.Context, *chconn.Config) error
@@ -482,6 +483,7 @@ func (p *pool) checkMinConns() error {
 func (p *pool) createIdleResources(targetResources int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.config.CreateIdleTimeout)
 	defer cancel()
+
 	errs := make(chan error, targetResources)
 
 	for i := 0; i < targetResources; i++ {
