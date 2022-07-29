@@ -3,7 +3,7 @@ package chconn
 // Progress details of progress select query
 type Progress struct {
 	ReadRows     uint64
-	Readbytes    uint64
+	ReadBytes    uint64
 	TotalRows    uint64
 	WriterRows   uint64
 	WrittenBytes uint64
@@ -17,8 +17,8 @@ func (p *Progress) read(ch *conn) (err error) {
 	if p.ReadRows, err = ch.reader.Uvarint(); err != nil {
 		return &readError{"progress: read ReadRows", err}
 	}
-	if p.Readbytes, err = ch.reader.Uvarint(); err != nil {
-		return &readError{"progress: read Readbytes", err}
+	if p.ReadBytes, err = ch.reader.Uvarint(); err != nil {
+		return &readError{"progress: read ReadBytes", err}
 	}
 
 	if p.TotalRows, err = ch.reader.Uvarint(); err != nil {

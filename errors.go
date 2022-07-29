@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
 // ErrNegativeTimeout when negative timeout provided
@@ -38,9 +38,6 @@ var ErrInvalidquoted = errors.New("unterminated quoted string in connection info
 
 // ErrIPNotFound when can't found ip in connecting
 var ErrIPNotFound = errors.New("ip addr wasn't found")
-
-// ErrInsertMinColumn when no column provided for insert
-var ErrInsertMinColumn = errors.New("you should pass at least one column")
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
@@ -251,6 +248,8 @@ func redactPW(connString string) string {
 	connString = quotedDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
 	plainDSN := regexp.MustCompile(`password=[^ ]*`)
 	connString = plainDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	brokenURL := regexp.MustCompile(`:[^:@]+?@`)
+	connString = brokenURL.ReplaceAllLiteralString(connString, ":xxxxxx@")
 	return connString
 }
 
@@ -305,8 +304,18 @@ type NumberWriteError struct {
 	FirstNumRow int
 	NumRow      int
 	Column      string
+	FirstColumn string
 }
 
 func (e *NumberWriteError) Error() string {
-	return fmt.Sprintf("first column has %d rows but %q column has %d rows", e.FirstNumRow, e.Column, e.NumRow)
+	return fmt.Sprintf("%q has %d rows but %q column has %d rows", e.FirstColumn, e.FirstNumRow, e.Column, e.NumRow)
+}
+
+// ColumnNotFoundError represents an error when column not found (when try to reorder columns)
+type ColumnNotFoundError struct {
+	Column string
+}
+
+func (e *ColumnNotFoundError) Error() string {
+	return fmt.Sprintf("the input columns do not contain column %q. The column name must be set using the `SetName` method", e.Column)
 }

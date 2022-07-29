@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
 const (
@@ -20,45 +22,139 @@ const (
 	serializationType = hasAdditionalKeysBit | needUpdateDictionary
 )
 
-//  LCDictColumn is a interface for column that can be LowCardinality
-type LCDictColumn interface {
-	Column
-	getKeys() []int
-}
-
-// LC use for LowCardinality ClickHouse DataTypes
-type LC struct {
+// LowCardinality use for LowCardinality ClickHouse DataTypes
+type LowCardinality[T comparable] struct {
 	column
-	DictColumn     LCDictColumn
-	indices        indicesColumn
+	numRow         int
+	dictColumn     Column[T]
+	indices        indicesColumnI
 	oldIndicesType int
 	scratch        [8]byte
+	readedKeys     []int
+	readedDict     []T
+	dict           map[T]int
+	keys           []int
+	nullable       bool
 }
 
-var _ Column = &LC{}
-
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
-func NewLowCardinality(dictColumn LCDictColumn) *LC {
+func NewLowCardinality[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 	return NewLC(dictColumn)
 }
 
 // NewLC return new LC for LowCardinality ClickHouse DataTypes
-func NewLC(dictColumn LCDictColumn) *LC {
-	l := &LC{
-		DictColumn: dictColumn,
+func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
+	l := &LowCardinality[T]{
+		dict:       make(map[T]int),
+		dictColumn: dictColumn,
 	}
-	dictColumn.setParent(l)
 	return l
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
-func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
+// Data get all the data in current block as a slice.
+//
+// NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
+func (c *LowCardinality[T]) Data() []T {
+	result := make([]T, c.NumRow())
+	for i, k := range c.readedKeys {
+		result[i] = c.readedDict[k]
+	}
+	return result
+}
+
+// Read reads all the data in current block and append to the input.
+func (c *LowCardinality[T]) Read(value []T) []T {
+	for _, k := range c.readedKeys {
+		value = append(value, c.readedDict[k])
+	}
+	return value
+}
+
+// Row return the value of given row.
+// NOTE: Row number start from zero
+func (c *LowCardinality[T]) Row(row int) T {
+	return c.readedDict[c.readedKeys[row]]
+}
+
+// Append value for insert
+func (c *LowCardinality[T]) Append(v T) {
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.dictColumn.Append(v)
+	}
+	c.keys = append(c.keys, key)
+	c.numRow++
+}
+
+// AppendSlice append slice of value for insert
+func (c *LowCardinality[T]) AppendSlice(vs []T) {
+	for _, v := range vs {
+		key, ok := c.dict[v]
+		if !ok {
+			key = len(c.dict)
+			c.dict[v] = key
+			c.dictColumn.Append(v)
+		}
+		c.keys = append(c.keys, key)
+	}
+
+	c.numRow += len(vs)
+}
+
+// Dicts get dictionary data
+// each key is an index of the dictionary
+func (c *LowCardinality[T]) Dicts() []T {
+	return c.readedDict
+}
+
+// Keys get keys of data
+// each key is an index of the dictionary
+func (c *LowCardinality[T]) Keys() []int {
+	return c.readedKeys
+}
+
+// NumRow return number of row for this block
+func (c *LowCardinality[T]) NumRow() int {
+	return c.numRow
+}
+
+// Array return a Array type for this column
+func (c *LowCardinality[T]) Array() *Array[T] {
+	return NewArray[T](c)
+}
+
+// Reset all statuses and buffered data
+//
+// After each reading, the reading data does not need to be reset. It will be automatically reset.
+//
+// When inserting, buffers are reset only after the operation is successful.
+// If an error occurs, you can safely call insert again.
+func (c *LowCardinality[T]) Reset() {
+	c.dictColumn.Reset()
+	c.dict = make(map[T]int)
+	c.keys = c.keys[:0]
+	c.numRow = 0
+}
+
+// SetWriteBufferSize set write buffer (number of rows)
+// this buffer only used for writing.
+// By setting this buffer, you will avoid allocating the memory several times.
+func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
+	if cap(c.keys) < row {
+		c.keys = make([]int, 0, row)
+	}
+}
+
+// ReadRaw read raw data from the reader. it runs automatically
+func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
 	if c.numRow == 0 {
-		c.indices = NewUint8(false)
+		c.indices = newIndicesColumn[uint8]()
 		// to reset nullable dictionary
-		return c.DictColumn.ReadRaw(0, r)
+		return c.dictColumn.ReadRaw(0, r)
 	}
 
 	serializationType, err := c.r.Uint64()
@@ -71,11 +167,8 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return fmt.Errorf("error reading dictionary size: %w", err)
 	}
-	nullable := c.DictColumn.IsNullable()
-	// disable nullable for low cardinality dictionary
-	c.DictColumn.setNullable(false)
-	err = c.DictColumn.ReadRaw(int(dictionarySize), r)
-	c.DictColumn.setNullable(nullable)
+
+	err = c.dictColumn.ReadRaw(int(dictionarySize), r)
 	if err != nil {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
@@ -83,87 +176,86 @@ func (c *LC) ReadRaw(num int, r *readerwriter.Reader) error {
 	indicesSize, err := r.Uint64()
 	c.numRow = int(indicesSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading indices size: %w", err)
 	}
 	if c.indices == nil || c.oldIndicesType != intType {
 		c.indices = getLCIndicate(intType)
 		c.oldIndicesType = intType
 	}
 
-	return c.indices.ReadRaw(c.numRow, c.r)
-}
-
-// Next forward pointer to the next value. Returns false if there are no more values.
-//
-// Use with Value()
-func (c *LC) Next() bool {
-	return c.indices.Next()
-}
-
-// Value of current pointer
-//
-// Use with Next()
-func (c *LC) Value() int {
-	return c.indices.valueInt()
-}
-
-// Row return the value of given row
-// NOTE: Row number start from zero
-func (c *LC) Row(row int) int {
-	return c.indices.rowInt(row)
-}
-
-// ReadAll read all keys in this block and append to the input slice
-func (c *LC) ReadAll(value *[]int) {
-	c.indices.readAllInt(value)
-}
-
-// Fill slice with keys and forward the pointer by the length of the slice
-//
-// NOTE: A slice that is longer than the remaining data is not safe to pass.
-func (c *LC) Fill(value []int) {
-	c.indices.fillInt(value)
-}
-
-// NumRow return number of keys for this block
-func (c *LC) NumRow() int {
-	return len(c.DictColumn.getKeys())
+	err = c.indices.ReadRaw(c.numRow, c.r)
+	if err != nil {
+		return fmt.Errorf("error reading indices: %w", err)
+	}
+	c.readedDict = c.readedDict[:0]
+	c.readedKeys = c.readedKeys[:0]
+	c.readedDict = c.dictColumn.Read(c.readedDict)
+	c.indices.readInt(&c.readedKeys)
+	return nil
 }
 
 // HeaderReader writes header data to writer
 // it uses internally
-func (c *LC) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
-	err := c.column.HeaderReader(r, readColumn)
+func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+	c.r = r
+	err := c.readColumn(readColumn)
 	if err != nil {
 		return err
 	}
-	// write KeysSerializationVersion. for more information see clickhouse docs
+
+	// ready KeysSerializationVersion.
 	_, err = r.Uint64()
 	if err != nil {
-		err = fmt.Errorf("error reading keys serialization version: %w", err)
+		return fmt.Errorf("error reading keys serialization version: %w", err)
 	}
-	return err
+
+	if !c.nullable {
+		return c.dictColumn.HeaderReader(r, false)
+	}
+
+	return c.dictColumn.HeaderReader(r, false)
 }
 
-// HeaderWriter reads header data from read
-// it uses internally
-func (c *LC) HeaderWriter(w *readerwriter.Writer) {
-	// write KeysSerializationVersion. for more information see clickhouse docs
-	w.Int64(1)
+func (c *LowCardinality[T]) columnType() string {
+	if !c.nullable {
+		return strings.Replace(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.columnType(), -1)
+	}
+	return strings.Replace(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.columnType(), -1)
 }
 
-// WriteTo write data clickhouse
+func (c *LowCardinality[T]) Validate() error {
+	chType := helper.FilterSimpleAggregate(c.chType)
+	if !c.nullable {
+		if !helper.IsLowCardinality(chType) {
+			return &ErrInvalidType{
+				column: c,
+			}
+		}
+		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
+	} else {
+		if !helper.IsNullableLowCardinality(chType) {
+			return &ErrInvalidType{
+				column: c,
+			}
+		}
+		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
+	}
+	if err := c.dictColumn.Validate(); err != nil {
+		return &ErrInvalidType{
+			column: c,
+		}
+	}
+	return nil
+}
+
+// WriteTo write data to ClickHouse.
 // it uses internally
-func (c *LC) WriteTo(w io.Writer) (int64, error) {
-	dictionarySize := c.DictColumn.NumRow()
+func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
+	dictionarySize := c.dictColumn.NumRow()
 	// Do not write anything for empty column.
 	// May happen while writing empty arrays.
-	if dictionarySize == 0 {
+	if dictionarySize == 0 || (c.nullable && dictionarySize == 1) {
 		return 0, nil
-	}
-	dictNullable := c.DictColumn.IsNullable()
-	if dictNullable {
-		dictionarySize++
 	}
 	var n int64
 	intType := int(math.Log2(float64(dictionarySize)) / 8)
@@ -181,22 +273,13 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 		return n, fmt.Errorf("error writing dictionarySize: %w", err)
 	}
 
-	if dictNullable {
-		nw, err = w.Write(c.DictColumn.GetEmpty())
-		n += int64(nw)
-		if err != nil {
-			return n, fmt.Errorf("error writing null empty data: %w", err)
-		}
-	}
-	c.DictColumn.setNullable(false)
-	nwd, err := c.DictColumn.WriteTo(w)
-	c.DictColumn.setNullable(dictNullable)
+	nwd, err := c.dictColumn.WriteTo(w)
 	n += nwd
 	if err != nil {
 		return n, fmt.Errorf("error writing dictionary: %w", err)
 	}
-	keys := c.DictColumn.getKeys()
-	nw, err = c.writeUint64(w, uint64(len(keys)))
+
+	nw, err = c.writeUint64(w, uint64(len(c.keys)))
 	n += int64(nw)
 	if err != nil {
 		return n, fmt.Errorf("error writing keys len: %w", err)
@@ -208,7 +291,7 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 		c.indices.Reset()
 	}
 	c.indices = getLCIndicate(intType)
-	c.indices.appendInts(keys)
+	c.indices.appendInts(c.keys)
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
 		return n, fmt.Errorf("error writing indices: %w", err)
@@ -216,22 +299,29 @@ func (c *LC) WriteTo(w io.Writer) (int64, error) {
 	return n + nwt, err
 }
 
-func getLCIndicate(intType int) indicesColumn {
+// HeaderWriter reads header data from read
+// it uses internally
+func (c *LowCardinality[T]) HeaderWriter(w *readerwriter.Writer) {
+	// write KeysSerializationVersion. for more information see clickhouse docs
+	w.Int64(1)
+}
+
+func getLCIndicate(intType int) indicesColumnI {
 	switch intType {
 	case 0:
-		return NewUint8(false)
+		return newIndicesColumn[uint8]()
 	case 1:
-		return NewUint16(false)
+		return newIndicesColumn[uint16]()
 	case 2:
-		return NewUint32(false)
+		return newIndicesColumn[uint32]()
 	case 3:
-		panic("cannot handle this amount of data fo lc")
+		panic("cannot handle this amount of data for lc")
 	}
 	// this should never happen unless something wrong with the code
 	panic("cannot not find indicate type")
 }
 
-func (c *LC) writeUint64(w io.Writer, v uint64) (int, error) {
+func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
 	c.scratch[0] = byte(v)
 	c.scratch[1] = byte(v >> 8)
 	c.scratch[2] = byte(v >> 16)
@@ -243,31 +333,9 @@ func (c *LC) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LC) IsNullable() bool {
-	// low cardinality column cannot be nullable
-	return false
-}
-func (c *LC) setNullable(nullable bool) {
-	// low cardinality column cannot be nullable
-}
-
-// AppendEmpty append empty value for insert
-//
-// it does nothing for low cardinality column
-func (c *LC) AppendEmpty() {
-}
-
-// GetEmpty return empty value for insert
-// it does nothing for low cardinality column
-func (c *LC) GetEmpty() []byte {
-	return emptyByte[:c.size]
-}
-
-// Reset reset column
-// it does nothing for low cardinality column
-func (c *LC) Reset() {
-}
-
-func (c *LC) setParent(parent Column) {
-	c.parent = parent
+func (c *LowCardinality[T]) elem(arrayLevel int) ColumnBasic {
+	if arrayLevel > 0 {
+		return c.Array().elem(arrayLevel - 1)
+	}
+	return c
 }

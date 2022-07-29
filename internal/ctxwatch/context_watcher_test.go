@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
 )
 
 func TestContextWatcherContextCancelled(t *testing.T) {
@@ -59,7 +59,31 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
-//nolint:govet //for test
+func TestContextWatcherUnwatchWhenNotWatchingIsSafe(t *testing.T) {
+	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
+	cw.Unwatch() // unwatch when not / never watching
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cw.Watch(ctx)
+	cw.Unwatch()
+	cw.Unwatch() // double unwatch
+}
+
+func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
+	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	cw.Watch(ctx)
+
+	go cw.Unwatch()
+	go cw.Unwatch()
+
+	<-ctx.Done()
+}
+
+//nolint:govet
 func TestContextWatcherStress(t *testing.T) {
 	var cancelFuncCalls int64
 	var cleanupFuncCalls int64
@@ -73,6 +97,7 @@ func TestContextWatcherStress(t *testing.T) {
 	cycleCount := 100000
 
 	for i := 0; i < cycleCount; i++ {
+		//nolint:govet
 		ctx, cancel := context.WithCancel(context.Background())
 		cw.Watch(ctx)
 		if i%2 == 0 {

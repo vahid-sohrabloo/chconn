@@ -496,14 +496,14 @@ var parseConfigTests = []struct {
 	},
 	{
 		name:       "enable compress",
-		connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=prefer compress=true",
+		connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=prefer compress=checksum",
 		config: &Config{
 			User:       "vahid",
 			Password:   "secret",
 			Host:       "foo",
 			Port:       9000,
 			Database:   "mydb",
-			Compress:   true,
+			Compress:   CompressChecksum,
 			ClientName: defaultClientName,
 			TLSConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -572,7 +572,7 @@ func TestParseConfigDSNTrailingBackslash(t *testing.T) {
 }
 
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
-	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&search_path=myschema&connect_timeout=5"
+	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&connect_timeout=5"
 	original, err := ParseConfig(connString)
 	require.NoError(t, err)
 
@@ -581,7 +581,7 @@ func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 }
 
 func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
-	connString := "clickhouse://vahid:secret@localhost:9000/mydb?client_name=chxtest&search_path=myschema&connect_timeout=5"
+	connString := "host=localhost,localhost2 port=9000,9000 database=mydb  client_name=chxtest connect_timeout=5"
 	original, err := ParseConfig(connString)
 	require.NoError(t, err)
 

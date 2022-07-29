@@ -6,24 +6,30 @@ import (
 	"os"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/chpool"
-	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/v2/chpool"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
 func Example() {
-	conn, err := chpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	conn, err := chpool.New(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
 
 	defer conn.Close()
 
-	_, err = conn.Exec(context.Background(), `DROP TABLE IF EXISTS example_table`)
+	// to check if the connection is alive
+	err = conn.Ping(context.Background())
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = conn.Exec(context.Background(), `CREATE TABLE  example_table (
+	err = conn.Exec(context.Background(), `DROP TABLE IF EXISTS example_table`)
+	if err != nil {
+		panic(err)
+	}
+
+	err = conn.Exec(context.Background(), `CREATE TABLE  example_table (
 		uint64 UInt64,
 		uint64_nullable Nullable(UInt64)
 	) Engine=Memory`)
@@ -31,10 +37,12 @@ func Example() {
 		panic(err)
 	}
 
-	col1 := column.NewUint64(false)
-	col2 := column.NewUint64(true)
-	rows := 10000000 // One hundred million rows- insert in 10 times
+	col1 := column.New[uint64]()
+	col2 := column.New[uint64]().Nullable()
+	rows := 1_000_0000 // One hundred million rows- insert in 10 times
 	numInsert := 10
+	col1.SetWriteBufferSize(rows)
+	col2.SetWriteBufferSize(rows)
 	startInsert := time.Now()
 	for i := 0; i < numInsert; i++ {
 		col1.Reset()
@@ -42,11 +50,9 @@ func Example() {
 		for y := 0; y < rows; y++ {
 			col1.Append(uint64(i))
 			if i%2 == 0 {
-				col2.AppendIsNil(false)
 				col2.Append(uint64(i))
 			} else {
-				col2.AppendIsNil(true)
-				col2.AppendEmpty()
+				col2.AppendNil()
 			}
 		}
 
@@ -59,48 +65,43 @@ func Example() {
 		}
 		cancelInsert()
 	}
-	fmt.Println("inserted 100M rows in ", time.Since(startInsert))
+	fmt.Println("inserted 10M rows in ", time.Since(startInsert))
 
 	// select data
-	col1Read := column.NewUint64(false)
-	col2Read := column.NewUint64(true)
+	col1Read := column.New[uint64]()
+	col2Read := column.New[uint64]().Nullable()
 
 	ctxSelect, cancelSelect := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancelSelect()
 
 	startSelect := time.Now()
-	// insert data
-	selectStmt, err := conn.Select(ctxSelect, "SELECT uint64,uint64_nullable FROM  example_table")
+	selectStmt, err := conn.Select(ctxSelect, "SELECT uint64,uint64_nullable FROM  example_table", col1Read, col2Read)
 	if err != nil {
 		panic(err)
 	}
 
-	// make sure close the statement after you are done with it to back it to the pool
+	// make sure the stmt close after select. but it's not necessary
 	defer selectStmt.Close()
 
-	// next block of data
-	// for more information about block, see: https://clickhouse.com/docs/en/development/architecture/#block
 	var col1Data []uint64
-	var col2DataNil []uint8
+	var col2DataNil []bool
 	var col2Data []uint64
+	// read data block by block
+	// for more information about block, see: https://clickhouse.com/docs/en/development/architecture/#block
 	for selectStmt.Next() {
-		err = selectStmt.ReadColumns(col1Read, col2Read)
-		if err != nil {
-			panic(err)
-		}
 		col1Data = col1Data[:0]
-		col1Read.ReadAll(&col1Data)
+		col1Data = col1Read.Read(col1Data)
 
 		col2DataNil = col2DataNil[:0]
-		col2Read.ReadAllNil(&col2DataNil)
+		col2DataNil = col2Read.ReadNil(col2DataNil)
 
 		col2Data = col2Data[:0]
-		col2Read.ReadAll(&col2Data)
+		col2Data = col2Read.Read(col2Data)
 	}
 
 	// check errors
 	if selectStmt.Err() != nil {
 		panic(selectStmt.Err())
 	}
-	fmt.Println("selected 100M rows in ", time.Since(startSelect))
+	fmt.Println("selected 10M rows in ", time.Since(startSelect))
 }

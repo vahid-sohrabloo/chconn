@@ -19,6 +19,17 @@ const defaultDatabase = "default"
 const defaultDBPort = "9000"
 const defaultClientName = "chx"
 
+// Method is compression codec.
+type CompressMethod byte
+
+// Possible compression methods.
+const (
+	CompressNone     CompressMethod = 0x00
+	CompressChecksum CompressMethod = 0x02
+	CompressLZ4      CompressMethod = 0x82
+	CompressZSTD     CompressMethod = 0x90
+)
+
 // AfterConnectFunc is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
 // or prepare statements). If this returns an error the connection attempt fails.
 type AfterConnectFunc func(ctx context.Context, conn Conn) error
@@ -31,20 +42,21 @@ type ValidateConnectFunc func(ctx context.Context, conn Conn) error
 // Config is the settings used to establish a connection to a ClickHouse server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host           string // host (e.g. localhost)
-	Port           uint16
-	Database       string
-	User           string
-	Password       string
-	ClientName     string
-	TLSConfig      *tls.Config // nil disables TLS
-	ConnectTimeout time.Duration
-	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
-	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
-	ReaderFunc     ReaderFunc // e.g. bufio.Reader
-	Compress       bool
-	WriterFunc     WriterFunc
-	// Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	Host              string // host (e.g. localhost)
+	Port              uint16
+	Database          string
+	User              string
+	Password          string
+	ClientName        string
+	TLSConfig         *tls.Config // nil disables TLS
+	ConnectTimeout    time.Duration
+	DialFunc          DialFunc   // e.g. net.Dialer.DialContext
+	LookupFunc        LookupFunc // e.g. net.Resolver.LookupHost
+	ReaderFunc        ReaderFunc // e.g. bufio.Reader
+	Compress          CompressMethod
+	WriterFunc        WriterFunc
+	MinReadBufferSize int
+	// Run-time parameters to set on connection as session default values
 	RuntimeParams map[string]string
 
 	Fallbacks []*FallbackConfig
@@ -118,7 +130,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //   user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
 //
 //   # Example URL
-//   clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca
+//   clickhouse://vahid:secret@ch.example.com:9440/mydb?sslmode=verify-ca
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system.
@@ -159,6 +171,13 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // If a host name resolves into multiple addresses chconn will only try the first.
 //
+// In addition, ParseConfig accepts the following options:
+//
+// 	min_read_buffer_size
+// 		The minimum size of the internal read buffer. Default 8192.
+// 	compress
+// 		compression method. empty string or "checksum" or "lz4" or "zstd".
+//      in the "checksum" chconn checks the checksum and not use any compress method.
 func ParseConfig(connString string) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
@@ -181,6 +200,10 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
+	minReadBufferSize, err := strconv.Atoi(settings["min_read_buffer_size"])
+	if err != nil {
+		return nil, &parseConfigError{connString: connString, msg: "cannot parse min_read_buffer_size", err: err}
+	}
 
 	config := &Config{
 		createdByParseConfig: true,
@@ -189,11 +212,17 @@ func ParseConfig(connString string) (*Config, error) {
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
 		ClientName:           settings["client_name"],
+		MinReadBufferSize:    minReadBufferSize,
 		connString:           connString,
 	}
 
-	if compress, err := strconv.ParseBool(settings["compress"]); err == nil && compress {
-		config.Compress = true
+	switch settings["compress"] {
+	case "checksum":
+		config.Compress = CompressChecksum
+	case "lz4":
+		config.Compress = CompressLZ4
+	case "zstd":
+		config.Compress = CompressZSTD
 	}
 
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
@@ -211,18 +240,19 @@ func ParseConfig(connString string) (*Config, error) {
 	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
-		"host":            {},
-		"port":            {},
-		"database":        {},
-		"user":            {},
-		"password":        {},
-		"connect_timeout": {},
-		"sslmode":         {},
-		"client_name":     {},
-		"sslkey":          {},
-		"sslcert":         {},
-		"sslrootcert":     {},
-		"compress":        {},
+		"host":                 {},
+		"port":                 {},
+		"database":             {},
+		"user":                 {},
+		"password":             {},
+		"connect_timeout":      {},
+		"sslmode":              {},
+		"client_name":          {},
+		"min_read_buffer_size": {},
+		"sslkey":               {},
+		"sslcert":              {},
+		"sslrootcert":          {},
+		"compress":             {},
 	}
 
 	for k, v := range settings {
@@ -283,6 +313,7 @@ func defaultSettings() map[string]string {
 	settings["user"] = defaultUsername
 	settings["database"] = defaultDatabase
 	settings["client_name"] = defaultClientName
+	settings["min_read_buffer_size"] = "8192"
 
 	return settings
 }

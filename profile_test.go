@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/column"
+	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
 func TestProfileReadError(t *testing.T) {
@@ -60,11 +60,10 @@ func TestProfileReadError(t *testing.T) {
 
 			c, err := ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 1;")
+			col := column.New[uint64]()
+			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
-			col := column.NewUint64(false)
 			for stmt.Next() {
-				stmt.ReadColumns(col)
 			}
 			require.Error(t, stmt.Err())
 			readErr, ok := stmt.Err().(*readError)

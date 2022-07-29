@@ -16,83 +16,50 @@ jobs:
       GOFLAGS: -mod=readonly
 
     steps:
-      - name: Set up clickhouse
-        uses: EpicStep/clickhouse-github-action@v1.0.0
+    - uses: vahid-sohrabloo/clickhouse-action@v1
+      with:
+        version: '22.7'
+
         
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18.3
 
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Test
-        run: make test-cover
-      - name: Send coverage
-        uses: codecov/codecov-action@v2
-        with:
-          file: coverage.out
+    - name: Test
+      run: make test-cover
+    - name: Send coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage.out
   test:
     name: Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        clickhouse-version: ['22.7', '22.6', '22.5', '22.4', '22.3.9.19']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
 
     steps:
-      - name: Set up clickhouse
-        uses: EpicStep/clickhouse-github-action@v1.0.0
+    - uses: vahid-sohrabloo/clickhouse-action@v1
+      with:
+        version: '${{ matrix.clickhouse-version }}'
         
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18.3
 
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Test
-        run: make test
-  test-purego:
-    name: Test Pure go
-    runs-on: ubuntu-latest
-    env:
-      VERBOSE: 1
-      GOFLAGS: -mod=readonly
-
-    steps:
-      - name: Set up clickhouse
-        uses: EpicStep/clickhouse-github-action@v1.0.0
-        
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Test
-        run: make test-purego
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    env:
-      VERBOSE: 1
-      GOFLAGS: -mod=readonly
-
-    steps:
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Build
-        run: make build
+    - name: Test
+      run: make test
 
   lint:
     name: Lint
@@ -100,16 +67,16 @@ jobs:
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
-
+    
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18.3
 
-      - name: Lint
-        run: make lint
+    - name: Lint
+      run: make lint
 

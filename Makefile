@@ -25,8 +25,8 @@ endif
 # Project variables
 
 # Dependency versions
-GOTESTSUM_VERSION = 1.7.0
-GOLANGCI_VERSION = 1.45.2
+GOTESTSUM_VERSION = 1.8.1
+GOLANGCI_VERSION = 1.47.0
 
 GOLANG_VERSION = 1.14
 
@@ -147,7 +147,7 @@ test-cover: TEST_REPORT ?= main
 test-cover: TEST_FORMAT ?= standard-quiet
 test-cover: SHELL = /bin/bash
 test-cover: bin/gotestsum ## Run tests
-	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverpkg=${CVPKG} -coverprofile=coverage.out -covermode=atomic -race -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
+	bin/gotestsum  --format ${TEST_FORMAT} -- $(filter-out -v,${GOARGS}) -coverpkg=${CVPKG} -coverprofile=coverage.out -covermode=atomic -parallel 1 $(if ${TEST_PKGS},${TEST_PKGS},./...)
 	@go tool cover -func=coverage.out
 
 
@@ -168,7 +168,7 @@ bin/golangci-lint: bin/golangci-lint-${GOLANGCI_VERSION}
 	@ln -sf golangci-lint-${GOLANGCI_VERSION} bin/golangci-lint
 bin/golangci-lint-${GOLANGCI_VERSION}:
 	@mkdir -p bin
-	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | BINARY=golangci-lint bash -s -- v${GOLANGCI_VERSION}
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | BINARY=golangci-lint bash -s -- v${GOLANGCI_VERSION}
 	@mv bin/golangci-lint $@
 
 .PHONY: lint

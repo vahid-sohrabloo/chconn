@@ -1,0 +1,16 @@
+ignore:
+  - "**/main.go"
+  - "./internal/readerwriter/*"
+coverage:
+  status:
+    project:
+      default:
+        target: 50%
+        threshold: null
+    patch: false
+    changes: false
+  range: 70..95    
+  round: up      
+  precision: 1     
+
+
