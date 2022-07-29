@@ -77,6 +77,6 @@ jobs:
       with:
         go-version: 1.18.3
 
-    - name: Test
-      run: make test
+    - name: Lint
+      run: make lint
 
