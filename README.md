@@ -92,7 +92,6 @@ func main() {
 	defer cancelSelect()
 
 	startSelect := time.Now()
-	// select data
 	selectStmt, err := conn.Select(ctxSelect, "SELECT uint64,uint64_nullable FROM  example_table", col1Read, col2Read)
 	if err != nil {
 		panic(err)
@@ -129,8 +128,12 @@ inserted 10M rows in  1.206666188s
 selected 10M rows in  880.505004ms
 ```
 
+
+**For moe information**, please see the [documentation](https://github.com/vahid-sohrabloo/chconn/wiki)
 ## Features
+*   Generics (go1.18) for column types
 *   Connection pool with after-connect hook for arbitrary connection setup similar to pgx (thanks @jackc)
+*   Support DSN and Query connection string  (thanks @jackc)
 *   Support All ClickHouse data types
 *   Read and write data in column-oriented (like ClickHouse)
 *   Do not use `interface{}` , `reflect`
@@ -141,6 +144,7 @@ selected 10M rows in  880.505004ms
 *   database url connection very like pgx (thanks @jackc)
 *   Code generator for Insert
 *   Support LZ4 compression protocol
+*   Support execution telemetry streaming profiles and progress
 
 ## Supported types
 *   UInt8, UInt16, UInt32, UInt64, UInt128, UInt256
@@ -157,6 +161,7 @@ selected 10M rows in  880.505004ms
 *   Tuple(T1, T2, ..., Tn)
 *   Nullable(T)
 *   Point, Ring, Polygon, MultiPolygon
+
 
 
 ** 

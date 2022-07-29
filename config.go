@@ -130,7 +130,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //   user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
 //
 //   # Example URL
-//   clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca
+//   clickhouse://vahid:secret@ch.example.com:9440/mydb?sslmode=verify-ca
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system.

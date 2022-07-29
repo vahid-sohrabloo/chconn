@@ -75,7 +75,6 @@ func Example() {
 	defer cancelSelect()
 
 	startSelect := time.Now()
-	// select data
 	selectStmt, err := conn.Select(ctxSelect, "SELECT uint64,uint64_nullable FROM  example_table", col1Read, col2Read)
 	if err != nil {
 		panic(err)
