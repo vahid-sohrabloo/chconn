@@ -587,7 +587,7 @@ func TestInsertColumnDataError(t *testing.T) {
 			}
 			c, err = ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			col := column.NewString[string]().LowCardinality()
+			col := column.NewString().LowCardinality()
 			col.Append("test")
 			err = c.Insert(context.Background(),
 				"insert into clickhouse_test_insert_column_error_lc (col) VALUES",
@@ -621,7 +621,7 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-	col := column.NewString[string]()
+	col := column.NewString()
 	col.Append("test")
 	err = c.Insert(context.Background(),
 		"insert into clickhouse_test_insert_column_error_l_validate (col) VALUES",

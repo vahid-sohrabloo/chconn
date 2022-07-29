@@ -49,14 +49,14 @@ func TestString(t *testing.T) {
 	require.NoError(t, err)
 
 	blockID := column.New[uint8]()
-	col := column.NewString[string]()
-	colNullable := column.NewString[string]().Nullable()
-	colArray := column.NewString[string]().Array()
-	colNullableArray := column.NewString[string]().Nullable().Array()
-	colLC := column.NewString[string]().LC()
-	colLCNullable := column.NewString[string]().Nullable().LC()
-	colArrayLC := column.NewString[string]().LC().Array()
-	colArrayLCNullable := column.NewString[string]().Nullable().LC().Array()
+	col := column.NewString()
+	colNullable := column.NewString().Nullable()
+	colArray := column.NewString().Array()
+	colNullableArray := column.NewString().Nullable().Array()
+	colLC := column.NewString().LC()
+	colLCNullable := column.NewString().Nullable().LC()
+	colArrayLC := column.NewString().LC().Array()
+	colArrayLCNullable := column.NewString().Nullable().LC().Array()
 	var colInsert []string
 	var colInsertByte [][]byte
 	var colNullableInsert []*string
@@ -137,14 +137,14 @@ func TestString(t *testing.T) {
 
 	// example read all
 
-	colRead := column.NewString[string]()
-	colNullableRead := column.NewString[string]().Nullable()
-	colArrayRead := column.NewString[string]().Array()
-	colNullableArrayRead := column.NewString[string]().Nullable().Array()
-	colLCRead := column.NewString[string]().LC()
-	colLCNullableRead := column.NewString[string]().Nullable().LC()
-	colArrayLCRead := column.NewString[string]().LC().Array()
-	colArrayLCNullableRead := column.NewString[string]().Nullable().LC().Array()
+	colRead := column.NewString()
+	colNullableRead := column.NewString().Nullable()
+	colArrayRead := column.NewString().Array()
+	colNullableArrayRead := column.NewString().Nullable().Array()
+	colLCRead := column.NewString().LC()
+	colLCNullableRead := column.NewString().Nullable().LC()
+	colArrayLCRead := column.NewString().LC().Array()
+	colArrayLCNullableRead := column.NewString().Nullable().LC().Array()
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s,
 		%[1]s_nullable,

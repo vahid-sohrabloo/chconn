@@ -48,35 +48,35 @@ func TestTuple(t *testing.T) {
 
 	require.NoError(t, err)
 
-	colString := column.NewString[string]()
+	colString := column.NewString()
 	colInt := column.New[int64]()
 	col := column.NewTuple(colString, colInt)
 
-	colNullableString := column.NewString[string]().Nullable()
+	colNullableString := column.NewString().Nullable()
 	colNullableInt := column.New[int64]().Nullable()
 	colNullable := column.NewTuple(colNullableString, colNullableInt)
 
-	colArrayString := column.NewString[string]().Array()
+	colArrayString := column.NewString().Array()
 	colArrayInt := column.New[int64]().Array()
 	colArray := column.NewTuple(colArrayString, colArrayInt)
 
-	colNullableArrayString := column.NewString[string]().Nullable().Array()
+	colNullableArrayString := column.NewString().Nullable().Array()
 	colNullableArrayInt := column.New[int64]().Nullable().Array()
 	colNullableArray := column.NewTuple(colNullableArrayString, colNullableArrayInt)
 
-	colLCString := column.NewString[string]().LowCardinality()
+	colLCString := column.NewString().LowCardinality()
 	colLCInt := column.New[int64]().LowCardinality()
 	colLC := column.NewTuple(colLCString, colLCInt)
 
-	colLCNullableString := column.NewString[string]().Nullable().LowCardinality()
+	colLCNullableString := column.NewString().Nullable().LowCardinality()
 	colLCNullableInt := column.New[int64]().Nullable().LowCardinality()
 	colLCNullable := column.NewTuple(colLCNullableString, colLCNullableInt)
 
-	colArrayLCString := column.NewString[string]().LowCardinality().Array()
+	colArrayLCString := column.NewString().LowCardinality().Array()
 	colArrayLCInt := column.New[int64]().LowCardinality().Array()
 	colArrayLC := column.NewTuple(colArrayLCString, colArrayLCInt)
 
-	colArrayLCNullableString := column.NewString[string]().Nullable().LowCardinality().Array()
+	colArrayLCNullableString := column.NewString().Nullable().LowCardinality().Array()
 	colArrayLCNullableInt := column.New[int64]().Nullable().LowCardinality().Array()
 	colArrayLCNullable := column.NewTuple(colArrayLCNullableString, colArrayLCNullableInt)
 
@@ -188,35 +188,35 @@ func TestTuple(t *testing.T) {
 
 	// example read all
 
-	colStringRead := column.NewString[string]()
+	colStringRead := column.NewString()
 	colIntRead := column.New[int64]()
 	colRead := column.NewTuple(colStringRead, colIntRead)
 
-	colNullableStringRead := column.NewString[string]().Nullable()
+	colNullableStringRead := column.NewString().Nullable()
 	colNullableIntRead := column.New[int64]().Nullable()
 	colNullableRead := column.NewTuple(colNullableStringRead, colNullableIntRead)
 
-	colArrayStringRead := column.NewString[string]().Array()
+	colArrayStringRead := column.NewString().Array()
 	colArrayIntRead := column.New[int64]().Array()
 	colArrayRead := column.NewTuple(colArrayStringRead, colArrayIntRead)
 
-	colNullableArrayStringRead := column.NewString[string]().Nullable().Array()
+	colNullableArrayStringRead := column.NewString().Nullable().Array()
 	colNullableArrayIntRead := column.New[int64]().Nullable().Array()
 	colNullableArrayRead := column.NewTuple(colNullableArrayStringRead, colNullableArrayIntRead)
 
-	colLCStringRead := column.NewString[string]().LowCardinality()
+	colLCStringRead := column.NewString().LowCardinality()
 	colLCIntRead := column.New[int64]().LowCardinality()
 	colLCRead := column.NewTuple(colLCStringRead, colLCIntRead)
 
-	colLCNullableStringRead := column.NewString[string]().Nullable().LowCardinality()
+	colLCNullableStringRead := column.NewString().Nullable().LowCardinality()
 	colLCNullableIntRead := column.New[int64]().Nullable().LowCardinality()
 	colLCNullableRead := column.NewTuple(colLCNullableStringRead, colLCNullableIntRead)
 
-	colArrayLCStringRead := column.NewString[string]().LowCardinality().Array()
+	colArrayLCStringRead := column.NewString().LowCardinality().Array()
 	colArrayLCIntRead := column.New[int64]().LowCardinality().Array()
 	colArrayLCRead := column.NewTuple(colArrayLCStringRead, colArrayLCIntRead)
 
-	colArrayLCNullableStringRead := column.NewString[string]().Nullable().LowCardinality().Array()
+	colArrayLCNullableStringRead := column.NewString().Nullable().LowCardinality().Array()
 	colArrayLCNullableIntRead := column.New[int64]().Nullable().LowCardinality().Array()
 	colArrayLCNullableRead := column.NewTuple(colArrayLCNullableStringRead, colArrayLCNullableIntRead)
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT

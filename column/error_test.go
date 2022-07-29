@@ -86,7 +86,7 @@ func TestInsertColumnLowCardinalityError(t *testing.T) {
 			}
 			c, err = chconn.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			col := column.NewString[string]().LowCardinality()
+			col := column.NewString().LowCardinality()
 			col.Append("test")
 			err = c.Insert(context.Background(),
 				"insert into clickhouse_test_insert_column_error_lc (col) VALUES",
@@ -181,7 +181,7 @@ func TestSelectReadLCError(t *testing.T) {
 
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			col := column.NewString[string]().LC()
+			col := column.NewString().LC()
 			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(toString(number)) FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
@@ -768,7 +768,7 @@ func TestInsertColumnTupleError(t *testing.T) {
 			}
 			c, err = chconn.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			col := column.NewString[string]()
+			col := column.NewString()
 			colTuple := column.NewTuple(col)
 			col.Append("test")
 			err = c.Insert(context.Background(),
@@ -1074,7 +1074,7 @@ func TestInvalidType(t *testing.T) {
 			name:           "string invalid",
 			columnSelector: "number",
 			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: String",
-			column:         column.NewString[string](),
+			column:         column.NewString(),
 		},
 		{
 			name:           "fixed string invalid",

@@ -6,21 +6,21 @@ import (
 
 // Profile detail of profile select query
 type ProfileEvent struct {
-	Host     *column.String[string]
+	Host     *column.String
 	Time     *column.Base[uint32]
 	ThreadID *column.Base[uint64]
 	Type     *column.Base[int8]
-	Name     *column.String[string]
+	Name     *column.String
 	Value    *column.Base[int64]
 }
 
 func newProfileEvent() *ProfileEvent {
 	return &ProfileEvent{
-		Host:     column.NewString[string](),
+		Host:     column.NewString(),
 		Time:     column.New[uint32](),
 		ThreadID: column.New[uint64](),
 		Type:     column.New[int8](),
-		Name:     column.NewString[string](),
+		Name:     column.NewString(),
 		Value:    column.New[int64](),
 	}
 }

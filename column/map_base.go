@@ -42,21 +42,24 @@ func NewMapBase(
 // For example
 // colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 // colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
-// colNullableArrayRead.Each(func(start, end uint64) {
+// colNullableArrayRead.Each(func(start, end uint64) bool {
 //		val := make(map[string][]*V)
 //		for ki, key := range colNullableArrayReadKey[start:end] {
 //			val[key] = colNullableArrayReadValue[start:end][ki]
 //		}
 //		colArrayNullableData = append(colArrayNullableData, val)
+//		return true
 //	})
-func (c *MapBase) Each(f func(start, end uint64)) {
+func (c *MapBase) Each(f func(start, end uint64) bool) {
 	offsets := c.Offsets()
 	if len(offsets) == 0 {
 		return
 	}
 	var lastOffset uint64
 	for _, offset := range offsets {
-		f(lastOffset, offset)
+		if !f(lastOffset, offset) {
+			return
+		}
 		lastOffset = offset
 	}
 }

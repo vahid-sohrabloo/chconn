@@ -50,7 +50,7 @@ func BenchmarkTestChconnSelect1MString(b *testing.B) {
 		b.Fatal(err)
 	}
 	// var datStr [][]byte
-	colRead := column.NewString[string]()
+	colRead := column.NewString()
 	var data [][]byte
 	for n := 0; n < b.N; n++ {
 		s, err := c.Select(ctx, "SELECT randomString(20) FROM system.numbers_mt LIMIT 1000000", colRead)

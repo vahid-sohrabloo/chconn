@@ -190,35 +190,35 @@ func testMapColumn[V comparable](
 	require.NoError(t, err)
 
 	col := column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V](),
 	)
 	colNullable := column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable(),
 	)
 	colArray := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Array(),
 	)
 	colNullableArray := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().Array(),
 	)
 	colLC := column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC(),
 	)
 	colLCNullable := column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC(),
 	)
 	colArrayLC := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC().Array(),
 	)
 	colArrayLCNullable := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC().Array(),
 	)
 	var colInsert []map[string]V
@@ -332,35 +332,35 @@ func testMapColumn[V comparable](
 
 	// test read all
 	colRead := column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V](),
 	)
 	colNullableRead := column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable(),
 	)
 	colArrayRead := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Array(),
 	)
 	colNullableArrayRead := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().Array(),
 	)
 	colLCRead := column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC(),
 	)
 	colLCNullableRead := column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC(),
 	)
 	colArrayLCRead := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC().Array(),
 	)
 	colArrayLCNullableRead := column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC().Array(),
 	)
 	var colData []map[string]V
@@ -400,12 +400,13 @@ func testMapColumn[V comparable](
 		colArrayData = colArrayRead.Read(colArrayData)
 		colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 		colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
-		colNullableArrayRead.Each(func(start, end uint64) {
+		colNullableArrayRead.Each(func(start, end uint64) bool {
 			val := make(map[string][]*V)
 			for ki, key := range colNullableArrayReadKey[start:end] {
 				val[key] = colNullableArrayReadValue[start:end][ki]
 			}
 			colArrayNullableData = append(colArrayNullableData, val)
+			return true
 		})
 		colLCData = colLCRead.Read(colLCData)
 		colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
@@ -413,12 +414,13 @@ func testMapColumn[V comparable](
 
 		colArrayLCNullableReadKey := colArrayLCNullableRead.KeyColumn().Data()
 		colArrayLCNullableReadValue := colArrayLCNullableRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
-		colArrayLCNullableRead.Each(func(start, end uint64) {
+		colArrayLCNullableRead.Each(func(start, end uint64) bool {
 			val := make(map[string][]*V)
 			for ki, key := range colArrayLCNullableReadKey[start:end] {
 				val[key] = colArrayLCNullableReadValue[start:end][ki]
 			}
 			colLCNullableArrayData = append(colLCNullableArrayData, val)
+			return true
 		})
 	}
 
@@ -435,35 +437,35 @@ func testMapColumn[V comparable](
 
 	// test read Row
 	colRead = column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V](),
 	)
 	colNullableRead = column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable(),
 	)
 	colArrayRead = column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Array(),
 	)
 	colNullableArrayRead = column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().Array(),
 	)
 	colLCRead = column.NewMap[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC(),
 	)
 	colLCNullableRead = column.NewMapNullable[string, V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC(),
 	)
 	colArrayLCRead = column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().LC().Array(),
 	)
 	colArrayLCNullableRead = column.NewMap[string, []V](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[V]().Nullable().LC().Array(),
 	)
 	colData = colData[:0]
@@ -593,8 +595,9 @@ func TestMapEmptyResult(t *testing.T) {
 	require.NoError(t, selectStmt.Err())
 	assert.Equal(t, colRead.Data(), []map[uint64]uint64{})
 	assert.Equal(t, colRead.TotalRows(), 0)
-	colRead.Each(func(start, end uint64) {
+	colRead.Each(func(start, end uint64) bool {
 		assert.Fail(t, "should not be called")
+		return true
 	})
 }
 
@@ -634,35 +637,35 @@ func TestMapEmpty(t *testing.T) {
 	require.NoError(t, err)
 
 	col := column.NewMap[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16](),
 	)
 	colNullable := column.NewMapNullable[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable(),
 	)
 	colArray := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Array(),
 	)
 	colNullableArray := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().Array(),
 	)
 	colLC := column.NewMap[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().LC(),
 	)
 	colLCNullable := column.NewMapNullable[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().LC(),
 	)
 	colArrayLC := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().LC().Array(),
 	)
 	colArrayLCNullable := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().LC().Array(),
 	)
 
@@ -706,35 +709,35 @@ func TestMapEmpty(t *testing.T) {
 	require.NoError(t, err)
 	// test read all
 	colRead := column.NewMap[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16](),
 	)
 	colNullableRead := column.NewMapNullable[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable(),
 	)
 	colArrayRead := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Array(),
 	)
 	colNullableArrayRead := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().Array(),
 	)
 	colLCRead := column.NewMap[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().LC(),
 	)
 	colLCNullableRead := column.NewMapNullable[string, uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().LC(),
 	)
 	colArrayLCRead := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().LC().Array(),
 	)
 	colArrayLCNullableRead := column.NewMap[string, []uint16](
-		column.NewString[string](),
+		column.NewString(),
 		column.New[uint16]().Nullable().LC().Array(),
 	)
 	var colData []map[string]uint16
@@ -774,12 +777,13 @@ func TestMapEmpty(t *testing.T) {
 		colArrayData = colArrayRead.Read(colArrayData)
 		colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 		colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[uint16]).DataP()
-		colNullableArrayRead.Each(func(start, end uint64) {
+		colNullableArrayRead.Each(func(start, end uint64) bool {
 			val := make(map[string][]*uint16)
 			for ki, key := range colNullableArrayReadKey[start:end] {
 				val[key] = colNullableArrayReadValue[start:end][ki]
 			}
 			colArrayNullableData = append(colArrayNullableData, val)
+			return true
 		})
 		colLCData = colLCRead.Read(colLCData)
 		colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
@@ -787,12 +791,13 @@ func TestMapEmpty(t *testing.T) {
 
 		colArrayLCNullableReadKey := colArrayLCNullableRead.KeyColumn().Data()
 		colArrayLCNullableReadValue := colArrayLCNullableRead.ValueColumn().(*column.ArrayNullable[uint16]).DataP()
-		colArrayLCNullableRead.Each(func(start, end uint64) {
+		colArrayLCNullableRead.Each(func(start, end uint64) bool {
 			val := make(map[string][]*uint16)
 			for ki, key := range colArrayLCNullableReadKey[start:end] {
 				val[key] = colArrayLCNullableReadValue[start:end][ki]
 			}
 			colLCNullableArrayData = append(colLCNullableArrayData, val)
+			return true
 		})
 	}
 

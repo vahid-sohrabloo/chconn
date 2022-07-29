@@ -290,7 +290,7 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 	case string(chType) == "Float64":
 		return column.New[float64]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "String":
-		return column.NewString[string]().Elem(arrayLevel, nullable, lc), nil
+		return column.NewString().Elem(arrayLevel, nullable, lc), nil
 	case helper.IsFixedString(chType):
 		strLen, err := strconv.Atoi(string(chType[helper.FixedStringStrLen : len(chType)-1]))
 		if err != nil {
