@@ -16,17 +16,9 @@ jobs:
       GOFLAGS: -mod=readonly
 
     steps:
-    - name: Start ClickHouse server
-      run: |
-        sudo apt-get install apt-transport-https ca-certificates dirmngr
-        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv E0C56BD4
-        echo "deb https://repo.clickhouse.com/deb/stable/ main/" | sudo tee /etc/apt/sources.list.d/clickhouse.list
-        sudo apt-get update
-        sudo apt-get install -y \
-            clickhouse-server=22.7 \
-            clickhouse-client=22.7 \
-            clickhouse-common-static=22.7
-        sudo service clickhouse-server start
+    - uses: vahid-sohrabloo/clickhouse-action@v1
+      with:
+        version: '22.7'
 
         
     - name: Set up Go
@@ -48,23 +40,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        clickhouse-version: ['22.7', '22.6', '22.5', '22.4', '22.3']
+        clickhouse-version: ['22.7.1.2484', '22.6.4.35', '22.5.3.21', '22.4.6.53', '22.3.9.19']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
 
     steps:
-    - name: Start ClickHouse server
-      run: |
-        sudo apt-get install apt-transport-https ca-certificates dirmngr
-        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv E0C56BD4
-        echo "deb https://repo.clickhouse.com/deb/stable/ main/" | sudo tee /etc/apt/sources.list.d/clickhouse.list
-        sudo apt-get update
-        sudo apt-get install -y \
-            clickhouse-server=${{ matrix.clickhouse-version }} \
-            clickhouse-client=${{ matrix.clickhouse-version }} \
-            clickhouse-common-static=${{ matrix.clickhouse-version }}
-        sudo service clickhouse-server start
+    - uses: vahid-sohrabloo/clickhouse-action@v1
+      with:
+        version: '${{ matrix.clickhouse-version }}'
         
     - name: Set up Go
       uses: actions/setup-go@v2
