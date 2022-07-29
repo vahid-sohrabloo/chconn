@@ -3,9 +3,14 @@ ignore:
   - "./internal/readerwriter/*"
 coverage:
   status:
+    project:
+      default:
+        target: 50%
+        threshold: null
     patch: false
-  range: 70..95     # First number represents red, and second represents green
-  round: up       # up, down, or nearest
-  precision: 1      # Number of decimal places, between 0 and 5
+    changes: false
+  range: 70..95    
+  round: up      
+  precision: 1     
 
 
