@@ -1,0 +1,11 @@
+ignore:
+  - "**/main.go"
+  - "./internal/readerwriter/*"
+coverage:
+  status:
+    patch: false
+  range: 70..95     # First number represents red, and second represents green
+  round: up       # up, down, or nearest
+  precision: 1      # Number of decimal places, between 0 and 5
+
+
