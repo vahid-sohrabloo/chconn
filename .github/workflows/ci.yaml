@@ -16,7 +16,7 @@ jobs:
       GOFLAGS: -mod=readonly
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v1.1
       with:
         version: '22.7'
 
@@ -40,13 +40,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        clickhouse-version: ['22.7.1.2484', '22.6.4.35', '22.5.3.21', '22.4.6.53', '22.3.9.19']
+        clickhouse-version: ['22.7', '22.6', '22.5', '22.4', '22.3.9.19']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v1.1
       with:
         version: '${{ matrix.clickhouse-version }}'
         
@@ -69,11 +69,9 @@ jobs:
       GOFLAGS: -mod=readonly
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.47.0
+    - name: Test
+      run: make test
 
