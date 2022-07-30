@@ -62,8 +62,6 @@ func main() {
 	col2.SetWriteBufferSize(rows)
 	startInsert := time.Now()
 	for i := 0; i < numInsert; i++ {
-		col1.Reset()
-		col2.Reset()
 		for y := 0; y < rows; y++ {
 			col1.Append(uint64(i))
 			if i%2 == 0 {
