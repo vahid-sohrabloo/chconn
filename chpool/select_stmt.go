@@ -14,11 +14,11 @@ func (s *selectStmt) Next() bool {
 		return false
 	}
 	next := s.SelectStmt.Next()
-	if s.SelectStmt.Err() != nil {
+	if s.SelectStmt.Err() != nil && s.conn != nil {
 		s.conn.Release()
 		s.conn = nil
 	}
-	if !next {
+	if !next && s.conn != nil {
 		s.conn.Release()
 		s.conn = nil
 	}
