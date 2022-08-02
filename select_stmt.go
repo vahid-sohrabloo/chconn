@@ -131,6 +131,7 @@ func (s *selectStmt) readEmptyBlock(b *block) error {
 	}
 	return nil
 }
+
 func (s *selectStmt) Next() bool {
 	// protect after close
 	if s.closed {
