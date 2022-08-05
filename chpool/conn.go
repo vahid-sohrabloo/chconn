@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	puddle "github.com/jackc/puddle/puddleg"
+	puddle "github.com/jackc/puddle/v2"
 	"github.com/vahid-sohrabloo/chconn/v2"
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
