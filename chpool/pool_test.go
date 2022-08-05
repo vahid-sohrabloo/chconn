@@ -295,6 +295,31 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 	}
 }
 
+func TestPoolReset(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	conns := make([]Conn, 3)
+	for i := range conns {
+		conns[i], err = db.Acquire(context.Background())
+		assert.NoError(t, err)
+	}
+
+	db.Reset()
+
+	for _, c := range conns {
+		if c != nil {
+			c.Release()
+		}
+	}
+	waitForReleaseToComplete()
+
+	require.EqualValues(t, 0, db.Stat().TotalConns())
+}
+
 func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 	t.Parallel()
 
