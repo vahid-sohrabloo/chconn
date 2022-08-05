@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	puddle "github.com/jackc/puddle/puddleg"
+	puddle "github.com/jackc/puddle/v2"
 	"github.com/vahid-sohrabloo/chconn/v2"
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
@@ -87,6 +87,12 @@ type Pool interface {
 	Ping(ctx context.Context) error
 	// Stat returns a chpool.Stat struct with a snapshot of Pool statistics.
 	Stat() *Stat
+	// Reset closes all connections, but leaves the pool open. It is intended for use when an error is detected that would
+	// disrupt all connections (such as a network interruption or a server state change).
+	//
+	// It is safe to reset a pool while connections are checked out. Those connections will be closed when they are returned
+	// to the pool.
+	Reset()
 	// Config returns a copy of config that was used to initialize this pool.
 	Config() *Config
 }
@@ -182,11 +188,11 @@ func New(connString string) (Pool, error) {
 		return nil, err
 	}
 
-	return NewConfig(config)
+	return NewWithConfig(config)
 }
 
-// NewConfig creates a new Pool. config must have been created by ParseConfig.
-func NewConfig(config *Config) (Pool, error) {
+// NewWithConfig creates a new Pool. config must have been created by ParseConfig.
+func NewWithConfig(config *Config) (Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
@@ -560,6 +566,15 @@ func (p *pool) AcquireAllIdle(ctx context.Context) []Conn {
 	}
 
 	return conns
+}
+
+// Reset closes all connections, but leaves the pool open. It is intended for use when an error is detected that would
+// disrupt all connections (such as a network interruption or a server state change).
+//
+// It is safe to reset a pool while connections are checked out. Those connections will be closed when they are returned
+// to the pool.
+func (p *pool) Reset() {
+	p.p.Reset()
 }
 
 // Config returns a copy of config that was used to initialize this pool.

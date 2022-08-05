@@ -25,12 +25,12 @@ func TestNew(t *testing.T) {
 	pool.Close()
 }
 
-func TestNewConfig(t *testing.T) {
+func TestNewWithConfig(t *testing.T) {
 	t.Parallel()
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
-	pool, err := NewConfig(config)
+	pool, err := NewWithConfig(config)
 	require.NoError(t, err)
 	assertConfigsEqual(t, config, pool.Config(), "Pool.Config() returns original config")
 	pool.Close()
@@ -64,7 +64,7 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	config := &Config{}
 
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() {
-		NewConfig(config)
+		NewWithConfig(config)
 	})
 }
 
@@ -85,7 +85,7 @@ func TestConfigCopyCanBeUsedToNew(t *testing.T) {
 
 	copied := original.Copy()
 	assert.NotPanics(t, func() {
-		_, err = NewConfig(copied)
+		_, err = NewWithConfig(copied)
 	})
 	assert.NoError(t, err)
 }
@@ -168,7 +168,7 @@ func TestPoolBeforeConnect(t *testing.T) {
 		return nil
 	}
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	db.Close()
 
@@ -186,7 +186,7 @@ func TestPoolAfterConnect(t *testing.T) {
 		return nil
 	}
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -209,7 +209,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 		return acquireAttempts%2 == 0
 	}
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -250,7 +250,7 @@ func TestPoolAfterRelease(t *testing.T) {
 		return afterReleaseCount%2 == 1
 	}
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -303,7 +303,7 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 
 	config.MaxConnLifetime = 250 * time.Millisecond
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -356,7 +356,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	config.MaxConnLifetime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -381,7 +381,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	config.MaxConnIdleTime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 150 * time.Millisecond
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -412,7 +412,7 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	config.HealthCheckPeriod = 100 * time.Millisecond
 	config.MinConns = 2
 
-	db, err := NewConfig(config)
+	db, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -787,7 +787,7 @@ func TestNewError(t *testing.T) {
 		return errors.New("afterConnect err")
 	}
 
-	pool, err = NewConfig(config)
+	pool, err = NewWithConfig(config)
 	require.NoError(t, err)
 	err = pool.Ping(context.Background())
 	assert.Error(t, err)
@@ -826,7 +826,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 		return nil
 	}
 
-	pool, err := NewConfig(config)
+	pool, err := NewWithConfig(config)
 	require.NoError(t, err)
 	defer pool.Close()
 
