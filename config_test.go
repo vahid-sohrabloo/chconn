@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -760,7 +759,7 @@ func TestParseConfigError(t *testing.T) {
 	t.Parallel()
 
 	content := []byte("invalid tls")
-	tmpInvalidTLS, err := ioutil.TempFile("", "invalidtls")
+	tmpInvalidTLS, err := os.CreateTemp("", "invalidtls")
 	if err != nil {
 		t.Fatal(err)
 	}
