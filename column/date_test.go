@@ -505,7 +505,6 @@ func testDateColumn[T column.DateType[T]](
 }
 
 func TestInvalidNegativeTimes(t *testing.T) {
-
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
