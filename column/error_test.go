@@ -1261,7 +1261,7 @@ func TestInvalidType(t *testing.T) {
 			for stmt.Next() {
 
 			}
-			require.EqualError(t, stmt.Err(), tt.wantErr)
+			require.EqualError(t, errors.Unwrap(stmt.Err()), tt.wantErr)
 			assert.True(t, c.IsClosed())
 		})
 	}

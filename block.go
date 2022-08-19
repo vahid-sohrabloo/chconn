@@ -1,6 +1,8 @@
 package chconn
 
 import (
+	"fmt"
+
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
@@ -78,16 +80,16 @@ func (block *block) readColumnsData(ch *conn, needValidateData bool, columns ...
 	for _, col := range columns {
 		err := col.HeaderReader(ch.reader, true)
 		if err != nil {
-			return err
+			return fmt.Errorf("read column header: %w", err)
 		}
 		if needValidateData {
 			if errValidate := col.Validate(); errValidate != nil {
-				return errValidate
+				return fmt.Errorf("validate %s: %w", col.Name(), errValidate)
 			}
 		}
 		err = col.ReadRaw(int(block.NumRows), ch.reader)
 		if err != nil {
-			return err
+			return fmt.Errorf("read data %s: %w", col.Name(), err)
 		}
 	}
 	return nil
