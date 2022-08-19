@@ -582,7 +582,7 @@ func (s Settings) writeToBuffer(wt io.Writer) (int, error) {
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) error {
-	return ch.ExecWithOption(ctx, query, emptyQueryOptions)
+	return ch.ExecWithOption(ctx, query, nil)
 }
 
 func (ch *conn) ExecWithOption(
@@ -609,6 +609,10 @@ func (ch *conn) ExecWithOption(
 		}
 		ch.contextWatcher.Watch(ctx)
 		defer ch.contextWatcher.Unwatch()
+	}
+
+	if queryOptions == nil {
+		queryOptions = emptyQueryOptions
 	}
 
 	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)

@@ -94,6 +94,7 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 	}
 	return false, nil
 }
+
 func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 	if helper.IsEnum16(chType) {
 		if c.size != Uint16Size {

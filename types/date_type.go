@@ -13,18 +13,22 @@ var _ = column.Date[DateTime64]{}
 
 type Date uint16
 
-type Date32 uint32
+const minDate32 = int32(-25567) // 1900-01-01 00:00:00 +0000 UTC
+
+type Date32 int32
 
 type DateTime uint32
 
-type DateTime64 uint64
+const minDateTime64 = int64(-2208988800) // 1900-01-01 00:00:00 +0000 UTC
+
+type DateTime64 int64
 
 const daySeconds = 24 * 60 * 60
 
-// date32Epoch is unix time of 1925-01-01.
-const date32Epoch = -1420070400
-
 func TimeToDate(t time.Time) Date {
+	if t.Unix() <= 0 {
+		return 0
+	}
 	_, offset := t.Zone()
 	return Date((t.Unix() + int64(offset)) / daySeconds)
 }
@@ -42,7 +46,7 @@ func (d Date) Unix() int64 {
 }
 
 func (d Date32) Unix() int64 {
-	return daySeconds*int64(d) + date32Epoch
+	return daySeconds * int64(d)
 }
 
 func (d Date32) FromTime(v time.Time, precision int) Date32 {
@@ -55,11 +59,16 @@ func (d Date32) ToTime(loc *time.Location, precision int) time.Time {
 
 func TimeToDate32(t time.Time) Date32 {
 	_, offset := t.Zone()
-	return Date32((t.Unix() + int64(offset) - date32Epoch) / daySeconds)
+	d := int32((t.Unix() + int64(offset)) / daySeconds)
+	if d <= minDate32 {
+		return Date32(minDate32)
+	}
+
+	return Date32(d)
 }
 
 func TimeToDateTime(t time.Time) DateTime {
-	if t.IsZero() {
+	if t.Unix() <= 0 {
 		return 0
 	}
 	return DateTime(t.Unix())
@@ -87,8 +96,8 @@ var precisionFactor = [...]int64{
 }
 
 func TimeToDateTime64(t time.Time, precision int) DateTime64 {
-	if t.IsZero() {
-		return 0
+	if t.Unix() <= minDateTime64 {
+		return DateTime64(minDateTime64)
 	}
 	return DateTime64(t.UnixNano() / precisionFactor[precision])
 }
