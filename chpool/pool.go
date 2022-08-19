@@ -274,11 +274,11 @@ func NewWithConfig(config *Config) (Pool, error) {
 //
 // See Config for definitions of these arguments.
 //
-//   # Example DSN
-//   user=vahid password=secret host=clickhouse.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//	# Example DSN
+//	user=vahid password=secret host=clickhouse.example.com port=9000 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
-//   # Example URL
-//   clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
+//	# Example URL
+//	clickhouse://vahid:secret@ch.example.com:9000/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	chConfig, err := chconn.ParseConfig(connString)
 	if err != nil {
@@ -590,16 +590,8 @@ func (p *pool) Stat() *Stat {
 	}
 }
 
-var emptyOnProgress = func(*chconn.Progress) {
-
-}
-
-var emptyQueryOptions = &chconn.QueryOptions{
-	OnProgress: emptyOnProgress,
-}
-
 func (p *pool) Exec(ctx context.Context, query string) error {
-	return p.ExecWithOption(ctx, query, emptyQueryOptions)
+	return p.ExecWithOption(ctx, query, nil)
 }
 
 func (p *pool) ExecWithOption(
@@ -622,7 +614,7 @@ func (p *pool) ExecWithOption(
 }
 
 func (p *pool) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error) {
-	return p.SelectWithOption(ctx, query, emptyQueryOptions, columns...)
+	return p.SelectWithOption(ctx, query, nil, columns...)
 }
 
 func (p *pool) SelectWithOption(
@@ -650,7 +642,7 @@ func (p *pool) SelectWithOption(
 }
 
 func (p *pool) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
-	return p.InsertWithOption(ctx, query, emptyQueryOptions, columns...)
+	return p.InsertWithOption(ctx, query, nil, columns...)
 }
 
 func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {

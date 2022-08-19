@@ -15,7 +15,7 @@ import (
 // Select executes a query and return select stmt.
 // NOTE: only use for select query
 func (ch *conn) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error) {
-	return ch.SelectWithOption(ctx, query, emptyQueryOptions, columns...)
+	return ch.SelectWithOption(ctx, query, nil, columns...)
 }
 
 // Select executes a query with the the query options and return select stmt.
@@ -45,6 +45,10 @@ func (ch *conn) SelectWithOption(
 		default:
 		}
 		ch.contextWatcher.Watch(ctx)
+	}
+
+	if queryOptions == nil {
+		queryOptions = emptyQueryOptions
 	}
 
 	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)

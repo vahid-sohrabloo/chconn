@@ -503,3 +503,92 @@ func testDateColumn[T column.DateType[T]](
 	require.NoError(t, selectStmt.Err())
 	selectStmt.Close()
 }
+
+func TestInvalidNegativeTimes(t *testing.T) {
+
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	err = conn.Exec(context.Background(),
+		`DROP TABLE IF EXISTS test_invalid_dates`,
+	)
+	require.NoError(t, err)
+	set := chconn.Settings{
+		{
+			Name:  "allow_suspicious_low_cardinality_types",
+			Value: "true",
+		},
+	}
+
+	sqlCreate := `CREATE TABLE test_invalid_dates (
+			date Date,
+			date32 Date32,
+			dateTime DateTime,
+			dateTime64 DateTime64(3)
+		) Engine=Memory`
+
+	err = conn.ExecWithOption(context.Background(), sqlCreate, &chconn.QueryOptions{
+		Settings: set,
+	})
+
+	require.NoError(t, err)
+
+	colDate := column.NewDate[types.Date]()
+	colDate32 := column.NewDate[types.Date32]()
+	colDateTime := column.NewDate[types.DateTime]()
+	colDateTime64 := column.NewDate[types.DateTime64]()
+	invalidTime := time.Unix(-3208988700, 0) // 1868
+	colDate.Append(invalidTime)
+	colDate32.Append(invalidTime)
+	colDateTime.Append(invalidTime)
+	colDateTime64.Append(invalidTime)
+
+	err = conn.Insert(context.Background(), `INSERT INTO
+	test_invalid_dates (
+				date,
+				date32,
+				dateTime,
+				dateTime64
+			)
+		VALUES`,
+		colDate,
+		colDate32,
+		colDateTime,
+		colDateTime64,
+	)
+	require.NoError(t, err)
+
+	// test read all
+	colDateRead := column.NewDate[types.Date]()
+	colDate32Read := column.NewDate[types.Date32]()
+	colDateTimeRead := column.NewDate[types.DateTime]()
+	colDateTime64Read := column.NewDate[types.DateTime64]()
+	var selectStmt chconn.SelectStmt
+	selectStmt, err = conn.Select(context.Background(), `SELECT
+		date,
+		date32,
+		dateTime,
+		dateTime64
+		FROM test_invalid_dates`,
+		colDateRead,
+		colDate32Read,
+		colDateTimeRead,
+		colDateTime64Read,
+	)
+
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	for selectStmt.Next() {
+	}
+	assert.Equal(t, colDateRead.Row(0).In(time.UTC).Format(time.RFC3339), "1970-01-01T00:00:00Z")
+	assert.Equal(t, colDate32Read.Row(0).In(time.UTC).Format(time.RFC3339), "1900-01-01T00:00:00Z")
+	assert.Equal(t, colDateTimeRead.Row(0).In(time.UTC).Format(time.RFC3339), "1970-01-01T00:00:00Z")
+	assert.Equal(t, colDateTime64Read.Row(0).In(time.UTC).Format(time.RFC3339), "1900-01-01T00:00:00Z")
+
+	require.NoError(t, selectStmt.Err())
+}

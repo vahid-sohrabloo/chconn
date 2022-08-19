@@ -75,7 +75,7 @@ func (ch *conn) commit(b *block, columns ...column.ColumnBasic) error {
 
 // Insert send query for insert and commit columns
 func (ch *conn) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
-	return ch.InsertWithOption(ctx, query, emptyQueryOptions, columns...)
+	return ch.InsertWithOption(ctx, query, nil, columns...)
 }
 
 // Insert send query for insert and prepare insert stmt with setting option
@@ -104,6 +104,10 @@ func (ch *conn) InsertWithOption(
 		}
 		ch.contextWatcher.Watch(ctx)
 		defer ch.contextWatcher.Unwatch()
+	}
+
+	if queryOptions == nil {
+		queryOptions = emptyQueryOptions
 	}
 
 	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)
