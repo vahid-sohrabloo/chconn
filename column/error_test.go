@@ -108,62 +108,62 @@ func TestSelectReadLCError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "error reading keys serialization version",
-			wantErr:     "error reading keys serialization version: timeout",
+			wantErr:     "read column header: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "error reading serialization type",
-			wantErr:     "error reading serialization type: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading serialization type: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "error reading dictionary size",
-			wantErr:     "error reading dictionary size: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary size: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "error reading dictionary",
-			wantErr:     "error reading dictionary: error read string len: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 7,
 		},
 		{
 			name:        "error reading string len",
-			wantErr:     "error reading dictionary: error read string len: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 8,
 		},
 		{
 			name:        "error reading string",
-			wantErr:     "error reading dictionary: error read string: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string: timeout",
 			numberValid: startValidReader + 9,
 		},
 		{
 			name:        "error reading indices size",
-			wantErr:     "error reading indices size: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading indices size: timeout",
 			numberValid: startValidReader + 10,
 		},
 		{
 			name:        "error reading indices",
-			wantErr:     "error reading indices: read data: timeout",
+			wantErr:     "read data toLowCardinality(toString(number)): error reading indices: read data: timeout",
 			numberValid: startValidReader + 11,
 		},
 	}
@@ -262,32 +262,32 @@ func TestSelectReadArrayError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "array: read offset column: read data: timeout",
+			wantErr:     "read data array(number, number): array: read offset column: read data: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "array: read data column: read data: timeout",
+			wantErr:     "read data array(number, number): array: read data column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -391,17 +391,17 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "array: read offset column: read data: timeout",
+			wantErr:     "read data array(toNullable(number)): array: read offset column: read data: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "array: read data column: read nullable data: read nullable data: timeout",
+			wantErr:     "read data array(toNullable(number)): array: read data column: read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -439,12 +439,12 @@ func TestSelectReadNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read nullable data",
-			wantErr:     "read nullable data: read nullable data: timeout",
+			wantErr:     "read data toNullable(number): read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 1,
 		},
 	}
@@ -543,32 +543,32 @@ func TestSelectReadArray2Error(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "array: read offset column: read data: timeout",
+			wantErr:     "read data array(array(number, number)): array: read offset column: read data: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data array(array(number, number)): array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -665,33 +665,33 @@ func TestSelectReadArray3Error(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			name:        "read column header: read column name length",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
-			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			name:        "read column header: read column name",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
-			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			name:        "read column header: read column type length",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
-			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			name:        "read column header: read column type error",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "array: read offset column: read data: timeout",
+			wantErr:     "read data array(array(array(number, number))): array: read offset column: read data: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data array(array(array(number, number))): array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -792,33 +792,33 @@ func TestSelectReadTupleError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read sub column header",
-			wantErr:     "tuple: read column header index 0: error reading keys serialization version: timeout",
+			wantErr:     "read column header: tuple: read column header index 0: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 4,
 			lc:          true,
 		},
 		{
 			name:        "read column index 2",
-			wantErr:     "tuple: read column index 0: read data: timeout",
+			wantErr:     "read data tuple(1): tuple: read column index 0: read data: timeout",
 			numberValid: startValidReader + 4,
 		},
 	}
@@ -936,49 +936,49 @@ func TestSelectReadMapError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column name length: timeout",
+			wantErr:     "read column header: read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column name: timeout",
+			wantErr:     "read column header: read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column type length: timeout",
+			wantErr:     "read column header: read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column type: timeout",
+			wantErr:     "read column header: read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read value header",
-			wantErr:     "map: read key header: error reading keys serialization version: timeout",
+			wantErr:     "read column header: map: read key header: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 4,
 			lc:          true,
 		},
 		{
 			name:        "read value header",
-			wantErr:     "map: read value header: error reading keys serialization version: timeout",
+			wantErr:     "read column header: map: read value header: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 5,
 			lc:          true,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "map: read offset column: read data: timeout",
+			wantErr:     "read data map(number, number): map: read offset column: read data: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read key column",
-			wantErr:     "map: read key column: read data: timeout",
+			wantErr:     "read data map(number, number): map: read key column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read value column",
-			wantErr:     "map: read value column: read data: timeout",
+			wantErr:     "read data map(number, number): map: read value column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
