@@ -67,6 +67,19 @@ func (c *ArrayNullable[T]) AppendP(v []*T) {
 	c.dataColumn.AppendSliceP(v)
 }
 
+//	AppendItemP Append single nullable item value for insert
+//
+// it's should use with AppendLen
+//
+// Example:
+//
+//	c.AppendLen(2) // insert 2 items
+//	c.AppendItemP(val1) // insert item 1
+//	c.AppendItemP(val2) // insert item 2
+func (c *ArrayNullable[T]) AppendItemP(v *T) {
+	c.dataColumn.AppendP(v)
+}
+
 // AppendSliceP append slice of nullable value for insert
 func (c *ArrayNullable[T]) AppendSliceP(v [][]*T) {
 	for _, vv := range v {

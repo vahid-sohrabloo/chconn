@@ -67,17 +67,24 @@ func (c *Array[T]) Append(v []T) {
 	c.dataColumn.(Column[T]).AppendSlice(v)
 }
 
+// Append single item value for insert
+//
+// it's should use with AppendLen
+//
+// Example:
+//
+//	c.AppendLen(2) // insert 2 items
+//	c.AppendItem(1) // insert item 1
+//	c.AppendItem(2) // insert item 2
+func (c *Array[T]) AppendItem(v T) {
+	c.dataColumn.(Column[T]).Append(v)
+}
+
 // AppendSlice append slice of value for insert
 func (c *Array[T]) AppendSlice(v [][]T) {
 	for _, vv := range v {
 		c.Append(vv)
 	}
-}
-
-// AppendLen Append len of array for insert
-func (c *Array[T]) AppendLen(v int) {
-	c.offset += uint64(v)
-	c.offsetColumn.Append(c.offset)
 }
 
 // Array return a Array type for this column
