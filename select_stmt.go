@@ -132,6 +132,13 @@ func (s *selectStmt) readEmptyBlock(b *block) error {
 			s.Close()
 			return err
 		}
+	} else {
+		if len(s.columnsForRead[0].Name()) != 0 {
+			s.columnsForRead, err = b.reorderColumns(s.columnsForRead)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
