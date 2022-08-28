@@ -107,31 +107,21 @@ func (c *StringBase[T]) appendLen(x int) {
 }
 
 // Append value for insert
-func (c *StringBase[T]) Append(v T) {
-	c.numRow++
-	c.appendLen(len(v))
-	c.writerData = append(c.writerData, v...)
-}
-
-// AppendSlice append slice of value for insert
-func (c *StringBase[T]) AppendSlice(v []T) {
-	for _, vv := range v {
-		c.Append(vv)
+func (c *StringBase[T]) Append(v ...T) {
+	for _, v := range v {
+		c.appendLen(len(v))
+		c.writerData = append(c.writerData, v...)
 	}
+	c.numRow += len(v)
 }
 
 // AppendBytes value of bytes for insert
-func (c *StringBase[T]) AppendBytes(v []byte) {
-	c.numRow++
-	c.appendLen(len(v))
-	c.writerData = append(c.writerData, v...)
-}
-
-// AppendSlice append slice of bytes value for insert
-func (c *StringBase[T]) AppendBytesSlice(v [][]byte) {
-	for _, vv := range v {
-		c.AppendBytes(vv)
+func (c *StringBase[T]) AppendBytes(v ...[]byte) {
+	for _, v := range v {
+		c.appendLen(len(v))
+		c.writerData = append(c.writerData, v...)
 	}
+	c.numRow += len(v)
 }
 
 // NumRow return number of row for this block

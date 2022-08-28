@@ -62,29 +62,23 @@ func (c *Array[T]) Row(row int) []T {
 }
 
 // Append value for insert
-func (c *Array[T]) Append(v []T) {
-	c.AppendLen(len(v))
-	c.dataColumn.(Column[T]).AppendSlice(v)
+func (c *Array[T]) Append(v ...[]T) {
+	for _, v := range v {
+		c.AppendLen(len(v))
+		c.dataColumn.(Column[T]).Append(v...)
+	}
 }
 
 // Append single item value for insert
 //
-// it's should use with AppendLen
+// it should use with AppendLen
 //
 // Example:
 //
 //	c.AppendLen(2) // insert 2 items
-//	c.AppendItem(1) // insert item 1
-//	c.AppendItem(2) // insert item 2
-func (c *Array[T]) AppendItem(v T) {
-	c.dataColumn.(Column[T]).Append(v)
-}
-
-// AppendSlice append slice of value for insert
-func (c *Array[T]) AppendSlice(v [][]T) {
-	for _, vv := range v {
-		c.Append(vv)
-	}
+//	c.AppendItem(1, 2)
+func (c *Array[T]) AppendItem(v ...T) {
+	c.dataColumn.(Column[T]).Append(v...)
 }
 
 // Array return a Array type for this column

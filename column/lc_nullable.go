@@ -64,15 +64,18 @@ func (c *LowCardinalityNullable[T]) RowP(row int) *T {
 }
 
 // Append value for insert
-func (c *LowCardinalityNullable[T]) Append(v T) {
-	key, ok := c.dict[v]
-	if !ok {
-		key = len(c.dict)
-		c.dict[v] = key
-		c.dictColumn.Append(v)
+func (c *LowCardinalityNullable[T]) Append(v ...T) {
+	for _, v := range v {
+		key, ok := c.dict[v]
+		if !ok {
+			key = len(c.dict)
+			c.dict[v] = key
+			c.dictColumn.Append(v)
+		}
+		c.keys = append(c.keys, key+1)
 	}
-	c.keys = append(c.keys, key+1)
-	c.numRow++
+
+	c.numRow += len(v)
 }
 
 // Append nil value for insert
@@ -84,32 +87,8 @@ func (c *LowCardinalityNullable[T]) AppendNil() {
 // Append nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *LowCardinalityNullable[T]) AppendP(v *T) {
-	if v == nil {
-		c.AppendNil()
-		return
-	}
-	c.Append(*v)
-}
-
-// AppendSlice append slice of value for insert
-func (c *LowCardinalityNullable[T]) AppendSlice(vs []T) {
-	for _, v := range vs {
-		key, ok := c.dict[v]
-		if !ok {
-			key = len(c.dict)
-			c.dict[v] = key
-			c.dictColumn.Append(v)
-		}
-		c.keys = append(c.keys, key+1)
-	}
-
-	c.numRow += len(vs)
-}
-
-// AppendSlice append slice of nullable value for insert
-func (c *LowCardinalityNullable[T]) AppendSliceP(vs []*T) {
-	for _, v := range vs {
+func (c *LowCardinalityNullable[T]) AppendP(v ...*T) {
+	for _, v := range v {
 		if v == nil {
 			c.keys = append(c.keys, 0)
 			continue
@@ -123,7 +102,7 @@ func (c *LowCardinalityNullable[T]) AppendSliceP(vs []*T) {
 		c.keys = append(c.keys, key+1)
 	}
 
-	c.numRow += len(vs)
+	c.numRow += len(v)
 }
 
 // Array return a Array type for this column

@@ -55,15 +55,10 @@ func (c *Array3[T]) Row(row int) [][][]T {
 }
 
 // Append value for insert
-func (c *Array3[T]) Append(v [][][]T) {
-	c.AppendLen(len(v))
-	c.dataColumn.(*Array2[T]).AppendSlice(v)
-}
-
-// AppendSlice append slice of value for insert
-func (c *Array3[T]) AppendSlice(v [][][][]T) {
-	for _, vv := range v {
-		c.Append(vv)
+func (c *Array3[T]) Append(v ...[][][]T) {
+	for _, v := range v {
+		c.AppendLen(len(v))
+		c.dataColumn.(*Array2[T]).Append(v...)
 	}
 }
 
