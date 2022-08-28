@@ -55,14 +55,9 @@ func (c *TupleOf[T]) Row(row int) T {
 }
 
 // Append value for insert
-func (c *TupleOf[T]) Append(v T) {
-	v.Append(c.columns)
-}
-
-// Append slice of value for insert
-func (c *TupleOf[T]) AppendSlice(v []T) {
+func (c *TupleOf[T]) Append(v ...T) {
 	for _, v := range v {
-		c.Append(v)
+		v.Append(c.columns)
 	}
 }
 

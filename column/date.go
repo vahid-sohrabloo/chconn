@@ -15,7 +15,7 @@ type DateType[T any] interface {
 
 // Date is a date column of ClickHouse date type (Date, Date32, DateTime, DateTime64).
 // it is a wrapper of time.Time. but if you want to work with the raw data like unix timestamp
-// you can directly use `Column` (`New[T]()``)
+// you can directly use `Column` (`New[T]()`)
 //
 // `uint16` or `types.Date` or any 16 bits data types For `Date`.
 //
@@ -115,17 +115,12 @@ func (c *Date[T]) Row(row int) time.Time {
 }
 
 // Append value for insert
-func (c *Date[T]) Append(v time.Time) {
-	c.numRow++
+func (c *Date[T]) Append(v ...time.Time) {
 	var val T
-	c.values = append(c.values, val.FromTime(v, c.precision))
-}
-
-// Append slice of value for insert
-func (c *Date[T]) AppendSlice(v []time.Time) {
 	for _, v := range v {
-		c.Append(v)
+		c.values = append(c.values, val.FromTime(v, c.precision))
 	}
+	c.numRow += len(v)
 }
 
 // Array return a Array type for this column

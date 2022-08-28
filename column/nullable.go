@@ -80,7 +80,6 @@ func (c *Nullable[T]) Row(i int) T {
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `RowIsNil()` to check if it is null.
-//
 func (c *Nullable[T]) RowP(row int) *T {
 	if c.b[row] == 1 {
 		return nil
@@ -105,39 +104,28 @@ func (c *Nullable[T]) RowIsNil(row int) bool {
 }
 
 // Append value for insert
-func (c *Nullable[T]) Append(v T) {
-	c.writerData = append(c.writerData, 0)
-	c.dataColumn.Append(v)
+func (c *Nullable[T]) Append(v ...T) {
+	c.writerData = append(c.writerData, make([]uint8, len(v))...)
+	c.dataColumn.Append(v...)
 }
 
 // Append nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *Nullable[T]) AppendP(v *T) {
-	if v == nil {
-		c.AppendNil()
-		return
+func (c *Nullable[T]) AppendP(v ...*T) {
+	for _, v := range v {
+		if v == nil {
+			c.AppendNil()
+			continue
+		}
+		c.Append(*v)
 	}
-	c.Append(*v)
 }
 
 // Append nil value for insert
 func (c *Nullable[T]) AppendNil() {
 	c.writerData = append(c.writerData, 1)
 	c.dataColumn.(appendEmptyInterface).appendEmpty()
-}
-
-// AppendSlice append slice of value for insert
-func (c *Nullable[T]) AppendSlice(v []T) {
-	c.writerData = append(c.writerData, make([]byte, len(v))...)
-	c.dataColumn.AppendSlice(v)
-}
-
-// AppendSlice append slice of nullable value for insert
-func (c *Nullable[T]) AppendSliceP(v []*T) {
-	for _, vv := range v {
-		c.AppendP(vv)
-	}
 }
 
 // NumRow return number of row for this block

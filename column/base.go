@@ -35,8 +35,7 @@ func (c *Base[T]) Data() []T {
 
 // Read reads all the data in current block and append to the input.
 func (c *Base[T]) Read(value []T) []T {
-	v := *(*[]T)(unsafe.Pointer(&c.b))
-	return append(value, v[:c.numRow]...)
+	return append(value, c.Data()...)
 }
 
 // Row return the value of given row.
@@ -47,16 +46,7 @@ func (c *Base[T]) Row(row int) T {
 }
 
 // Append value for insert
-func (c *Base[T]) Append(v T) {
-	c.numRow++
-	c.values = append(c.values, v)
-}
-
-// AppendSlice append slice of value for insert
-func (c *Base[T]) AppendSlice(v []T) {
-	if len(v) == 0 {
-		return
-	}
+func (c *Base[T]) Append(v ...T) {
 	c.values = append(c.values, v...)
 	c.numRow += len(v)
 }

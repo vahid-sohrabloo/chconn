@@ -28,8 +28,7 @@ type Column[T any] interface {
 	Data() []T
 	Read([]T) []T
 	Row(int) T
-	Append(T)
-	AppendSlice([]T)
+	Append(...T)
 }
 
 type NullableColumn[T any] interface {
@@ -37,8 +36,7 @@ type NullableColumn[T any] interface {
 	DataP() []*T
 	ReadP([]*T) []*T
 	RowP(int) *T
-	AppendP(*T)
-	AppendSliceP([]*T)
+	AppendP(...*T)
 }
 
 type column struct {

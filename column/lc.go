@@ -77,20 +77,8 @@ func (c *LowCardinality[T]) Row(row int) T {
 }
 
 // Append value for insert
-func (c *LowCardinality[T]) Append(v T) {
-	key, ok := c.dict[v]
-	if !ok {
-		key = len(c.dict)
-		c.dict[v] = key
-		c.dictColumn.Append(v)
-	}
-	c.keys = append(c.keys, key)
-	c.numRow++
-}
-
-// AppendSlice append slice of value for insert
-func (c *LowCardinality[T]) AppendSlice(vs []T) {
-	for _, v := range vs {
+func (c *LowCardinality[T]) Append(v ...T) {
+	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
 			key = len(c.dict)
@@ -99,8 +87,7 @@ func (c *LowCardinality[T]) AppendSlice(vs []T) {
 		}
 		c.keys = append(c.keys, key)
 	}
-
-	c.numRow += len(vs)
+	c.numRow += len(v)
 }
 
 // Dicts get dictionary data

@@ -62,15 +62,10 @@ func (c *Array3Nullable[T]) RowP(row int) [][][]*T {
 }
 
 // AppendP a nullable value for insert
-func (c *Array3Nullable[T]) AppendP(v [][][]*T) {
-	c.AppendLen(len(v))
-	c.dataColumn.AppendSliceP(v)
-}
-
-// AppendSliceP append slice of nullable value for insert
-func (c *Array3Nullable[T]) AppendSliceP(v [][][][]*T) {
-	for _, vv := range v {
-		c.AppendP(vv)
+func (c *Array3Nullable[T]) AppendP(v ...[][][]*T) {
+	for _, v := range v {
+		c.AppendLen(len(v))
+		c.dataColumn.AppendP(v...)
 	}
 }
 

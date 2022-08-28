@@ -646,14 +646,14 @@ func TestEmptyCollection(t *testing.T) {
 	colNullableArray := column.New[uint16]().Nullable().Array()
 	colArrayLC := column.New[uint16]().LC().Array()
 	colArrayLCNullable := column.New[uint16]().Nullable().LC().Array()
-	colArray.AppendSlice([][]uint16{})
-	colArray.AppendSlice([][]uint16{{}})
-	colNullableArray.AppendSliceP([][]*uint16{})
-	colNullableArray.AppendSliceP([][]*uint16{{}})
-	colArrayLC.AppendSlice([][]uint16{})
-	colArrayLC.AppendSlice([][]uint16{{}})
-	colArrayLCNullable.AppendSliceP([][]*uint16{})
-	colArrayLCNullable.AppendSliceP([][]*uint16{{}})
+	colArray.Append()
+	colArray.Append([]uint16{})
+	colNullableArray.AppendP()
+	colNullableArray.AppendP([]*uint16{})
+	colArrayLC.Append()
+	colArrayLC.Append([]uint16{})
+	colArrayLCNullable.AppendP()
+	colArrayLCNullable.AppendP([]*uint16{})
 
 	err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
