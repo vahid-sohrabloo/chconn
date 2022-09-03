@@ -6,7 +6,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
-func (ch *conn) commit(b *block, columns ...column.ColumnBasic) error {
+func (ch *conn) commit(queryOptions *QueryOptions, b *block, columns ...column.ColumnBasic) error {
 	if int(b.NumColumns) != len(columns) {
 		return &InsertError{
 			err: &ColumnNumberWriteError{
@@ -58,19 +58,38 @@ func (ch *conn) commit(b *block, columns ...column.ColumnBasic) error {
 		}
 	}
 
-	res, err := ch.receiveAndProcessData(emptyOnProgress)
-	if err != nil {
-		return &InsertError{
-			err:        err,
-			remoteAddr: ch.RawConn().RemoteAddr(),
+	for {
+		var res interface{}
+		res, err = ch.receiveAndProcessData(emptyOnProgress)
+
+		if err != nil {
+			return err
 		}
-	}
 
-	if res != nil {
-		return &unexpectedPacket{expected: "serverEndOfStream", actual: res}
-	}
+		if res == nil {
+			return nil
+		}
 
-	return nil
+		if profile, ok := res.(*Profile); ok {
+			if queryOptions.OnProfile != nil {
+				queryOptions.OnProfile(profile)
+			}
+			continue
+		}
+		if progress, ok := res.(*Progress); ok {
+			if queryOptions.OnProgress != nil {
+				queryOptions.OnProgress(progress)
+			}
+			continue
+		}
+		if profileEvent, ok := res.(*ProfileEvent); ok {
+			if queryOptions.OnProfileEvent != nil {
+				queryOptions.OnProfileEvent(profileEvent)
+			}
+			continue
+		}
+		return &unexpectedPacket{expected: "serverData", actual: res}
+	}
 }
 
 // Insert send query for insert and commit columns
@@ -129,10 +148,22 @@ func (ch *conn) InsertWithOption(
 			break
 		}
 
-		if _, ok := res.(*Profile); ok {
+		if profile, ok := res.(*Profile); ok {
+			if queryOptions.OnProfile != nil {
+				queryOptions.OnProfile(profile)
+			}
 			continue
 		}
-		if _, ok := res.(*Progress); ok {
+		if progress, ok := res.(*Progress); ok {
+			if queryOptions.OnProgress != nil {
+				queryOptions.OnProgress(progress)
+			}
+			continue
+		}
+		if profileEvent, ok := res.(*ProfileEvent); ok {
+			if queryOptions.OnProfileEvent != nil {
+				queryOptions.OnProfileEvent(profileEvent)
+			}
 			continue
 		}
 		hasError = true
@@ -145,7 +176,7 @@ func (ch *conn) InsertWithOption(
 		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
-	err = ch.commit(blockData, columns...)
+	err = ch.commit(queryOptions, blockData, columns...)
 	if err != nil {
 		hasError = true
 		return preferContextOverNetTimeoutError(ctx, err)
