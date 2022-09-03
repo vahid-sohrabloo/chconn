@@ -197,9 +197,9 @@ func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 
 // HeaderReader reads header data from read
 // it uses internally
-func (c *StringBase[T]) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *StringBase[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	return c.readColumn(readColumn)
+	return c.readColumn(readColumn, revision)
 }
 
 func (c *StringBase[T]) Validate() error {

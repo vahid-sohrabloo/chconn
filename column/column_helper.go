@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
 type ColumnBasic interface {
 	ReadRaw(num int, r *readerwriter.Reader) error
-	HeaderReader(*readerwriter.Reader, bool) error
+	HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error
 	HeaderWriter(*readerwriter.Writer)
 	WriteTo(io.Writer) (int64, error)
 	NumRow() int
@@ -48,7 +49,7 @@ type column struct {
 	parent    ColumnBasic
 }
 
-func (c *column) readColumn(readColumn bool) error {
+func (c *column) readColumn(readColumn bool, revision uint64) error {
 	if c.parent != nil || !readColumn {
 		return nil
 	}
@@ -79,6 +80,18 @@ func (c *column) readColumn(readColumn bool) error {
 	if err != nil {
 		return fmt.Errorf("read column type: %w", err)
 	}
+
+	if revision >= helper.DbmsMinProtocolWithCustomSerialization {
+		hasCustomSerialization, err := c.r.ReadByte()
+		if err != nil {
+			return fmt.Errorf("read custom serialization: %w", err)
+		}
+		// todo check with json object
+		if hasCustomSerialization == 1 {
+			return fmt.Errorf("custom serialization not supported")
+		}
+	}
+
 	return nil
 }
 

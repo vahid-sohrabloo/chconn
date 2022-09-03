@@ -1,5 +1,7 @@
 package chconn
 
+import "github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+
 // Progress details of progress select query
 type Progress struct {
 	ReadRows     uint64
@@ -25,7 +27,7 @@ func (p *Progress) read(ch *conn) (err error) {
 		return &readError{"progress: read TotalRows", err}
 	}
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithClientWriteInfo {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithClientWriteInfo {
 		if p.WriterRows, err = ch.reader.Uvarint(); err != nil {
 			return &readError{"progress: read WriterRows", err}
 		}

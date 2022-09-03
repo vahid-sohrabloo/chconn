@@ -71,15 +71,15 @@ func (c *Tuple) ReadRaw(num int, r *readerwriter.Reader) error {
 
 // HeaderReader reads header data from reader.
 // it uses internally
-func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	err := c.readColumn(readColumn)
+	err := c.readColumn(readColumn, revision)
 	if err != nil {
 		return err
 	}
 
 	for i, col := range c.columns {
-		err = col.HeaderReader(r, false)
+		err = col.HeaderReader(r, false, revision)
 		if err != nil {
 			return fmt.Errorf("tuple: read column header index %d: %w", i, err)
 		}

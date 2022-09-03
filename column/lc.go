@@ -183,9 +183,9 @@ func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 
 // HeaderReader writes header data to writer
 // it uses internally
-func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	err := c.readColumn(readColumn)
+	err := c.readColumn(readColumn, revision)
 	if err != nil {
 		return err
 	}
@@ -197,17 +197,17 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	}
 
 	if !c.nullable {
-		return c.dictColumn.HeaderReader(r, false)
+		return c.dictColumn.HeaderReader(r, false, revision)
 	}
 
-	return c.dictColumn.HeaderReader(r, false)
+	return c.dictColumn.HeaderReader(r, false, revision)
 }
 
 func (c *LowCardinality[T]) columnType() string {
 	if !c.nullable {
-		return strings.Replace(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.columnType(), -1)
+		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.columnType())
 	}
-	return strings.Replace(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.columnType(), -1)
+	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.columnType())
 }
 
 func (c *LowCardinality[T]) Validate() error {

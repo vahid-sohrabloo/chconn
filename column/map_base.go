@@ -42,14 +42,15 @@ func NewMapBase(
 // For example
 // colNullableArrayReadKey := colNullableArrayRead.KeyColumn().Data()
 // colNullableArrayReadValue := colNullableArrayRead.ValueColumn().(*column.ArrayNullable[V]).DataP()
-// colNullableArrayRead.Each(func(start, end uint64) bool {
-//		val := make(map[string][]*V)
-//		for ki, key := range colNullableArrayReadKey[start:end] {
-//			val[key] = colNullableArrayReadValue[start:end][ki]
-//		}
-//		colArrayNullableData = append(colArrayNullableData, val)
-//		return true
-//	})
+//
+//	colNullableArrayRead.Each(func(start, end uint64) bool {
+//			val := make(map[string][]*V)
+//			for ki, key := range colNullableArrayReadKey[start:end] {
+//				val[key] = colNullableArrayReadValue[start:end][ki]
+//			}
+//			colArrayNullableData = append(colArrayNullableData, val)
+//			return true
+//		})
 func (c *MapBase) Each(f func(start, end uint64) bool) {
 	offsets := c.Offsets()
 	if len(offsets) == 0 {
@@ -145,8 +146,8 @@ func (c *MapBase) ValueColumn() ColumnBasic {
 
 // HeaderReader reads header data from reader
 // it uses internally
-func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
-	err := c.offsetColumn.HeaderReader(r, readColumn)
+func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
+	err := c.offsetColumn.HeaderReader(r, readColumn, revision)
 	if err != nil {
 		return err
 	}
@@ -155,11 +156,11 @@ func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 	c.keyColumn.SetName(c.name)
 	c.valueColumn.SetName(c.name)
 
-	err = c.keyColumn.HeaderReader(r, false)
+	err = c.keyColumn.HeaderReader(r, false, revision)
 	if err != nil {
 		return fmt.Errorf("map: read key header: %w", err)
 	}
-	err = c.valueColumn.HeaderReader(r, false)
+	err = c.valueColumn.HeaderReader(r, false, revision)
 	if err != nil {
 		return fmt.Errorf("map: read value header: %w", err)
 	}
@@ -198,9 +199,9 @@ func (c *MapBase) Validate() error {
 }
 
 func (c *MapBase) columnType() string {
-	return strings.Replace(
-		strings.Replace(helper.MapTypeStr, "<key>", c.keyColumn.columnType(), -1),
-		"<value>", c.valueColumn.columnType(), -1)
+	return strings.ReplaceAll(
+		strings.ReplaceAll(helper.MapTypeStr, "<key>", c.keyColumn.columnType()),
+		"<value>", c.valueColumn.columnType())
 }
 
 // WriteTo write data to ClickHouse.

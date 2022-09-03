@@ -2,6 +2,8 @@ package chconn
 
 import (
 	"os/user"
+
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 )
 
 // ClientInfo Information about client for query.
@@ -36,7 +38,7 @@ func (c *ClientInfo) write(ch *conn) {
 
 	ch.writer.String("[::ffff:127.0.0.1]:0")
 
-	if ch.serverInfo.Revision >= dbmsMinProtocolVersionWithInitialQueryStartTime {
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolVersionWithInitialQueryStartTime {
 		ch.writer.Uint64(0)
 	}
 
@@ -49,23 +51,23 @@ func (c *ClientInfo) write(ch *conn) {
 	ch.writer.Uvarint(c.ClientVersionMinor)
 	ch.writer.Uvarint(c.ClientRevision)
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithQuotaKeyInClientInfo {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithQuotaKeyInClientInfo {
 		ch.writer.String(c.QuotaKey)
 	}
 
-	if ch.serverInfo.Revision >= dbmsMinProtocolVersionWithDistributedDepth {
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolVersionWithDistributedDepth {
 		ch.writer.Uvarint(c.DistributedDepth)
 	}
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithVersionPatch {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithVersionPatch {
 		ch.writer.Uvarint(c.ClientVersionPatch)
 	}
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithOpenTelemetry {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithOpenTelemetry {
 		ch.writer.Uint8(0)
 	}
 
-	if ch.serverInfo.Revision >= dbmsMinProtocolVersionWithParallelReplicas {
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolVersionWithParallelReplicas {
 		ch.writer.Uvarint(0) // collaborate_with_initiator
 		ch.writer.Uvarint(0) // count_participating_replicas
 		ch.writer.Uvarint(0) // number_of_current_replica
