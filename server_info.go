@@ -3,6 +3,7 @@ package chconn
 import (
 	"fmt"
 
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
@@ -30,17 +31,17 @@ func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
 	if srv.Revision, err = r.Uvarint(); err != nil {
 		return &readError{"ServerInfo: could not read server revision", err}
 	}
-	if srv.Revision >= dbmsMinRevisionWithServerTimezone {
+	if srv.Revision >= helper.DbmsMinRevisionWithServerTimezone {
 		if srv.Timezone, err = r.String(); err != nil {
 			return &readError{"ServerInfo: could not read server timezone", err}
 		}
 	}
-	if srv.Revision >= dbmsMinRevisionWithServerDisplayName {
+	if srv.Revision >= helper.DbmsMinRevisionWithServerDisplayName {
 		if srv.ServerDisplayName, err = r.String(); err != nil {
 			return &readError{"ServerInfo: could not read server display name", err}
 		}
 	}
-	if srv.Revision >= dbmsMinRevisionWithVersionPatch {
+	if srv.Revision >= helper.DbmsMinRevisionWithVersionPatch {
 		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
 			return &readError{"ServerInfo: could not read server version patch", err}
 		}

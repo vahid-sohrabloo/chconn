@@ -129,9 +129,9 @@ func (c *Base[T]) readBuffer() error {
 
 // HeaderReader reads header data from reader
 // it uses internally
-func (c *Base[T]) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *Base[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	return c.readColumn(readColumn)
+	return c.readColumn(readColumn, revision)
 }
 
 // HeaderWriter writes header data to writer

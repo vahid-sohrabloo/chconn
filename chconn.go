@@ -11,6 +11,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
@@ -66,25 +67,10 @@ const (
 )
 
 const (
-	dbmsMinRevisionWithClientInfo                   = 54032
-	dbmsMinRevisionWithServerTimezone               = 54058
-	dbmsMinRevisionWithQuotaKeyInClientInfo         = 54060
-	dbmsMinRevisionWithServerDisplayName            = 54372
-	dbmsMinRevisionWithVersionPatch                 = 54401
-	dbmsMinRevisionWithClientWriteInfo              = 54420
-	dbmsMinRevisionWithSettingsSerializedAsStrings  = 54429
-	dbmsMinRevisionWithInterServerSecret            = 54441
-	dbmsMinRevisionWithOpenTelemetry                = 54442
-	dbmsMinProtocolVersionWithDistributedDepth      = 54448
-	dbmsMinProtocolVersionWithInitialQueryStartTime = 54449
-	dbmsMinProtocolVersionWithParallelReplicas      = 54453
-)
-
-const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54453
+	dbmsVersionRevision = 54454
 )
 
 type queryProcessingStage uint64
@@ -419,7 +405,7 @@ func (ch *conn) sendQueryWithOption(
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithClientInfo {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithClientInfo {
 		if ch.clientInfo == nil {
 			ch.clientInfo = &ClientInfo{}
 		}
@@ -431,14 +417,14 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	// setting
-	if settings != nil && ch.serverInfo.Revision >= dbmsMinRevisionWithSettingsSerializedAsStrings {
+	if settings != nil && ch.serverInfo.Revision >= helper.DbmsMinRevisionWithSettingsSerializedAsStrings {
 		//nolint:errcheck // no need for bytes.Buffer
 		settings.writeToBuffer(ch.writer.Output())
 	}
 
 	ch.writer.String("")
 
-	if ch.serverInfo.Revision >= dbmsMinRevisionWithInterServerSecret {
+	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithInterServerSecret {
 		ch.writer.String("")
 	}
 

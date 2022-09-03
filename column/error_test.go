@@ -99,7 +99,7 @@ func TestInsertColumnLowCardinalityError(t *testing.T) {
 }
 
 func TestSelectReadLCError(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -127,44 +127,49 @@ func TestSelectReadLCError(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
 			name:        "error reading keys serialization version",
 			wantErr:     "read column header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "error reading serialization type",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading serialization type: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "error reading dictionary size",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary size: timeout",
-			numberValid: startValidReader + 6,
+			numberValid: startValidReader + 7,
 		},
 		{
 			name:        "error reading dictionary",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
-			numberValid: startValidReader + 7,
+			numberValid: startValidReader + 8,
 		},
 		{
 			name:        "error reading string len",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
-			numberValid: startValidReader + 8,
+			numberValid: startValidReader + 9,
 		},
 		{
 			name:        "error reading string",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string: timeout",
-			numberValid: startValidReader + 9,
+			numberValid: startValidReader + 10,
 		},
 		{
 			name:        "error reading indices size",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading indices size: timeout",
-			numberValid: startValidReader + 10,
+			numberValid: startValidReader + 11,
 		},
 		{
 			name:        "error reading indices",
 			wantErr:     "read data toLowCardinality(toString(number)): error reading indices: read data: timeout",
-			numberValid: startValidReader + 11,
+			numberValid: startValidReader + 12,
 		},
 	}
 	for _, tt := range tests {
@@ -253,7 +258,7 @@ func TestInsertColumnArrayError(t *testing.T) {
 }
 
 func TestSelectReadArrayError(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -281,14 +286,19 @@ func TestSelectReadArrayError(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
 			name:        "read offset error",
 			wantErr:     "read data array(number, number): array: read offset column: read data: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
 			wantErr:     "read data array(number, number): array: read data column: read data: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 		},
 	}
 	for _, tt := range tests {
@@ -382,7 +392,7 @@ func TestInsertColumnArrayNullable(t *testing.T) {
 }
 
 func TestSelectReadArrayNullableError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := 39
 
 	tests := []struct {
 		name        string
@@ -395,14 +405,19 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 			numberValid: startValidReader,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 1,
+		},
+		{
 			name:        "read offset error",
 			wantErr:     "read data array(toNullable(number)): array: read offset column: read data: timeout",
-			numberValid: startValidReader + 1,
+			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read data column",
 			wantErr:     "read data array(toNullable(number)): array: read data column: read nullable data: read nullable data: timeout",
-			numberValid: startValidReader + 2,
+			numberValid: startValidReader + 3,
 		},
 	}
 	for _, tt := range tests {
@@ -430,7 +445,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 }
 
 func TestSelectReadNullableError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := 39
 
 	tests := []struct {
 		name        string
@@ -443,9 +458,14 @@ func TestSelectReadNullableError(t *testing.T) {
 			numberValid: startValidReader,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 1,
+		},
+		{
 			name:        "read nullable data",
 			wantErr:     "read data toNullable(number): read nullable data: read nullable data: timeout",
-			numberValid: startValidReader + 1,
+			numberValid: startValidReader + 2,
 		},
 	}
 	for _, tt := range tests {
@@ -534,7 +554,7 @@ func TestInsertColumnArray2Error(t *testing.T) {
 }
 
 func TestSelectReadArray2Error(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -562,14 +582,19 @@ func TestSelectReadArray2Error(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
 			name:        "read offset error",
 			wantErr:     "read data array(array(number, number)): array: read offset column: read data: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
 			wantErr:     "read data array(array(number, number)): array: read data column: array: read offset column: read data: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 		},
 	}
 	for _, tt := range tests {
@@ -657,7 +682,7 @@ func TestInsertColumnArray3Error(t *testing.T) {
 }
 
 func TestSelectReadArray3Error(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -685,14 +710,19 @@ func TestSelectReadArray3Error(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+		},
+		{
 			name:        "read offset error",
 			wantErr:     "read data array(array(array(number, number))): array: read offset column: read data: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
 			wantErr:     "read data array(array(array(number, number))): array: read data column: array: read offset column: read data: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 		},
 	}
 	for _, tt := range tests {
@@ -782,7 +812,7 @@ func TestInsertColumnTupleError(t *testing.T) {
 }
 
 func TestSelectReadTupleError(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -811,15 +841,21 @@ func TestSelectReadTupleError(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+			lc:          true,
+		},
+		{
 			name:        "read sub column header",
 			wantErr:     "read column header: tuple: read column header index 0: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 			lc:          true,
 		},
 		{
 			name:        "read column index 2",
 			wantErr:     "read data tuple(1): tuple: read column index 0: read data: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 	}
 	for _, tt := range tests {
@@ -926,7 +962,7 @@ func TestInsertColumnMapError(t *testing.T) {
 }
 
 func TestSelectReadMapError(t *testing.T) {
-	startValidReader := 35
+	startValidReader := 36
 
 	tests := []struct {
 		name        string
@@ -955,31 +991,37 @@ func TestSelectReadMapError(t *testing.T) {
 			numberValid: startValidReader + 3,
 		},
 		{
+			name:        "read custom serialization",
+			wantErr:     "read column header: read custom serialization: timeout",
+			numberValid: startValidReader + 4,
+			lc:          true,
+		},
+		{
 			name:        "read value header",
 			wantErr:     "read column header: map: read key header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 			lc:          true,
 		},
 		{
 			name:        "read value header",
 			wantErr:     "read column header: map: read value header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 			lc:          true,
 		},
 		{
 			name:        "read offset error",
 			wantErr:     "read data map(number, number): map: read offset column: read data: timeout",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read key column",
 			wantErr:     "read data map(number, number): map: read key column: read data: timeout",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "read value column",
 			wantErr:     "read data map(number, number): map: read value column: read data: timeout",
-			numberValid: startValidReader + 6,
+			numberValid: startValidReader + 7,
 		},
 	}
 	for _, tt := range tests {

@@ -199,13 +199,13 @@ func (c *Nullable[T]) readBuffer() error {
 
 // HeaderReader reads header data from reader
 // it uses internally
-func (c *Nullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *Nullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	err := c.readColumn(readColumn)
+	err := c.readColumn(readColumn, revision)
 	if err != nil {
 		return err
 	}
-	return c.dataColumn.HeaderReader(r, false)
+	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
 func (c *Nullable[T]) Validate() error {
@@ -225,7 +225,7 @@ func (c *Nullable[T]) Validate() error {
 }
 
 func (c *Nullable[T]) columnType() string {
-	return strings.Replace(helper.NullableTypeStr, "<type>", c.dataColumn.columnType(), -1)
+	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.columnType())
 }
 
 // WriteTo write data to ClickHouse.

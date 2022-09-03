@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
 
@@ -78,7 +79,7 @@ func (block *block) readColumnsData(ch *conn, needValidateData bool, columns ...
 	ch.reader.SetCompress(ch.compress)
 	defer ch.reader.SetCompress(false)
 	for _, col := range columns {
-		err := col.HeaderReader(ch.reader, true)
+		err := col.HeaderReader(ch.reader, true, ch.serverInfo.Revision)
 		if err != nil {
 			return fmt.Errorf("read column header: %w", err)
 		}
@@ -131,6 +132,15 @@ func (block *block) nextColumn(ch *conn) (chColumn, error) {
 	if col.ChType, err = ch.reader.ByteString(); err != nil {
 		return col, &readError{"block: read column type", err}
 	}
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithCustomSerialization {
+		customSerialization, err := ch.reader.ReadByte()
+		if err != nil {
+			return col, &readError{"block: read custom serialization", err}
+		}
+		if customSerialization == 1 {
+			return col, &readError{"block: custom serialization not supported", nil}
+		}
+	}
 	return col, nil
 }
 
@@ -166,6 +176,10 @@ func (block *block) writeColumnsBuffer(ch *conn, columns ...column.ColumnBasic) 
 		block.headerWriter.Reset()
 		block.headerWriter.ByteString(column.Name)
 		block.headerWriter.ByteString(column.ChType)
+
+		if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithCustomSerialization {
+			block.headerWriter.Uint8(0)
+		}
 
 		columns[i].HeaderWriter(block.headerWriter)
 		if _, err := block.headerWriter.WriteTo(ch.writerToCompress); err != nil {

@@ -126,32 +126,32 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 
 // ParseConfig builds a []*Config with default values and use CH* Env.
 //
-//   # Example DSN
-//   user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
+//	# Example DSN
+//	user=vahid password=secret host=ch.example.com port=5432 dbname=mydb sslmode=verify-ca
 //
-//   # Example URL
-//   clickhouse://vahid:secret@ch.example.com:9440/mydb?sslmode=verify-ca
+//	# Example URL
+//	clickhouse://vahid:secret@ch.example.com:9440/mydb?sslmode=verify-ca
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system.
 //
-//   # Example URL
-//   clickhouse://vahid:secret@foo.example.com:9000,bar.example.com:9000/mydb
+//	# Example URL
+//	clickhouse://vahid:secret@foo.example.com:9000,bar.example.com:9000/mydb
 //
 // ParseConfig currently recognizes the following environment variable and their parameter key word equivalents passed
 // via database URL or DSN:
 //
-//   CHHOST
-//   CHPORT
-//   CHDATABASE
-//   CHUSER
-//   CHPASSWORD
-//   CHCLIENTNAME
-//   CHCONNECT_TIMEOUT
-//   CHSSLMODE
-//   CHSSLKEY
-//   CHSSLCERT
-//   CHSSLROOTCERT
+//	CHHOST
+//	CHPORT
+//	CHDATABASE
+//	CHUSER
+//	CHPASSWORD
+//	CHCLIENTNAME
+//	CHCONNECT_TIMEOUT
+//	CHSSLMODE
+//	CHSSLKEY
+//	CHSSLCERT
+//	CHSSLROOTCERT
 //
 // Important Security Notes:
 //
@@ -168,16 +168,15 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
 // TLCConfig.
 //
-//
 // If a host name resolves into multiple addresses chconn will only try the first.
 //
 // In addition, ParseConfig accepts the following options:
 //
-// 	min_read_buffer_size
-// 		The minimum size of the internal read buffer. Default 8192.
-// 	compress
-// 		compression method. empty string or "checksum" or "lz4" or "zstd".
-//      in the "checksum" chconn checks the checksum and not use any compress method.
+//		min_read_buffer_size
+//			The minimum size of the internal read buffer. Default 8192.
+//		compress
+//			compression method. empty string or "checksum" or "lz4" or "zstd".
+//	     in the "checksum" chconn checks the checksum and not use any compress method.
 func ParseConfig(connString string) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
@@ -457,7 +456,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 					}
 				}
 			}
-			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
 			if end == len(s) {
 				s = ""
 			} else {
@@ -477,7 +476,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 			if end == len(s) {
 				return nil, ErrInvalidquoted
 			}
-			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			val = strings.ReplaceAll(strings.ReplaceAll(s[:end], "\\\\", "\\"), "\\'", "'")
 			if end == len(s) {
 				s = ""
 			} else {
@@ -502,6 +501,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
+//
 //nolint:funlen,gocyclo
 func configTLS(settings map[string]string, thisHost string) ([]*tls.Config, error) {
 	host := thisHost

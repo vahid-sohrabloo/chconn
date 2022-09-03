@@ -95,28 +95,28 @@ func (c *ArrayBase) ReadRaw(num int, r *readerwriter.Reader) error {
 
 // HeaderReader reads header data from reader
 // it uses internally
-func (c *ArrayBase) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
+func (c *ArrayBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
-	err := c.readColumn(readColumn)
+	err := c.readColumn(readColumn, revision)
 	if err != nil {
 		return err
 	}
 
 	// never return error
 	//nolint:errcheck
-	c.offsetColumn.HeaderReader(r, false)
+	c.offsetColumn.HeaderReader(r, false, revision)
 
-	return c.dataColumn.HeaderReader(r, false)
+	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
 func (c *ArrayBase) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
-
-	if helper.IsRing(chType) {
+	switch {
+	case helper.IsRing(chType):
 		chType = helper.RingMainTypeStr
-	} else if helper.IsPolygon(chType) {
+	case helper.IsPolygon(chType):
 		chType = helper.PolygonMainTypeStr
-	} else if helper.IsMultiPolygon(chType) {
+	case helper.IsMultiPolygon(chType):
 		chType = helper.MultiPolygonMainTypeStr
 	}
 
@@ -135,7 +135,7 @@ func (c *ArrayBase) Validate() error {
 }
 
 func (c *ArrayBase) columnType() string {
-	return strings.Replace(helper.ArrayTypeStr, "<type>", c.dataColumn.columnType(), -1)
+	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.columnType())
 }
 
 // WriteTo write data to ClickHouse.
