@@ -70,7 +70,7 @@ const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54455
+	dbmsVersionRevision = 54456
 )
 
 type queryProcessingStage uint64
