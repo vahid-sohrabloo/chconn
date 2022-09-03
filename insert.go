@@ -129,10 +129,22 @@ func (ch *conn) InsertWithOption(
 			break
 		}
 
-		if _, ok := res.(*Profile); ok {
+		if profile, ok := res.(*Profile); ok {
+			if queryOptions.OnProfile != nil {
+				queryOptions.OnProfile(profile)
+			}
 			continue
 		}
-		if _, ok := res.(*Progress); ok {
+		if progress, ok := res.(*Progress); ok {
+			if queryOptions.OnProgress != nil {
+				queryOptions.OnProgress(progress)
+			}
+			continue
+		}
+		if profileEvent, ok := res.(*ProfileEvent); ok {
+			if queryOptions.OnProfileEvent != nil {
+				queryOptions.OnProfileEvent(profileEvent)
+			}
 			continue
 		}
 		hasError = true
