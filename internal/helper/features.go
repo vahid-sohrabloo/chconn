@@ -14,4 +14,5 @@ const (
 	DbmsMinProtocolVersionWithInitialQueryStartTime = 54449
 	DbmsMinProtocolVersionWithParallelReplicas      = 54453
 	DbmsMinProtocolWithCustomSerialization          = 54454
+	DbmsMinProtocolWithQuotaKey                     = 54458
 )
