@@ -131,7 +131,7 @@ func TestSelectProgress(t *testing.T) {
 }
 
 func TestSelectProgressError(t *testing.T) {
-	startValidReader := 31
+	startValidReader := 33
 
 	tests := []struct {
 		name        string
@@ -189,8 +189,8 @@ func TestSelectProgressError(t *testing.T) {
 				colSleep,
 				colNumber,
 			)
-			require.NotNil(t, res)
 			require.NoError(t, err)
+			require.NotNil(t, res)
 
 			for res.Next() {
 			}

@@ -13,7 +13,7 @@ import (
 )
 
 func TestProfileReadError(t *testing.T) {
-	startValidReader := 41
+	startValidReader := 43
 
 	tests := []struct {
 		name        string
