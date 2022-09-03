@@ -70,7 +70,7 @@ const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54456
+	dbmsVersionRevision = 54458
 )
 
 type queryProcessingStage uint64
@@ -321,11 +321,20 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if err != nil {
 		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
+
+	c.sendAddendum()
+
 	c.block = newBlock()
 	c.profileEvent = newProfileEvent()
 	c.status = connStatusIdle
 
 	return c, nil
+}
+
+func (ch *conn) sendAddendum() {
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithQuotaKey {
+		ch.writer.String(ch.config.QuotaKey)
+	}
 }
 
 func (ch *conn) flushCompress() error {

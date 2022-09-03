@@ -54,6 +54,7 @@ type Config struct {
 	LookupFunc        LookupFunc // e.g. net.Resolver.LookupHost
 	ReaderFunc        ReaderFunc // e.g. bufio.Reader
 	Compress          CompressMethod
+	QuotaKey          string
 	WriterFunc        WriterFunc
 	MinReadBufferSize int
 	// Run-time parameters to set on connection as session default values
@@ -177,6 +178,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //		compress
 //			compression method. empty string or "checksum" or "lz4" or "zstd".
 //	     in the "checksum" chconn checks the checksum and not use any compress method.
+//		quota_key
+//			the quota key.
 func ParseConfig(connString string) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
@@ -224,6 +227,8 @@ func ParseConfig(connString string) (*Config, error) {
 		config.Compress = CompressZSTD
 	}
 
+	config.QuotaKey = settings["quota_key"]
+
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
 		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
@@ -252,6 +257,7 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslcert":              {},
 		"sslrootcert":          {},
 		"compress":             {},
+		"quota_key":            {},
 	}
 
 	for k, v := range settings {
