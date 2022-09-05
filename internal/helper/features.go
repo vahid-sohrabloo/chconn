@@ -15,4 +15,5 @@ const (
 	DbmsMinProtocolVersionWithParallelReplicas      = 54453
 	DbmsMinProtocolWithCustomSerialization          = 54454
 	DbmsMinProtocolWithQuotaKey                     = 54458
+	DbmsMinProtocolWithParameters                   = 54459
 )

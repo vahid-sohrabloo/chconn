@@ -51,7 +51,7 @@ func (ch *conn) SelectWithOption(
 		queryOptions = emptyQueryOptions
 	}
 
-	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)
+	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
 	if err != nil {
 		hasError = true
 		return nil, preferContextOverNetTimeoutError(ctx, err)

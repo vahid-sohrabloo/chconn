@@ -32,7 +32,7 @@ linters-settings:
         ignored-numbers: 1000000
 
   govet:
-    check-shadowing: true
+    check-shadowing: false
   lll:
     line-length: 140
   maligned:
