@@ -146,7 +146,7 @@ func TestSelectParameters(t *testing.T) {
 	colD := column.NewMap[string, uint8](column.NewString(), column.New[uint8]())
 	colE := column.New[uint32]()
 	res, err := c.SelectWithOption(context.Background(),
-		"select {a: Int32}, {b: String}, {c: DateTime},  {d: Map(String, UInt8)}, {e: UInt32},",
+		"select {a: Int32}, {b: String}, {c: DateTime}, {d: Map(String, UInt8)}, {e: UInt32}",
 		&QueryOptions{
 			Parameters: NewParameters(
 				IntParameter("a", 13),
