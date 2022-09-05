@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/types"
 )
 
@@ -140,24 +141,27 @@ func TestSelectParameters(t *testing.T) {
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
-	colA := column.New[uint32]()
+	colA := column.New[int32]()
 	colB := column.NewString()
 	colC := column.NewDate[types.DateTime]()
 	colD := column.NewMap[string, uint8](column.NewString(), column.New[uint8]())
+	colE := column.New[uint32]()
 	res, err := c.SelectWithOption(context.Background(),
-		"select {a: UInt32}, {b: String}, {c: DateTime},  {d: Map(String, UInt8)}",
+		"select {a: Int32}, {b: String}, {c: DateTime}, {d: Map(String, UInt8)}, {e: UInt32}",
 		&QueryOptions{
 			Parameters: NewParameters(
 				IntParameter("a", 13),
 				StringParameter("b", "str'"),
 				StringParameter("c", "2022-08-04 18:30:53"),
 				StringParameter("d", `{'a': 1, 'b': 2}`),
+				UintParameter("e", 14),
 			),
 		},
 		colA,
 		colB,
 		colC,
 		colD,
+		colE,
 	)
 
 	if err != nil && err.Error() == "parameters are not supported by the server" {
@@ -173,13 +177,15 @@ func TestSelectParameters(t *testing.T) {
 	require.Len(t, colB.Data(), 1)
 	require.Len(t, colC.Data(), 1)
 	require.Len(t, colD.Data(), 1)
-	assert.Equal(t, uint32(13), colA.Data()[0])
+	require.Len(t, colE.Data(), 1)
+	assert.Equal(t, int32(13), colA.Data()[0])
 	assert.Equal(t, "str'", colB.Data()[0])
 	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].Format("2006-01-02 15:04:05"))
 	assert.Equal(t, map[string]uint8{
 		"a": 1,
 		"b": 2,
 	}, colD.Data()[0])
+	assert.Equal(t, uint32(14), colE.Data()[0])
 
 	c.Close()
 }
@@ -191,6 +197,7 @@ func TestSelectProgressError(t *testing.T) {
 		name        string
 		wantErr     string
 		numberValid int
+		minRevision uint64
 	}{
 		{
 			name:        "read ReadRows",
@@ -217,6 +224,12 @@ func TestSelectProgressError(t *testing.T) {
 			wantErr:     "progress: read WrittenBytes (timeout)",
 			numberValid: startValidReader + 4,
 		},
+		{
+			name:        "read ElapsedNS",
+			wantErr:     "progress: read ElapsedNS (timeout)",
+			numberValid: startValidReader + 5,
+			minRevision: helper.DbmsMinProtocolWithServerQueryTimeInProgress,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -232,6 +245,10 @@ func TestSelectProgressError(t *testing.T) {
 
 			c, err := ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
+			if c.ServerInfo().Revision < tt.minRevision {
+				c.Close()
+				return
+			}
 			colSleep := column.New[uint8]()
 			colNumber := column.New[uint64]()
 			res, err := c.SelectWithOption(context.Background(),

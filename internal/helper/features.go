@@ -16,4 +16,5 @@ const (
 	DbmsMinProtocolWithCustomSerialization          = 54454
 	DbmsMinProtocolWithQuotaKey                     = 54458
 	DbmsMinProtocolWithParameters                   = 54459
+	DbmsMinProtocolWithServerQueryTimeInProgress    = 54460
 )

@@ -91,6 +91,7 @@ func Int256FromBigEx(i *big.Int) (Int256, bool) {
 }
 
 // Big returns 256-bit value as a *big.Int.
+//
 //nolint:dupl
 func (u Int256) Big() *big.Int {
 	t := new(big.Int)

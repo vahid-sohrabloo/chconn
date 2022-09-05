@@ -49,17 +49,15 @@ linters:
   disable-all: true
   enable:
     # - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
     - errcheck
     - exportloopref
-    - exhaustive
     - funlen
     - gochecknoinits
     - goconst
-    # - gocritic go 1.18
+    # - gocritic
     - gocyclo
     - gofmt
     - goimports
@@ -71,19 +69,15 @@ linters:
     - lll
     - misspell
     - nakedret
-    - noctx
+    # - noctx
     - nolintlint
-    - rowserrcheck
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
-    - unparam
+    # - unparam
     - unused
-    - varcheck
     - whitespace
-    # - goerr113
 
   # don't enable:
   # - asciicheck
@@ -92,6 +86,7 @@ linters:
   # - gocognit
   # - godot
   # - godox
+  # - goerr113
   # - interfacer
   # - maligned
   # - nestif
@@ -131,11 +126,3 @@ issues:
 
 run:
   skip-dirs:
-    
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.23.x # use the fixed version to not introduce new linters unexpectedly
-  prepare:
-    - echo "here I can run custom commands, but no preparation needed for this repo"

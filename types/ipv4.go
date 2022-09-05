@@ -2,7 +2,8 @@ package types
 
 import "net/netip"
 
-//  IPv4 is a compatible type for IPv4 address in clickhouse.
+//	IPv4 is a compatible type for IPv4 address in clickhouse.
+//
 // clickhouse use Little endian for IPv4. but golang use big endian
 type IPv4 [4]byte
 
