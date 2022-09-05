@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/vahid-sohrabloo/chconn/v2/column"
@@ -167,7 +168,7 @@ type conn struct {
 }
 
 // Connect establishes a connection to a ClickHouse server using the environment and connString (in URL or DSN format)
-// to provide configuration. See documenting for ParseConfig for details. ctx can be used to cancel a connect attempt.
+// to provide configuration. See documentation for ParseConfig for details. ctx can be used to cancel a connect attempt.
 func Connect(ctx context.Context, connString string) (Conn, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -184,17 +185,11 @@ func Connect(ctx context.Context, connString string) (Conn, error) {
 // authentication error will terminate the chain of attempts (like libpq:
 // https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
 // if all attempts fail the last error is returned.
-func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
+func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
-	}
-
-	if config.ConnectTimeout != 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, config.ConnectTimeout)
-		defer cancel()
 	}
 
 	// Simplify usage by treating primary config and fallbacks the same.
@@ -206,7 +201,7 @@ func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 		},
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
-
+	ctx := octx
 	fallbackConfigs, err = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
 	if err != nil {
 		return nil, &connectError{config: config, msg: "hostname resolving error", err: err}
@@ -216,12 +211,30 @@ func ConnectConfig(ctx context.Context, config *Config) (c Conn, err error) {
 		return nil, &connectError{config: config, msg: "hostname resolving error", err: ErrIPNotFound}
 	}
 
+	foundBestServer := false
+	var fallbackConfig *FallbackConfig
 	for _, fc := range fallbackConfigs {
+		// ConnectTimeout restricts the whole connection process.
+		if config.ConnectTimeout != 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(octx, config.ConnectTimeout)
+			defer cancel()
+		} else {
+			ctx = octx
+		}
 		c, err = connect(ctx, config, fc)
 		if err == nil {
+			foundBestServer = true
 			break
-		} else if err, ok := err.(*ChError); ok {
-			return nil, &connectError{config: config, msg: "server error", err: err}
+		} else if chErr, ok := err.(*ChError); ok {
+			return nil, &connectError{config: config, msg: "server error", err: chErr}
+		}
+	}
+
+	if !foundBestServer && fallbackConfig != nil {
+		c, err = connect(ctx, config, fallbackConfig)
+		if cherr, ok := err.(*ChError); ok {
+			err = &connectError{config: config, msg: "server error", err: cherr}
 		}
 	}
 
@@ -250,11 +263,24 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 		}
 
 		for _, ip := range ips {
-			configs = append(configs, &FallbackConfig{
-				Host:      ip,
-				Port:      fb.Port,
-				TLSConfig: fb.TLSConfig,
-			})
+			splitIP, splitPort, err := net.SplitHostPort(ip)
+			if err == nil {
+				port, err := strconv.ParseUint(splitPort, 10, 16)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing port (%s) from lookup: %w", splitPort, err)
+				}
+				configs = append(configs, &FallbackConfig{
+					Host:      splitIP,
+					Port:      uint16(port),
+					TLSConfig: fb.TLSConfig,
+				})
+			} else {
+				configs = append(configs, &FallbackConfig{
+					Host:      ip,
+					Port:      fb.Port,
+					TLSConfig: fb.TLSConfig,
+				})
+			}
 		}
 	}
 
@@ -271,6 +297,10 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
 	c.conn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			err = &errTimeout{err: err}
+		}
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
 
