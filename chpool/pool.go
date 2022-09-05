@@ -215,42 +215,52 @@ func NewWithConfig(config *Config) (Pool, error) {
 		closeChan:             make(chan struct{}),
 	}
 
-	p.p = puddle.NewPool(
-		func(ctx context.Context) (*connResource, error) {
-			connConfig := p.config.ConnConfig
+	var err error
+	p.p, err = puddle.NewPool(
+		&puddle.Config[*connResource]{
+			Constructor: func(ctx context.Context) (*connResource, error) {
+				connConfig := p.config.ConnConfig.Copy()
 
-			if p.beforeConnect != nil {
-				connConfig = p.config.ConnConfig.Copy()
-				if err := p.beforeConnect(ctx, connConfig); err != nil {
-					return nil, err
+				// Connection will continue in background even if Acquire is canceled. Ensure that a connect won't hang forever.
+				if connConfig.ConnectTimeout <= 0 {
+					connConfig.ConnectTimeout = 2 * time.Minute
 				}
-			}
 
-			c, err := chconn.ConnectConfig(ctx, connConfig)
-			if err != nil {
-				return nil, err
-			}
+				if p.beforeConnect != nil {
+					if err := p.beforeConnect(ctx, connConfig); err != nil {
+						return nil, err
+					}
+				}
 
-			if p.afterConnect != nil {
-				err = p.afterConnect(ctx, c)
+				c, err := chconn.ConnectConfig(ctx, connConfig)
 				if err != nil {
-					c.Close()
 					return nil, err
 				}
-			}
 
-			cr := &connResource{
-				conn:  c,
-				conns: make([]conn, 64),
-			}
+				if p.afterConnect != nil {
+					err := p.afterConnect(ctx, c)
+					if err != nil {
+						c.Close()
+						return nil, err
+					}
+				}
 
-			return cr, nil
+				cr := &connResource{
+					conn:  c,
+					conns: make([]conn, 64),
+				}
+
+				return cr, nil
+			},
+			Destructor: func(value *connResource) {
+				value.conn.Close()
+			},
+			MaxSize: config.MaxConns,
 		},
-		func(value *connResource) {
-			value.conn.Close()
-		},
-		config.MaxConns,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 		//nolint:errcheck // todo find a way to handle this error

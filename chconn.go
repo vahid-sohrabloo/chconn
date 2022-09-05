@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -70,7 +71,7 @@ const (
 	dbmsVersionMajor    = 1
 	dbmsVersionMinor    = 0
 	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54458
+	dbmsVersionRevision = 54459
 )
 
 type queryProcessingStage uint64
@@ -166,7 +167,7 @@ type conn struct {
 }
 
 // Connect establishes a connection to a ClickHouse server using the environment and connString (in URL or DSN format)
-// to provide configuration. See documention for ParseConfig for details. ctx can be used to cancel a connect attempt.
+// to provide configuration. See documenting for ParseConfig for details. ctx can be used to cancel a connect attempt.
 func Connect(ctx context.Context, connString string) (Conn, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -411,6 +412,7 @@ func (ch *conn) sendQueryWithOption(
 	query,
 	queryID string,
 	settings Settings,
+	parameters *parameters,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -427,8 +429,7 @@ func (ch *conn) sendQueryWithOption(
 
 	// setting
 	if settings != nil && ch.serverInfo.Revision >= helper.DbmsMinRevisionWithSettingsSerializedAsStrings {
-		//nolint:errcheck // no need for bytes.Buffer
-		settings.writeToBuffer(ch.writer.Output())
+		settings.write(ch.writer)
 	}
 
 	ch.writer.String("")
@@ -447,6 +448,14 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	ch.writer.String(query)
+
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithParameters {
+		parameters.write(ch.writer)
+		ch.writer.String("")
+	} else if parameters.hasParam() {
+		return errors.New("parameters are not supported by the server")
+	}
+
 	return ch.sendEmptyBlock()
 }
 
@@ -559,21 +568,8 @@ type QueryOptions struct {
 	OnProgress     func(*Progress)
 	OnProfile      func(*Profile)
 	OnProfileEvent func(*ProfileEvent)
+	Parameters     *parameters
 	UseGoTime      bool
-}
-
-func (s Settings) writeToBuffer(wt io.Writer) (int, error) {
-	w := readerwriter.NewWriter()
-	for _, st := range s {
-		w.String(st.Name)
-		if st.Important {
-			w.Uint8(1)
-		} else {
-			w.Uint8(0)
-		}
-		w.String(st.Value)
-	}
-	return wt.Write(w.Output().Bytes())
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) error {
@@ -610,7 +606,7 @@ func (ch *conn) ExecWithOption(
 		queryOptions = emptyQueryOptions
 	}
 
-	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings)
+	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
 	if err != nil {
 		return preferContextOverNetTimeoutError(ctx, err)
 	}

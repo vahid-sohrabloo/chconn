@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v2/types"
 )
 
 func TestSelectError(t *testing.T) {
@@ -21,7 +22,6 @@ func TestSelectError(t *testing.T) {
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
 
-	// test lock error
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
@@ -100,7 +100,6 @@ func TestSelectProgress(t *testing.T) {
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
 
-	// test lock error
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
@@ -126,6 +125,62 @@ func TestSelectProgress(t *testing.T) {
 	for res.Next() {
 	}
 	require.NoError(t, res.Err())
+
+	c.Close()
+}
+
+func TestSelectParameters(t *testing.T) {
+
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	colA := column.New[uint32]()
+	colB := column.NewString()
+	colC := column.NewDate[types.DateTime]()
+	colD := column.NewMap[string, uint8](column.NewString(), column.New[uint8]())
+	res, err := c.SelectWithOption(context.Background(),
+		"select {a: UInt32}, {b: String}, {c: DateTime},  {d: Map(String, UInt8)}",
+		&QueryOptions{
+			Parameters: NewParameters(
+				IntParameter("a", 13),
+				StringParameter("b", "str'"),
+				StringParameter("c", "2022-08-04 18:30:53"),
+				StringParameter("d", `{'a': 1, 'b': 2}`),
+			),
+		},
+		colA,
+		colB,
+		colC,
+		colD,
+	)
+
+	if err != nil && err.Error() == "parameters are not supported by the server" {
+		t.SkipNow()
+	}
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	for res.Next() {
+	}
+	require.NoError(t, res.Err())
+	require.Len(t, colA.Data(), 1)
+	require.Len(t, colB.Data(), 1)
+	require.Len(t, colC.Data(), 1)
+	require.Len(t, colD.Data(), 1)
+	assert.Equal(t, uint32(13), colA.Data()[0])
+	assert.Equal(t, "str'", colB.Data()[0])
+	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].Format("2006-01-02 15:04:05"))
+	assert.Equal(t, map[string]uint8{
+		"a": 1,
+		"b": 2,
+	}, colD.Data()[0])
 
 	c.Close()
 }
