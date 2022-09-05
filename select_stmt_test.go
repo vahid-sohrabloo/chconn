@@ -130,7 +130,6 @@ func TestSelectProgress(t *testing.T) {
 }
 
 func TestSelectParameters(t *testing.T) {
-
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
