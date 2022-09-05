@@ -9,6 +9,7 @@ type Progress struct {
 	TotalRows    uint64
 	WriterRows   uint64
 	WrittenBytes uint64
+	ElapsedNS    uint64
 }
 
 func newProgress() *Progress {
@@ -33,6 +34,11 @@ func (p *Progress) read(ch *conn) (err error) {
 		}
 		if p.WrittenBytes, err = ch.reader.Uvarint(); err != nil {
 			return &readError{"progress: read WrittenBytes", err}
+		}
+	}
+	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithServerQueryTimeInProgress {
+		if p.ElapsedNS, err = ch.reader.Uvarint(); err != nil {
+			return &readError{"progress: read ElapsedNS", err}
 		}
 	}
 
