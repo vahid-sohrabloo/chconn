@@ -167,17 +167,17 @@ the source code of this benchmark here
 https://github.com/vahid-sohrabloo/go-ch-benchmark
 
 ```
-name \ time/op           chconn       chgo          go-clickhouse     uptrace
-TestSelect100MUint64-16   150ms ± 0%    154ms 	       8019ms 	       3045ms 	
+name \ time/op           chconn              chgo       go-clickhouse         uptrace
+TestSelect100MUint64-16   150ms             154ms 	       8019ms 	       3045ms 	
 TestSelect10MString-16    271ms 	    447ms 	        969ms 	        822ms 	
 TestInsert10M-16          198ms 	    514ms 	        561ms 	        304ms 	
 
-name \ alloc/op          chconn       chgo          go-clickhouse     uptrace
+name \ alloc/op          chconn              chgo       go-clickhouse         uptrace
 TestSelect100MUint64-16   111kB 	    262kB 	    3202443kB 	     800941kB 	
 TestSelect10MString-16   1.63MB 	   1.79MB 	    1626.51MB 	     241.03MB 	
 TestInsert10M-16         26.0MB 	  283.7MB 	     1680.4MB 	      240.2MB 	
 
-name \ allocs/op         chconn       chgo          go-clickhouse     uptrace
+name \ allocs/op         chconn              chgo       go-clickhouse         uptrace
 TestSelect100MUint64-16    35.0 	   6683.0 	  200030937.0 	  100006069.0 	
 TestSelect10MString-16     49.0 	   1748.0 	   30011991.0 	   20001120.0 	
 TestInsert10M-16           26.0 	     80.0 	        224.0 	         50.0 	
