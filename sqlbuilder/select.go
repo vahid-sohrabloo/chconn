@@ -1,3 +1,6 @@
+// sqlbuilder is a builder for SQL statements for clickhouse.
+// copy from https://github.com/huandu/go-sqlbuilder
+// change for chconn
 package sqlbuilder
 
 import (

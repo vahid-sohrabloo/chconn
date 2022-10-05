@@ -1,6 +1,7 @@
-// Copyright 2018 Huan Du. All rights reserved.
-// Licensed under the MIT license that can be found in the LICENSE file.
-
+// sqlbuilder is a builder for SQL statements for clickhouse.
+// copy from https://github.com/huandu/go-sqlbuilder
+// change for chconn
+// License: MIT
 package sqlbuilder
 
 import (
