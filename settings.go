@@ -58,9 +58,9 @@ type Parameters struct {
 type Parameter func() Setting
 
 func NewParameters(input ...Parameter) *Parameters {
-	params := make([]Setting, 0, cap(input))
-	for _, p := range input {
-		params = append(params, p())
+	params := make([]Setting, len(input))
+	for i, p := range input {
+		params[i] = p()
 	}
 	return &Parameters{
 		params: params,
@@ -172,6 +172,10 @@ func StringSliceParameter(name string, v []string) Parameter {
 			Custom: true,
 		}
 	}
+}
+
+func (p *Parameters) Params() []Setting {
+	return p.params
 }
 
 func (p *Parameters) hasParam() bool {
