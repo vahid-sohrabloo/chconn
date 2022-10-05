@@ -218,6 +218,7 @@ func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 		if config.ConnectTimeout != 0 {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeout(octx, config.ConnectTimeout)
+			//nolint:gocritic
 			defer cancel()
 		} else {
 			ctx = octx
@@ -442,7 +443,7 @@ func (ch *conn) sendQueryWithOption(
 	query,
 	queryID string,
 	settings Settings,
-	parameters *parameters,
+	parameters *Parameters,
 ) error {
 	ch.writer.Uvarint(clientQuery)
 	ch.writer.String(queryID)
@@ -598,7 +599,7 @@ type QueryOptions struct {
 	OnProgress     func(*Progress)
 	OnProfile      func(*Profile)
 	OnProfileEvent func(*ProfileEvent)
-	Parameters     *parameters
+	Parameters     *Parameters
 	UseGoTime      bool
 }
 

@@ -51,60 +51,134 @@ func (s Settings) write(w *readerwriter.Writer) {
 }
 
 // Parameters is a list of params for the clickhouse query.
-type parameters struct {
+type Parameters struct {
 	params []Setting
 }
 
 type Parameter func() Setting
 
-func NewParameters(input ...Parameter) *parameters {
+func NewParameters(input ...Parameter) *Parameters {
 	params := make([]Setting, 0, cap(input))
 	for _, p := range input {
 		params = append(params, p())
 	}
-	return &parameters{
+	return &Parameters{
 		params: params,
 	}
 }
 
 // IntParameter get int query parameter.
-func IntParameter(name string, v int64) Parameter {
+func IntParameter[T ~int | ~int8 | ~int16 | ~int32 | ~int64](name string, v T) Parameter {
 	return func() Setting {
 		return Setting{
 			Name:   name,
-			Value:  "'" + strconv.FormatInt(v, 10) + "'",
+			Value:  "'" + strconv.FormatInt(int64(v), 10) + "'",
+			Custom: true,
+		}
+	}
+}
+
+// IntSliceParameter get int query parameter.
+func IntSliceParameter[T ~int | ~int8 | ~int16 | ~int32 | ~int64](name string, v []T) Parameter {
+	return func() Setting {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range v {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		b.WriteString("]")
+		return Setting{
+			Name:   name,
+			Value:  "'" + b.String() + "'",
 			Custom: true,
 		}
 	}
 }
 
 // UintParameter get uint query parameter.
-func UintParameter(name string, v uint64) Parameter {
+func UintParameter[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](name string, v T) Parameter {
 	return func() Setting {
 		return Setting{
 			Name:   name,
-			Value:  "'" + strconv.FormatUint(v, 10) + "'",
+			Value:  "'" + strconv.FormatUint(uint64(v), 10) + "'",
 			Custom: true,
 		}
 	}
 }
 
-// UintParameter get uint query parameter.
-func StringParameter(name string, v string) Parameter {
+// IntParameter get uint slice query parameter.
+func UintSliceParameter[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](name string, v []T) Parameter {
 	return func() Setting {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range v {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(strconv.FormatUint(uint64(v), 10))
+		}
+		b.WriteString("]")
+
 		return Setting{
 			Name:   name,
-			Value:  "'" + strings.ReplaceAll(v, "'", "\\'") + "'",
+			Value:  "'" + b.String() + "'",
 			Custom: true,
 		}
 	}
 }
 
-func (p *parameters) hasParam() bool {
+func addSlashes(str string) string {
+	var tmpRune []rune
+	for _, ch := range str {
+		switch ch {
+		case '\\', '\'':
+			tmpRune = append(tmpRune, '\\', ch)
+		default:
+			tmpRune = append(tmpRune, ch)
+		}
+	}
+	return string(tmpRune)
+}
+
+// StringParameter get string query parameter.
+func StringParameter(name, v string) Parameter {
+	return func() Setting {
+		return Setting{
+			Name:   name,
+			Value:  "'" + addSlashes(v) + "'",
+			Custom: true,
+		}
+	}
+}
+
+// StringSliceParameter get string array query parameter.
+func StringSliceParameter(name string, v []string) Parameter {
+	return func() Setting {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range v {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString("'" + addSlashes(v) + "'")
+		}
+		b.WriteString("]")
+		return Setting{
+			Name:   name,
+			Value:  "'" + addSlashes(b.String()) + "'",
+			Custom: true,
+		}
+	}
+}
+
+func (p *Parameters) hasParam() bool {
 	return p != nil && len(p.params) > 0
 }
 
-func (p *parameters) write(w *readerwriter.Writer) {
+func (p *Parameters) write(w *readerwriter.Writer) {
 	if p == nil {
 		return
 	}

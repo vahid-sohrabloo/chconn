@@ -1,6 +1,7 @@
 package chconn
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/vahid-sohrabloo/chconn/v2/column"
@@ -85,12 +86,12 @@ func (block *block) readColumnsData(ch *conn, needValidateData bool, columns ...
 		}
 		if needValidateData {
 			if errValidate := col.Validate(); errValidate != nil {
-				return fmt.Errorf("validate %s: %w", col.Name(), errValidate)
+				return fmt.Errorf("validate %q: %w", col.Name(), errValidate)
 			}
 		}
 		err = col.ReadRaw(int(block.NumRows), ch.reader)
 		if err != nil {
-			return fmt.Errorf("read data %s: %w", col.Name(), err)
+			return fmt.Errorf("read data %q: %w", col.Name(), err)
 		}
 	}
 	return nil
@@ -99,7 +100,7 @@ func (block *block) readColumnsData(ch *conn, needValidateData bool, columns ...
 func (block *block) reorderColumns(columns []column.ColumnBasic) ([]column.ColumnBasic, error) {
 	for i, c := range block.Columns {
 		// check if already sorted
-		if string(columns[i].Name()) == string(block.Columns[i].Name) {
+		if bytes.Equal(columns[i].Name(), block.Columns[i].Name) {
 			continue
 		}
 		index, col := findColumn(columns, c.Name)
@@ -116,7 +117,7 @@ func (block *block) reorderColumns(columns []column.ColumnBasic) ([]column.Colum
 
 func findColumn(columns []column.ColumnBasic, name []byte) (int, column.ColumnBasic) {
 	for i, col := range columns {
-		if string(col.Name()) == string(name) {
+		if bytes.Equal(col.Name(), name) {
 			return i, col
 		}
 	}
