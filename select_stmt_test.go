@@ -142,26 +142,42 @@ func TestSelectParameters(t *testing.T) {
 	require.NoError(t, err)
 
 	colA := column.New[int32]()
+	colAS := column.New[int32]().Array()
 	colB := column.NewString()
+	colBS := column.NewString().Array()
 	colC := column.NewDate[types.DateTime]()
 	colD := column.NewMap[string, uint8](column.NewString(), column.New[uint8]())
 	colE := column.New[uint32]()
+	colES := column.New[uint32]().Array()
 	res, err := c.SelectWithOption(context.Background(),
-		"select {a: Int32}, {b: String}, {c: DateTime}, {d: Map(String, UInt8)}, {e: UInt32}",
+		`SELECT {a: Int32},
+				{as: Array(Int32)},
+				{b: String},
+				{bs: Array(String)},
+				{c: DateTime},
+				{d: Map(String, UInt8)},
+				{e: UInt32},
+				{es: Array(UInt32)}`,
 		&QueryOptions{
 			Parameters: NewParameters(
 				IntParameter("a", 13),
+				IntSliceParameter("as", []int32{-15, -16}),
 				StringParameter("b", "str'"),
+				StringSliceParameter("bs", []string{"str", "str2\\'"}),
 				StringParameter("c", "2022-08-04 18:30:53"),
 				StringParameter("d", `{'a': 1, 'b': 2}`),
-				UintParameter("e", 14),
+				UintParameter("e", uint64(14)),
+				UintSliceParameter("es", []uint32{15, 16}),
 			),
 		},
 		colA,
+		colAS,
 		colB,
+		colBS,
 		colC,
 		colD,
 		colE,
+		colES,
 	)
 
 	if err != nil && err.Error() == "parameters are not supported by the server" {
@@ -174,18 +190,24 @@ func TestSelectParameters(t *testing.T) {
 	}
 	require.NoError(t, res.Err())
 	require.Len(t, colA.Data(), 1)
+	require.Len(t, colAS.Data(), 1)
 	require.Len(t, colB.Data(), 1)
+	require.Len(t, colBS.Data(), 1)
 	require.Len(t, colC.Data(), 1)
 	require.Len(t, colD.Data(), 1)
 	require.Len(t, colE.Data(), 1)
+	require.Len(t, colES.Data(), 1)
 	assert.Equal(t, int32(13), colA.Data()[0])
+	assert.Equal(t, []int32{-15, -16}, colAS.Data()[0])
 	assert.Equal(t, "str'", colB.Data()[0])
+	assert.Equal(t, []string{"str", "str2\\'"}, colBS.Data()[0])
 	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].Format("2006-01-02 15:04:05"))
 	assert.Equal(t, map[string]uint8{
 		"a": 1,
 		"b": 2,
 	}, colD.Data()[0])
 	assert.Equal(t, uint32(14), colE.Data()[0])
+	assert.Equal(t, []uint32{15, 16}, colES.Data()[0])
 
 	c.Close()
 }

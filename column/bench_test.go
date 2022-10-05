@@ -15,7 +15,6 @@ func BenchmarkTestChconnSelect100MUint64(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	// var datStr [][]byte
 	colRead := column.New[uint64]()
 	for n := 0; n < b.N; n++ {
 		s, err := c.Select(ctx, "SELECT number FROM system.numbers_mt LIMIT 100000000", colRead)
@@ -23,17 +22,8 @@ func BenchmarkTestChconnSelect100MUint64(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		// colReadStr := column.NewString(false)x
 		for s.Next() {
-			// if err := s.ReadColumns(colRead); err != nil {
-			// 	b.Fatal(err)
-			// }
 			colRead.Data()
-			// if err := s.NextColumn(colReadStr); err != nil {
-			// 	b.Fatal(err)
-			// }
-			// datStr = datStr[:0]
-			// colReadStr.ReadAll(&datStr)
 		}
 		if err := s.Err(); err != nil {
 			b.Fatal(err)
@@ -43,13 +33,12 @@ func BenchmarkTestChconnSelect100MUint64(b *testing.B) {
 }
 
 func BenchmarkTestChconnSelect1MString(b *testing.B) {
-	// return
 	ctx := context.Background()
 	c, err := chconn.Connect(ctx, "password=salam")
 	if err != nil {
 		b.Fatal(err)
 	}
-	// var datStr [][]byte
+
 	colRead := column.NewString()
 	var data [][]byte
 	for n := 0; n < b.N; n++ {
@@ -91,11 +80,9 @@ func BenchmarkTestChconnInsert10M(b *testing.B) {
 
 	idColumns := column.New[uint64]()
 	idColumns.SetWriteBufferSize(rowsInBlock)
-	// vColumns := column.NewString(false)
 	for n := 0; n < b.N; n++ {
 		for y := 0; y < rowsInBlock; y++ {
 			idColumns.Append(1)
-			// vColumns.Append([]byte("test"))
 		}
 		err := c.Insert(ctx, "INSERT INTO test_insert_chconn VALUES", idColumns)
 		if err != nil {

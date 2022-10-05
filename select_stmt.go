@@ -153,7 +153,7 @@ func (s *selectStmt) Next() bool {
 		s.Close()
 		return false
 	}
-	// s.conn.reader.SetCompress(s.conn.compress)
+
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
 			err = s.readEmptyBlock(block)

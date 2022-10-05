@@ -80,13 +80,13 @@ func (c *Map[K, V]) Append(v map[K]V) {
 	}
 }
 
-func (c Map[K, V]) getKeyColumnData() []K {
+func (c *Map[K, V]) getKeyColumnData() []K {
 	if len(c.keyColumnData) == 0 {
 		c.keyColumnData = c.keyColumn.(Column[K]).Data()
 	}
 	return c.keyColumnData
 }
-func (c Map[K, V]) getValueColumnData() []V {
+func (c *Map[K, V]) getValueColumnData() []V {
 	if len(c.valueColumnData) == 0 {
 		c.valueColumnData = c.valueColumn.(Column[V]).Data()
 	}

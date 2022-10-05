@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -138,37 +137,37 @@ func TestSelectReadLCError(t *testing.T) {
 		},
 		{
 			name:        "error reading serialization type",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading serialization type: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading serialization type: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "error reading dictionary size",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary size: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary size: timeout",
 			numberValid: startValidReader + 7,
 		},
 		{
 			name:        "error reading dictionary",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 8,
 		},
 		{
 			name:        "error reading string len",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 9,
 		},
 		{
 			name:        "error reading string",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading dictionary: error read string: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string: timeout",
 			numberValid: startValidReader + 10,
 		},
 		{
 			name:        "error reading indices size",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading indices size: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices size: timeout",
 			numberValid: startValidReader + 11,
 		},
 		{
 			name:        "error reading indices",
-			wantErr:     "read data toLowCardinality(toString(number)): error reading indices: read data: timeout",
+			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices: read data: timeout",
 			numberValid: startValidReader + 12,
 		},
 	}
@@ -292,12 +291,12 @@ func TestSelectReadArrayError(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data array(number, number): array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(number, number)\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data array(number, number): array: read data column: read data: timeout",
+			wantErr:     "read data \"array(number, number)\": array: read data column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -411,12 +410,12 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data array(toNullable(number)): array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(toNullable(number))\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data array(toNullable(number)): array: read data column: read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"array(toNullable(number))\": array: read data column: read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 3,
 		},
 	}
@@ -464,7 +463,7 @@ func TestSelectReadNullableError(t *testing.T) {
 		},
 		{
 			name:        "read nullable data",
-			wantErr:     "read data toNullable(number): read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"toNullable(number)\": read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -588,12 +587,12 @@ func TestSelectReadArray2Error(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data array(array(number, number)): array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(array(number, number))\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data array(array(number, number)): array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(array(number, number))\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -716,12 +715,12 @@ func TestSelectReadArray3Error(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data array(array(array(number, number))): array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(array(array(number, number)))\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data array(array(array(number, number))): array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"array(array(array(number, number)))\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -854,7 +853,7 @@ func TestSelectReadTupleError(t *testing.T) {
 		},
 		{
 			name:        "read column index 2",
-			wantErr:     "read data tuple(1): tuple: read column index 0: read data: timeout",
+			wantErr:     "read data \"tuple(1)\": tuple: read column index 0: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -1010,17 +1009,17 @@ func TestSelectReadMapError(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data map(number, number): map: read offset column: read data: timeout",
+			wantErr:     "read data \"map(number, number)\": map: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read key column",
-			wantErr:     "read data map(number, number): map: read key column: read data: timeout",
+			wantErr:     "read data \"map(number, number)\": map: read key column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "read value column",
-			wantErr:     "read data map(number, number): map: read value column: read data: timeout",
+			wantErr:     "read data \"map(number, number)\": map: read value column: read data: timeout",
 			numberValid: startValidReader + 7,
 		},
 	}
@@ -1157,19 +1156,16 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "invalid nullable LowCardinality",
 			columnSelector: "number",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
 				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			}, ""),
 			column: column.New[int64]().Nullable().LC(),
 		},
 		{
 			name:           "invalid nullable LowCardinality inside",
 			columnSelector: "toLowCardinality(toNullable(number))",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: LowCardinality(Nullable(UInt64)), column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: LowCardinality(Nullable(UInt64)), column types: " +
 				"LowCardinality(Int8|UInt8|Enum8)",
-			}, ""),
+
 			column: column.New[int8]().LC(),
 		},
 		{
@@ -1205,19 +1201,16 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "invalid map value",
 			columnSelector: "map(number,number)",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: " +
 				"Map(Int64|UInt64|Float64|Decimal64|DateTime64, Int8|UInt8|Enum8)",
-			}, ""),
 			column: column.NewMap[int64, int8](column.New[int64](), column.New[int8]()),
 		},
 		{
 			name:           "invalid tuple",
 			columnSelector: "number",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
 				"Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
-			}, ""),
+
 			column: column.NewTuple(column.New[int64](), column.New[int8]()),
 		},
 		{
@@ -1235,19 +1228,17 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "date time with timezone",
 			columnSelector: "toDateTime('2010-01-01', 'America/New_York') + number",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: " +
 				"Int64|UInt64|Float64|Decimal64|DateTime64",
-			}, ""),
+
 			column: column.New[uint64](),
 		},
 		{
 			name:           "date time 64 with timezone",
 			columnSelector: "toDateTime64('2010-01-01', 3, 'America/New_York') + number",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: " +
 				"Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
-			}, ""),
+
 			column: column.New[uint32](),
 		},
 		{
@@ -1265,28 +1256,25 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "Array2 inside",
 			columnSelector: "array(number,number)",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: Array(UInt64), column types:",
+			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types:" +
 				" Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			}, ""),
+
 			column: column.New[uint64]().Array().Array(),
 		},
 		{
 			name:           "Array3",
 			columnSelector: "number",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: UInt64, column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
 				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-			}, ""),
+
 			column: column.New[uint64]().Array().Array().Array(),
 		},
 		{
 			name:           "Array3 inside",
 			columnSelector: "array(number,number)",
-			wantErr: strings.Join([]string{
-				"mismatch column type: ClickHouse Type: Array(UInt64), column types: ",
+			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types: " +
 				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-			}, ""),
+
 			column: column.New[uint64]().Array().Array().Array(),
 		},
 	}
