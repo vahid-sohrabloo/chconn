@@ -1,7 +1,35 @@
 package helper
 
+import (
+	"bytes"
+	"fmt"
+	"strconv"
+)
+
 func IsEnum8(chType []byte) bool {
 	return len(chType) > Enum8StrLen && (string(chType[:Enum8StrLen]) == Enum8Str)
+}
+
+func ExtractEnum(data []byte) (intToStringMap map[int16]string, stringToIntMap map[string]int16, err error) {
+	enums := bytes.Split(data, []byte(", "))
+	intToStringMap = make(map[int16]string)
+	stringToIntMap = make(map[string]int16)
+	for _, enum := range enums {
+		parts := bytes.SplitN(enum, []byte(" = "), 2)
+		if len(parts) != 2 {
+			return nil, nil, fmt.Errorf("invalid enum: %s", enum)
+		}
+
+		id, err := strconv.ParseInt(string(parts[1]), 10, 8)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid enum id: %s", parts[1])
+		}
+
+		val := string(parts[0][1 : len(parts[0])-1])
+		intToStringMap[int16(id)] = val
+		stringToIntMap[val] = int16(id)
+	}
+	return intToStringMap, stringToIntMap, nil
 }
 
 func IsEnum16(chType []byte) bool {
