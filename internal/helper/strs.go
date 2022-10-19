@@ -17,10 +17,13 @@ const MultiPolygonStr = "MultiPolygon"
 var MultiPolygonMainTypeStr = []byte("Array(Array(Array(Tuple(Float64, Float64))))")
 
 const (
-	ArrayStr     = "Array("
-	LenArrayStr  = len(ArrayStr)
-	ArrayTypeStr = "Array(<type>)"
-	RingStr      = "Ring"
+	ArrayStr          = "Array("
+	LenArrayStr       = len(ArrayStr)
+	ArrayTypeStr      = "Array(<type>)"
+	NestedStr         = "Nested("
+	LenNestedStr      = len(NestedStr)
+	NestedToArrayTube = "Array(Nested("
+	RingStr           = "Ring"
 )
 
 var RingMainTypeStr = []byte("Array(Tuple(Float64, Float64))")

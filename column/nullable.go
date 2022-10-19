@@ -224,8 +224,8 @@ func (c *Nullable[T]) Validate() error {
 	return nil
 }
 
-func (c *Nullable[T]) columnType() string {
-	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.columnType())
+func (c *Nullable[T]) ColumnType() string {
+	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.ColumnType())
 }
 
 // WriteTo write data to ClickHouse.

@@ -37,6 +37,11 @@ func (c *Tuple) NumRow() int {
 	return c.columns[0].NumRow()
 }
 
+// Array return a Array type for this column
+func (c *Tuple) Array() *ArrayBase {
+	return NewArrayBase(c)
+}
+
 // Reset all statuses and buffered data
 //
 // After each reading, the reading data does not need to be reset. It will be automatically reset.
@@ -89,7 +94,7 @@ func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool, revision u
 }
 
 // Column returns the all sub columns
-func (c *Tuple) Column() []ColumnBasic {
+func (c *Tuple) Columns() []ColumnBasic {
 	return c.columns
 }
 
@@ -105,7 +110,10 @@ func (c *Tuple) Validate() error {
 		}
 	}
 
-	columnsTuple := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
+	columnsTuple, err := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
+	if err != nil {
+		return fmt.Errorf("tuple invalid types %w", err)
+	}
 	if len(columnsTuple) != len(c.columns) {
 		//nolint:goerr113
 		return fmt.Errorf("columns number for %s (%s) is not equal to tuple columns number: %d != %d",
@@ -117,7 +125,8 @@ func (c *Tuple) Validate() error {
 	}
 
 	for i, col := range c.columns {
-		col.SetType(columnsTuple[i])
+		col.SetType(columnsTuple[i].ChType)
+		col.SetName(columnsTuple[i].Name)
 		if col.Validate() != nil {
 			return ErrInvalidType{
 				column: c,
@@ -127,10 +136,10 @@ func (c *Tuple) Validate() error {
 	return nil
 }
 
-func (c *Tuple) columnType() string {
+func (c *Tuple) ColumnType() string {
 	str := helper.TupleStr
 	for _, col := range c.columns {
-		str += col.columnType() + ","
+		str += col.ColumnType() + ","
 	}
 	return str[:len(str)-1] + ")"
 }
@@ -155,4 +164,11 @@ func (c *Tuple) HeaderWriter(w *readerwriter.Writer) {
 	for _, col := range c.columns {
 		col.HeaderWriter(w)
 	}
+}
+
+func (c *Tuple) Elem(arrayLevel int) ColumnBasic {
+	if arrayLevel > 0 {
+		return c.Array().elem(arrayLevel - 1)
+	}
+	return c
 }

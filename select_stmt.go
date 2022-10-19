@@ -263,6 +263,12 @@ func (s *selectStmt) getColumnsByChType(b *block) ([]column.ColumnBasic, error) 
 		if err != nil {
 			return nil, err
 		}
+		columnByType.SetName(col.Name)
+		columnByType.SetType(col.ChType)
+		err = columnByType.Validate()
+		if err != nil {
+			return nil, err
+		}
 		columns[i] = columnByType
 	}
 	return columns, nil
@@ -401,31 +407,39 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 	case helper.IsLowCardinality(chType):
 		return s.columnByType(chType[helper.LenLowCardinalityStr:len(chType)-1], arrayLevel, nullable, true)
 	case helper.IsTuple(chType):
-		columnsTuple := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
+		columnsTuple, err := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
+		if err != nil {
+			return nil, fmt.Errorf("tuple invalid types: %w", err)
+		}
 		columns := make([]column.ColumnBasic, len(columnsTuple))
-		for i, col := range columnsTuple {
-			col, err := s.columnByType(col, arrayLevel, nullable, lc)
+		for i, c := range columnsTuple {
+			col, err := s.columnByType(c.ChType, 0, false, false)
 			if err != nil {
 				return nil, err
 			}
+			col.SetName(c.Name)
 			columns[i] = col
 		}
-		// todo check if need Elem or not
-		return column.NewTuple(columns...), nil
+		return column.NewTuple(columns...).Elem(arrayLevel), nil
 	case helper.IsMap(chType):
-		columnsMap := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
+		columnsMap, err := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
+		if err != nil {
+			return nil, fmt.Errorf("map invalid types: %w", err)
+		}
 		if len(columnsMap) != 2 {
 			return nil, fmt.Errorf("map must have 2 columns")
 		}
 		columns := make([]column.ColumnBasic, len(columnsMap))
 		for i, col := range columnsMap {
-			col, err := s.columnByType(col, arrayLevel, nullable, lc)
+			col, err := s.columnByType(col.ChType, arrayLevel, nullable, lc)
 			if err != nil {
 				return nil, err
 			}
 			columns[i] = col
 		}
 		return column.NewMapBase(columns[0], columns[1]), nil
+	case helper.IsNested(chType):
+		return s.columnByType(helper.NestedToArrayType(chType), arrayLevel, nullable, lc)
 	}
 	return nil, fmt.Errorf("unknown type: %s", chType)
 }

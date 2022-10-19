@@ -1,0 +1,108 @@
+package column
+
+import (
+	"unsafe"
+)
+
+type tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }} any] struct {
+    {{- range $val := iterate .Numbrer "1" }}
+    Col{{ $val }} T{{ $val }}{{end }}
+}
+
+// Tuple{{.Numbrer}} is a column of Tuple(T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}) ClickHouse data type
+type Tuple{{.Numbrer}}[T ~struct {
+	 {{- range $val := iterate .Numbrer "1" }}
+    Col{{ $val }} T{{ $val }}{{end }}
+}{{- range $val := iterate .Numbrer "1" }}, T{{ $val }}{{end }} any] struct {
+	Tuple
+    {{- range $val := iterate .Numbrer "1" }}
+    col{{ $val }} Column[T{{ $val }}]{{end }}
+}
+
+// NewTuple{{.Numbrer}} create a new tuple of Tuple(T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}) ClickHouse data type
+func NewTuple{{.Numbrer}}[T ~struct {
+	 {{- range $val := iterate .Numbrer "1" }}
+    Col{{ $val }} T{{ $val }}{{end }}
+}{{- range $val := iterate .Numbrer "1" }}, T{{ $val }}{{end }} any](
+{{- range $val := iterate .Numbrer "1" }}
+column{{ $val }} Column[T{{ $val }}],{{end }}
+) *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}] {
+	return &Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]{
+		Tuple: Tuple{
+			columns: []ColumnBasic{
+            {{- range $val := iterate .Numbrer "1" }}
+                column{{ $val }},{{end }}
+            },
+		},
+		 {{- range $val := iterate .Numbrer "1" }}
+        col{{ $val }}: column{{ $val }},{{end }}
+	}
+}
+
+// NewNested{{.Numbrer}} create a new nested of Nested(T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}) ClickHouse data type
+//
+// this is actually an alias for NewTuple{{.Numbrer}}(T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}).Array()
+func NewNested{{.Numbrer}}[T ~struct {
+	 {{- range $val := iterate .Numbrer "1" }}
+    Col{{ $val }} T{{ $val }}{{end }}
+}{{- range $val := iterate .Numbrer "1" }}, T{{ $val }}{{end }} any](
+{{- range $val := iterate .Numbrer "1" }}
+column{{ $val }} Column[T{{ $val }}],{{end }}
+) *Array[T] {
+	return NewTuple{{.Numbrer}}[T](
+    {{- range $val := iterate .Numbrer "1" }}
+    column{{ $val }},{{end}}
+    ).Array()
+}
+
+// Data get all the data in current block as a slice.
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Data() []T {
+	val := make([]T, c.NumRow())
+	for i := 0; i < c.NumRow(); i++ {
+		val[i] = T(tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}]{
+         {{- range $val := iterate .Numbrer "1" }}
+            Col{{ $val }}: c.col{{ $val }}.Row(i),{{end }}
+		})
+	}
+	return val
+}
+
+// Read reads all the data in current block and append to the input.
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Read(value []T) []T {
+	valTuple := *(*[]tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}])(unsafe.Pointer(&value))
+	if cap(valTuple)-len(valTuple) >= c.NumRow() {
+		valTuple = valTuple[:len(value)+c.NumRow()]
+	} else {
+		valTuple = append(valTuple, make([]tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}], c.NumRow())...)
+	}
+
+	val := valTuple[len(valTuple)-c.NumRow():]
+	for i := 0; i < c.NumRow(); i++ {
+        {{- range $val := iterate .Numbrer "1" }}
+            val[i].Col{{ $val }} = c.col{{ $val }}.Row(i){{end }}
+	}
+	return *(*[]T)(unsafe.Pointer(&valTuple))
+}
+
+// Row return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Row(row int) T {
+	return T(tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}]{
+		{{- range $val := iterate .Numbrer "1" }}
+            Col{{ $val }}: c.col{{ $val }}.Row(row),{{end }}
+	})
+}
+
+// Append value for insert
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Append(v ...T) {
+	for _, v := range v {
+        t := tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}](v)
+        {{- range $val := iterate .Numbrer "1" }}
+        c.col{{ $val }}.Append(t.Col{{ $val }}){{end }}
+	}
+}
+
+// Array return a Array type for this column
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Array() *Array[T] {
+	return NewArray[T](c)
+}

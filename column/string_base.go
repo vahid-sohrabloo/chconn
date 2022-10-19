@@ -212,7 +212,7 @@ func (c *StringBase[T]) Validate() error {
 	return nil
 }
 
-func (c *StringBase[T]) columnType() string {
+func (c *StringBase[T]) ColumnType() string {
 	return helper.StringStr
 }
 

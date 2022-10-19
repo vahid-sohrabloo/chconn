@@ -203,11 +203,11 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	return c.dictColumn.HeaderReader(r, false, revision)
 }
 
-func (c *LowCardinality[T]) columnType() string {
+func (c *LowCardinality[T]) ColumnType() string {
 	if !c.nullable {
-		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.columnType())
+		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.ColumnType())
 	}
-	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.columnType())
+	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.ColumnType())
 }
 
 func (c *LowCardinality[T]) Validate() error {
@@ -286,7 +286,7 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 	return n + nwt, err
 }
 
-// HeaderWriter reads header data from read
+// HeaderWriter reader header data
 // it uses internally
 func (c *LowCardinality[T]) HeaderWriter(w *readerwriter.Writer) {
 	// write KeysSerializationVersion. for more information see clickhouse docs

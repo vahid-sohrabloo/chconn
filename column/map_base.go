@@ -175,15 +175,20 @@ func (c *MapBase) Validate() error {
 			column: c,
 		}
 	}
-	columnsMap := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
+	columnsMap, err := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
+	if err != nil {
+		return fmt.Errorf("map invalid types %w", err)
+	}
 
 	if len(columnsMap) != 2 {
 		//nolint:goerr113
 		return fmt.Errorf("columns number is not equal to map columns number: %d != %d", len(columnsMap), 2)
 	}
 
-	c.keyColumn.SetType(columnsMap[0])
-	c.valueColumn.SetType(columnsMap[1])
+	c.keyColumn.SetType(columnsMap[0].ChType)
+	c.keyColumn.SetName(columnsMap[0].Name)
+	c.valueColumn.SetType(columnsMap[1].ChType)
+	c.valueColumn.SetName(columnsMap[1].Name)
 
 	if c.keyColumn.Validate() != nil {
 		return ErrInvalidType{
@@ -198,10 +203,10 @@ func (c *MapBase) Validate() error {
 	return nil
 }
 
-func (c *MapBase) columnType() string {
+func (c *MapBase) ColumnType() string {
 	return strings.ReplaceAll(
-		strings.ReplaceAll(helper.MapTypeStr, "<key>", c.keyColumn.columnType()),
-		"<value>", c.valueColumn.columnType())
+		strings.ReplaceAll(helper.MapTypeStr, "<key>", c.keyColumn.ColumnType()),
+		"<value>", c.valueColumn.ColumnType())
 }
 
 // WriteTo write data to ClickHouse.

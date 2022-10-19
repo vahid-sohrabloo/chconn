@@ -60,6 +60,21 @@ func IsMultiPolygon(chType []byte) bool {
 	return string(chType) == MultiPolygonStr
 }
 
+func IsNested(chType []byte) bool {
+	return len(chType) > LenNestedStr && string(chType[:LenNestedStr]) == NestedStr
+}
+
+func NestedToArrayType(chType []byte) []byte {
+	if IsNested(chType) {
+		newChType := make([]byte, 0, len(chType)-LenNestedStr+LenArrayStr+LenTupleStr+1)
+		newChType = append(newChType, "Array(Tuple("...)
+		newChType = append(newChType, chType[LenNestedStr:]...)
+		newChType = append(newChType, ')')
+		return newChType
+	}
+	return chType
+}
+
 func IsArray(chType []byte) bool {
 	return len(chType) > LenArrayStr && string(chType[:LenArrayStr]) == ArrayStr
 }
@@ -97,14 +112,36 @@ func IsTuple(chType []byte) bool {
 	return len(chType) > LenTupleStr && string(chType[:LenTupleStr]) == TupleStr
 }
 
-func TypesInParentheses(b []byte) [][]byte {
-	var columnsTuple [][]byte
+type ColumnData struct {
+	ChType, Name []byte
+}
+
+func TypesInParentheses(b []byte) ([]ColumnData, error) {
+	var columns []ColumnData
 	var openFunc int
+	var hasBacktick bool
 	cur := 0
 	for i, char := range b {
+		if char == '`' {
+			if !hasBacktick {
+				hasBacktick = true
+				continue
+			}
+			if b[i-1] != '\\' {
+				hasBacktick = false
+			}
+			continue
+		}
+		if hasBacktick {
+			continue
+		}
 		if char == ',' {
 			if openFunc == 0 {
-				columnsTuple = append(columnsTuple, b[cur:i])
+				colData, err := SplitNameType(b[cur:i])
+				if err != nil {
+					return nil, err
+				}
+				columns = append(columns, colData)
 				//  add 2 to skip the ', '
 				cur = i + 2
 			}
@@ -119,7 +156,41 @@ func TypesInParentheses(b []byte) [][]byte {
 			continue
 		}
 	}
-	return append(columnsTuple, b[cur:])
+	colData, err := SplitNameType(b[cur:])
+	if err != nil {
+		return nil, err
+	}
+	return append(columns, colData), nil
+}
+
+func SplitNameType(b []byte) (ColumnData, error) {
+	// for example: `date f` Array(String)
+	if b[0] == '`' {
+		b = b[1:]
+		for i, char := range b {
+			if char == '`' && b[i-1] != '\\' {
+				return ColumnData{
+					Name:   b[1 : i+1],
+					ChType: b[i+2:],
+				}, nil
+			}
+		}
+		return ColumnData{}, fmt.Errorf("cannot find closing backtick in %s", b)
+	}
+	for i, char := range b {
+		if char == '(' {
+			break
+		}
+		if char == ' ' {
+			return ColumnData{
+				Name:   b[1 : i+1],
+				ChType: b[i+1:],
+			}, nil
+		}
+	}
+	return ColumnData{
+		ChType: b,
+	}, nil
 }
 
 func FilterSimpleAggregate(chType []byte) []byte {

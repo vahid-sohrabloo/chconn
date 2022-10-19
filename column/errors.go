@@ -12,6 +12,6 @@ type ErrInvalidType struct {
 func (e ErrInvalidType) Error() string {
 	return fmt.Sprintf("mismatch column type: ClickHouse Type: %s, column types: %s",
 		string(e.column.Type()),
-		e.column.columnType(),
+		e.column.ColumnType(),
 	)
 }
