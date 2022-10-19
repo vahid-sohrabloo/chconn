@@ -41,6 +41,11 @@ func (c *ArrayBase) NumRow() int {
 	return c.offsetColumn.NumRow()
 }
 
+// Array return a Array type for this column
+func (c *ArrayBase) Array() *ArrayBase {
+	return NewArrayBase(c)
+}
+
 // Reset all statuses and buffered data
 //
 // After each reading, the reading data does not need to be reset. It will be automatically reset.
@@ -109,6 +114,11 @@ func (c *ArrayBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revisi
 	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
+// Column returns the sub column
+func (c *ArrayBase) Column() ColumnBasic {
+	return c.dataColumn
+}
+
 func (c *ArrayBase) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	switch {
@@ -119,6 +129,8 @@ func (c *ArrayBase) Validate() error {
 	case helper.IsMultiPolygon(chType):
 		chType = helper.MultiPolygonMainTypeStr
 	}
+
+	chType = helper.NestedToArrayType(chType)
 
 	if !helper.IsArray(chType) {
 		return ErrInvalidType{
@@ -134,8 +146,8 @@ func (c *ArrayBase) Validate() error {
 	return nil
 }
 
-func (c *ArrayBase) columnType() string {
-	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.columnType())
+func (c *ArrayBase) ColumnType() string {
+	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.ColumnType())
 }
 
 // WriteTo write data to ClickHouse.
@@ -154,4 +166,11 @@ func (c *ArrayBase) WriteTo(w io.Writer) (int64, error) {
 // it uses internally
 func (c *ArrayBase) HeaderWriter(w *readerwriter.Writer) {
 	c.dataColumn.HeaderWriter(w)
+}
+
+func (c *ArrayBase) elem(arrayLevel int) ColumnBasic {
+	if arrayLevel > 0 {
+		return c.Array().elem(arrayLevel - 1)
+	}
+	return c
 }

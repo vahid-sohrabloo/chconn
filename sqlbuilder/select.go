@@ -235,7 +235,7 @@ func (sb *SelectBuilder) String() string {
 
 // Build returns compiled SELECT string and args.
 // They can be used in `Select` directly.
-func (sb *SelectBuilder) Build(initialArg ...interface{}) (sql string, params *chconn.Parameters) {
+func (sb *SelectBuilder) Build() (sql string, params *chconn.Parameters) {
 	buf := &bytes.Buffer{}
 	sb.injection.WriteTo(buf, selectMarkerInit)
 	buf.WriteString("SELECT ")

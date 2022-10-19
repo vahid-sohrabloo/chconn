@@ -2,14 +2,7 @@ package types
 
 import (
 	"time"
-
-	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
-
-var _ = column.Date[Date]{}
-var _ = column.Date[Date32]{}
-var _ = column.Date[DateTime]{}
-var _ = column.Date[DateTime64]{}
 
 type Date uint16
 

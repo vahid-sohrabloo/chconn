@@ -200,7 +200,7 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 	return false, nil
 }
 
-func (c *Base[T]) columnType() string {
+func (c *Base[T]) ColumnType() string {
 	if ok, _ := c.checkFixedString(c.chType); !ok {
 		if str, ok := byteChColumnType[c.size]; ok {
 			return str

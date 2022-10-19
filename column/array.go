@@ -43,8 +43,8 @@ func (c *Array[T]) Read(value [][]T) [][]T {
 	for _, offset := range offsets {
 		val := make([]T, offset-lastOffset)
 		copy(val, columnData[lastOffset:offset])
-		lastOffset = offset
 		value = append(value, val)
+		lastOffset = offset
 	}
 	return value
 }

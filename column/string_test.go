@@ -228,14 +228,14 @@ func TestString(t *testing.T) {
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.IsType(t, colRead, autoColumns[0])
-	assert.IsType(t, colNullableRead, autoColumns[1])
-	assert.IsType(t, colArrayRead, autoColumns[2])
-	assert.IsType(t, colNullableArrayRead, autoColumns[3])
-	assert.IsType(t, colLCRead, autoColumns[4])
-	assert.IsType(t, colLCNullableRead, autoColumns[5])
-	assert.IsType(t, colArrayLCRead, autoColumns[6])
-	assert.IsType(t, colArrayLCNullableRead, autoColumns[7])
+	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
+	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
+	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
+	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
+	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
+	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
+	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
+	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
 
 	for selectStmt.Next() {
 	}

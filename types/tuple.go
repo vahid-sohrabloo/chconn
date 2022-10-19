@@ -1,29 +1,29 @@
 package types
 
-import "github.com/vahid-sohrabloo/chconn/v2/column"
+type Point Tuple2[float64, float64]
 
-var _ = &column.TupleOf[Point]{}
-
-type Point struct {
-	X float64
-	Y float64
+type Tuple2[T1, T2 any] struct {
+	Col1 T1
+	Col2 T2
 }
 
-func (t Point) Append(columns []column.ColumnBasic) {
-	columns[0].(*column.Base[float64]).Append(t.X)
-	columns[1].(*column.Base[float64]).Append(t.Y)
+type Tuple3[T1, T2, T3 any] struct {
+	Col1 T1
+	Col2 T2
+	Col3 T3
 }
 
-func (t Point) Get(columns []column.ColumnBasic, row int) Point {
-	return Point{
-		X: columns[0].(*column.Base[float64]).Row(row),
-		Y: columns[1].(*column.Base[float64]).Row(row),
-	}
+type Tuple4[T1, T2, T3, T4 any] struct {
+	Col1 T1
+	Col2 T2
+	Col3 T3
+	Col4 T4
 }
 
-func (t Point) Column() []column.ColumnBasic {
-	return []column.ColumnBasic{
-		column.New[float64](),
-		column.New[float64](),
-	}
+type Tuple5[T1, T2, T3, T4, T5 any] struct {
+	Col1 T1
+	Col2 T2
+	Col3 T3
+	Col4 T4
+	Col5 T5
 }

@@ -33,6 +33,7 @@ func TestTuple(t *testing.T) {
 			Value: "true",
 		},
 	}
+
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 		%[1]s Tuple(String, Int64),
 		%[1]s_nullable Tuple(Nullable(String), Nullable(Int64)),
@@ -41,7 +42,8 @@ func TestTuple(t *testing.T) {
 		%[1]s_lc Tuple(LowCardinality(String),LowCardinality(Int64)),
 		%[1]s_nullable_lc Tuple(LowCardinality(Nullable(String)),LowCardinality(Nullable(Int64))),
 		%[1]s_array_lc Tuple(Array(LowCardinality(String)),Array(LowCardinality(Int64))),
-		%[1]s_array_lc_nullable Tuple(Array(LowCardinality(Nullable(String))),Array(LowCardinality(Nullable(Int64))))
+		%[1]s_array_lc_nullable Tuple(Array(LowCardinality(Nullable(String))),Array(LowCardinality(Nullable(Int64)))),
+		%[1]s_array_array_tuple Array(Array(Tuple(String, Int64)))
 			) Engine=Memory`, tableName), &chconn.QueryOptions{
 		Settings: set,
 	})
@@ -79,6 +81,10 @@ func TestTuple(t *testing.T) {
 	colArrayLCNullableString := column.NewString().Nullable().LowCardinality().Array()
 	colArrayLCNullableInt := column.New[int64]().Nullable().LowCardinality().Array()
 	colArrayLCNullable := column.NewTuple(colArrayLCNullableString, colArrayLCNullableInt)
+
+	colArrayArrayTupleString := column.NewString()
+	colArrayArrayTupleInt := column.New[int64]()
+	colArrayArrayTuple := column.NewTuple(colArrayArrayTupleString, colArrayArrayTupleInt).Array().Array()
 
 	var colStringInsert []string
 	var colIntInsert []int64
@@ -160,6 +166,11 @@ func TestTuple(t *testing.T) {
 			colLCNullableArrayIntInsert = append(colLCNullableArrayIntInsert, valArrayNilInt)
 			colArrayLCNullableString.AppendP(valArrayNilString)
 			colArrayLCNullableInt.AppendP(valArrayNilInt)
+
+			colArrayArrayTuple.AppendLen(1)
+			colArrayArrayTuple.Column().(*column.ArrayBase).AppendLen(2)
+			colArrayArrayTupleString.Append(valString, val2String)
+			colArrayArrayTupleInt.Append(valInt, val2Int)
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
@@ -171,7 +182,8 @@ func TestTuple(t *testing.T) {
 				%[1]s_lc,
 				%[1]s_nullable_lc,
 				%[1]s_array_lc,
-				%[1]s_array_lc_nullable
+				%[1]s_array_lc_nullable,
+				%[1]s_array_array_tuple
 			)
 		VALUES`, tableName),
 			col,
@@ -182,6 +194,7 @@ func TestTuple(t *testing.T) {
 			colLCNullable,
 			colArrayLC,
 			colArrayLCNullable,
+			colArrayArrayTuple,
 		)
 		require.NoError(t, err)
 	}
@@ -315,30 +328,14 @@ func TestTuple(t *testing.T) {
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.IsType(t, colRead, autoColumns[0])
-	assert.IsType(t, colRead.Column()[0], autoColumns[0].(*column.Tuple).Column()[0])
-	assert.IsType(t, colRead.Column()[1], autoColumns[0].(*column.Tuple).Column()[1])
-	assert.IsType(t, colNullableRead, autoColumns[1])
-	assert.IsType(t, colNullableRead.Column()[0], autoColumns[1].(*column.Tuple).Column()[0])
-	assert.IsType(t, colNullableRead.Column()[1], autoColumns[1].(*column.Tuple).Column()[1])
-	assert.IsType(t, colArrayRead, autoColumns[2])
-	assert.IsType(t, colArrayRead.Column()[0], autoColumns[2].(*column.Tuple).Column()[0])
-	assert.IsType(t, colArrayRead.Column()[1], autoColumns[2].(*column.Tuple).Column()[1])
-	assert.IsType(t, colNullableArrayRead, autoColumns[3])
-	assert.IsType(t, colNullableArrayRead.Column()[0], autoColumns[3].(*column.Tuple).Column()[0])
-	assert.IsType(t, colNullableArrayRead.Column()[1], autoColumns[3].(*column.Tuple).Column()[1])
-	assert.IsType(t, colLCRead, autoColumns[4])
-	assert.IsType(t, colLCRead.Column()[0], autoColumns[4].(*column.Tuple).Column()[0])
-	assert.IsType(t, colLCRead.Column()[1], autoColumns[4].(*column.Tuple).Column()[1])
-	assert.IsType(t, colLCNullableRead, autoColumns[5])
-	assert.IsType(t, colLCNullableRead.Column()[0], autoColumns[5].(*column.Tuple).Column()[0])
-	assert.IsType(t, colLCNullableRead.Column()[1], autoColumns[5].(*column.Tuple).Column()[1])
-	assert.IsType(t, colArrayLCRead, autoColumns[6])
-	assert.IsType(t, colArrayLCRead.Column()[0], autoColumns[6].(*column.Tuple).Column()[0])
-	assert.IsType(t, colArrayLCRead.Column()[1], autoColumns[6].(*column.Tuple).Column()[1])
-	assert.IsType(t, colArrayLCNullableRead, autoColumns[7])
-	assert.IsType(t, colArrayLCNullableRead.Column()[0], autoColumns[7].(*column.Tuple).Column()[0])
-	assert.IsType(t, colArrayLCNullableRead.Column()[1], autoColumns[7].(*column.Tuple).Column()[1])
+	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
+	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
+	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
+	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
+	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
+	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
+	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
+	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
 
 	for selectStmt.Next() {
 	}
@@ -385,10 +382,10 @@ func TestGeo(t *testing.T) {
 
 	require.NoError(t, err)
 
-	colPoint := column.NewTupleOf[types.Point]()
-	colRing := column.NewTupleOf[types.Point]().Array()
-	colPolygon := column.NewTupleOf[types.Point]().Array().Array()
-	colMultiPolygon := column.NewTupleOf[types.Point]().Array().Array().Array()
+	colPoint := column.NewPoint()
+	colRing := column.NewPoint().Array()
+	colPolygon := column.NewPoint().Array().Array()
+	colMultiPolygon := column.NewPoint().Array().Array().Array()
 
 	colPoint.SetWriteBufferSize(20)
 	colRing.SetWriteBufferSize(20)
@@ -404,38 +401,38 @@ func TestGeo(t *testing.T) {
 		rows := 10
 		for i := 0; i < rows; i++ {
 			pointValue := types.Point{
-				X: float64(i),
-				Y: float64(i + 1),
+				Col1: float64(i),
+				Col2: float64(i + 1),
 			}
 			ringValue := []types.Point{
 				{
-					X: float64(i),
-					Y: float64(i + 1),
+					Col1: float64(i),
+					Col2: float64(i + 1),
 				},
 				{
-					X: float64(i + 2),
-					Y: float64(i + 3),
+					Col1: float64(i + 2),
+					Col2: float64(i + 3),
 				},
 			}
 			polygonValue := [][]types.Point{
 				{
 					{
-						X: float64(i),
-						Y: float64(i + 1),
+						Col1: float64(i),
+						Col2: float64(i + 1),
 					},
 					{
-						X: float64(i + 2),
-						Y: float64(i + 3),
+						Col1: float64(i + 2),
+						Col2: float64(i + 3),
 					},
 				},
 				{
 					{
-						X: float64(i),
-						Y: float64(i + 1),
+						Col1: float64(i),
+						Col2: float64(i + 1),
 					},
 					{
-						X: float64(i + 2),
-						Y: float64(i + 3),
+						Col1: float64(i + 2),
+						Col2: float64(i + 3),
 					},
 				},
 			}
@@ -443,22 +440,22 @@ func TestGeo(t *testing.T) {
 				{
 					{
 						{
-							X: float64(i),
-							Y: float64(i + 1),
+							Col1: float64(i),
+							Col2: float64(i + 1),
 						},
 						{
-							X: float64(i + 2),
-							Y: float64(i + 3),
+							Col1: float64(i + 2),
+							Col2: float64(i + 3),
 						},
 					},
 					{
 						{
-							X: float64(i),
-							Y: float64(i + 1),
+							Col1: float64(i),
+							Col2: float64(i + 1),
 						},
 						{
-							X: float64(i + 2),
-							Y: float64(i + 3),
+							Col1: float64(i + 2),
+							Col2: float64(i + 3),
 						},
 					},
 				},
@@ -491,10 +488,10 @@ func TestGeo(t *testing.T) {
 
 	// example read all
 
-	colPointRead := column.NewTupleOf[types.Point]()
-	colRingRead := column.NewTupleOf[types.Point]().Array()
-	colPolygonRead := column.NewTupleOf[types.Point]().Array().Array()
-	colMultiPolygonRead := column.NewTupleOf[types.Point]().Array().Array().Array()
+	colPointRead := column.NewPoint()
+	colRingRead := column.NewPoint().Array()
+	colPolygonRead := column.NewPoint().Array().Array()
+	colMultiPolygonRead := column.NewPoint().Array().Array().Array()
 
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 	point,
