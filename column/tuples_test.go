@@ -324,4 +324,64 @@ func TestTuples(t *testing.T) {
 	assert.Equal(t, col4ArrayInsert, col4ArrayReadData)
 	assert.Equal(t, col5Insert, col5ReadData)
 	assert.Equal(t, col5ArrayInsert, col5ArrayReadData)
+
+	// example read row
+
+	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		%[1]s1,
+		%[1]s1_array,
+		%[1]s2,
+		%[1]s2_array,
+		%[1]s3,
+		%[1]s3_array,
+		%[1]s4,
+		%[1]s4_array,
+		%[1]s5,
+		%[1]s5_array
+
+	FROM test_%[1]s`, tableName),
+		col1Read, col1ArrayRead, col2Read, col2ArrayRead, col3Read, col3ArrayRead, col4Read, col4ArrayRead, col5Read, col5ArrayRead)
+
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	col1ReadData = col1ReadData[:0]
+	col1ArrayReadData = col1ArrayReadData[:0]
+	col2ReadData = col2ReadData[:0]
+	col2ArrayReadData = col2ArrayReadData[:0]
+	col3ReadData = col3ReadData[:0]
+	col3ArrayReadData = col3ArrayReadData[:0]
+	col4ReadData = col4ReadData[:0]
+	col4ArrayReadData = col4ArrayReadData[:0]
+	col5ReadData = col5ReadData[:0]
+	col5ArrayReadData = col5ArrayReadData[:0]
+
+	for selectStmt.Next() {
+		for i := 0; i < selectStmt.RowsInBlock(); i++ {
+			col1ReadData = append(col1ReadData, col1Read.Row(i))
+			col1ArrayReadData = append(col1ArrayReadData, col1ArrayRead.Row(i))
+			col2ReadData = append(col2ReadData, col2Read.Row(i))
+			col2ArrayReadData = append(col2ArrayReadData, col2ArrayRead.Row(i))
+			col3ReadData = append(col3ReadData, col3Read.Row(i))
+			col3ArrayReadData = append(col3ArrayReadData, col3ArrayRead.Row(i))
+			col4ReadData = append(col4ReadData, col4Read.Row(i))
+			col4ArrayReadData = append(col4ArrayReadData, col4ArrayRead.Row(i))
+			col5ReadData = append(col5ReadData, col5Read.Row(i))
+			col5ArrayReadData = append(col5ArrayReadData, col5ArrayRead.Row(i))
+		}
+	}
+
+	require.NoError(t, selectStmt.Err())
+	selectStmt.Close()
+
+	assert.Equal(t, col1Insert, col1ReadData)
+	assert.Equal(t, col1ArrayInsert, col1ArrayReadData)
+	assert.Equal(t, col2Insert, col2ReadData)
+	assert.Equal(t, col2ArrayInsert, col2ArrayReadData)
+	assert.Equal(t, col3Insert, col3ReadData)
+	assert.Equal(t, col3ArrayInsert, col3ArrayReadData)
+	assert.Equal(t, col4Insert, col4ReadData)
+	assert.Equal(t, col4ArrayInsert, col4ArrayReadData)
+	assert.Equal(t, col5Insert, col5ReadData)
+	assert.Equal(t, col5ArrayInsert, col5ArrayReadData)
 }

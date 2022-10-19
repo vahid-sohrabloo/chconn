@@ -1311,6 +1311,19 @@ func TestFixedStringInvalidType(t *testing.T) {
 	assert.Equal(t, err.Error(), "invalid size: strconv.Atoi: parsing \"a\": invalid syntax")
 }
 
+func TestEnum8InvalidType(t *testing.T) {
+	m := column.New[int16]()
+	m.SetType([]byte("Enum8()"))
+	err := m.Validate()
+	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum8(), column types: Int16|UInt16|Enum16|Date")
+}
+func TestEnum16InvalidType(t *testing.T) {
+	m := column.New[int32]()
+	m.SetType([]byte("Enum16()"))
+	err := m.Validate()
+	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum16(), column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4")
+}
+
 func TestDecimalInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
 	m.SetType([]byte("Decimal()"))

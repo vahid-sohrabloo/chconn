@@ -243,7 +243,19 @@ func TestInsert(t *testing.T) {
 	}
 
 	// send in invalid order to test sorted columns by name
-	err = conn.Insert(context.Background(), `INSERT INTO test_insert (int8,int16,int32) VALUES`, col32, col16, col8)
+	err = conn.InsertWithOption(context.Background(), `INSERT INTO test_insert (int8,int16,int32) VALUES`,
+		&QueryOptions{
+			OnProgress: func(progress *Progress) {
+
+			},
+			OnProfileEvent: func(pe *ProfileEvent) {
+
+			},
+			OnProfile: func(p *Profile) {
+
+			},
+		},
+		col32, col16, col8)
 
 	require.NoError(t, err)
 

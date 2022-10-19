@@ -94,7 +94,7 @@ func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool, revision u
 }
 
 // Column returns the all sub columns
-func (c *Tuple) Column() []ColumnBasic {
+func (c *Tuple) Columns() []ColumnBasic {
 	return c.columns
 }
 
