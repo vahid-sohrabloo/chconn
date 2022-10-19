@@ -44,7 +44,7 @@ func TestTuples(t *testing.T) {
 		%[1]s4 Tuple(Int64, Int64, Int64, Int64),
 		%[1]s4_array Array(Tuple(Int64, Int64, Int64, Int64)),
 		%[1]s5 Tuple(Int64, Int64, Int64, Int64, Int64),
-		%[1]s5_array Array(Tuple(Int64, Int64, Int64, Int64, Int64)),
+		%[1]s5_array Array(Tuple(Int64, Int64, Int64, Int64, Int64))
 		) Engine=Memory`, tableName), &chconn.QueryOptions{
 		Settings: set,
 	})
