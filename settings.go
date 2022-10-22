@@ -109,7 +109,7 @@ func UintParameter[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](name string, 
 	}
 }
 
-// IntParameter get uint slice query parameter.
+// UintSliceParameter get uint slice query parameter.
 func UintSliceParameter[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](name string, v []T) Parameter {
 	return func() Setting {
 		var b strings.Builder
@@ -119,6 +119,70 @@ func UintSliceParameter[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](name str
 				b.WriteString(",")
 			}
 			b.WriteString(strconv.FormatUint(uint64(v), 10))
+		}
+		b.WriteString("]")
+
+		return Setting{
+			Name:   name,
+			Value:  "'" + b.String() + "'",
+			Custom: true,
+		}
+	}
+}
+
+// Float32Parameter get float32 query parameter.
+func Float32Parameter[T ~float32](name string, v T) Parameter {
+	return func() Setting {
+		return Setting{
+			Name:   name,
+			Value:  "'" + strconv.FormatFloat(float64(v), 'f', -1, 32) + "'",
+			Custom: true,
+		}
+	}
+}
+
+// Float32SliceParameter get float32 slice query parameter.
+func Float32SliceParameter[T ~float32](name string, v []T) Parameter {
+	return func() Setting {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range v {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(strconv.FormatFloat(float64(v), 'f', -1, 32))
+		}
+		b.WriteString("]")
+
+		return Setting{
+			Name:   name,
+			Value:  "'" + b.String() + "'",
+			Custom: true,
+		}
+	}
+}
+
+// Float64Parameter get float64 query parameter.
+func Float64Parameter[T ~float64](name string, v T) Parameter {
+	return func() Setting {
+		return Setting{
+			Name:   name,
+			Value:  "'" + strconv.FormatFloat(float64(v), 'f', -1, 64) + "'",
+			Custom: true,
+		}
+	}
+}
+
+// Float64SliceParameter get float64 slice query parameter.
+func Float64SliceParameter[T ~float64](name string, v []T) Parameter {
+	return func() Setting {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range v {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(strconv.FormatFloat(float64(v), 'f', -1, 64))
 		}
 		b.WriteString("]")
 
