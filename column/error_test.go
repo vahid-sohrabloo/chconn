@@ -1321,7 +1321,8 @@ func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
 	m.SetType([]byte("Enum16()"))
 	err := m.Validate()
-	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum16(), column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4")
+	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum16(), "+
+		"column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4")
 }
 
 func TestDecimalInvalidType(t *testing.T) {

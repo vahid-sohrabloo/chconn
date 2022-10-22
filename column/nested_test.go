@@ -54,8 +54,6 @@ func TestNestedNoFlattened(t *testing.T) {
 	col2N2 := column.NewNested2[Col1Type, int64, string](column.New[int64](), column.NewString())
 	col2 := column.NewNested2[Col2Type, int64, []Col1Type](column.New[int64](), col2N2)
 
-	// var colStringInsert []string
-
 	var col1Insert [][]Col1Type
 	var col2Insert [][]Col2Type
 
