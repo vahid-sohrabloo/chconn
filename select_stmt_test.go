@@ -149,6 +149,11 @@ func TestSelectParameters(t *testing.T) {
 	colD := column.NewMap[string, uint8](column.NewString(), column.New[uint8]())
 	colE := column.New[uint32]()
 	colES := column.New[uint32]().Array()
+	colF32 := column.New[float32]()
+	colF32S := column.New[float32]().Array()
+	colF64 := column.New[float64]()
+	colF64S := column.New[float64]().Array()
+
 	res, err := c.SelectWithOption(context.Background(),
 		`SELECT {a: Int32},
 				{as: Array(Int32)},
@@ -157,7 +162,12 @@ func TestSelectParameters(t *testing.T) {
 				{c: DateTime},
 				{d: Map(String, UInt8)},
 				{e: UInt32},
-				{es: Array(UInt32)}`,
+				{es: Array(UInt32)},
+				{f32: Float32},
+				{f64: Float64},
+				{f32s: Array(Float32)},
+				{f64s: Array(Float64)}
+				`,
 		&QueryOptions{
 			Parameters: NewParameters(
 				IntParameter("a", 13),
@@ -168,6 +178,10 @@ func TestSelectParameters(t *testing.T) {
 				StringParameter("d", `{'a': 1, 'b': 2}`),
 				UintParameter("e", uint64(14)),
 				UintSliceParameter("es", []uint32{15, 16}),
+				Float32Parameter("f32", float32(1.5)),
+				Float64Parameter("f64", float64(1.8)),
+				Float32SliceParameter("f32s", []float32{1.5, 1.6}),
+				Float64SliceParameter("f64s", []float64{1.8, 1.9}),
 			),
 		},
 		colA,
@@ -178,6 +192,10 @@ func TestSelectParameters(t *testing.T) {
 		colD,
 		colE,
 		colES,
+		colF32,
+		colF64,
+		colF32S,
+		colF64S,
 	)
 
 	if err != nil && err.Error() == "parameters are not supported by the server" {
@@ -208,6 +226,10 @@ func TestSelectParameters(t *testing.T) {
 	}, colD.Data()[0])
 	assert.Equal(t, uint32(14), colE.Data()[0])
 	assert.Equal(t, []uint32{15, 16}, colES.Data()[0])
+	assert.Equal(t, float32(1.5), colF32.Data()[0])
+	assert.Equal(t, float64(1.8), colF64.Data()[0])
+	assert.Equal(t, []float32{1.5, 1.6}, colF32S.Data()[0])
+	assert.Equal(t, []float64{1.8, 1.9}, colF64S.Data()[0])
 
 	c.Close()
 }
