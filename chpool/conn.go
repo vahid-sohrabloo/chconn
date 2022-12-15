@@ -30,6 +30,9 @@ type Conn interface {
 	// InsertWithSetting executes a query with the query options and commit all columns data.
 	// NOTE: only use for insert query
 	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	// InsertWithSetting executes a query with the query options and commit all columns data.
+	// NOTE: only use for insert query
+	InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error)
 	// Conn get the underlying chconn.Conn
 	Conn() chconn.Conn
 	// Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
@@ -136,6 +139,16 @@ func (c *conn) SelectWithOption(
 
 func (c *conn) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
 	return c.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
+}
+func (c *conn) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
+	s, err := c.Conn().InsertStreamWithOption(ctx, query, queryOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &insertStmt{
+		InsertStmt: s,
+		conn:       c,
+	}, nil
 }
 
 func (c *conn) Conn() chconn.Conn {

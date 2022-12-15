@@ -66,16 +66,37 @@ type Pool interface {
 		query string,
 		queryOptions *chconn.QueryOptions,
 	) error
-	// Insert executes a query and commit all columns data.
+	// Insert executes a insert query and commit all columns data.
+	//
+	// If the query is successful, the columns buffer will be reset.
+	//
 	// NOTE: only use for insert query
 	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
-	// InsertWithSetting executes a query with the query options and commit all columns data.
+	// InsertWithOption executes a insert query with the query options and commit all columns data.
+	//
+	// If the query is successful, the columns buffer will be reset.
+	//
 	// NOTE: only use for insert query
 	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	// Insert executes a insert query and return a InsertStmt.
+	//
+	// NOTE: only use for insert query
+	InsertStream(ctx context.Context, query string) (chconn.InsertStmt, error)
+	// InsertWithOption executes a insert query with the query options and return a InsertStmt.
+	//
+	// If the query is successful, the columns buffer will be reset.
+	//
+	// NOTE: only use for insert query
+	InsertStreamWithOption(
+		ctx context.Context,
+		query string,
+		queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error)
 	// Select executes a query and return select stmt.
+	//
 	// NOTE: only use for select query
 	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error)
 	// Select executes a query with the the query options and return select stmt.
+	//
 	// NOTE: only use for select query
 	SelectWithOption(
 		ctx context.Context,
@@ -668,6 +689,29 @@ func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions 
 			continue
 		}
 		return err
+	}
+}
+
+func (p *pool) InsertStream(ctx context.Context, query string) (chconn.InsertStmt, error) {
+	return p.InsertStreamWithOption(ctx, query, nil)
+}
+
+func (p *pool) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
+	for {
+		c, err := p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		s, err := c.InsertStreamWithOption(ctx, query, queryOptions)
+		if err != nil {
+			c.Release()
+			if errors.Is(err, syscall.EPIPE) {
+				continue
+			}
+			return nil, err
+		}
+		return s, nil
 	}
 }
 

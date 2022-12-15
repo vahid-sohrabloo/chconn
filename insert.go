@@ -6,63 +6,59 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v2/column"
 )
 
-func (ch *conn) commit(queryOptions *QueryOptions, b *block, columns ...column.ColumnBasic) error {
-	if int(b.NumColumns) != len(columns) {
-		return &InsertError{
-			err: &ColumnNumberWriteError{
-				WriteColumn: len(columns),
-				NeedColumn:  b.NumColumns,
-			},
-			remoteAddr: ch.RawConn().RemoteAddr(),
+// InsertStmt is a interface for insert stream statement
+type InsertStmt interface {
+	// Write write a columns (a block of data) to the clickhouse server
+	// after each write you need to reset the columns. it will not reset automatically
+	Write(ctx context.Context, columns ...column.ColumnBasic) error
+	// Flush flush the data to the clickhouse server and close the statement
+	Flush(ctx context.Context) error
+	// Close close the statement and release the connection
+	// close will be called automatically after Flush
+	Close()
+}
+
+type insertStmt struct {
+	block        *block
+	conn         *conn
+	query        string
+	queryOptions *QueryOptions
+	clientInfo   *ClientInfo
+	hasError     bool
+	closed       bool
+	finishInsert bool
+}
+
+func (s *insertStmt) Flush(ctx context.Context) error {
+	defer s.Close()
+	s.finishInsert = true
+
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return newContextAlreadyDoneError(ctx)
+		default:
 		}
+		s.conn.contextWatcher.Watch(ctx)
+		defer s.conn.contextWatcher.Unwatch()
 	}
 
-	var err error
-	if len(columns[0].Name()) != 0 {
-		columns, err = b.reorderColumns(columns)
-		if err != nil {
-			return &InsertError{
-				err:        err,
-				remoteAddr: ch.RawConn().RemoteAddr(),
-			}
-		}
-	}
-	for i, col := range columns {
-		col.SetType(b.Columns[i].ChType)
-		if errValidate := col.Validate(); errValidate != nil {
-			return errValidate
-		}
-	}
-	err = ch.sendData(b, columns[0].NumRow())
-	if err != nil {
-		return &InsertError{
-			err:        err,
-			remoteAddr: ch.RawConn().RemoteAddr(),
-		}
-	}
-
-	err = b.writeColumnsBuffer(ch, columns...)
-	if err != nil {
-		return &InsertError{
-			err:        err,
-			remoteAddr: ch.RawConn().RemoteAddr(),
-		}
-	}
-
-	err = ch.sendEmptyBlock()
+	err := s.conn.sendEmptyBlock()
 
 	if err != nil {
+		s.hasError = true
 		return &InsertError{
 			err:        err,
-			remoteAddr: ch.RawConn().RemoteAddr(),
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
 		}
 	}
 
+	var res interface{}
 	for {
-		var res interface{}
-		res, err = ch.receiveAndProcessData(emptyOnProgress)
+		res, err = s.conn.receiveAndProcessData(emptyOnProgress)
 
 		if err != nil {
+			s.hasError = true
 			return err
 		}
 
@@ -71,25 +67,105 @@ func (ch *conn) commit(queryOptions *QueryOptions, b *block, columns ...column.C
 		}
 
 		if profile, ok := res.(*Profile); ok {
-			if queryOptions.OnProfile != nil {
-				queryOptions.OnProfile(profile)
+			if s.queryOptions.OnProfile != nil {
+				s.queryOptions.OnProfile(profile)
 			}
 			continue
 		}
 		if progress, ok := res.(*Progress); ok {
-			if queryOptions.OnProgress != nil {
-				queryOptions.OnProgress(progress)
+			if s.queryOptions.OnProgress != nil {
+				s.queryOptions.OnProgress(progress)
 			}
 			continue
 		}
 		if profileEvent, ok := res.(*ProfileEvent); ok {
-			if queryOptions.OnProfileEvent != nil {
-				queryOptions.OnProfileEvent(profileEvent)
+			if s.queryOptions.OnProfileEvent != nil {
+				s.queryOptions.OnProfileEvent(profileEvent)
 			}
 			continue
 		}
+		s.hasError = true
 		return &unexpectedPacket{expected: "serverData", actual: res}
 	}
+}
+
+// Close close the statement and release the connection
+// If Next is called and returns false and there are no further blocks,
+// the Rows are closed automatically and it will suffice to check the result of Err.
+// Close is idempotent and does not affect the result of Err.
+func (s *insertStmt) Close() {
+	s.conn.reader.SetCompress(false)
+	if !s.closed {
+		s.closed = true
+		s.conn.contextWatcher.Unwatch()
+		s.conn.unlock()
+		if s.hasError || !s.finishInsert {
+			s.conn.Close()
+		}
+	}
+}
+
+func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) error {
+	if int(s.block.NumColumns) != len(columns) {
+		return &InsertError{
+			err: &ColumnNumberWriteError{
+				WriteColumn: len(columns),
+				NeedColumn:  s.block.NumColumns,
+			},
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+
+	var err error
+	if len(columns[0].Name()) != 0 {
+		columns, err = s.block.reorderColumns(columns)
+		if err != nil {
+			s.hasError = true
+			return &InsertError{
+				err:        err,
+				remoteAddr: s.conn.RawConn().RemoteAddr(),
+			}
+		}
+	}
+	for i, col := range columns {
+		col.SetType(s.block.Columns[i].ChType)
+		if errValidate := col.Validate(); errValidate != nil {
+			s.hasError = true
+			return errValidate
+		}
+	}
+
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return newContextAlreadyDoneError(ctx)
+		default:
+		}
+		s.conn.contextWatcher.Watch(ctx)
+		defer s.conn.contextWatcher.Unwatch()
+	}
+
+	err = s.conn.sendData(s.block, columns[0].NumRow())
+	if err != nil {
+		s.hasError = true
+		return &InsertError{
+			err:        err,
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+
+	err = s.block.writeColumnsBuffer(s.conn, columns...)
+	if err != nil {
+		s.hasError = true
+		return &InsertError{
+			err:        err,
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+	for _, col := range columns {
+		col.Reset()
+	}
+	return nil
 }
 
 // Insert send query for insert and commit columns
@@ -103,13 +179,41 @@ func (ch *conn) InsertWithOption(
 	query string,
 	queryOptions *QueryOptions,
 	columns ...column.ColumnBasic) error {
-	err := ch.lock()
+	stmt, err := ch.InsertStreamWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
+	err = stmt.Write(ctx, columns...)
+	if err != nil {
+		return err
+	}
+	err = stmt.Flush(ctx)
+	if err != nil {
+		return err
+	}
+	for _, col := range columns {
+		col.Reset()
+	}
+	return nil
+}
+
+func (ch *conn) InsertStream(ctx context.Context, query string) (InsertStmt, error) {
+	return ch.InsertStreamWithOption(ctx, query, nil)
+}
+
+// Insert send query for insert and prepare insert stmt with setting option
+func (ch *conn) InsertStreamWithOption(
+	ctx context.Context,
+	query string,
+	queryOptions *QueryOptions) (InsertStmt, error) {
+	err := ch.lock()
+	if err != nil {
+		return nil, err
+	}
+
 	var hasError bool
 	defer func() {
-		ch.unlock()
 		if hasError {
 			ch.Close()
 		}
@@ -118,7 +222,7 @@ func (ch *conn) InsertWithOption(
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
-			return newContextAlreadyDoneError(ctx)
+			return nil, newContextAlreadyDoneError(ctx)
 		default:
 		}
 		ch.contextWatcher.Watch(ctx)
@@ -132,16 +236,15 @@ func (ch *conn) InsertWithOption(
 	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
 	if err != nil {
 		hasError = true
-		return preferContextOverNetTimeoutError(ctx, err)
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
-
 	var blockData *block
 	for {
 		var res interface{}
 		res, err = ch.receiveAndProcessData(emptyOnProgress)
 		if err != nil {
 			hasError = true
-			return preferContextOverNetTimeoutError(ctx, err)
+			return nil, preferContextOverNetTimeoutError(ctx, err)
 		}
 		if b, ok := res.(*block); ok {
 			blockData = b
@@ -167,22 +270,22 @@ func (ch *conn) InsertWithOption(
 			continue
 		}
 		hasError = true
-		return &unexpectedPacket{expected: "serverData", actual: res}
+		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
 	err = blockData.readColumns(ch)
 	if err != nil {
 		hasError = true
-		return preferContextOverNetTimeoutError(ctx, err)
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
-	err = ch.commit(queryOptions, blockData, columns...)
-	if err != nil {
-		hasError = true
-		return preferContextOverNetTimeoutError(ctx, err)
+	s := &insertStmt{
+		conn:         ch,
+		query:        query,
+		block:        blockData,
+		queryOptions: queryOptions,
+		clientInfo:   nil,
 	}
-	for _, column := range columns {
-		column.Reset()
-	}
-	return nil
+
+	return s, nil
 }
