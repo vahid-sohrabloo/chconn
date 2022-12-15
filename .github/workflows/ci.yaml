@@ -41,7 +41,7 @@ jobs:
     strategy:
       matrix:
         golang-version: [1.18.5, 1.19]
-        clickhouse-version: ['22.9', '22.8', '22.7', '22.6', '22.5', '22.4', '22.3.9.19']
+        clickhouse-version: ['22.11', '22.10', '22.9', '22.8', '22.7', '22.6', '22.5', '22.4']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly

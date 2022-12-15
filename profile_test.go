@@ -35,15 +35,15 @@ func TestProfileReadError(t *testing.T) {
 		}, {
 			name:        "profile: read AppliedLimit",
 			wantErr:     "profile: read AppliedLimit",
-			numberValid: startValidReader + 4,
+			numberValid: startValidReader + 3,
 		}, {
 			name:        "profile: read RowsBeforeLimit",
 			wantErr:     "profile: read RowsBeforeLimit",
-			numberValid: startValidReader + 5,
+			numberValid: startValidReader + 4,
 		}, {
 			name:        "profile: read CalculatedRowsBeforeLimit",
 			wantErr:     "profile: read CalculatedRowsBeforeLimit",
-			numberValid: startValidReader + 6,
+			numberValid: startValidReader + 5,
 		},
 	}
 	for _, tt := range tests {
