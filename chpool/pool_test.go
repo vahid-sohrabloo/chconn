@@ -600,25 +600,19 @@ func TestPoolInsert(t *testing.T) {
 	for i := 1; i <= 10; i++ {
 		col.Append(int8(-1 * i))
 	}
-	err = pool.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_pool (
+	stmt, err := pool.InsertStream(context.Background(), `INSERT INTO clickhouse_test_insert_pool (
 				int8
-			) VALUES`, col)
-	require.NoError(t, err)
-
-	colInt8 := column.New[int8]()
-	selectStmt, err := pool.Select(context.Background(), `SELECT 
-				int8
-	 FROM clickhouse_test_insert_pool`, colInt8)
+			) VALUES`)
 	require.NoError(t, err)
 
 	stats := pool.Stat()
 	assert.EqualValues(t, 1, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
-	for selectStmt.Next() {
-	}
-	require.NoError(t, selectStmt.Err())
 
-	selectStmt.Close()
+	require.NoError(t, stmt.Write(context.Background(), col))
+	require.NoError(t, stmt.Write(context.Background(), col))
+	require.NoError(t, stmt.Flush(context.Background()))
+
 	waitForReleaseToComplete()
 
 	stats = pool.Stat()
@@ -648,6 +642,53 @@ func TestPoolInsertError(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Equal(t, "acquire: closed pool", err.Error())
 	}
+}
+
+func TestPoolInsertStream(t *testing.T) {
+	t.Parallel()
+
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	require.NoError(t, pool.Ping(context.Background()))
+
+	err = pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool_stream`)
+	require.NoError(t, err)
+	err = pool.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_pool_stream (
+				int8  Int8
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	col := column.New[int8]()
+	for i := 1; i <= 10; i++ {
+		col.Append(int8(-1 * i))
+	}
+	err = pool.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_pool_stream (
+				int8
+			) VALUES`, col)
+	require.NoError(t, err)
+
+	colInt8 := column.New[int8]()
+	selectStmt, err := pool.Select(context.Background(), `SELECT 
+				int8
+	 FROM clickhouse_test_insert_pool_stream`, colInt8)
+	require.NoError(t, err)
+
+	stats := pool.Stat()
+	assert.EqualValues(t, 1, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
+	for selectStmt.Next() {
+	}
+	require.NoError(t, selectStmt.Err())
+
+	selectStmt.Close()
+	waitForReleaseToComplete()
+
+	stats = pool.Stat()
+	assert.EqualValues(t, 0, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
 }
 
 func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
