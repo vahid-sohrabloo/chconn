@@ -3,14 +3,14 @@ package column
 import "github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 
 // Array is a column of Array(Array(Nullable(T))) ClickHouse data type
-type Array3Nullable[T comparable] struct {
+type Array3Nullable[T any] struct {
 	Array3[T]
 	dataColumn *Array2Nullable[T]
 	columnData [][][]*T
 }
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
-func NewArray3Nullable[T comparable](dataColumn *Array2Nullable[T]) *Array3Nullable[T] {
+func NewArray3Nullable[T any](dataColumn *Array2Nullable[T]) *Array3Nullable[T] {
 	a := &Array3Nullable[T]{
 		dataColumn: dataColumn,
 		Array3: Array3[T]{

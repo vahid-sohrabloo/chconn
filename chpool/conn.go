@@ -140,6 +140,7 @@ func (c *conn) SelectWithOption(
 func (c *conn) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
 	return c.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
 }
+
 func (c *conn) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
 	s, err := c.Conn().InsertStreamWithOption(ctx, query, queryOptions)
 	if err != nil {

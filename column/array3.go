@@ -54,6 +54,12 @@ func (c *Array3[T]) Row(row int) [][][]T {
 	return val
 }
 
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Array3[T]) RowI(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
 func (c *Array3[T]) Append(v ...[][][]T) {
 	for _, v := range v {

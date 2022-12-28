@@ -76,6 +76,16 @@ func (c *LowCardinality[T]) Row(row int) T {
 	return c.readedDict[c.readedKeys[row]]
 }
 
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *LowCardinality[T]) RowI(row int) any {
+	return c.Row(row)
+}
+
+func (c *LowCardinality[T]) Scan(row int, dest any) error {
+	return c.dictColumn.Scan(c.readedKeys[row], dest)
+}
+
 // Append value for insert
 func (c *LowCardinality[T]) Append(v ...T) {
 	for _, v := range v {
@@ -110,6 +120,11 @@ func (c *LowCardinality[T]) NumRow() int {
 // Array return a Array type for this column
 func (c *LowCardinality[T]) Array() *Array[T] {
 	return NewArray[T](c)
+}
+
+// Nullable return a Nullable type for this column
+func (c *LowCardinality[T]) Nullable() *LowCardinalityNullable[T] {
+	return NewLowCardinalityNullable(c.dictColumn)
 }
 
 // Reset all statuses and buffered data
@@ -320,9 +335,19 @@ func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LowCardinality[T]) elem(arrayLevel int) ColumnBasic {
+func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnBasic {
+	if nullable {
+		return c.Nullable().elem(arrayLevel)
+	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *LowCardinality[T]) FullType() string {
+	if len(c.name) == 0 {
+		return "LowCardinality(" + c.dictColumn.FullType() + ")"
+	}
+	return string(c.name) + " LowCardinality(" + c.dictColumn.FullType() + ")"
 }

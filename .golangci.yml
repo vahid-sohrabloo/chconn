@@ -115,6 +115,12 @@ issues:
         - goconst
         - funlen
         - gocyclo
+    - path: cmd/chtuplegen
+      linters:
+        - goconst
+        - funlen
+        - gocyclo
+        - lll
     - path: _unsafe\.go
       linters:
         - dupl

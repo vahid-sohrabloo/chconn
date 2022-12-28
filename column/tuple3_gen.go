@@ -69,11 +69,7 @@ func NewNested3[T ~struct {
 func (c *Tuple3[T, T1, T2, T3]) Data() []T {
 	val := make([]T, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
-		val[i] = T(tuple3Value[T1, T2, T3]{
-			Col1: c.col1.Row(i),
-			Col2: c.col2.Row(i),
-			Col3: c.col3.Row(i),
-		})
+		val[i] = c.Row(i)
 	}
 	return val
 }
@@ -104,6 +100,12 @@ func (c *Tuple3[T, T1, T2, T3]) Row(row int) T {
 		Col2: c.col2.Row(row),
 		Col3: c.col3.Row(row),
 	})
+}
+
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple3[T, T1, T2, T3]) RowI(row int) any {
+	return c.Row(row)
 }
 
 // Append value for insert

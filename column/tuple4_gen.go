@@ -79,12 +79,7 @@ func NewNested4[T ~struct {
 func (c *Tuple4[T, T1, T2, T3, T4]) Data() []T {
 	val := make([]T, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
-		val[i] = T(tuple4Value[T1, T2, T3, T4]{
-			Col1: c.col1.Row(i),
-			Col2: c.col2.Row(i),
-			Col3: c.col3.Row(i),
-			Col4: c.col4.Row(i),
-		})
+		val[i] = c.Row(i)
 	}
 	return val
 }
@@ -117,6 +112,12 @@ func (c *Tuple4[T, T1, T2, T3, T4]) Row(row int) T {
 		Col3: c.col3.Row(row),
 		Col4: c.col4.Row(row),
 	})
+}
+
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple4[T, T1, T2, T3, T4]) RowI(row int) any {
+	return c.Row(row)
 }
 
 // Append value for insert

@@ -123,3 +123,18 @@ func (u Int256) Neg() (z Int256) {
 	}
 	return z
 }
+
+func (u Int256) Uint128() Uint128 {
+	return u.Lo
+}
+
+func (u Int256) Uint256() Uint256 {
+	return Uint256{
+		Lo: u.Lo,
+		Hi: u.Hi.Uint128(),
+	}
+}
+
+func (u Int256) Uint64() uint64 {
+	return u.Lo.Uint64()
+}

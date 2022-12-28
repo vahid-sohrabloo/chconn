@@ -71,12 +71,20 @@ func (c *Map[K, V]) Row(row int) map[K]V {
 	return val
 }
 
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Map[K, V]) RowI(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
-func (c *Map[K, V]) Append(v map[K]V) {
-	c.AppendLen(len(v))
-	for k, d := range v {
-		c.keyColumn.(Column[K]).Append(k)
-		c.valueColumn.(Column[V]).Append(d)
+func (c *Map[K, V]) Append(val ...map[K]V) {
+	for _, v := range val {
+		c.AppendLen(len(v))
+		for k, d := range v {
+			c.keyColumn.(Column[K]).Append(k)
+			c.valueColumn.(Column[V]).Append(d)
+		}
 	}
 }
 
@@ -101,4 +109,9 @@ func (c *Map[K, V]) KeyColumn() Column[K] {
 // ValueColumn return the value column
 func (c *Map[K, V]) ValueColumn() Column[V] {
 	return c.valueColumn.(Column[V])
+}
+
+// Array return a Array type for this column
+func (c *Map[K, V]) Array() *Array[map[K]V] {
+	return NewArray[map[K]V](c)
 }

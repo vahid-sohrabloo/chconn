@@ -59,10 +59,7 @@ func NewNested2[T ~struct {
 func (c *Tuple2[T, T1, T2]) Data() []T {
 	val := make([]T, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
-		val[i] = T(tuple2Value[T1, T2]{
-			Col1: c.col1.Row(i),
-			Col2: c.col2.Row(i),
-		})
+		val[i] = c.Row(i)
 	}
 	return val
 }
@@ -91,6 +88,12 @@ func (c *Tuple2[T, T1, T2]) Row(row int) T {
 		Col1: c.col1.Row(row),
 		Col2: c.col2.Row(row),
 	})
+}
+
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple2[T, T1, T2]) RowI(row int) any {
+	return c.Row(row)
 }
 
 // Append value for insert

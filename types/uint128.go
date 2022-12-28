@@ -87,3 +87,17 @@ func (u Uint128) Big() *big.Int {
 func (u Uint128) Equals(v Uint128) bool {
 	return (u.Lo == v.Lo) && (u.Hi == v.Hi)
 }
+
+// Equals returns true if two 128-bit values are equal.
+// Uint128 values can be compared directly with == operator
+// but use of the Equals method is preferred for consistency.
+func (u Uint128) Int128() Int128 {
+	return Int128{
+		Lo: u.Lo,
+		Hi: int64(u.Hi),
+	}
+}
+
+func (u Uint128) Uint64() uint64 {
+	return u.Lo
+}

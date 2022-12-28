@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
@@ -69,6 +70,72 @@ func (c *MapBase) Each(f func(start, end uint64) bool) {
 func (c *MapBase) AppendLen(v int) {
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
+}
+
+func (c *MapBase) RowI(row int) any {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	var val map[any]any
+	endOffset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < endOffset; i++ {
+		if val == nil {
+			val = make(map[any]any)
+		}
+		val[c.keyColumn.RowI(int(i))] = c.valueColumn.RowI(int(i))
+	}
+	return val
+}
+
+func (c *MapBase) Scan(row int, dest any) error {
+	val := reflect.ValueOf(dest)
+	if val.Kind() != reflect.Ptr {
+		return fmt.Errorf("scan dest should be a pointer")
+	}
+	if val.Elem().Kind() == reflect.Map {
+		return c.scanMap(row, val)
+	}
+
+	if val.Elem().Kind() == reflect.Struct {
+		return c.scanStruct(row, val)
+	}
+
+	return fmt.Errorf("scan dest should be a pointer of map or struct")
+
+}
+
+func (c *MapBase) scanMap(row int, val reflect.Value) error {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	endOffset := c.offsetColumn.Row(row)
+	if val.Elem().IsNil() {
+		val.Elem().Set(reflect.MakeMap(val.Elem().Type()))
+	}
+	for i := lastOffset; i < endOffset; i++ {
+		val.Elem().SetMapIndex(reflect.ValueOf(c.keyColumn.RowI(int(i))), reflect.ValueOf(c.valueColumn.RowI(int(i))))
+	}
+	return nil
+}
+
+func (c *MapBase) scanStruct(row int, val reflect.Value) error {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	endOffset := c.offsetColumn.Row(row)
+	// todo  find a better way to find key and value field
+	for i := lastOffset; i < endOffset; i++ {
+		if err := c.keyColumn.Scan(int(i), val.Elem().Field(0).Addr().Interface()); err != nil {
+			return err
+		}
+		if err := c.valueColumn.Scan(int(i), val.Elem().Field(1).Addr().Interface()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NumRow return number of row for this block
@@ -236,4 +303,11 @@ func (c *MapBase) WriteTo(w io.Writer) (int64, error) {
 func (c *MapBase) HeaderWriter(w *readerwriter.Writer) {
 	c.keyColumn.HeaderWriter(w)
 	c.valueColumn.HeaderWriter(w)
+}
+
+func (c *MapBase) FullType() string {
+	if len(c.name) == 0 {
+		return "Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
+	}
+	return string(c.name) + " Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
 }

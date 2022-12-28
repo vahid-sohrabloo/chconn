@@ -100,6 +100,7 @@ type SelectStmt interface {
 	// the Rows are closed automatically and it will suffice to check the result of Err.
 	// Close is idempotent and does not affect the result of Err.
 	Close()
+	Rows() *Rows
 }
 
 type selectStmt struct {
@@ -256,6 +257,13 @@ func (s *selectStmt) Columns() []column.ColumnBasic {
 	return s.columnsForRead
 }
 
+func (s *selectStmt) Rows() *Rows {
+	return &Rows{
+		selectStmt: s,
+	}
+
+}
+
 func (s *selectStmt) getColumnsByChType(b *block) ([]column.ColumnBasic, error) {
 	columns := make([]column.ColumnBasic, len(b.Columns))
 	for i, col := range b.Columns {
@@ -314,19 +322,10 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 		}
 		return getFixedType(strLen, arrayLevel, nullable, lc)
 	case string(chType) == "Date":
-		if !s.queryOptions.UseGoTime {
-			return column.New[types.Date]().Elem(arrayLevel, nullable, lc), nil
-		}
 		return column.NewDate[types.Date]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "Date32":
-		if !s.queryOptions.UseGoTime {
-			return column.New[types.Date32]().Elem(arrayLevel, nullable, lc), nil
-		}
 		return column.NewDate[types.Date32]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "DateTime" || helper.IsDateTimeWithParam(chType):
-		if !s.queryOptions.UseGoTime {
-			return column.New[types.DateTime]().Elem(arrayLevel, nullable, lc), nil
-		}
 		var params [][]byte
 		if bytes.HasPrefix(chType, []byte("DateTime(")) {
 			params = bytes.Split(chType[len("DateTime("):len(chType)-1], []byte(", "))
@@ -341,9 +340,6 @@ func (s *selectStmt) columnByType(chType []byte, arrayLevel int, nullable, lc bo
 		}
 		return col.Elem(arrayLevel, nullable, lc), nil
 	case helper.IsDateTime64(chType):
-		if !s.queryOptions.UseGoTime {
-			return column.New[types.DateTime64]().Elem(arrayLevel, nullable, lc), nil
-		}
 		params := bytes.Split(chType[helper.DateTime64StrLen:len(chType)-1], []byte(", "))
 		if len(params) == 0 {
 			panic("DateTime64 invalid params")

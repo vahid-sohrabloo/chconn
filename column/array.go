@@ -1,5 +1,10 @@
 package column
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Array is a column of Array(T) ClickHouse data type
 type Array[T any] struct {
 	ArrayBase
@@ -59,6 +64,37 @@ func (c *Array[T]) Row(row int) []T {
 	var val []T
 	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
 	return val
+}
+
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Array[T]) RowI(row int) any {
+	return c.Row(row)
+}
+
+func (c *Array[T]) Scan(row int, dest any) error {
+	destValue := reflect.Indirect(reflect.ValueOf(dest))
+	if destValue.Kind() != reflect.Slice {
+		return fmt.Errorf("column.ArrayBase.Scan: dest must be a pointer to slice")
+	}
+
+	if destValue.Type().AssignableTo(reflect.TypeOf([]T{})) {
+		destValue.Set(reflect.ValueOf(c.Row(row)))
+	}
+
+	var lastOffset int
+	if row != 0 {
+		lastOffset = int(c.offsetColumn.Row(row - 1))
+	}
+	offset := int(c.offsetColumn.Row(row))
+
+	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
+	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
+		c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+	}
+	destValue.Set(rSlice)
+
+	return nil
 }
 
 // Append value for insert

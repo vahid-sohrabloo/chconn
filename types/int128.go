@@ -110,3 +110,11 @@ func (u Int128) Neg() (z Int128) {
 	}
 	return z
 }
+
+func (u Int128) Uint128() Uint128 {
+	return Uint128{Lo: u.Lo, Hi: uint64(u.Hi)}
+}
+
+func (u Int128) Uint64() uint64 {
+	return u.Lo
+}

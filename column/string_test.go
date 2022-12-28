@@ -54,9 +54,9 @@ func TestString(t *testing.T) {
 	colArray := column.NewString().Array()
 	colNullableArray := column.NewString().Nullable().Array()
 	colLC := column.NewString().LC()
-	colLCNullable := column.NewString().Nullable().LC()
+	colLCNullable := column.NewString().LC().Nullable()
 	colArrayLC := column.NewString().LC().Array()
-	colArrayLCNullable := column.NewString().Nullable().LC().Array()
+	colArrayLCNullable := column.NewString().LC().Nullable().Array()
 	var colInsert []string
 	var colInsertByte [][]byte
 	var colNullableInsert []*string
@@ -142,9 +142,9 @@ func TestString(t *testing.T) {
 	colArrayRead := column.NewString().Array()
 	colNullableArrayRead := column.NewString().Nullable().Array()
 	colLCRead := column.NewString().LC()
-	colLCNullableRead := column.NewString().Nullable().LC()
+	colLCNullableRead := column.NewString().LC().Nullable()
 	colArrayLCRead := column.NewString().LC().Array()
-	colArrayLCNullableRead := column.NewString().Nullable().LC().Array()
+	colArrayLCNullableRead := column.NewString().LC().Nullable().Array()
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s,
 		%[1]s_nullable,

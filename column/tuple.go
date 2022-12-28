@@ -3,10 +3,17 @@ package column
 import (
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
 )
+
+type TupleStruct[T any] interface {
+	Column[T]
+	Array() *Array[T]
+	Nullable() *Nullable[T]
+}
 
 // Tuple is a column of Tuple(T1,T2,.....,Tn) ClickHouse data type
 //
@@ -15,6 +22,8 @@ import (
 // You MUST use this on Select and Insert methods and for append and read data use the sub columns
 type Tuple struct {
 	column
+	isJSON  bool
+	isNamed bool
 	columns []ColumnBasic
 }
 
@@ -93,12 +102,100 @@ func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool, revision u
 	return nil
 }
 
+func (c *Tuple) Row(row int) any {
+	if c.isNamed {
+		ret := make(map[string]any, len(c.columns))
+		for _, col := range c.columns {
+			ret[string(col.Name())] = col.RowI(row)
+		}
+	}
+	ret := make([]any, len(c.columns))
+	for i, col := range c.columns {
+		ret[i] = col.RowI(row)
+	}
+	return ret
+}
+
+func (c *Tuple) RowI(row int) any {
+	return c.Row(row)
+}
+
+func (c *Tuple) Scan(row int, dest any) error {
+	val := reflect.ValueOf(dest)
+	if val.Kind() != reflect.Ptr {
+		return fmt.Errorf("scan dest should be a pointer")
+	}
+	switch val.Elem().Kind() {
+	case reflect.Struct:
+		return c.scanStruct(row, val)
+	case reflect.Map:
+		if !c.isNamed {
+			return fmt.Errorf("tuple: scan: map should be named")
+		}
+		return c.scanMap(row, val)
+	case reflect.Slice:
+		return c.scanSlice(row, val)
+	default:
+		return fmt.Errorf("tuple: scan: unsupported type %s", val.Elem().Kind())
+	}
+
+	return fmt.Errorf("tuple: scan: unsupported type %s", val.Elem().Kind())
+
+}
+
+func (c *Tuple) scanMap(row int, val reflect.Value) error {
+	if val.Type().Key().Kind() != reflect.String {
+		return fmt.Errorf("tuple: scan: map key should be string")
+	}
+	for _, col := range c.columns {
+		colName := string(col.Name())
+		val.Elem().SetMapIndex(reflect.ValueOf(colName), reflect.ValueOf(col.RowI(row)))
+	}
+	return nil
+}
+
+func (c *Tuple) scanStruct(row int, val reflect.Value) error {
+	for _, col := range c.columns {
+		colName := string(col.Name())
+		sField, ok := getStructFieldValue(val.Elem(), colName)
+		if !ok {
+			continue
+		}
+		sField.Set(reflect.ValueOf(col.RowI(row)))
+	}
+	return nil
+}
+func (c *Tuple) scanSlice(row int, val reflect.Value) error {
+	for _, col := range c.columns {
+		val.Elem().Set(reflect.Append(val.Elem(), reflect.ValueOf(col.RowI(row))))
+	}
+	return nil
+}
+
+func getStructFieldValue(field reflect.Value, name string) (reflect.Value, bool) {
+	tField := field.Type()
+	for i := 0; i < tField.NumField(); i++ {
+		if tag := tField.Field(i).Tag.Get("chname"); tag == name {
+			return field.Field(i), true
+		}
+		if tag := tField.Field(i).Tag.Get("json"); tag == name {
+			return field.Field(i), true
+		}
+	}
+	sField := field.FieldByName(name)
+	return sField, sField.IsValid()
+}
+
 // Column returns the all sub columns
 func (c *Tuple) Columns() []ColumnBasic {
 	return c.columns
 }
 
 func (c *Tuple) Validate() error {
+	if string(c.chType) == "Object('json')" {
+		c.isJSON = true
+		return nil
+	}
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if helper.IsPoint(chType) {
 		chType = helper.PointMainTypeStr
@@ -125,6 +222,9 @@ func (c *Tuple) Validate() error {
 	}
 
 	for i, col := range c.columns {
+		if len(columnsTuple[i].Name) != 0 {
+			c.isNamed = true
+		}
 		col.SetType(columnsTuple[i].ChType)
 		col.SetName(columnsTuple[i].Name)
 		if col.Validate() != nil {
@@ -147,6 +247,12 @@ func (c *Tuple) ColumnType() string {
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
+	if c.isJSON {
+		// todo find a more efficient way
+		wf := readerwriter.NewWriter()
+		wf.String(c.FullType())
+		wf.WriteTo(w)
+	}
 	var n int64
 	for i, col := range c.columns {
 		nw, err := col.WriteTo(w)
@@ -161,6 +267,9 @@ func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *Tuple) HeaderWriter(w *readerwriter.Writer) {
+	if c.isJSON {
+		w.Uint8(0)
+	}
 	for _, col := range c.columns {
 		col.HeaderWriter(w)
 	}
@@ -171,4 +280,17 @@ func (c *Tuple) Elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Tuple) FullType() string {
+	var chType string
+	if len(c.name) == 0 {
+		chType = "Tuple("
+	} else {
+		chType = string(c.name) + " Tuple("
+	}
+	for _, col := range c.columns {
+		chType += col.FullType() + ", "
+	}
+	return chType[:len(chType)-2] + ")"
 }

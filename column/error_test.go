@@ -1158,7 +1158,7 @@ func TestInvalidType(t *testing.T) {
 			columnSelector: "number",
 			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
 				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			column: column.New[int64]().Nullable().LC(),
+			column: column.New[int64]().LC().Nullable(),
 		},
 		{
 			name:           "invalid nullable LowCardinality inside",

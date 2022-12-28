@@ -326,7 +326,6 @@ func TestTuples(t *testing.T) {
 	assert.Equal(t, col5ArrayInsert, col5ArrayReadData)
 
 	// example read row
-
 	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s1,
 		%[1]s1_array,

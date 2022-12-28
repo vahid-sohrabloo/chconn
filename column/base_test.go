@@ -272,9 +272,9 @@ func testColumn[T comparable](
 	colArray := column.New[T]().Array()
 	colNullableArray := column.New[T]().Nullable().Array()
 	colLC := column.New[T]().LC()
-	colLCNullable := column.New[T]().Nullable().LC()
+	colLCNullable := column.New[T]().LC().Nullable()
 	colArrayLC := column.New[T]().LC().Array()
-	colArrayLCNullable := column.New[T]().Nullable().LC().Array()
+	colArrayLCNullable := column.New[T]().LC().Nullable().Array()
 	var colInsert []T
 	var colNullableInsert []*T
 	var colArrayInsert [][]T
@@ -284,7 +284,7 @@ func testColumn[T comparable](
 	var colLCArrayInsert [][]T
 	var colLCNullableArrayInsert [][]*T
 
-	// SetWriteBufferSize is not necessary. this just to show how to set write buffer
+	// SetWriteBufferSize is not necessary. this just to show how to set the write buffer
 	col.SetWriteBufferSize(10)
 	colNullable.SetWriteBufferSize(10)
 	colArray.SetWriteBufferSize(10)
@@ -384,9 +384,9 @@ func testColumn[T comparable](
 	colArrayRead := column.New[T]().Array()
 	colNullableArrayRead := column.New[T]().Nullable().Array()
 	colLCRead := column.New[T]().LC()
-	colLCNullableRead := column.New[T]().Nullable().LC()
+	colLCNullableRead := column.New[T]().LC().Nullable()
 	colArrayLCRead := column.New[T]().LC().Array()
-	colArrayLCNullableRead := column.New[T]().Nullable().LC().Array()
+	colArrayLCNullableRead := column.New[T]().LC().Nullable().Array()
 	var selectStmt chconn.SelectStmt
 	if isLC {
 		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
@@ -476,9 +476,9 @@ func testColumn[T comparable](
 	colArrayRead = column.New[T]().Array()
 	colNullableArrayRead = column.New[T]().Nullable().Array()
 	colLCRead = column.New[T]().LowCardinality()
-	colLCNullableRead = column.New[T]().Nullable().LowCardinality()
+	colLCNullableRead = column.New[T]().LowCardinality().Nullable()
 	colArrayLCRead = column.New[T]().LowCardinality().Array()
-	colArrayLCNullableRead = column.New[T]().Nullable().LowCardinality().Array()
+	colArrayLCNullableRead = column.New[T]().LowCardinality().Nullable().Array()
 	if isLC {
 		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
 			%[1]s,
@@ -576,6 +576,14 @@ func testColumn[T comparable](
 	}
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
+	colData = colData[:0]
+	colNullableData = colNullableData[:0]
+	colArrayData = colArrayData[:0]
+	colArrayNullableData = colArrayNullableData[:0]
+	colLCData = colLCData[:0]
+	colLCNullableData = colLCNullableData[:0]
+	colLCArrayData = colLCArrayData[:0]
+	colLCNullableArrayData = colLCNullableArrayData[:0]
 	if isLC {
 		assert.Len(t, autoColumns, 8)
 		if tableName == "bool" {
@@ -584,9 +592,9 @@ func testColumn[T comparable](
 			assert.Equal(t, column.New[uint8]().Array().ColumnType(), autoColumns[2].ColumnType())
 			assert.Equal(t, column.New[uint8]().Nullable().Array().ColumnType(), autoColumns[3].ColumnType())
 			assert.Equal(t, column.New[uint8]().LowCardinality().ColumnType(), autoColumns[4].ColumnType())
-			assert.Equal(t, column.New[uint8]().Nullable().LowCardinality().ColumnType(), autoColumns[5].ColumnType())
+			assert.Equal(t, column.New[uint8]().LowCardinality().Nullable().ColumnType(), autoColumns[5].ColumnType())
 			assert.Equal(t, column.New[uint8]().LowCardinality().Array().ColumnType(), autoColumns[6].ColumnType())
-			assert.Equal(t, column.New[uint8]().Nullable().LowCardinality().Array().ColumnType(), autoColumns[7].ColumnType())
+			assert.Equal(t, column.New[uint8]().LowCardinality().Nullable().Array().ColumnType(), autoColumns[7].ColumnType())
 		} else {
 			assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
 			assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
@@ -604,10 +612,65 @@ func testColumn[T comparable](
 		assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
 		assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
 	}
+	rows := selectStmt.Rows()
 
-	for selectStmt.Next() {
+	for rows.Next() {
+		var colVal T
+		var colNullableVal *T
+		var colArrayVal []T
+		var colArrayNullableVal []*T
+		var colLCVal T
+		var colLCNullableVal *T
+		var colLCArrayVal []T
+		var colLCNullableArrayVal []*T
+		if isLC {
+			err := rows.Scan(
+				&colVal,
+				&colNullableVal,
+				&colArrayVal,
+				&colArrayNullableVal,
+				&colLCVal,
+				&colLCNullableVal,
+				&colLCArrayVal,
+				&colLCNullableArrayVal,
+			)
+			require.NoError(t, err)
+		} else {
+			err := rows.Scan(
+				&colVal,
+				&colNullableVal,
+				&colArrayVal,
+				&colArrayNullableVal,
+			)
+			require.NoError(t, err)
+		}
+
+		colData = append(colData, colVal)
+		colNullableData = append(colNullableData, colNullableVal)
+		colArrayData = append(colArrayData, colArrayVal)
+		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+		colLCData = append(colLCData, colLCVal)
+		colLCNullableData = append(colLCNullableData, colLCNullableVal)
+		colLCArrayData = append(colLCArrayData, colLCArrayVal)
+		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
 	require.NoError(t, selectStmt.Err())
+	if isLC {
+		assert.Equal(t, colInsert, colData)
+		assert.Equal(t, colNullableInsert, colNullableData)
+		assert.Equal(t, colArrayInsert, colArrayData)
+		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+		assert.Equal(t, colLCInsert, colLCData)
+		assert.Equal(t, colLCNullableInsert, colLCNullableData)
+		assert.Equal(t, colLCArrayInsert, colLCArrayData)
+		assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
+	} else {
+		assert.Equal(t, colInsert, colData)
+		assert.Equal(t, colNullableInsert, colNullableData)
+		assert.Equal(t, colArrayInsert, colArrayData)
+		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+	}
+
 	selectStmt.Close()
 }
 
@@ -645,7 +708,7 @@ func TestEmptyCollection(t *testing.T) {
 	colArray := column.New[uint16]().Array()
 	colNullableArray := column.New[uint16]().Nullable().Array()
 	colArrayLC := column.New[uint16]().LC().Array()
-	colArrayLCNullable := column.New[uint16]().Nullable().LC().Array()
+	colArrayLCNullable := column.New[uint16]().LC().Nullable().Array()
 	colArray.Append()
 	colArray.Append([]uint16{})
 	colNullableArray.AppendP()
@@ -675,7 +738,7 @@ func TestEmptyCollection(t *testing.T) {
 	colArrayRead := column.New[uint16]().Array()
 	colNullableArrayRead := column.New[uint16]().Nullable().Array()
 	colArrayLCRead := column.New[uint16]().LC().Array()
-	colArrayLCNullableRead := column.New[uint16]().Nullable().LC().Array()
+	colArrayLCNullableRead := column.New[uint16]().LC().Nullable().Array()
 	var selectStmt chconn.SelectStmt
 	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s_array,
@@ -708,7 +771,57 @@ func TestEmptyCollection(t *testing.T) {
 
 	assert.Equal(t, [][]uint16{{}}, colArrayData)
 	assert.Equal(t, [][]*uint16{{}}, colArrayNullableData)
-
 	assert.Equal(t, [][]uint16{{}}, colLCArrayData)
 	assert.Equal(t, [][]*uint16{{}}, colLCNullableArrayData)
+
+	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		%[1]s_array,
+		%[1]s_array_nullable,
+		%[1]s_array_lc,
+		%[1]s_array_lc_nullable
+	FROM test_%[1]s `, tableName),
+		colArrayRead,
+		colNullableArrayRead,
+		colArrayLCRead,
+		colArrayLCNullableRead,
+	)
+
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+
+	colArrayData = colArrayData[:0]
+	colArrayNullableData = colArrayNullableData[:0]
+	colLCArrayData = colLCArrayData[:0]
+	colLCNullableArrayData = colLCNullableArrayData[:0]
+
+	rows := selectStmt.Rows()
+
+	for rows.Next() {
+		var colArrayVal []uint16
+		var colArrayNullableVal []*uint16
+		var colLCArrayVal []uint16
+		var colLCNullableArrayVal []*uint16
+
+		err := rows.Scan(
+			&colArrayVal,
+			&colArrayNullableVal,
+			&colLCArrayVal,
+			&colLCNullableArrayVal,
+		)
+		require.NoError(t, err)
+
+		colArrayData = append(colArrayData, colArrayVal)
+		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+
+		colLCArrayData = append(colLCArrayData, colLCArrayVal)
+		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
+	}
+
+	require.NoError(t, selectStmt.Err())
+
+	assert.Equal(t, [][]uint16{{}}, colArrayData)
+	assert.Equal(t, [][]*uint16{{}}, colArrayNullableData)
+	assert.Equal(t, [][]uint16{{}}, colLCArrayData)
+	assert.Equal(t, [][]*uint16{{}}, colLCNullableArrayData)
+
 }

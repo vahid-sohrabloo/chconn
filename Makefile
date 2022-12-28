@@ -25,8 +25,8 @@ endif
 # Project variables
 
 # Dependency versions
-GOTESTSUM_VERSION = 1.8.1
-GOLANGCI_VERSION = 1.50.0
+GOTESTSUM_VERSION = 1.8.2
+GOLANGCI_VERSION = 1.50.1
 
 GOLANG_VERSION = 1.14
 

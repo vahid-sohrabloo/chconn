@@ -1,6 +1,7 @@
 package column
 
 import (
+	"reflect"
 	"strings"
 	"time"
 	"unsafe"
@@ -49,7 +50,9 @@ func NewDate[T DateType[T]]() *Date[T] {
 	size := int(unsafe.Sizeof(tmpValue))
 	return &Date[T]{
 		Base: Base[T]{
-			size: size,
+			size:  size,
+			kind:  reflect.TypeOf(tmpValue).Kind(),
+			rtype: reflect.TypeOf(tmpValue),
 		},
 	}
 }
@@ -82,6 +85,20 @@ func (c *Date[T]) Location() *time.Location {
 func (c *Date[T]) SetPrecision(precision int) *Date[T] {
 	c.precision = precision
 	return c
+}
+
+func (c *Date[T]) Scan(row int, dest any) error {
+	switch dest := dest.(type) {
+	case *time.Time:
+		*dest = c.Row(row)
+		return nil
+	case **time.Time:
+		*dest = new(time.Time)
+		**dest = c.Row(row)
+		return nil
+	default:
+		return c.Base.Scan(row, dest)
+	}
 }
 
 // Data get all the data in current block as a slice.
@@ -144,14 +161,25 @@ func (c *Date[T]) LowCardinality() *LowCardinality[time.Time] {
 }
 
 func (c *Date[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
-	if nullable {
-		return c.Nullable().elem(arrayLevel, lc)
-	}
 	if lc {
-		return c.LowCardinality().elem(arrayLevel)
+		return c.LowCardinality().elem(arrayLevel, nullable)
+	}
+	if nullable {
+		return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Date[T]) FullType() string {
+	chType := string(c.chType)
+	if chType == "" {
+		chType = "DateTime"
+	}
+	if len(c.name) == 0 {
+		return chType
+	}
+	return string(c.name) + " " + chType
 }

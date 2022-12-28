@@ -15,7 +15,7 @@ type appendEmptyInterface interface {
 }
 
 // Nullable is a column of Nullable(T) ClickHouse data type
-type Nullable[T comparable] struct {
+type Nullable[T any] struct {
 	column
 	numRow     int
 	dataColumn Column[T]
@@ -24,7 +24,7 @@ type Nullable[T comparable] struct {
 }
 
 // NewNullable return new Nullable for Nullable(T) ClickHouse DataType
-func NewNullable[T comparable](dataColumn Column[T]) *Nullable[T] {
+func NewNullable[T any](dataColumn Column[T]) *Nullable[T] {
 	return &Nullable[T]{
 		dataColumn: dataColumn,
 	}
@@ -74,6 +74,25 @@ func (c *Nullable[T]) ReadP(value []*T) []*T {
 // Append value for insert
 func (c *Nullable[T]) Row(i int) T {
 	return c.dataColumn.Row(i)
+}
+
+// Append value for insert
+func (c *Nullable[T]) RowI(i int) any {
+	return c.RowP(i)
+}
+
+func (c *Nullable[T]) Scan(row int, dest any) error {
+	if c.RowIsNil(row) {
+		return nil
+	}
+	// destValue := reflect.ValueOf(dest)
+	// fmt.Println(destValue.IsNil())
+	// // if destValue.IsNil() {
+	// destValue.Set(reflect.New(destValue.Type().Elem()))
+	// // }
+	// fmt.Println(destValue.Elem().Interface())
+	// //todo check if v is pointer
+	return c.dataColumn.Scan(row, dest)
 }
 
 // RowP return the value of given row for nullable data
@@ -136,16 +155,6 @@ func (c *Nullable[T]) NumRow() int {
 // Array return a Array type for this column
 func (c *Nullable[T]) Array() *ArrayNullable[T] {
 	return NewArrayNullable[T](c)
-}
-
-// LC return a low cardinality type for this column
-func (c *Nullable[T]) LC() *LowCardinalityNullable[T] {
-	return NewLowCardinalityNullable(c.dataColumn)
-}
-
-// LowCardinality return a low cardinality type for this column
-func (c *Nullable[T]) LowCardinality() *LowCardinalityNullable[T] {
-	return NewLowCardinalityNullable(c.dataColumn)
 }
 
 // Reset all statuses and buffered data
@@ -245,12 +254,13 @@ func (c *Nullable[T]) WriteTo(w io.Writer) (int64, error) {
 func (c *Nullable[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *Nullable[T]) elem(arrayLevel int, lc bool) ColumnBasic {
-	if lc {
-		return c.LowCardinality().elem(arrayLevel)
-	}
+func (c *Nullable[T]) elem(arrayLevel int) ColumnBasic {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Nullable[T]) FullType() string {
+	return "Nullable(" + c.dataColumn.FullType() + ")"
 }

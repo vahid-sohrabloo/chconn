@@ -70,16 +70,16 @@ func TestTuple(t *testing.T) {
 	colLCInt := column.New[int64]().LowCardinality()
 	colLC := column.NewTuple(colLCString, colLCInt)
 
-	colLCNullableString := column.NewString().Nullable().LowCardinality()
-	colLCNullableInt := column.New[int64]().Nullable().LowCardinality()
+	colLCNullableString := column.NewString().LowCardinality().Nullable()
+	colLCNullableInt := column.New[int64]().LowCardinality().Nullable()
 	colLCNullable := column.NewTuple(colLCNullableString, colLCNullableInt)
 
 	colArrayLCString := column.NewString().LowCardinality().Array()
 	colArrayLCInt := column.New[int64]().LowCardinality().Array()
 	colArrayLC := column.NewTuple(colArrayLCString, colArrayLCInt)
 
-	colArrayLCNullableString := column.NewString().Nullable().LowCardinality().Array()
-	colArrayLCNullableInt := column.New[int64]().Nullable().LowCardinality().Array()
+	colArrayLCNullableString := column.NewString().LowCardinality().Nullable().Array()
+	colArrayLCNullableInt := column.New[int64]().LowCardinality().Nullable().Array()
 	colArrayLCNullable := column.NewTuple(colArrayLCNullableString, colArrayLCNullableInt)
 
 	colArrayArrayTupleString := column.NewString()
@@ -221,16 +221,16 @@ func TestTuple(t *testing.T) {
 	colLCIntRead := column.New[int64]().LowCardinality()
 	colLCRead := column.NewTuple(colLCStringRead, colLCIntRead)
 
-	colLCNullableStringRead := column.NewString().Nullable().LowCardinality()
-	colLCNullableIntRead := column.New[int64]().Nullable().LowCardinality()
+	colLCNullableStringRead := column.NewString().LowCardinality().Nullable()
+	colLCNullableIntRead := column.New[int64]().LowCardinality().Nullable()
 	colLCNullableRead := column.NewTuple(colLCNullableStringRead, colLCNullableIntRead)
 
 	colArrayLCStringRead := column.NewString().LowCardinality().Array()
 	colArrayLCIntRead := column.New[int64]().LowCardinality().Array()
 	colArrayLCRead := column.NewTuple(colArrayLCStringRead, colArrayLCIntRead)
 
-	colArrayLCNullableStringRead := column.NewString().Nullable().LowCardinality().Array()
-	colArrayLCNullableIntRead := column.New[int64]().Nullable().LowCardinality().Array()
+	colArrayLCNullableStringRead := column.NewString().LowCardinality().Nullable().Array()
+	colArrayLCNullableIntRead := column.New[int64]().LowCardinality().Nullable().Array()
 	colArrayLCNullableRead := column.NewTuple(colArrayLCNullableStringRead, colArrayLCNullableIntRead)
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 	%[1]s,
@@ -336,11 +336,112 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
 	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
 	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+	rows := selectStmt.Rows()
+	var colData []interface{}
+	var colNullableData []interface{}
+	var colArrayData []interface{}
+	var colArrayNullableData []interface{}
+	var colLCData []interface{}
+	var colLCNullableData []interface{}
+	var colLCArrayData []interface{}
+	var colLCNullableArrayData []interface{}
 
-	for selectStmt.Next() {
+	for rows.Next() {
+		var colVal []interface{}
+		var colNullableVal []interface{}
+		var colArrayVal []interface{}
+		var colArrayNullableVal []interface{}
+		var colLCVal []interface{}
+		var colLCNullableVal []interface{}
+		var colLCArrayVal []interface{}
+		var colLCNullableArrayVal []interface{}
+		err := rows.Scan(
+			&colVal,
+			&colNullableVal,
+			&colArrayVal,
+			&colArrayNullableVal,
+			&colLCVal,
+			&colLCNullableVal,
+			&colLCArrayVal,
+			&colLCNullableArrayVal,
+		)
+		require.NoError(t, err)
+		colData = append(colData, colVal)
+		colNullableData = append(colNullableData, colNullableVal)
+		colArrayData = append(colArrayData, colArrayVal)
+		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+		colLCData = append(colLCData, colLCVal)
+		colLCNullableData = append(colLCNullableData, colLCNullableVal)
+		colLCArrayData = append(colLCArrayData, colLCArrayVal)
+		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
-	require.NoError(t, selectStmt.Err())
-	selectStmt.Close()
+	require.NoError(t, rows.Err())
+	rows.Close()
+	var colStringDataI []interface{}
+	var colNullableStringDataI []interface{}
+	var colArrayStringDataI []interface{}
+	var colArrayNullableStringDataI []interface{}
+	var colLCStringDataI []interface{}
+	var colLCNullableStringDataI []interface{}
+	var colLCArrayStringDataI []interface{}
+	var colLCNullableArrayStringDataI []interface{}
+	for i, v := range colStringData {
+		colStringDataI = append(colStringDataI, []interface{}{
+			v,
+			colIntData[i],
+		})
+	}
+	for i, v := range colNullableStringData {
+		colNullableStringDataI = append(colNullableStringDataI, []interface{}{
+			v,
+			colNullableIntData[i],
+		})
+	}
+	for i, v := range colArrayStringData {
+		colArrayStringDataI = append(colArrayStringDataI, []interface{}{
+			v,
+			colArrayIntData[i],
+		})
+	}
+	for i, v := range colArrayNullableStringData {
+		colArrayNullableStringDataI = append(colArrayNullableStringDataI, []interface{}{
+			v,
+			colArrayNullableIntData[i],
+		})
+	}
+	for i, v := range colLCStringData {
+		colLCStringDataI = append(colLCStringDataI, []interface{}{
+			v,
+			colLCIntData[i],
+		})
+	}
+	for i, v := range colLCNullableStringData {
+		colLCNullableStringDataI = append(colLCNullableStringDataI, []interface{}{
+			v,
+			colLCNullableIntData[i],
+		})
+	}
+	for i, v := range colLCArrayStringData {
+		colLCArrayStringDataI = append(colLCArrayStringDataI, []interface{}{
+			v,
+			colLCArrayIntData[i],
+		})
+	}
+	for i, v := range colLCNullableArrayStringData {
+		colLCNullableArrayStringDataI = append(colLCNullableArrayStringDataI, []interface{}{
+			v,
+			colLCNullableArrayIntData[i],
+		})
+	}
+
+	assert.Equal(t, colStringDataI, colData)
+	assert.Equal(t, colNullableStringDataI, colNullableData)
+	assert.Equal(t, colArrayStringDataI, colArrayData)
+	assert.Equal(t, colArrayNullableStringDataI, colArrayNullableData)
+	assert.Equal(t, colLCStringDataI, colLCData)
+	assert.Equal(t, colLCNullableStringDataI, colLCNullableData)
+	assert.Equal(t, colLCArrayStringDataI, colLCArrayData)
+	assert.Equal(t, colLCNullableArrayStringDataI, colLCNullableArrayData)
 }
 
 func TestTupleNoColumn(t *testing.T) {

@@ -621,7 +621,6 @@ type QueryOptions struct {
 	OnProfile      func(*Profile)
 	OnProfileEvent func(*ProfileEvent)
 	Parameters     *Parameters
-	UseGoTime      bool
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) error {

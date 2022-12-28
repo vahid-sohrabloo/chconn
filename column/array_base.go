@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
@@ -34,6 +35,24 @@ func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 func (c *ArrayBase) AppendLen(v int) {
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
+}
+
+func (c *ArrayBase) RowI(row int) any {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	var val []any
+	endOffset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < endOffset; i++ {
+		val = append(val, c.dataColumn.RowI(int(i)))
+	}
+	return val
+}
+
+func (c *ArrayBase) Scan(row int, dest any) error {
+	reflect.ValueOf(dest).Elem().Set(reflect.ValueOf(c.RowI(row)))
+	return nil
 }
 
 // NumRow return number of row for this block
@@ -173,4 +192,11 @@ func (c *ArrayBase) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *ArrayBase) FullType() string {
+	if len(c.name) == 0 {
+		return "Array(" + c.dataColumn.FullType() + ")"
+	}
+	return string(c.name) + " Array(" + c.dataColumn.FullType() + ")"
 }

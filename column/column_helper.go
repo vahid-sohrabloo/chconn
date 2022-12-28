@@ -22,6 +22,9 @@ type ColumnBasic interface {
 	Validate() error
 	ColumnType() string
 	SetWriteBufferSize(int)
+	RowI(int) any
+	Scan(row int, dest any) error
+	FullType() string
 }
 
 type Column[T any] interface {

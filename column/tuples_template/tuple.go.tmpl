@@ -59,10 +59,7 @@ column{{ $val }} Column[T{{ $val }}],{{end }}
 func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) Data() []T {
 	val := make([]T, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
-		val[i] = T(tuple{{.Numbrer}}Value[T1{{- range $val := iterate .Numbrer "2" }}, T{{ $val }}{{end }}]{
-         {{- range $val := iterate .Numbrer "1" }}
-            Col{{ $val }}: c.col{{ $val }}.Row(i),{{end }}
-		})
+		val[i] = c.Row(i)
 	}
 	return val
 }
@@ -91,6 +88,12 @@ func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}
 		{{- range $val := iterate .Numbrer "1" }}
             Col{{ $val }}: c.col{{ $val }}.Row(row),{{end }}
 	})
+}
+
+// RowI return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) RowI(row int) T {
+	return c.Row(row)
 }
 
 // Append value for insert

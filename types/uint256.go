@@ -97,3 +97,15 @@ func (u Uint256) Big() *big.Int {
 func (u Uint256) Equals(v Uint256) bool {
 	return u.Lo.Equals(v.Lo) && u.Hi.Equals(v.Hi)
 }
+
+func (u Uint256) Uint128() Uint128 {
+	return u.Lo
+}
+
+func (u Uint256) Int256() Int256 {
+	return Int256{Lo: u.Lo, Hi: u.Hi.Int128()}
+}
+
+func (u Uint256) Uint64() uint64 {
+	return u.Lo.Uint64()
+}
