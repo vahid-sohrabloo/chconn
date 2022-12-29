@@ -3,7 +3,7 @@ package chpool
 import (
 	"context"
 
-	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v3"
 )
 
 type insertStmt struct {

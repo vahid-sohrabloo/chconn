@@ -3,7 +3,7 @@ package column
 import (
 	"io"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type JSONString struct {

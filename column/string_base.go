@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type stringPos struct {
@@ -87,14 +87,14 @@ func (c *StringBase[T]) RowI(row int) any {
 }
 
 func (c *StringBase[T]) Scan(row int, value any) error {
-	// switch d := value.(type) {
-	// case *string:
-	// 	*d = string(c.Row(row))
-	// case *[]byte:
-	// 	*d = c.RowBytes(row)
-	// default:
-	// 	return fmt.Errorf("unsupported type %T", value)
-	// }
+	switch d := value.(type) {
+	case *string:
+		*d = string(c.Row(row))
+	case *[]byte:
+		*d = c.RowBytes(row)
+	default:
+		return fmt.Errorf("unsupported type %T", value)
+	}
 	return nil
 }
 
@@ -153,8 +153,8 @@ func (c *StringBase[T]) Array() *Array[T] {
 }
 
 // Nullable return a nullable type for this column
-func (c *StringBase[T]) Nullable() *Nullable[T] {
-	return NewNullable[T](c)
+func (c *StringBase[T]) Nullable() *StringNullable[T] {
+	return NewStringNullable[T](c)
 }
 
 // LC return a low cardinality type for this column

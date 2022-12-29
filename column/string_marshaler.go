@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type marshalerUnmarshalerText interface {
@@ -146,9 +146,10 @@ func (c *StringMarshaler[T]) Array() *Array[T] {
 }
 
 // Nullable return a nullable type for this column
-func (c *StringMarshaler[T]) Nullable() *Nullable[T] {
-	return NewNullable[T](c)
-}
+//TODO
+// func (c *StringMarshaler[T]) Nullable() *StringNullable[T] {
+// 	return NewNullable[T](c)
+// }
 
 // Reset all status and buffer data
 //
@@ -236,7 +237,9 @@ func (c *StringMarshaler[T]) appendEmpty() {
 
 func (c *StringMarshaler[T]) Elem(arrayLevel int, nullable bool) ColumnBasic {
 	if nullable {
-		return c.Nullable().elem(arrayLevel)
+		//todo
+		return nil
+		// return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)

@@ -1,6 +1,6 @@
 package column
 
-import "github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+import "github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 
 // Array is a column of Array(Array(Nullable(T))) ClickHouse data type
 type Array2Nullable[T any] struct {

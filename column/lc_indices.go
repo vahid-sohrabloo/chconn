@@ -4,7 +4,7 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type indicesColumnI interface {

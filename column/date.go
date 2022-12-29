@@ -5,13 +5,21 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 // DateType is an interface to handle convert between time.Time and T.
-type DateType[T any] interface {
-	comparable
-	FromTime(val time.Time, precision int) T
+// type DateType[T any] interface {
+// 	comparable
+// 	FromTime(val time.Time, precision int) T
+// 	ToTime(val *time.Location, precision int) time.Time
+// }
+
+type DateType[T types.Date | types.Date32 | types.DateTime | types.DateTime64] interface {
+	types.Date | types.Date32 | types.DateTime | types.DateTime64
 	ToTime(val *time.Location, precision int) time.Time
+	FromTime(val time.Time, precision int) T
 }
 
 // Date is a date column of ClickHouse date type (Date, Date32, DateTime, DateTime64).
@@ -146,8 +154,8 @@ func (c *Date[T]) Array() *Array[time.Time] {
 }
 
 // Nullable return a nullable type for this column
-func (c *Date[T]) Nullable() *Nullable[time.Time] {
-	return NewNullable[time.Time](c)
+func (c *Date[T]) Nullable() *DateNullable[T] {
+	return NewDateNullable(c)
 }
 
 // LC return a low cardinality type for this column

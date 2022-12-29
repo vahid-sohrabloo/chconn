@@ -43,11 +43,8 @@ func TestConnectError(t *testing.T) {
 	config.User = "invalid username"
 	conn, err := ConnectConfig(context.Background(), config)
 	assert.Contains(t,
-		err.Error(),
-		"server error ( DB::Exception (516): invalid username: Authentication failed: password is incorrect or there is no user with such name)")
-	assert.EqualError(t,
-		errors.Unwrap(err),
-		" DB::Exception (516): invalid username: Authentication failed: password is incorrect or there is no user with such name")
+		errors.Unwrap(err).Error(),
+		"DB::Exception (516): invalid username: Authentication failed")
 	assert.Nil(t, conn)
 
 	conn, err = Connect(context.Background(), "host>0")

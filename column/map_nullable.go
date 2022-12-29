@@ -1,6 +1,6 @@
 package column
 
-import "github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+import "github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 
 // MapNullable is a column of Map(K,V) ClickHouse data type where V is nullable.
 // Map in clickhouse actually is a array of pair(K,V)

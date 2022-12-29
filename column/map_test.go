@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestMapUint8(t *testing.T) {
@@ -151,7 +152,7 @@ func TestMapFloat64(t *testing.T) {
 	})
 }
 
-func testMapColumn[V comparable](
+func testMapColumn[V column.BaseType](
 	t *testing.T,
 	chType, tableName string,
 	firstVal func(i int) []V,
@@ -230,35 +231,35 @@ func testMapColumn[V comparable](
 	var colLCArrayInsert []map[string][]V
 	var colLCNullableArrayInsert []map[string][]*V
 
-	var colInsertStruct []struct {
+	var colInsertStruct [][]struct {
 		K string
 		V V
 	}
-	var colNullableInsertStruct []struct {
+	var colNullableInsertStruct [][]struct {
 		K string
 		V *V
 	}
-	var colArrayInsertStruct []struct {
+	var colArrayInsertStruct [][]struct {
 		K string
 		V []V
 	}
-	var colArrayNullableInsertStruct []struct {
+	var colArrayNullableInsertStruct [][]struct {
 		K string
 		V []*V
 	}
-	var colLCInsertStruct []struct {
+	var colLCInsertStruct [][]struct {
 		K string
 		V V
 	}
-	var colLCNullableInsertStruct []struct {
+	var colLCNullableInsertStruct [][]struct {
 		K string
 		V *V
 	}
-	var colLCArrayInsertStruct []struct {
+	var colLCArrayInsertStruct [][]struct {
 		K string
 		V []V
 	}
-	var colLCNullableArrayInsertStruct []struct {
+	var colLCNullableArrayInsertStruct [][]struct {
 		K string
 		V []*V
 	}
@@ -300,88 +301,87 @@ func testMapColumn[V comparable](
 			}
 			col.Append(val)
 			colInsert = append(colInsert, val)
-			colInsertStruct = append(colInsertStruct, struct {
+			colInsertStruct = append(colInsertStruct, []struct {
 				K string
 				V V
-			}{
+			}{{
 				K: "a",
 				V: valData[0],
-			}, struct {
-				K string
-				V V
-			}{
+			}, {
 				K: "b",
 				V: valData[1],
-			})
+			}})
 
 			// example add nullable
 
 			if i%2 == 0 {
 				colNullableInsert = append(colNullableInsert, valNullable)
-				colNullableInsertStruct = append(colNullableInsertStruct, struct {
+				colNullableInsertStruct = append(colNullableInsertStruct, []struct {
 					K string
 					V *V
-				}{
+				}{{
 					K: "a",
 					V: &valData[0],
-				}, struct {
-					K string
-					V *V
-				}{
+				}, {
 					K: "b",
 					V: &valData[1],
-				})
+				}})
+
 				colNullable.AppendP(valNullable)
 				colLCNullableInsert = append(colLCNullableInsert, valNullable)
-				colLCNullableInsertStruct = append(colLCNullableInsertStruct, struct {
+				colLCNullableInsertStruct = append(colLCNullableInsertStruct, []struct {
 					K string
 					V *V
-				}{
+				}{{
 					K: "a",
 					V: &valData[0],
-				}, struct {
-					K string
-					V *V
-				}{
+				}, {
 					K: "b",
 					V: &valData[1],
-				})
+				}})
+
 				colLCNullable.AppendP(valNullable)
 			} else {
 				colNullableInsert = append(colNullableInsert, valNullable2)
-				colNullableInsertStruct = append(colNullableInsertStruct, struct {
+				colNullableInsertStruct = append(colNullableInsertStruct, []struct {
 					K string
 					V *V
-				}{
+				}{{
 					K: "a",
 					V: &valData[1],
-				}, struct {
-					K string
-					V *V
-				}{
+				}, {
 					K: "b",
 					V: nil,
-				})
+				}})
+
 				colNullable.AppendP(valNullable2)
 				colLCNullableInsert = append(colLCNullableInsert, valNullable2)
+				colLCNullableInsertStruct = append(colLCNullableInsertStruct, []struct {
+					K string
+					V *V
+				}{{
+					K: "a",
+					V: &valData[1],
+				}, {
+					K: "b",
+					V: nil,
+				}})
+
 				colLCNullable.AppendP(valNullable2)
 			}
 
 			colArray.Append(valArray)
 			colArrayInsert = append(colArrayInsert, valArray)
-			colArrayInsertStruct = append(colArrayInsertStruct, struct {
+			colArrayInsertStruct = append(colArrayInsertStruct, []struct {
 				K string
 				V []V
-			}{
+			}{{
 				K: "a",
 				V: valData,
-			}, struct {
-				K string
-				V []V
-			}{
+			}, {
 				K: "b",
 				V: val2Data,
-			})
+			}})
 
 			colNullableArray.AppendLen(len(valArrayNil))
 			for k, v := range valArrayNil {
@@ -389,68 +389,56 @@ func testMapColumn[V comparable](
 				colNullableArray.ValueColumn().(*column.ArrayNullable[V]).AppendP(v)
 			}
 			colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
-			colArrayNullableInsertStruct = append(colArrayNullableInsertStruct, struct {
+			colArrayNullableInsertStruct = append(colArrayNullableInsertStruct, []struct {
 				K string
 				V []*V
-			}{
+			}{{
 				K: "a",
 				V: valArrayNil["a"],
-			}, struct {
-				K string
-				V []*V
-			}{
+			}, {
 				K: "b",
 				V: valArrayNil["b"],
-			})
+			}})
 
 			colLCInsert = append(colLCInsert, val)
-			colLCInsertStruct = append(colLCInsertStruct, struct {
+			colLCInsertStruct = append(colLCInsertStruct, []struct {
 				K string
 				V V
-			}{
+			}{{
 				K: "a",
 				V: valData[0],
-			}, struct {
-				K string
-				V V
-			}{
+			}, {
 				K: "b",
 				V: valData[1],
-			})
+			}})
 
 			colLC.Append(val)
 
 			colLCArrayInsert = append(colLCArrayInsert, valArray)
-			colLCArrayInsertStruct = append(colLCArrayInsertStruct, struct {
+			colLCArrayInsertStruct = append(colLCArrayInsertStruct, []struct {
 				K string
 				V []V
-			}{
+			}{{
 				K: "a",
 				V: valData,
-			}, struct {
-				K string
-				V []V
-			}{
+			}, {
 				K: "b",
 				V: val2Data,
-			})
+			}})
 
 			colArrayLC.Append(valArray)
 
 			colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
-			colLCNullableArrayInsertStruct = append(colLCNullableArrayInsertStruct, struct {
+			colLCNullableArrayInsertStruct = append(colLCNullableArrayInsertStruct, []struct {
 				K string
 				V []*V
-			}{
+			}{{
 				K: "a",
 				V: valArrayNil["a"],
-			}, struct {
-				K string
-				V []*V
-			}{
+			}, {
 				K: "b",
 				V: valArrayNil["b"],
-			})
+			}})
 
 			colArrayLCNullable.AppendLen(len(valArrayNil))
 			for k, v := range valArrayNil {
@@ -708,35 +696,35 @@ func testMapColumn[V comparable](
 	colLCArrayData = colLCArrayData[:0]
 	colLCNullableArrayData = colLCNullableArrayData[:0]
 
-	var colDataStruct []struct {
+	var colDataStruct [][]struct {
 		K string
 		V V
 	}
-	var colNullableDataStruct []struct {
+	var colNullableDataStruct [][]struct {
 		K string
 		V *V
 	}
-	var colArrayDataStruct []struct {
+	var colArrayDataStruct [][]struct {
 		K string
 		V []V
 	}
-	var colArrayNullableDataStruct []struct {
+	var colArrayNullableDataStruct [][]struct {
 		K string
 		V []*V
 	}
-	var colLCDataStruct []struct {
+	var colLCDataStruct [][]struct {
 		K string
 		V V
 	}
-	var colLCNullableDataStruct []struct {
+	var colLCNullableDataStruct [][]struct {
 		K string
 		V *V
 	}
-	var colLCArrayDataStruct []struct {
+	var colLCArrayDataStruct [][]struct {
 		K string
 		V []V
 	}
-	var colLCNullableArrayDataStruct []struct {
+	var colLCNullableArrayDataStruct [][]struct {
 		K string
 		V []*V
 	}
@@ -771,35 +759,35 @@ func testMapColumn[V comparable](
 		colLCArrayData = append(colLCArrayData, colLCArrayVal)
 		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 
-		var colValStruct struct {
+		var colValStruct []struct {
 			K string
 			V V
 		}
-		var colNullableValStruct struct {
+		var colNullableValStruct []struct {
 			K string
 			V *V
 		}
-		var colArrayValStruct struct {
+		var colArrayValStruct []struct {
 			K string
 			V []V
 		}
-		var colArrayNullableValStruct struct {
+		var colArrayNullableValStruct []struct {
 			K string
 			V []*V
 		}
-		var colLCValStruct struct {
+		var colLCValStruct []struct {
 			K string
 			V V
 		}
-		var colLCNullableValStruct struct {
+		var colLCNullableValStruct []struct {
 			K string
 			V *V
 		}
-		var colLCArrayValStruct struct {
+		var colLCArrayValStruct []struct {
 			K string
 			V []V
 		}
-		var colLCNullableArrayValStruct struct {
+		var colLCNullableArrayValStruct []struct {
 			K string
 			V []*V
 		}
@@ -815,7 +803,6 @@ func testMapColumn[V comparable](
 			&colLCNullableArrayValStruct,
 		)
 		require.NoError(t, err)
-
 		colDataStruct = append(colDataStruct, colValStruct)
 		colNullableDataStruct = append(colNullableDataStruct, colNullableValStruct)
 		colArrayDataStruct = append(colArrayDataStruct, colArrayValStruct)
@@ -826,6 +813,7 @@ func testMapColumn[V comparable](
 		colLCNullableArrayDataStruct = append(colLCNullableArrayDataStruct, colLCNullableArrayValStruct)
 	}
 	require.NoError(t, selectStmt.Err())
+
 	assert.Equal(t, colInsert, colData)
 	assert.Equal(t, colNullableInsert, colNullableData)
 	assert.Equal(t, colArrayInsert, colArrayData)
@@ -834,14 +822,93 @@ func testMapColumn[V comparable](
 	assert.Equal(t, colLCNullableInsert, colLCNullableData)
 	assert.Equal(t, colLCArrayInsert, colLCArrayData)
 	assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
-
+	for i := range colInsertStruct {
+		sort.Slice(colInsertStruct[i], func(b, j int) bool {
+			return colInsertStruct[i][b].K < colInsertStruct[i][j].K
+		})
+	}
+	for i := range colDataStruct {
+		sort.Slice(colDataStruct[i], func(b, j int) bool {
+			return colDataStruct[i][b].K < colDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colInsertStruct, colDataStruct)
+	for i := range colNullableInsertStruct {
+		sort.Slice(colNullableInsertStruct[i], func(b, j int) bool {
+			return colNullableInsertStruct[i][b].K < colNullableInsertStruct[i][j].K
+		})
+	}
+	for i := range colNullableDataStruct {
+		sort.Slice(colNullableDataStruct[i], func(b, j int) bool {
+			return colNullableDataStruct[i][b].K < colNullableDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colNullableInsertStruct, colNullableDataStruct)
+	for i := range colArrayInsertStruct {
+		sort.Slice(colArrayInsertStruct[i], func(b, j int) bool {
+			return colArrayInsertStruct[i][b].K < colArrayInsertStruct[i][j].K
+		})
+	}
+	for i := range colArrayDataStruct {
+		sort.Slice(colArrayDataStruct[i], func(b, j int) bool {
+			return colArrayDataStruct[i][b].K < colArrayDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colArrayInsertStruct, colArrayDataStruct)
+	for i := range colArrayNullableInsertStruct {
+		sort.Slice(colArrayNullableInsertStruct[i], func(b, j int) bool {
+			return colArrayNullableInsertStruct[i][b].K < colArrayNullableInsertStruct[i][j].K
+		})
+	}
+	for i := range colArrayNullableDataStruct {
+		sort.Slice(colArrayNullableDataStruct[i], func(b, j int) bool {
+			return colArrayNullableDataStruct[i][b].K < colArrayNullableDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colArrayNullableInsertStruct, colArrayNullableDataStruct)
+	for i := range colLCInsertStruct {
+		sort.Slice(colLCInsertStruct[i], func(b, j int) bool {
+			return colLCInsertStruct[i][b].K < colLCInsertStruct[i][j].K
+		})
+	}
+	for i := range colLCDataStruct {
+		sort.Slice(colLCDataStruct[i], func(b, j int) bool {
+			return colLCDataStruct[i][b].K < colLCDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colLCInsertStruct, colLCDataStruct)
+	for i := range colLCNullableInsertStruct {
+		sort.Slice(colLCNullableInsertStruct[i], func(b, j int) bool {
+			return colLCNullableInsertStruct[i][b].K < colLCNullableInsertStruct[i][j].K
+		})
+	}
+	for i := range colLCNullableDataStruct {
+		sort.Slice(colLCNullableDataStruct[i], func(b, j int) bool {
+			return colLCNullableDataStruct[i][b].K < colLCNullableDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colLCNullableInsertStruct, colLCNullableDataStruct)
+	for i := range colLCArrayInsertStruct {
+		sort.Slice(colLCArrayInsertStruct[i], func(b, j int) bool {
+			return colLCArrayInsertStruct[i][b].K < colLCArrayInsertStruct[i][j].K
+		})
+	}
+	for i := range colLCArrayDataStruct {
+		sort.Slice(colLCArrayDataStruct[i], func(b, j int) bool {
+			return colLCArrayDataStruct[i][b].K < colLCArrayDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colLCArrayInsertStruct, colLCArrayDataStruct)
+	for i := range colLCNullableArrayInsertStruct {
+		sort.Slice(colLCNullableArrayInsertStruct[i], func(b, j int) bool {
+			return colLCNullableArrayInsertStruct[i][b].K < colLCNullableArrayInsertStruct[i][j].K
+		})
+	}
+	for i := range colLCNullableArrayDataStruct {
+		sort.Slice(colLCNullableArrayDataStruct[i], func(b, j int) bool {
+			return colLCNullableArrayDataStruct[i][b].K < colLCNullableArrayDataStruct[i][j].K
+		})
+	}
 	assert.Equal(t, colLCNullableArrayInsertStruct, colLCNullableArrayDataStruct)
 
 	selectStmt.Close()

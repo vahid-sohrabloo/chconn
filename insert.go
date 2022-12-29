@@ -3,7 +3,7 @@ package chconn
 import (
 	"context"
 
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // InsertStmt is a interface for insert stream statement

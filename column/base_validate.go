@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 var chColumnByteSize = map[string]int{

@@ -5,14 +5,15 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type TupleStruct[T any] interface {
 	Column[T]
 	Array() *Array[T]
-	Nullable() *Nullable[T]
+	//TODO
+	// Nullable() *Nullable[T]
 }
 
 // Tuple is a column of Tuple(T1,T2,.....,Tn) ClickHouse data type

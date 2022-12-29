@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type ColumnBasic interface {

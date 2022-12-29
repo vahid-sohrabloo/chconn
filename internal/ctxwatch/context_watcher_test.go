@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/ctxwatch"
 )
 
 func TestContextWatcherContextCancelled(t *testing.T) {

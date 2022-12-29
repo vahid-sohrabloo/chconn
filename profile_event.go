@@ -1,7 +1,7 @@
 package chconn
 
 import (
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // Profile detail of profile select query

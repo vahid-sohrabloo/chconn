@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // ErrNegativeTimeout when negative timeout provided

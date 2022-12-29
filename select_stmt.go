@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 // Select executes a query and return select stmt.

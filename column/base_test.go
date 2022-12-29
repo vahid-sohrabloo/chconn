@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestBool(t *testing.T) {
@@ -213,7 +213,7 @@ func TestUUID(t *testing.T) {
 	})
 }
 
-func testColumn[T comparable](
+func testColumn[T column.BaseType](
 	t *testing.T,
 	isLC bool,
 	chType, tableName string,

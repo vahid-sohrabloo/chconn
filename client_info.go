@@ -3,7 +3,7 @@ package chconn
 import (
 	"os/user"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 // ClientInfo Information about client for query.

@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // Map is a column of Map(K,V) ClickHouse data type
@@ -97,11 +97,11 @@ func (c *MapBase) Scan(row int, dest any) error {
 		return c.scanMap(row, val)
 	}
 
-	if val.Elem().Kind() == reflect.Struct {
+	if val.Elem().Kind() == reflect.Slice && val.Elem().Type().Elem().Kind() == reflect.Struct {
 		return c.scanStruct(row, val)
 	}
 
-	return fmt.Errorf("scan dest should be a pointer of map or struct")
+	return fmt.Errorf("scan dest should be a pointer of map or slice of struct")
 
 }
 
@@ -120,21 +120,24 @@ func (c *MapBase) scanMap(row int, val reflect.Value) error {
 	return nil
 }
 
-func (c *MapBase) scanStruct(row int, val reflect.Value) error {
-	var lastOffset uint64
+func (c *MapBase) scanStruct(row int, dest reflect.Value) error {
+	var lastOffset int
 	if row != 0 {
-		lastOffset = c.offsetColumn.Row(row - 1)
+		lastOffset = int(c.offsetColumn.Row(row - 1))
 	}
-	endOffset := c.offsetColumn.Row(row)
-	// todo  find a better way to find key and value field
-	for i := lastOffset; i < endOffset; i++ {
-		if err := c.keyColumn.Scan(int(i), val.Elem().Field(0).Addr().Interface()); err != nil {
+
+	offset := int(c.offsetColumn.Row(row))
+	rSlice := reflect.MakeSlice(dest.Elem().Type(), offset-lastOffset, offset-lastOffset)
+	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
+		// todo  find a better way to find key and value field
+		if err := c.keyColumn.Scan(int(i), rSlice.Index(b).Field(0).Addr().Interface()); err != nil {
 			return err
 		}
-		if err := c.valueColumn.Scan(int(i), val.Elem().Field(1).Addr().Interface()); err != nil {
+		if err := c.valueColumn.Scan(int(i), rSlice.Index(b).Field(1).Addr().Interface()); err != nil {
 			return err
 		}
 	}
+	dest.Elem().Set(rSlice)
 	return nil
 }
 

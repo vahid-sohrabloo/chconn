@@ -13,8 +13,8 @@ import (
 	"time"
 
 	puddle "github.com/jackc/puddle/v2"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 var defaultMaxConns = int32(4)

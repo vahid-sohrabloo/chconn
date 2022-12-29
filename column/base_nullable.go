@@ -6,26 +6,22 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
-type appendEmptyInterface interface {
-	appendEmpty()
-}
-
-// Nullable is a column of Nullable(T) ClickHouse data type
-type Nullable[T any] struct {
+// BaseNullable is a column of Nullable(T) ClickHouse data type
+type BaseNullable[T BaseType] struct {
 	column
 	numRow     int
-	dataColumn Column[T]
+	dataColumn *Base[T]
 	writerData []byte
 	b          []byte
 }
 
-// NewNullable return new Nullable for Nullable(T) ClickHouse DataType
-func NewNullable[T any](dataColumn Column[T]) *Nullable[T] {
-	return &Nullable[T]{
+// NewBaseNullable return new BaseNullable for BaseNullable(T) ClickHouse DataType
+func NewBaseNullable[T BaseType](dataColumn *Base[T]) *BaseNullable[T] {
+	return &BaseNullable[T]{
 		dataColumn: dataColumn,
 	}
 }
@@ -33,7 +29,7 @@ func NewNullable[T any](dataColumn Column[T]) *Nullable[T] {
 // Data get all the data in current block as a slice.
 //
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
-func (c *Nullable[T]) Data() []T {
+func (c *BaseNullable[T]) Data() []T {
 	return c.dataColumn.Data()
 }
 
@@ -41,7 +37,7 @@ func (c *Nullable[T]) Data() []T {
 //
 // As an alternative (for better performance).
 // You can use `Data` and one of `RowIsNil` and `ReadNil` and `DataNil`  to detect if value is null or not.
-func (c *Nullable[T]) DataP() []*T {
+func (c *BaseNullable[T]) DataP() []*T {
 	val := make([]*T, c.numRow)
 	for i, d := range c.dataColumn.Data() {
 		if c.RowIsNil(i) {
@@ -56,7 +52,7 @@ func (c *Nullable[T]) DataP() []*T {
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *Nullable[T]) Read(value []T) []T {
+func (c *BaseNullable[T]) Read(value []T) []T {
 	return c.dataColumn.Read(value)
 }
 
@@ -64,7 +60,7 @@ func (c *Nullable[T]) Read(value []T) []T {
 //
 // As an alternative (for better performance), You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`
 // to detect if value is null or not.
-func (c *Nullable[T]) ReadP(value []*T) []*T {
+func (c *BaseNullable[T]) ReadP(value []*T) []*T {
 	for i := 0; i < c.numRow; i++ {
 		value = append(value, c.RowP(i))
 	}
@@ -72,16 +68,16 @@ func (c *Nullable[T]) ReadP(value []*T) []*T {
 }
 
 // Append value for insert
-func (c *Nullable[T]) Row(i int) T {
+func (c *BaseNullable[T]) Row(i int) T {
 	return c.dataColumn.Row(i)
 }
 
 // Append value for insert
-func (c *Nullable[T]) RowI(i int) any {
+func (c *BaseNullable[T]) RowI(i int) any {
 	return c.RowP(i)
 }
 
-func (c *Nullable[T]) Scan(row int, dest any) error {
+func (c *BaseNullable[T]) Scan(row int, dest any) error {
 	if c.RowIsNil(row) {
 		return nil
 	}
@@ -99,7 +95,7 @@ func (c *Nullable[T]) Scan(row int, dest any) error {
 // NOTE: Row number start from zero
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `RowIsNil()` to check if it is null.
-func (c *Nullable[T]) RowP(row int) *T {
+func (c *BaseNullable[T]) RowP(row int) *T {
 	if c.b[row] == 1 {
 		return nil
 	}
@@ -108,30 +104,30 @@ func (c *Nullable[T]) RowP(row int) *T {
 }
 
 // ReadAll read all nils state in this block and append to the input
-func (c *Nullable[T]) ReadNil(value []bool) []bool {
+func (c *BaseNullable[T]) ReadNil(value []bool) []bool {
 	return append(value, *(*[]bool)(unsafe.Pointer(&c.b))...)
 }
 
 // DataNil get all nil state in this block
-func (c *Nullable[T]) DataNil() []bool {
+func (c *BaseNullable[T]) DataNil() []bool {
 	return *(*[]bool)(unsafe.Pointer(&c.b))
 }
 
 // RowIsNil return true if the row is null
-func (c *Nullable[T]) RowIsNil(row int) bool {
+func (c *BaseNullable[T]) RowIsNil(row int) bool {
 	return c.b[row] == 1
 }
 
 // Append value for insert
-func (c *Nullable[T]) Append(v ...T) {
+func (c *BaseNullable[T]) Append(v ...T) {
 	c.writerData = append(c.writerData, make([]uint8, len(v))...)
 	c.dataColumn.Append(v...)
 }
 
-// Append nullable value for insert
+// Append Basenullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *Nullable[T]) AppendP(v ...*T) {
+func (c *BaseNullable[T]) AppendP(v ...*T) {
 	for _, v := range v {
 		if v == nil {
 			c.AppendNil()
@@ -142,18 +138,18 @@ func (c *Nullable[T]) AppendP(v ...*T) {
 }
 
 // Append nil value for insert
-func (c *Nullable[T]) AppendNil() {
+func (c *BaseNullable[T]) AppendNil() {
 	c.writerData = append(c.writerData, 1)
-	c.dataColumn.(appendEmptyInterface).appendEmpty()
+	c.dataColumn.appendEmpty()
 }
 
 // NumRow return number of row for this block
-func (c *Nullable[T]) NumRow() int {
+func (c *BaseNullable[T]) NumRow() int {
 	return c.dataColumn.NumRow()
 }
 
 // Array return a Array type for this column
-func (c *Nullable[T]) Array() *ArrayNullable[T] {
+func (c *BaseNullable[T]) Array() *ArrayNullable[T] {
 	return NewArrayNullable[T](c)
 }
 
@@ -163,7 +159,7 @@ func (c *Nullable[T]) Array() *ArrayNullable[T] {
 //
 // When inserting, buffers are reset only after the operation is successful.
 // If an error occurs, you can safely call insert again.
-func (c *Nullable[T]) Reset() {
+func (c *BaseNullable[T]) Reset() {
 	c.b = c.b[:0]
 	c.numRow = 0
 	c.writerData = c.writerData[:0]
@@ -173,7 +169,7 @@ func (c *Nullable[T]) Reset() {
 // SetWriteBufferSize set write buffer (number of rows)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
-func (c *Nullable[T]) SetWriteBufferSize(row int) {
+func (c *BaseNullable[T]) SetWriteBufferSize(row int) {
 	if cap(c.writerData) < row {
 		c.writerData = make([]byte, 0, row)
 	}
@@ -181,7 +177,7 @@ func (c *Nullable[T]) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *Nullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *BaseNullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	c.r = r
 	c.numRow = num
@@ -193,7 +189,7 @@ func (c *Nullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	return c.dataColumn.ReadRaw(num, r)
 }
 
-func (c *Nullable[T]) readBuffer() error {
+func (c *BaseNullable[T]) readBuffer() error {
 	if cap(c.b) < c.numRow {
 		c.b = make([]byte, c.numRow)
 	} else {
@@ -208,7 +204,7 @@ func (c *Nullable[T]) readBuffer() error {
 
 // HeaderReader reads header data from reader
 // it uses internally
-func (c *Nullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
+func (c *BaseNullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	c.r = r
 	err := c.readColumn(readColumn, revision)
 	if err != nil {
@@ -217,7 +213,7 @@ func (c *Nullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revi
 	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
-func (c *Nullable[T]) Validate() error {
+func (c *BaseNullable[T]) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
@@ -233,13 +229,13 @@ func (c *Nullable[T]) Validate() error {
 	return nil
 }
 
-func (c *Nullable[T]) ColumnType() string {
+func (c *BaseNullable[T]) ColumnType() string {
 	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.ColumnType())
 }
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *Nullable[T]) WriteTo(w io.Writer) (int64, error) {
+func (c *BaseNullable[T]) WriteTo(w io.Writer) (int64, error) {
 	n, err := w.Write(c.writerData)
 	if err != nil {
 		return int64(n), fmt.Errorf("write nullable data: %w", err)
@@ -251,16 +247,16 @@ func (c *Nullable[T]) WriteTo(w io.Writer) (int64, error) {
 
 // HeaderWriter writes header data to writer
 // it uses internally
-func (c *Nullable[T]) HeaderWriter(w *readerwriter.Writer) {
+func (c *BaseNullable[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *Nullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *BaseNullable[T]) elem(arrayLevel int) ColumnBasic {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
 }
 
-func (c *Nullable[T]) FullType() string {
+func (c *BaseNullable[T]) FullType() string {
 	return "Nullable(" + c.dataColumn.FullType() + ")"
 }

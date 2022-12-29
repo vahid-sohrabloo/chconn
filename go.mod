@@ -1,4 +1,4 @@
-module github.com/vahid-sohrabloo/chconn/v2
+module github.com/vahid-sohrabloo/chconn/v3
 
 go 1.18
 

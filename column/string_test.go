@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestString(t *testing.T) {

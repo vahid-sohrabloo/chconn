@@ -1,6 +1,6 @@
 package chconn
 
-import "github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+import "github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 
 // Progress details of progress select query
 type Progress struct {

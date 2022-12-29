@@ -11,9 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestInsertColumnLowCardinalityError(t *testing.T) {
@@ -1353,7 +1353,7 @@ func TestInvalidDate(t *testing.T) {
 }
 
 func TestInvalidSimpleAggregateFunction(t *testing.T) {
-	m := column.New[int]()
+	m := column.New[int32]()
 	m.SetType([]byte("SimpleAggregateFunction(sum))"))
 	assert.Panics(t, func() {
 		m.Validate()

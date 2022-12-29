@@ -1,6 +1,6 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/vahid-sohrabloo/chconn/v2.svg)](https://pkg.go.dev/github.com/vahid-sohrabloo/chconn/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/vahid-sohrabloo/chconn/v3.svg)](https://pkg.go.dev/github.com/vahid-sohrabloo/chconn/v3)
 [![codecov](https://codecov.io/gh/vahid-sohrabloo/chconn/branch/master/graph/badge.svg?token=K3JN6XWFVV)](https://codecov.io/gh/vahid-sohrabloo/chconn)
-[![Go Report Card](https://goreportcard.com/badge/github.com/vahid-sohrabloo/chconn/v2)](https://goreportcard.com/report/github.com/vahid-sohrabloo/chconn/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vahid-sohrabloo/chconn/v3)](https://goreportcard.com/report/github.com/vahid-sohrabloo/chconn/v3)
 [![Actions Status](https://github.com/vahid-sohrabloo/chconn/workflows/CI/badge.svg)](https://github.com/vahid-sohrabloo/chconn/actions)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvahid-sohrabloo%2Fchconn?ref=badge_shield)
 
@@ -23,8 +23,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/v2/chpool"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/chpool"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func main() {

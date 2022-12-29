@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v3"
 )
 
 const (
