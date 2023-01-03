@@ -62,10 +62,16 @@ func (c *Array2Nullable[T]) RowP(row int) [][]*T {
 }
 
 // AppendP a nullable value for insert
-func (c *Array2Nullable[T]) AppendP(v ...[][]*T) {
+func (c *Array2Nullable[T]) AppendP(v [][]*T) {
+	c.AppendLen(len(v))
+	c.dataColumn.AppendMultiP(v)
+}
+
+// AppendMultiP a nullable value for insert
+func (c *Array2Nullable[T]) AppendMultiP(v ...[][]*T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.AppendP(v...)
+		c.dataColumn.AppendMultiP(v)
 	}
 }
 

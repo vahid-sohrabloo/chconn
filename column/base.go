@@ -565,7 +565,13 @@ func (c *Base[T]) getInt256(val T) types.Int256 {
 }
 
 // Append value for insert
-func (c *Base[T]) Append(v ...T) {
+func (c *Base[T]) Append(v T) {
+	c.values = append(c.values, v)
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *Base[T]) AppendMulti(v ...T) {
 	c.values = append(c.values, v...)
 	c.numRow += len(v)
 }

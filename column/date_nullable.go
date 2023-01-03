@@ -120,15 +120,32 @@ func (c *DateNullable[T]) RowIsNil(row int) bool {
 }
 
 // Append value for insert
-func (c *DateNullable[T]) Append(v ...time.Time) {
-	c.writerData = append(c.writerData, make([]uint8, len(v))...)
-	c.dataColumn.Append(v...)
+func (c *DateNullable[T]) Append(v time.Time) {
+	c.writerData = append(c.writerData, 0)
+	c.dataColumn.Append(v)
 }
 
-// Append Basenullable value for insert
+// AppendMulti value for insert
+func (c *DateNullable[T]) AppendMulti(v ...time.Time) {
+	c.writerData = append(c.writerData, make([]uint8, len(v))...)
+	c.dataColumn.AppendMulti(v...)
+}
+
+// AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *DateNullable[T]) AppendP(v ...*time.Time) {
+func (c *DateNullable[T]) AppendP(v *time.Time) {
+	if v == nil {
+		c.AppendNil()
+		return
+	}
+	c.Append(*v)
+}
+
+// AppendMultiP nullable value for insert
+//
+// as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
+func (c *DateNullable[T]) AppendMultiP(v ...*time.Time) {
 	for _, v := range v {
 		if v == nil {
 			c.AppendNil()

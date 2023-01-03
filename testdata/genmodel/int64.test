@@ -1,0 +1,12 @@
+package testpackage
+
+type Int64 struct {
+	Genmodel                int64    `chtype:"Int64" chname:"genmodel"`
+	GenmodelNullable        *int64   `chtype:"Nullable(Int64)" chname:"genmodel_nullable"`
+	GenmodelArray           []int64  `chtype:"Array(Int64)" chname:"genmodel_array"`
+	GenmodelArrayNullable   []*int64 `chtype:"Array(Nullable(Int64))" chname:"genmodel_array_nullable"`
+	GenmodelLc              int64    `chtype:"LowCardinality(Int64)" chname:"genmodel_lc"`
+	GenmodelNullableLc      *int64   `chtype:"LowCardinality(Nullable(Int64))" chname:"genmodel_nullable_lc"`
+	GenmodelArrayLc         []int64  `chtype:"Array(LowCardinality(Int64))" chname:"genmodel_array_lc"`
+	GenmodelArrayLcNullable []*int64 `chtype:"Array(LowCardinality(Nullable(Int64)))" chname:"genmodel_array_lc_nullable"`
+}

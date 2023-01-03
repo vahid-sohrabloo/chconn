@@ -140,7 +140,14 @@ func (c *Date[T]) Row(row int) time.Time {
 }
 
 // Append value for insert
-func (c *Date[T]) Append(v ...time.Time) {
+func (c *Date[T]) Append(v time.Time) {
+	var val T
+	c.values = append(c.values, val.FromTime(v, c.precision))
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *Date[T]) AppendMulti(v ...time.Time) {
 	var val T
 	for _, v := range v {
 		c.values = append(c.values, val.FromTime(v, c.precision))

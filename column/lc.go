@@ -87,7 +87,20 @@ func (c *LowCardinality[T]) Scan(row int, dest any) error {
 }
 
 // Append value for insert
-func (c *LowCardinality[T]) Append(v ...T) {
+func (c *LowCardinality[T]) Append(v T) {
+
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.dictColumn.Append(v)
+	}
+	c.keys = append(c.keys, key)
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *LowCardinality[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {

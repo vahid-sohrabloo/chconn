@@ -109,7 +109,15 @@ func (c *Tuple3[T, T1, T2, T3]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Tuple3[T, T1, T2, T3]) Append(v ...T) {
+func (c *Tuple3[T, T1, T2, T3]) Append(v T) {
+	t := tuple3Value[T1, T2, T3](v)
+	c.col1.Append(t.Col1)
+	c.col2.Append(t.Col2)
+	c.col3.Append(t.Col3)
+}
+
+// AppendMulti value for insert
+func (c *Tuple3[T, T1, T2, T3]) AppendMulti(v ...T) {
 	for _, v := range v {
 		t := tuple3Value[T1, T2, T3](v)
 		c.col1.Append(t.Col1)

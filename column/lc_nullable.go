@@ -77,7 +77,19 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 }
 
 // Append value for insert
-func (c *LowCardinalityNullable[T]) Append(v ...T) {
+func (c *LowCardinalityNullable[T]) Append(v T) {
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.dictColumn.Append(v)
+	}
+	c.keys = append(c.keys, key+1)
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
@@ -97,10 +109,29 @@ func (c *LowCardinalityNullable[T]) AppendNil() {
 	c.numRow++
 }
 
-// Append nullable value for insert
+// AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *LowCardinalityNullable[T]) AppendP(v ...*T) {
+func (c *LowCardinalityNullable[T]) AppendP(v *T) {
+	if v == nil {
+		c.keys = append(c.keys, 0)
+		return
+	}
+	key, ok := c.dict[*v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[*v] = key
+		c.dictColumn.Append(*v)
+	}
+	c.keys = append(c.keys, key+1)
+
+	c.numRow++
+}
+
+// AppendMultiP nullable value for insert
+//
+// as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
+func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
 	for _, v := range v {
 		if v == nil {
 			c.keys = append(c.keys, 0)

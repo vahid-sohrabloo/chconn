@@ -133,7 +133,17 @@ func (c *Tuple5[T, T1, T2, T3, T4, T5]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Tuple5[T, T1, T2, T3, T4, T5]) Append(v ...T) {
+func (c *Tuple5[T, T1, T2, T3, T4, T5]) Append(v T) {
+	t := tuple5Value[T1, T2, T3, T4, T5](v)
+	c.col1.Append(t.Col1)
+	c.col2.Append(t.Col2)
+	c.col3.Append(t.Col3)
+	c.col4.Append(t.Col4)
+	c.col5.Append(t.Col5)
+}
+
+// AppendMulti value for insert
+func (c *Tuple5[T, T1, T2, T3, T4, T5]) AppendMulti(v ...T) {
 	for _, v := range v {
 		t := tuple5Value[T1, T2, T3, T4, T5](v)
 		c.col1.Append(t.Col1)

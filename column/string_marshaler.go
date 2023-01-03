@@ -79,6 +79,7 @@ func (c *StringMarshaler[T]) RowI(row int) any {
 }
 
 func (c *StringMarshaler[T]) Scan(row int, value any) error {
+	//todo
 	// switch d := value.(type) {
 	// case *string:
 	// 	*d = string(c.RowBytes(row))
@@ -117,7 +118,15 @@ func (c *StringMarshaler[T]) appendLen(x int) {
 }
 
 // Append value for insert
-func (c *StringMarshaler[T]) Append(v ...T) {
+func (c *StringMarshaler[T]) Append(v T) {
+	d, _ := v.MarshalText()
+	c.appendLen(len(d))
+	c.writerData = append(c.writerData, d...)
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *StringMarshaler[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		d, _ := v.MarshalText()
 		c.appendLen(len(d))

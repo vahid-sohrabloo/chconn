@@ -98,10 +98,16 @@ func (c *Array[T]) Scan(row int, dest any) error {
 }
 
 // Append value for insert
-func (c *Array[T]) Append(v ...[]T) {
+func (c *Array[T]) Append(v []T) {
+	c.AppendLen(len(v))
+	c.dataColumn.(Column[T]).AppendMulti(v...)
+}
+
+// AppendMulti value for insert
+func (c *Array[T]) AppendMulti(v ...[]T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.(Column[T]).Append(v...)
+		c.dataColumn.(Column[T]).AppendMulti(v...)
 	}
 }
 
@@ -112,9 +118,10 @@ func (c *Array[T]) Append(v ...[]T) {
 // Example:
 //
 //	c.AppendLen(2) // insert 2 items
-//	c.AppendItem(1, 2)
-func (c *Array[T]) AppendItem(v ...T) {
-	c.dataColumn.(Column[T]).Append(v...)
+//	c.AppendItem(1)
+//	c.AppendItem(2)
+func (c *Array[T]) AppendItem(v T) {
+	c.dataColumn.(Column[T]).Append(v)
 }
 
 // Array return a Array type for this column

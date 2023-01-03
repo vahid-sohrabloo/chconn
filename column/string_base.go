@@ -125,7 +125,14 @@ func (c *StringBase[T]) appendLen(x int) {
 }
 
 // Append value for insert
-func (c *StringBase[T]) Append(v ...T) {
+func (c *StringBase[T]) Append(v T) {
+	c.appendLen(len(v))
+	c.writerData = append(c.writerData, v...)
+	c.numRow++
+}
+
+// AppendMulti value for insert
+func (c *StringBase[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		c.appendLen(len(v))
 		c.writerData = append(c.writerData, v...)
@@ -134,7 +141,14 @@ func (c *StringBase[T]) Append(v ...T) {
 }
 
 // AppendBytes value of bytes for insert
-func (c *StringBase[T]) AppendBytes(v ...[]byte) {
+func (c *StringBase[T]) AppendBytes(v []byte) {
+	c.appendLen(len(v))
+	c.writerData = append(c.writerData, v...)
+	c.numRow++
+}
+
+// AppendBytesSlice value of bytes for insert
+func (c *StringBase[T]) AppendBytesSlice(v [][]byte) {
 	for _, v := range v {
 		c.appendLen(len(v))
 		c.writerData = append(c.writerData, v...)
@@ -154,7 +168,7 @@ func (c *StringBase[T]) Array() *Array[T] {
 
 // Nullable return a nullable type for this column
 func (c *StringBase[T]) Nullable() *StringNullable[T] {
-	return NewStringNullable[T](c)
+	return NewStringNullable(c)
 }
 
 // LC return a low cardinality type for this column
@@ -248,8 +262,8 @@ func (c *StringBase[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
 func (c *StringBase[T]) appendEmpty() {
-	var emptyValue T
-	c.Append(emptyValue)
+	c.writerData = append(c.writerData, 0)
+	c.numRow++
 }
 
 func (c *StringBase[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {

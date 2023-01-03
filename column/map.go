@@ -78,7 +78,16 @@ func (c *Map[K, V]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Map[K, V]) Append(val ...map[K]V) {
+func (c *Map[K, V]) Append(v map[K]V) {
+	c.AppendLen(len(v))
+	for k, d := range v {
+		c.keyColumn.(Column[K]).Append(k)
+		c.valueColumn.(Column[V]).Append(d)
+	}
+}
+
+// AppendMulti value for insert
+func (c *Map[K, V]) AppendMulti(val ...map[K]V) {
 	for _, v := range val {
 		c.AppendLen(len(v))
 		for k, d := range v {

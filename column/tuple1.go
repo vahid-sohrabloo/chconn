@@ -54,8 +54,13 @@ func (c *Tuple1[T]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Tuple1[T]) Append(v ...T) {
-	c.col1.Append(v...)
+func (c *Tuple1[T]) Append(v T) {
+	c.col1.Append(v)
+}
+
+// AppendMulti value for insert
+func (c *Tuple1[T]) AppendMulti(v ...T) {
+	c.col1.AppendMulti(v...)
 }
 
 // Array return a Array type for this column

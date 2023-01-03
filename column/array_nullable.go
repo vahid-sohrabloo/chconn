@@ -96,10 +96,16 @@ func (c *ArrayNullable[T]) Scan(row int, dest any) error {
 }
 
 // AppendP a nullable value for insert
-func (c *ArrayNullable[T]) AppendP(v ...[]*T) {
+func (c *ArrayNullable[T]) AppendP(v []*T) {
+	c.AppendLen(len(v))
+	c.dataColumn.AppendMultiP(v...)
+}
+
+// AppendMultiP a nullable value for insert
+func (c *ArrayNullable[T]) AppendMultiP(v [][]*T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.AppendP(v...)
+		c.dataColumn.AppendMultiP(v...)
 	}
 }
 
@@ -110,9 +116,10 @@ func (c *ArrayNullable[T]) AppendP(v ...[]*T) {
 // Example:
 //
 //	c.AppendLen(2) // insert 2 items
-//	c.AppendItemP(val1, val2) // insert item 1
-func (c *ArrayNullable[T]) AppendItemP(v ...*T) {
-	c.dataColumn.AppendP(v...)
+//	c.AppendItemP(val1) // insert item 1
+//	c.AppendItemP(val2) // insert item 2
+func (c *ArrayNullable[T]) AppendItemP(v *T) {
+	c.dataColumn.AppendP(v)
 }
 
 // ArrayOf return a Array type for this column

@@ -97,7 +97,14 @@ func (c *Tuple2[T, T1, T2]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Tuple2[T, T1, T2]) Append(v ...T) {
+func (c *Tuple2[T, T1, T2]) Append(v T) {
+	t := tuple2Value[T1, T2](v)
+	c.col1.Append(t.Col1)
+	c.col2.Append(t.Col2)
+}
+
+// AppendMulti value for insert
+func (c *Tuple2[T, T1, T2]) AppendMulti(v ...T) {
 	for _, v := range v {
 		t := tuple2Value[T1, T2](v)
 		c.col1.Append(t.Col1)

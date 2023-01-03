@@ -121,7 +121,16 @@ func (c *Tuple4[T, T1, T2, T3, T4]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Tuple4[T, T1, T2, T3, T4]) Append(v ...T) {
+func (c *Tuple4[T, T1, T2, T3, T4]) Append(v T) {
+	t := tuple4Value[T1, T2, T3, T4](v)
+	c.col1.Append(t.Col1)
+	c.col2.Append(t.Col2)
+	c.col3.Append(t.Col3)
+	c.col4.Append(t.Col4)
+}
+
+// AppendMulti value for insert
+func (c *Tuple4[T, T1, T2, T3, T4]) AppendMulti(v ...T) {
 	for _, v := range v {
 		t := tuple4Value[T1, T2, T3, T4](v)
 		c.col1.Append(t.Col1)

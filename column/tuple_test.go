@@ -169,8 +169,8 @@ func TestTuple(t *testing.T) {
 
 			colArrayArrayTuple.AppendLen(1)
 			colArrayArrayTuple.Column().(*column.ArrayBase).AppendLen(2)
-			colArrayArrayTupleString.Append(valString, val2String)
-			colArrayArrayTupleInt.Append(valInt, val2Int)
+			colArrayArrayTupleString.AppendMulti(valString, val2String)
+			colArrayArrayTupleInt.AppendMulti(valInt, val2Int)
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO

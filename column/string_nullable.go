@@ -119,15 +119,44 @@ func (c *StringNullable[T]) RowIsNil(row int) bool {
 }
 
 // Append value for insert
-func (c *StringNullable[T]) Append(v ...T) {
-	c.writerData = append(c.writerData, make([]uint8, len(v))...)
-	c.dataColumn.Append(v...)
+func (c *StringNullable[T]) Append(v T) {
+	c.writerData = append(c.writerData, 0)
+	c.dataColumn.Append(v)
 }
 
-// Append Basenullable value for insert
+// Append value for insert
+func (c *StringNullable[T]) AppendMulti(v ...T) {
+	c.writerData = append(c.writerData, make([]uint8, len(v))...)
+	c.dataColumn.AppendMulti(v...)
+}
+
+// Append value for insert
+func (c *StringNullable[T]) AppendBytes(v []byte) {
+	c.writerData = append(c.writerData, 0)
+	c.dataColumn.AppendBytes(v)
+}
+
+// Append value for insert
+func (c *StringNullable[T]) AppendBytesSlice(v [][]byte) {
+	c.writerData = append(c.writerData, make([]uint8, len(v))...)
+	c.dataColumn.AppendBytesSlice(v)
+}
+
+// AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *StringNullable[T]) AppendP(v ...*T) {
+func (c *StringNullable[T]) AppendP(v *T) {
+	if v == nil {
+		c.AppendNil()
+		return
+	}
+	c.Append(*v)
+}
+
+// AppendMultiP nullable value for insert
+//
+// as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
+func (c *StringNullable[T]) AppendMultiP(v ...*T) {
 	for _, v := range v {
 		if v == nil {
 			c.AppendNil()

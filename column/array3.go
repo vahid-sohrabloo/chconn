@@ -61,10 +61,16 @@ func (c *Array3[T]) RowI(row int) any {
 }
 
 // Append value for insert
-func (c *Array3[T]) Append(v ...[][][]T) {
+func (c *Array3[T]) Append(v [][][]T) {
+	c.AppendLen(len(v))
+	c.dataColumn.(*Array2[T]).AppendMulti(v...)
+}
+
+// AppendMulti value for insert
+func (c *Array3[T]) AppendMulti(v ...[][][]T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.(*Array2[T]).Append(v...)
+		c.dataColumn.(*Array2[T]).AppendMulti(v...)
 	}
 }
 
