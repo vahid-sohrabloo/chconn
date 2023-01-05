@@ -147,8 +147,8 @@ func (c *StringBase[T]) AppendBytes(v []byte) {
 	c.numRow++
 }
 
-// AppendBytesSlice value of bytes for insert
-func (c *StringBase[T]) AppendBytesSlice(v [][]byte) {
+// AppendBytesMulti value of bytes for insert
+func (c *StringBase[T]) AppendBytesMulti(v ...[]byte) {
 	for _, v := range v {
 		c.appendLen(len(v))
 		c.writerData = append(c.writerData, v...)

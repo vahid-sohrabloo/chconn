@@ -137,9 +137,9 @@ func (c *StringNullable[T]) AppendBytes(v []byte) {
 }
 
 // Append value for insert
-func (c *StringNullable[T]) AppendBytesSlice(v [][]byte) {
+func (c *StringNullable[T]) AppendBytesMulti(v ...[]byte) {
 	c.writerData = append(c.writerData, make([]uint8, len(v))...)
-	c.dataColumn.AppendBytesSlice(v)
+	c.dataColumn.AppendBytesMulti(v...)
 }
 
 // AppendP nullable value for insert
