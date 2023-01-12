@@ -122,6 +122,8 @@ func (c *LowCardinality[T]) Reset() {
 	c.dictColumn.Reset()
 	c.dict = make(map[T]int)
 	c.keys = c.keys[:0]
+	c.readedDict = c.readedDict[:0]
+	c.readedKeys = c.readedKeys[:0]
 	c.numRow = 0
 }
 
@@ -140,6 +142,8 @@ func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.numRow = num
 	if c.numRow == 0 {
 		c.indices = newIndicesColumn[uint8]()
+		c.readedDict = c.readedDict[:0]
+		c.readedKeys = c.readedKeys[:0]
 		// to reset nullable dictionary
 		return c.dictColumn.ReadRaw(0, r)
 	}
