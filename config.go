@@ -54,6 +54,7 @@ type Config struct {
 	LookupFunc        LookupFunc // e.g. net.Resolver.LookupHost
 	ReaderFunc        ReaderFunc // e.g. bufio.Reader
 	Compress          CompressMethod
+	UseWriteBuffer    bool
 	QuotaKey          string
 	WriterFunc        WriterFunc
 	MinReadBufferSize int
@@ -178,8 +179,14 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //		compress
 //			compression method. empty string or "checksum" or "lz4" or "zstd".
 //	     in the "checksum" chconn checks the checksum and not use any compress method.
+//		use_write_buffer
+//			use a buffer for write data. So call write tcp method less but use more memory.
+//			the default value is true. set to false if you have less memory.
+//		    if you set compress method, use_write_buffer is forced to true.
 //		quota_key
 //			the quota key.
+//
+//nolint:funlen,gocyclo
 func ParseConfig(connString string) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
@@ -226,6 +233,13 @@ func ParseConfig(connString string) (*Config, error) {
 	case "zstd":
 		config.Compress = CompressZSTD
 	}
+	config.UseWriteBuffer = true
+	if config.Compress == CompressNone && settings["use_write_buffer"] != "" {
+		config.UseWriteBuffer, err = strconv.ParseBool(settings["use_write_buffer"])
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "cannot parse use_write_buffer", err: err}
+		}
+	}
 
 	config.QuotaKey = settings["quota_key"]
 
@@ -257,6 +271,7 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslcert":              {},
 		"sslrootcert":          {},
 		"compress":             {},
+		"use_write_buffer":     {},
 		"quota_key":            {},
 	}
 

@@ -3,7 +3,6 @@ package column
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 
@@ -171,14 +170,9 @@ func (c *ArrayBase) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *ArrayBase) WriteTo(w io.Writer) (int64, error) {
-	nw, err := c.offsetColumn.WriteTo(w)
-	if err != nil {
-		return 0, fmt.Errorf("write len data: %w", err)
-	}
-	n, errDataColumn := c.dataColumn.WriteTo(w)
-
-	return nw + n, errDataColumn
+func (c *ArrayBase) Write(w *readerwriter.Writer) {
+	c.offsetColumn.Write(w)
+	c.dataColumn.Write(w)
 }
 
 // HeaderWriter writes header data to writer

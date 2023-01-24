@@ -21,6 +21,7 @@ func TestSelectError(t *testing.T) {
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
 
 	config, err := ParseConfig(connString)
+	config.UseWriteBuffer = false
 	require.NoError(t, err)
 
 	c, err := ConnectConfig(context.Background(), config)
@@ -43,7 +44,7 @@ func TestSelectError(t *testing.T) {
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	res, err = c.Select(context.Background(), "select * from system.numbers limit 5")
-	require.EqualError(t, err, "write block info (timeout)")
+	require.EqualError(t, err, "write block data (timeout)")
 	require.Nil(t, res)
 	assert.True(t, c.IsClosed())
 

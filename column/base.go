@@ -74,6 +74,7 @@ func (c *Base[T]) RowI(row int) any {
 	return c.Row(row)
 }
 
+//nolint:funlen,gocyclo
 func (c *Base[T]) Scan(row int, dest any) error {
 	switch dest := dest.(type) {
 	case *bool:
@@ -147,11 +148,11 @@ func (c *Base[T]) Scan(row int, dest any) error {
 		**dest = float32(c.geFloat64(c.Row(row)))
 		return nil
 	case *float64:
-		*dest = float64(c.geFloat64(c.Row(row)))
+		*dest = c.geFloat64(c.Row(row))
 		return nil
 	case **float64:
 		*dest = new(float64)
-		**dest = float64(c.geFloat64(c.Row(row)))
+		**dest = c.geFloat64(c.Row(row))
 		return nil
 	case *types.Uint128:
 		*dest = c.getUint128(c.Row(row))
@@ -245,7 +246,7 @@ func (c *Base[T]) getInt64(val T) int64 {
 	case reflect.Int32:
 		return int64(*(*int32)(unsafe.Pointer(&val)))
 	case reflect.Int64:
-		return int64(*(*int64)(unsafe.Pointer(&val)))
+		return *(*int64)(unsafe.Pointer(&val))
 	case reflect.Uint8:
 		return int64(*(*uint8)(unsafe.Pointer(&val)))
 	case reflect.Uint16:
@@ -258,19 +259,19 @@ func (c *Base[T]) getInt64(val T) int64 {
 		return int64(*(*float32)(unsafe.Pointer(&val)))
 	case reflect.Float64:
 		return int64(*(*float64)(unsafe.Pointer(&val)))
+	//nolint:dupl
 	default:
 		if c.kind == reflect.Struct {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return int64((*(*types.Uint128)(unsafe.Pointer(&val))).Uint64())
+				return int64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
 			case types.Int128:
-				return int64((*(*types.Int128)(unsafe.Pointer(&val))).Uint64())
+				return int64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
 			case types.Uint256:
-				return int64((*(*types.Uint256)(unsafe.Pointer(&val))).Uint64())
+				return int64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
 			case types.Int256:
-				return int64((*(*types.Int256)(unsafe.Pointer(&val))).Uint64())
-
+				return int64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
 			}
 		}
 	}
@@ -294,7 +295,7 @@ func (c *Base[T]) getUint64(val T) uint64 {
 	case reflect.Uint32:
 		return uint64(*(*uint32)(unsafe.Pointer(&val)))
 	case reflect.Uint64:
-		return uint64(*(*uint64)(unsafe.Pointer(&val)))
+		return *(*uint64)(unsafe.Pointer(&val))
 	case reflect.Float32:
 		return uint64(*(*float32)(unsafe.Pointer(&val)))
 	case reflect.Float64:
@@ -304,14 +305,13 @@ func (c *Base[T]) getUint64(val T) uint64 {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return (*(*types.Uint128)(unsafe.Pointer(&val))).Uint64()
+				return (*types.Uint128)(unsafe.Pointer(&val)).Uint64()
 			case types.Int128:
-				return (*(*types.Int128)(unsafe.Pointer(&val))).Uint64()
+				return (*types.Int128)(unsafe.Pointer(&val)).Uint64()
 			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val))).Uint64()
+				return (*types.Uint256)(unsafe.Pointer(&val)).Uint64()
 			case types.Int256:
-				return (*(*types.Int256)(unsafe.Pointer(&val))).Uint64()
-
+				return (*types.Int256)(unsafe.Pointer(&val)).Uint64()
 			}
 		}
 	}
@@ -339,20 +339,20 @@ func (c *Base[T]) geFloat64(val T) float64 {
 	case reflect.Float32:
 		return float64(*(*float32)(unsafe.Pointer(&val)))
 	case reflect.Float64:
-		return float64(*(*float64)(unsafe.Pointer(&val)))
+		return *(*float64)(unsafe.Pointer(&val))
+	//nolint:dupl
 	default:
 		if c.kind == reflect.Struct {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return float64((*(*types.Uint128)(unsafe.Pointer(&val))).Uint64())
+				return float64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
 			case types.Int128:
-				return float64((*(*types.Int128)(unsafe.Pointer(&val))).Uint64())
+				return float64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
 			case types.Uint256:
-				return float64((*(*types.Uint256)(unsafe.Pointer(&val))).Uint64())
+				return float64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
 			case types.Int256:
-				return float64((*(*types.Int256)(unsafe.Pointer(&val))).Uint64())
-
+				return float64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
 			}
 		}
 	}
@@ -386,14 +386,13 @@ func (c *Base[T]) getBool(val T) bool {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return (*(*types.Uint128)(unsafe.Pointer(&val))).Uint64() > 0
+				return (*types.Uint128)(unsafe.Pointer(&val)).Uint64() > 0
 			case types.Int128:
-				return (*(*types.Int128)(unsafe.Pointer(&val))).Uint64() > 0
+				return (*types.Int128)(unsafe.Pointer(&val)).Uint64() > 0
 			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val))).Uint64() > 0
+				return (*types.Uint256)(unsafe.Pointer(&val)).Uint64() > 0
 			case types.Int256:
-				return (*(*types.Int256)(unsafe.Pointer(&val))).Uint64() > 0
-
+				return (*types.Int256)(unsafe.Pointer(&val)).Uint64() > 0
 			}
 		}
 	}
@@ -429,12 +428,11 @@ func (c *Base[T]) getUint128(val T) types.Uint128 {
 			case types.Uint128:
 				return *(*types.Uint128)(unsafe.Pointer(&val))
 			case types.Int128:
-				return (*(*types.Int128)(unsafe.Pointer(&val))).Uint128()
+				return (*types.Int128)(unsafe.Pointer(&val)).Uint128()
 			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val))).Uint128()
+				return (*types.Uint256)(unsafe.Pointer(&val)).Uint128()
 			case types.Int256:
-				return (*(*types.Int256)(unsafe.Pointer(&val))).Uint128()
-
+				return (*types.Int256)(unsafe.Pointer(&val)).Uint128()
 			}
 		}
 	}
@@ -450,7 +448,7 @@ func (c *Base[T]) getInt128(val T) types.Int128 {
 	case reflect.Int32:
 		return types.Int128From64(int64(*(*int32)(unsafe.Pointer(&val))))
 	case reflect.Int64:
-		return types.Int128From64(int64(*(*int64)(unsafe.Pointer(&val))))
+		return types.Int128From64(*(*int64)(unsafe.Pointer(&val)))
 	case reflect.Uint8:
 		return types.Int128{Lo: uint64(*(*uint8)(unsafe.Pointer(&val)))}
 	case reflect.Uint16:
@@ -458,7 +456,7 @@ func (c *Base[T]) getInt128(val T) types.Int128 {
 	case reflect.Uint32:
 		return types.Int128{Lo: uint64(*(*uint32)(unsafe.Pointer(&val)))}
 	case reflect.Uint64:
-		return types.Int128{Lo: uint64(*(*uint64)(unsafe.Pointer(&val)))}
+		return types.Int128{Lo: *(*uint64)(unsafe.Pointer(&val))}
 	case reflect.Float32:
 		return types.Int128{Lo: uint64(*(*float32)(unsafe.Pointer(&val)))}
 	case reflect.Float64:
@@ -468,14 +466,13 @@ func (c *Base[T]) getInt128(val T) types.Int128 {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return (*(*types.Uint128)(unsafe.Pointer(&val))).Int128()
+				return (*types.Uint128)(unsafe.Pointer(&val)).Int128()
 			case types.Int128:
 				return *(*types.Int128)(unsafe.Pointer(&val))
 			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val))).Uint128().Int128()
+				return (*types.Uint256)(unsafe.Pointer(&val)).Uint128().Int128()
 			case types.Int256:
-				return (*(*types.Int256)(unsafe.Pointer(&val))).Uint128().Int128()
-
+				return (*types.Int256)(unsafe.Pointer(&val)).Uint128().Int128()
 			}
 		}
 	}
@@ -499,7 +496,7 @@ func (c *Base[T]) getUint256(val T) types.Uint256 {
 	case reflect.Uint32:
 		return types.Uint256From64(uint64(*(*uint32)(unsafe.Pointer(&val))))
 	case reflect.Uint64:
-		return types.Uint256From64(uint64(*(*uint64)(unsafe.Pointer(&val))))
+		return types.Uint256From64(*(*uint64)(unsafe.Pointer(&val)))
 	case reflect.Float32:
 		return types.Uint256From64(uint64(*(*float32)(unsafe.Pointer(&val))))
 	case reflect.Float64:
@@ -511,12 +508,11 @@ func (c *Base[T]) getUint256(val T) types.Uint256 {
 			case types.Uint128:
 				return types.Uint256From128(*(*types.Uint128)(unsafe.Pointer(&val)))
 			case types.Int128:
-				return types.Uint256From128((*(*types.Int128)(unsafe.Pointer(&val))).Uint128())
+				return types.Uint256From128((*types.Int128)(unsafe.Pointer(&val)).Uint128())
 			case types.Uint256:
 				return (*(*types.Uint256)(unsafe.Pointer(&val)))
 			case types.Int256:
-				return (*(*types.Int256)(unsafe.Pointer(&val))).Uint256()
-
+				return (*types.Int256)(unsafe.Pointer(&val)).Uint256()
 			}
 		}
 	}
@@ -532,7 +528,7 @@ func (c *Base[T]) getInt256(val T) types.Int256 {
 	case reflect.Int32:
 		return types.Int256From64(int64(*(*int32)(unsafe.Pointer(&val))))
 	case reflect.Int64:
-		return types.Int256From64(int64(*(*int64)(unsafe.Pointer(&val))))
+		return types.Int256From64(*(*int64)(unsafe.Pointer(&val)))
 	case reflect.Uint8:
 		return types.Int256From64(int64(*(*uint8)(unsafe.Pointer(&val))))
 	case reflect.Uint16:
@@ -550,14 +546,13 @@ func (c *Base[T]) getInt256(val T) types.Int256 {
 			var t T
 			switch any(t).(type) {
 			case types.Uint128:
-				return types.Int256From128((*(*types.Uint128)(unsafe.Pointer(&val))).Int128())
+				return types.Int256From128((*types.Uint128)(unsafe.Pointer(&val)).Int128())
 			case types.Int128:
 				return types.Int256From128(*(*types.Int128)(unsafe.Pointer(&val)))
 			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val))).Int256()
+				return (*types.Uint256)(unsafe.Pointer(&val)).Int256()
 			case types.Int256:
 				return *(*types.Int256)(unsafe.Pointer(&val))
-
 			}
 		}
 	}
@@ -742,6 +737,7 @@ func (c *Base[T]) String(row int) string {
 		return strconv.FormatFloat(*(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
 		// todo more types
 	default:
+		//nolint:staticcheck
 		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
 			// todo
 		}
@@ -750,5 +746,4 @@ func (c *Base[T]) String(row int) string {
 		}
 		return fmt.Sprintf("%v", val)
 	}
-
 }

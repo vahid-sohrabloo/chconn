@@ -3,7 +3,6 @@ package column
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 
@@ -102,7 +101,6 @@ func (c *MapBase) Scan(row int, dest any) error {
 	}
 
 	return fmt.Errorf("scan dest should be a pointer of map or slice of struct")
-
 }
 
 func (c *MapBase) scanMap(row int, val reflect.Value) error {
@@ -130,10 +128,10 @@ func (c *MapBase) scanStruct(row int, dest reflect.Value) error {
 	rSlice := reflect.MakeSlice(dest.Elem().Type(), offset-lastOffset, offset-lastOffset)
 	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
 		// todo  find a better way to find key and value field
-		if err := c.keyColumn.Scan(int(i), rSlice.Index(b).Field(0).Addr().Interface()); err != nil {
+		if err := c.keyColumn.Scan(i, rSlice.Index(b).Field(0).Addr().Interface()); err != nil {
 			return err
 		}
-		if err := c.valueColumn.Scan(int(i), rSlice.Index(b).Field(1).Addr().Interface()); err != nil {
+		if err := c.valueColumn.Scan(i, rSlice.Index(b).Field(1).Addr().Interface()); err != nil {
 			return err
 		}
 	}
@@ -281,24 +279,10 @@ func (c *MapBase) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *MapBase) WriteTo(w io.Writer) (int64, error) {
-	nw, err := c.offsetColumn.WriteTo(w)
-	if err != nil {
-		return nw, fmt.Errorf("write len data: %w", err)
-	}
-	n, errDataColumn := c.keyColumn.WriteTo(w)
-	nw += n
-	if errDataColumn != nil {
-		return nw, fmt.Errorf("write key data: %w", errDataColumn)
-	}
-
-	n, errDataColumn = c.valueColumn.WriteTo(w)
-	nw += n
-	if errDataColumn != nil {
-		return nw, fmt.Errorf("write value data: %w", errDataColumn)
-	}
-
-	return nw + n, errDataColumn
+func (c *MapBase) Write(w *readerwriter.Writer) {
+	c.offsetColumn.Write(w)
+	c.keyColumn.Write(w)
+	c.valueColumn.Write(w)
 }
 
 // HeaderWriter writes header data to writer

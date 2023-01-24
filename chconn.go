@@ -160,11 +160,6 @@ type Conn interface {
 	) (SelectStmt, error)
 }
 
-type writeFlusher interface {
-	io.Writer
-	Flush() error
-}
-
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
@@ -175,9 +170,9 @@ type conn struct {
 
 	status byte // One of connStatus* constants
 
-	writer           *readerwriter.Writer
-	writerTo         io.Writer
-	writerToCompress io.Writer
+	writer         *readerwriter.Writer
+	writerTo       io.Writer
+	compressWriter *readerwriter.CompressWriter
 
 	reader   *readerwriter.Reader
 	compress bool
@@ -364,9 +359,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.writerTo = c.conn
 	}
 	if c.compress {
-		c.writerToCompress = readerwriter.NewCompressWriter(c.writerTo, byte(config.Compress))
-	} else {
-		c.writerToCompress = c.writerTo
+		c.compressWriter = readerwriter.NewCompressWriter(byte(c.config.Compress))
 	}
 
 	c.serverInfo = &ServerInfo{}
@@ -390,15 +383,19 @@ func (ch *conn) sendAddendum() {
 	}
 }
 
-func (ch *conn) flushCompress() error {
-	if w, ok := ch.writerToCompress.(writeFlusher); ok {
-		return w.Flush()
-	}
-	return nil
-}
-
 func (ch *conn) RawConn() net.Conn {
 	return ch.conn
+}
+
+func (ch *conn) flushWriteData() error {
+	if n, err := ch.writerTo.Write(ch.writer.Output); err != nil {
+		return err
+	} else if n != len(ch.writer.Output) {
+		return io.ErrShortWrite
+	}
+
+	ch.writer.Output = ch.writer.Output[:0]
+	return nil
 }
 
 // send hello to ClickHouse
@@ -412,7 +409,7 @@ func (ch *conn) hello() error {
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
 
-	if _, err := ch.writer.WriteTo(ch.writerTo); err != nil {
+	if err := ch.flushWriteData(); err != nil {
 		return fmt.Errorf("write hello: %w", err)
 	}
 
@@ -511,19 +508,18 @@ func (ch *conn) sendQueryWithOption(
 	return ch.sendEmptyBlock()
 }
 
-func (ch *conn) sendData(block *block, numRows int) error {
+func (ch *conn) sendData(block *block, numRows int, columns ...column.ColumnBasic) error {
 	ch.writer.Uvarint(clientData)
 	// name
 	ch.writer.String("")
 
-	// if compress enable we must send this part with uncompressed data
-	if ch.compress {
-		_, err := ch.writer.WriteTo(ch.writerTo)
-		if err != nil {
-			return &writeError{"write block info", err}
-		}
+	if err := block.write(ch, numRows, columns...); err != nil {
+		return err
 	}
-	return block.writeHeader(ch, numRows)
+	if err := ch.flushWriteData(); err != nil {
+		return &writeError{"write block data", err}
+	}
+	return nil
 }
 
 func (ch *conn) sendEmptyBlock() error {

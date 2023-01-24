@@ -2,7 +2,6 @@ package column
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -58,6 +57,8 @@ func (c *StringBase[T]) Read(value []T) []T {
 // Read reads all the data as `[]byte` in current block and append to the input.
 //
 // data is valid only in the current block.
+//
+//nolint:dupl
 func (c *StringBase[T]) ReadBytes(value [][]byte) [][]byte {
 	if cap(value)-len(value) >= len(c.pos) {
 		value = (value)[:len(value)+len(c.pos)]
@@ -251,9 +252,8 @@ func (c *StringBase[T]) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *StringBase[T]) WriteTo(w io.Writer) (int64, error) {
-	nw, err := w.Write(c.writerData)
-	return int64(nw), err
+func (c *StringBase[T]) Write(w *readerwriter.Writer) {
+	w.Output = append(w.Output, c.writerData...)
 }
 
 // HeaderWriter writes header data to writer

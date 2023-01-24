@@ -261,7 +261,6 @@ func (s *selectStmt) Rows() *Rows {
 	return &Rows{
 		selectStmt: s,
 	}
-
 }
 
 func (s *selectStmt) getColumnsByChType(b *block) ([]column.ColumnBasic, error) {

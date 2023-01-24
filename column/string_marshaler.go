@@ -3,7 +3,6 @@ package column
 import (
 	"encoding"
 	"fmt"
-	"io"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -48,6 +47,8 @@ func (c *StringMarshaler[T]) Read(value []T) []T {
 // Read reads all the data as `[]byte` in current block and append to the input.
 //
 // data is valid only in the current block.
+//
+//nolint:dupl
 func (c *StringMarshaler[T]) ReadBytes(value [][]byte) [][]byte {
 	if cap(value)-len(value) >= len(c.pos) {
 		value = (value)[:len(value)+len(c.pos)]
@@ -68,6 +69,7 @@ func (c *StringMarshaler[T]) ReadBytes(value [][]byte) [][]byte {
 // NOTE: Row number start from zero
 func (c *StringMarshaler[T]) Row(row int) T {
 	var t any = new(T)
+	//nolint:errcheck
 	t.(encoding.TextUnmarshaler).UnmarshalText(c.RowBytes(row))
 	return *t.(*T)
 }
@@ -79,7 +81,7 @@ func (c *StringMarshaler[T]) RowI(row int) any {
 }
 
 func (c *StringMarshaler[T]) Scan(row int, value any) error {
-	//todo
+	// TODO: implement
 	// switch d := value.(type) {
 	// case *string:
 	// 	*d = string(c.RowBytes(row))
@@ -155,7 +157,7 @@ func (c *StringMarshaler[T]) Array() *Array[T] {
 }
 
 // Nullable return a nullable type for this column
-//TODO
+// TODO must complete for release
 // func (c *StringMarshaler[T]) Nullable() *StringNullable[T] {
 // 	return NewNullable[T](c)
 // }
@@ -229,9 +231,8 @@ func (c *StringMarshaler[T]) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *StringMarshaler[T]) WriteTo(w io.Writer) (int64, error) {
-	nw, err := w.Write(c.writerData)
-	return int64(nw), err
+func (c *StringMarshaler[T]) Write(w *readerwriter.Writer) {
+	w.Output = append(w.Output, c.writerData...)
 }
 
 // HeaderWriter writes header data to writer
@@ -239,16 +240,10 @@ func (c *StringMarshaler[T]) WriteTo(w io.Writer) (int64, error) {
 func (c *StringMarshaler[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *StringMarshaler[T]) appendEmpty() {
-	var emptyValue T
-	c.Append(emptyValue)
-}
-
 func (c *StringMarshaler[T]) Elem(arrayLevel int, nullable bool) ColumnBasic {
 	if nullable {
-		//todo
+		// TODO must complete for release
 		return nil
-		// return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)

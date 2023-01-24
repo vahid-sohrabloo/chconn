@@ -24,7 +24,7 @@ func (ch *conn) Ping(ctx context.Context) error {
 			ch.Close()
 		}
 	}()
-	if _, err := ch.writer.WriteTo(ch.writerTo); err != nil {
+	if err := ch.flushWriteData(); err != nil {
 		hasError = true
 		return &writeError{"ping: write packet type", preferContextOverNetTimeoutError(ctx, err)}
 	}

@@ -67,7 +67,5 @@ func TestJSON(t *testing.T) {
 	require.True(t, conn.IsBusy())
 
 	for selectStmt.Next() {
-		fmt.Println("aa")
-
 	}
 }

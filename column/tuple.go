@@ -2,7 +2,6 @@ package column
 
 import (
 	"fmt"
-	"io"
 	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -12,7 +11,7 @@ import (
 type TupleStruct[T any] interface {
 	Column[T]
 	Array() *Array[T]
-	//TODO
+	// TODO must complete
 	// Nullable() *Nullable[T]
 }
 
@@ -139,9 +138,6 @@ func (c *Tuple) Scan(row int, dest any) error {
 	default:
 		return fmt.Errorf("tuple: scan: unsupported type %s", val.Elem().Kind())
 	}
-
-	return fmt.Errorf("tuple: scan: unsupported type %s", val.Elem().Kind())
-
 }
 
 func (c *Tuple) scanMap(row int, val reflect.Value) error {
@@ -247,22 +243,13 @@ func (c *Tuple) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
+func (c *Tuple) Write(w *readerwriter.Writer) {
 	if c.isJSON {
-		// todo find a more efficient way
-		wf := readerwriter.NewWriter()
-		wf.String(c.FullType())
-		wf.WriteTo(w)
+		w.String(c.FullType())
 	}
-	var n int64
-	for i, col := range c.columns {
-		nw, err := col.WriteTo(w)
-		if err != nil {
-			return n, fmt.Errorf("tuple: write column index %d: %w", i, err)
-		}
-		n += nw
+	for _, col := range c.columns {
+		col.Write(w)
 	}
-	return n, nil
 }
 
 // HeaderWriter writes header data to writer

@@ -2,7 +2,6 @@ package column
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -12,7 +11,7 @@ type ColumnBasic interface {
 	ReadRaw(num int, r *readerwriter.Reader) error
 	HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error
 	HeaderWriter(*readerwriter.Writer)
-	WriteTo(io.Writer) (int64, error)
+	Write(*readerwriter.Writer)
 	NumRow() int
 	Reset()
 	SetType(v []byte)

@@ -2,7 +2,6 @@ package column
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"strings"
 
@@ -88,7 +87,6 @@ func (c *LowCardinality[T]) Scan(row int, dest any) error {
 
 // Append value for insert
 func (c *LowCardinality[T]) Append(v T) {
-
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
@@ -265,40 +263,20 @@ func (c *LowCardinality[T]) Validate() error {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
+func (c *LowCardinality[T]) Write(w *readerwriter.Writer) {
 	dictionarySize := c.dictColumn.NumRow()
 	// Do not write anything for empty column.
 	// May happen while writing empty arrays.
 	if dictionarySize == 0 || (c.nullable && dictionarySize == 1) {
-		return 0, nil
+		return
 	}
-	var n int64
 	intType := int(math.Log2(float64(dictionarySize)) / 8)
 	stype := serializationType | intType
+	w.Uint64(uint64(stype))
+	w.Uint64(uint64(dictionarySize))
+	c.dictColumn.Write(w)
+	w.Uint64(uint64(len(c.keys)))
 
-	nw, err := c.writeUint64(w, uint64(stype))
-	n += int64(nw)
-	if err != nil {
-		return n, fmt.Errorf("error writing stype: %w", err)
-	}
-
-	nw, err = c.writeUint64(w, uint64(dictionarySize))
-	n += int64(nw)
-	if err != nil {
-		return n, fmt.Errorf("error writing dictionarySize: %w", err)
-	}
-
-	nwd, err := c.dictColumn.WriteTo(w)
-	n += nwd
-	if err != nil {
-		return n, fmt.Errorf("error writing dictionary: %w", err)
-	}
-
-	nw, err = c.writeUint64(w, uint64(len(c.keys)))
-	n += int64(nw)
-	if err != nil {
-		return n, fmt.Errorf("error writing keys len: %w", err)
-	}
 	if c.indices == nil || c.oldIndicesType != intType {
 		c.indices = getLCIndicate(intType)
 		c.oldIndicesType = intType
@@ -307,11 +285,7 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 	}
 	c.indices = getLCIndicate(intType)
 	c.indices.appendInts(c.keys)
-	nwt, err := c.indices.WriteTo(w)
-	if err != nil {
-		return n, fmt.Errorf("error writing indices: %w", err)
-	}
-	return n + nwt, err
+	c.indices.Write(w)
 }
 
 // HeaderWriter reader header data
@@ -334,18 +308,6 @@ func getLCIndicate(intType int) indicesColumnI {
 	}
 	// this should never happen unless something wrong with the code
 	panic("cannot not find indicate type")
-}
-
-func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
-	c.scratch[0] = byte(v)
-	c.scratch[1] = byte(v >> 8)
-	c.scratch[2] = byte(v >> 16)
-	c.scratch[3] = byte(v >> 24)
-	c.scratch[4] = byte(v >> 32)
-	c.scratch[5] = byte(v >> 40)
-	c.scratch[6] = byte(v >> 48)
-	c.scratch[7] = byte(v >> 56)
-	return w.Write(c.scratch[:8])
 }
 
 func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnBasic {

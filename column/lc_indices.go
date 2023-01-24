@@ -1,7 +1,6 @@
 package column
 
 import (
-	"io"
 	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -9,7 +8,7 @@ import (
 
 type indicesColumnI interface {
 	ReadRaw(num int, r *readerwriter.Reader) error
-	WriteTo(io.Writer) (int64, error)
+	Write(*readerwriter.Writer)
 	appendInts([]int)
 	readInt(value *[]int)
 	Reset()

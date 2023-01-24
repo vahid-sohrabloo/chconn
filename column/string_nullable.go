@@ -2,7 +2,6 @@ package column
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"unsafe"
 
@@ -81,13 +80,6 @@ func (c *StringNullable[T]) Scan(row int, dest any) error {
 	if c.RowIsNil(row) {
 		return nil
 	}
-	// destValue := reflect.ValueOf(dest)
-	// fmt.Println(destValue.IsNil())
-	// // if destValue.IsNil() {
-	// destValue.Set(reflect.New(destValue.Type().Elem()))
-	// // }
-	// fmt.Println(destValue.Elem().Interface())
-	// //todo check if v is pointer
 	return c.dataColumn.Scan(row, dest)
 }
 
@@ -264,14 +256,9 @@ func (c *StringNullable[T]) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *StringNullable[T]) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(c.writerData)
-	if err != nil {
-		return int64(n), fmt.Errorf("write nullable data: %w", err)
-	}
-
-	nw, err := c.dataColumn.WriteTo(w)
-	return nw + int64(n), err
+func (c *StringNullable[T]) Write(w *readerwriter.Writer) {
+	w.Output = append(w.Output, c.writerData...)
+	c.dataColumn.Write(w)
 }
 
 // HeaderWriter writes header data to writer

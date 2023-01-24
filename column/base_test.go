@@ -819,5 +819,4 @@ func TestEmptyCollection(t *testing.T) {
 	assert.Equal(t, [][]*uint16{{}}, colArrayNullableData)
 	assert.Equal(t, [][]uint16{{}}, colLCArrayData)
 	assert.Equal(t, [][]*uint16{{}}, colLCNullableArrayData)
-
 }

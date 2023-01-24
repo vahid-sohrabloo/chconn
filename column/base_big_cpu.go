@@ -28,7 +28,7 @@ type slice struct {
 	Cap  int
 }
 
-func (c *Base[T]) WriteTo(w io.Writer) (int64, error) {
+func (c *Base[T]) Write(w *readerwriter.Writer) {
 	s := *(*slice)(unsafe.Pointer(&c.values))
 	s.Len *= c.size
 	s.Cap *= c.size
@@ -36,7 +36,5 @@ func (c *Base[T]) WriteTo(w io.Writer) (int64, error) {
 	for i := 0; i < len(b); i += c.size {
 		reverseBuffer(b[i : i+c.size])
 	}
-	var n int64
-	nw, err := w.Write(*(*[]byte)(unsafe.Pointer(&s)))
-	return int64(nw) + n, err
+	w.Output = append(w.Output, b...)
 }

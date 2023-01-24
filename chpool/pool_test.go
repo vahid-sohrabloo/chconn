@@ -608,7 +608,46 @@ func TestPoolInsert(t *testing.T) {
 	stats := pool.Stat()
 	assert.EqualValues(t, 1, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
+	require.NoError(t, stmt.Write(context.Background(), col))
+	require.NoError(t, stmt.Write(context.Background(), col))
+	require.NoError(t, stmt.Flush(context.Background()))
 
+	waitForReleaseToComplete()
+
+	stats = pool.Stat()
+	assert.EqualValues(t, 0, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
+}
+
+func TestPoolInsertCompress(t *testing.T) {
+	t.Parallel()
+
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING") + " compress=lz4")
+	require.NoError(t, err)
+	defer pool.Close()
+
+	require.NoError(t, pool.Ping(context.Background()))
+
+	err = pool.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
+	require.NoError(t, err)
+	err = pool.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_pool (
+				int8  Int8
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	col := column.New[int8]()
+	for i := 1; i <= 10; i++ {
+		col.Append(int8(-1 * i))
+	}
+	stmt, err := pool.InsertStream(context.Background(), `INSERT INTO clickhouse_test_insert_pool (
+				int8
+			) VALUES`)
+	require.NoError(t, err)
+
+	stats := pool.Stat()
+	assert.EqualValues(t, 1, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
 	require.NoError(t, stmt.Write(context.Background(), col))
 	require.NoError(t, stmt.Write(context.Background(), col))
 	require.NoError(t, stmt.Flush(context.Background()))

@@ -72,6 +72,7 @@ func (c *ArrayNullable[T]) RowI(row int) any {
 	return c.RowP(row)
 }
 
+//nolint:dupl
 func (c *ArrayNullable[T]) Scan(row int, dest any) error {
 	destValue := reflect.Indirect(reflect.ValueOf(dest))
 	if destValue.Kind() != reflect.Slice {
@@ -89,7 +90,10 @@ func (c *ArrayNullable[T]) Scan(row int, dest any) error {
 	offset := int(c.offsetColumn.Row(row))
 	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
 	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
-		c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+		if err != nil {
+			return fmt.Errorf("column.ArrayBase.Scan: %w", err)
+		}
 	}
 	destValue.Set(rSlice)
 	return nil

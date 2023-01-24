@@ -4,8 +4,9 @@
 package column
 
 import (
-	"io"
 	"unsafe"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 func (c *Base[T]) readyBufferHook() {
@@ -23,12 +24,10 @@ type slice struct {
 	Cap  int
 }
 
-func (c *Base[T]) WriteTo(w io.Writer) (int64, error) {
+func (c *Base[T]) Write(w *readerwriter.Writer) {
 	s := *(*slice)(unsafe.Pointer(&c.values))
 	s.Len *= c.size
 	s.Cap *= c.size
-	var n int64
-	src := *(*[]byte)(unsafe.Pointer(&s))
-	nw, err := w.Write(src)
-	return int64(nw) + n, err
+	b := *(*[]byte)(unsafe.Pointer(&s))
+	w.Output = append(w.Output, b...)
 }
