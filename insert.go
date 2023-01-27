@@ -145,7 +145,7 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 		defer s.conn.contextWatcher.Unwatch()
 	}
 
-	err = s.conn.sendData(s.block, columns[0].NumRow(), columns...)
+	err = s.conn.sendData(s.block, columns[0].NumRow())
 	if err != nil {
 		s.hasError = true
 		return &InsertError{
@@ -154,6 +154,17 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 		}
 	}
 
+	err = s.block.writeColumnsBuffer(s.conn, columns...)
+	if err != nil {
+		s.hasError = true
+		return &InsertError{
+			err:        err,
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+	for _, col := range columns {
+		col.Reset()
+	}
 	return nil
 }
 

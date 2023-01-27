@@ -16,22 +16,21 @@ type chColumn struct {
 }
 
 type block struct {
-	Columns    []chColumn
-	NumRows    uint64
-	NumColumns uint64
-	info       blockInfo
-	// only use for compress data
-	compressWriter *readerwriter.Writer
+	Columns      []chColumn
+	NumRows      uint64
+	NumColumns   uint64
+	info         blockInfo
+	headerWriter *readerwriter.Writer
 }
 
 func newBlock() *block {
 	return &block{
-		compressWriter: readerwriter.NewWriter(),
+		headerWriter: readerwriter.NewWriter(),
 	}
 }
 
 func (block *block) reset() {
-	block.compressWriter.Reset()
+	block.headerWriter.Reset()
 	block.Columns = block.Columns[:0]
 	block.NumRows = 0
 	block.NumColumns = 0
@@ -146,53 +145,55 @@ func (block *block) nextColumn(ch *conn) (chColumn, error) {
 	return col, nil
 }
 
-func (block *block) write(ch *conn, numRows int, columns ...column.ColumnBasic) error {
-	writeTo := ch.writer
-	if ch.compress {
-		block.compressWriter.Reset()
-		writeTo = block.compressWriter
-	}
-	block.info.write(writeTo)
+func (block *block) writeHeader(ch *conn, numRows int) error {
+	block.info.write(ch.writer)
 	// NumColumns
-	writeTo.Uvarint(block.NumColumns)
+	ch.writer.Uvarint(block.NumColumns)
 	// NumRows
-	writeTo.Uvarint(uint64(numRows))
-
-	if len(columns) > 0 {
-		numRows := columns[0].NumRow()
-		for i, column := range block.Columns {
-			if numRows != columns[i].NumRow() {
-				return &NumberWriteError{
-					FirstNumRow: numRows,
-					NumRow:      columns[i].NumRow(),
-					Column:      string(column.Name),
-					FirstColumn: string(block.Columns[0].Name),
-				}
-			}
-
-			writeTo.ByteString(column.Name)
-			writeTo.ByteString(column.ChType)
-
-			if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithCustomSerialization {
-				writeTo.Uint8(0)
-			}
-
-			columns[i].HeaderWriter(writeTo)
-			columns[i].Write(writeTo)
-			if !ch.config.UseWriteBuffer && !ch.compress {
-				if err := ch.flushWriteData(); err != nil {
-					return &writeError{"block: write block data for column " + string(column.Name), err}
-				}
-			}
-		}
+	ch.writer.Uvarint(uint64(numRows))
+	_, err := ch.writer.WriteTo(ch.writerToCompress)
+	if err != nil {
+		return &writeError{"write block info", err}
 	}
-	if ch.compress {
-		if err := ch.compressWriter.Compress(writeTo.Output); err != nil {
-			return &writeError{"block: compress block", err}
-		}
-		ch.writer.Output = append(ch.writer.Output, ch.compressWriter.Data...)
+	err = ch.flushCompress()
+	if err != nil {
+		return &writeError{"flush block info", err}
 	}
 
+	return nil
+}
+
+func (block *block) writeColumnsBuffer(ch *conn, columns ...column.ColumnBasic) error {
+	numRows := columns[0].NumRow()
+	for i, column := range block.Columns {
+		if numRows != columns[i].NumRow() {
+			return &NumberWriteError{
+				FirstNumRow: numRows,
+				NumRow:      columns[i].NumRow(),
+				Column:      string(column.Name),
+				FirstColumn: string(block.Columns[0].Name),
+			}
+		}
+		block.headerWriter.Reset()
+		block.headerWriter.ByteString(column.Name)
+		block.headerWriter.ByteString(column.ChType)
+
+		if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithCustomSerialization {
+			block.headerWriter.Uint8(0)
+		}
+
+		columns[i].HeaderWriter(block.headerWriter)
+		if _, err := block.headerWriter.WriteTo(ch.writerToCompress); err != nil {
+			return &writeError{"block: write header block data for column " + string(column.Name), err}
+		}
+		if _, err := columns[i].WriteTo(ch.writerToCompress); err != nil {
+			return &writeError{"block: write block data for column " + string(column.Name), err}
+		}
+	}
+	err := ch.flushCompress()
+	if err != nil {
+		return &writeError{"block: flush block data", err}
+	}
 	return nil
 }
 

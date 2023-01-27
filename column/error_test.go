@@ -16,6 +16,87 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
+func TestInsertColumnLowCardinalityError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_lc`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_lc (
+		col  LowCardinality(String)
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write stype",
+			wantErr:     "block: write block data for column col (error writing stype: timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "write dictionarySize",
+			wantErr:     "block: write block data for column col (error writing dictionarySize: timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "write dictionary",
+			wantErr:     "block: write block data for column col (error writing dictionary: timeout)",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "write keys len",
+			wantErr:     "block: write block data for column col (error writing keys len: timeout)",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "write indices",
+			wantErr:     "block: write block data for column col (error writing indices: timeout)",
+			numberValid: startValidReader + 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.NewString().LowCardinality()
+			col.Append("test")
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_lc (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
+		})
+	}
+}
+
 func TestSelectReadLCError(t *testing.T) {
 	startValidReader := 36
 
@@ -114,6 +195,67 @@ func TestSelectReadLCError(t *testing.T) {
 	}
 }
 
+func TestInsertColumnArrayError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_array`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_array (
+		col  Array(UInt8)
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write block data",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write len data",
+			wantErr:     "block: write block data for column col (write len data: timeout)",
+			numberValid: startValidReader + 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.New[uint8]().Array()
+			col.Append([]uint8{1})
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_array (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
+		})
+	}
+}
+
 func TestSelectReadArrayError(t *testing.T) {
 	startValidReader := 36
 
@@ -178,6 +320,72 @@ func TestSelectReadArrayError(t *testing.T) {
 			stmt.Next()
 
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
+		})
+	}
+}
+
+func TestInsertColumnArrayNullable(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_array_nullable`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_array_nullable (
+		col  Array(Nullable(UInt8))
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write block data",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write len data",
+			wantErr:     "block: write block data for column col (write len data: timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "write nullable data",
+			wantErr:     "block: write block data for column col (write nullable data: timeout)",
+			numberValid: startValidReader + 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.New[uint8]().Nullable().Array()
+			col.Append([]uint8{1})
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_array_nullable (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
@@ -283,6 +491,67 @@ func TestSelectReadNullableError(t *testing.T) {
 	}
 }
 
+func TestInsertColumnArray2Error(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_array2`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_array2 (
+		col  Array(Array(UInt8))
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write block data",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write len data",
+			wantErr:     "block: write block data for column col (write len data: timeout)",
+			numberValid: startValidReader + 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.New[uint8]().Array().Array()
+			col.Append([][]uint8{{1}})
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_array2 (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
+		})
+	}
+}
+
 func TestSelectReadArray2Error(t *testing.T) {
 	startValidReader := 36
 
@@ -347,6 +616,66 @@ func TestSelectReadArray2Error(t *testing.T) {
 			stmt.Next()
 
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
+		})
+	}
+}
+func TestInsertColumnArray3Error(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_array3`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_array3 (
+		col  Array(Array(Array(UInt8)))
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write block data",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write len data",
+			wantErr:     "block: write block data for column col (write len data: timeout)",
+			numberValid: startValidReader + 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.New[uint8]().Array().Array().Array()
+			col.Append([][][]uint8{{{1}}})
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_array3 (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
@@ -415,6 +744,68 @@ func TestSelectReadArray3Error(t *testing.T) {
 			stmt.Next()
 
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
+		})
+	}
+}
+
+func TestInsertColumnTupleError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_tuple`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_tuple (
+		col  Tuple(String)
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write columns",
+			wantErr:     "block: write block data for column col (tuple: write column index 0: timeout)",
+			numberValid: startValidReader + 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.NewString()
+			colTuple := column.NewTuple(col)
+			col.Append("test")
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_tuple (col) VALUES",
+				colTuple,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }
@@ -493,6 +884,78 @@ func TestSelectReadTupleError(t *testing.T) {
 			require.NoError(t, err)
 			stmt.Next()
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
+		})
+	}
+}
+
+func TestInsertColumnMapError(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_map`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_map (
+		col  Map(UInt8,UInt8)
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write block data",
+			wantErr:     "block: write header block data for column col (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "write len data",
+			wantErr:     "block: write block data for column col (write len data: timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "write key data",
+			wantErr:     "block: write block data for column col (write key data: timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "write value data",
+			wantErr:     "block: write block data for column col (write value data: timeout)",
+			numberValid: startValidReader + 3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = chconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			colValue := column.New[uint8]()
+			col := column.NewMap[uint8, uint8](column.New[uint8](), colValue)
+			col.Append(map[uint8]uint8{1: 1})
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_map (col) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
 		})
 	}
 }

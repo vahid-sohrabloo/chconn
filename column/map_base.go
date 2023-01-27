@@ -3,6 +3,7 @@ package column
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
@@ -279,10 +280,24 @@ func (c *MapBase) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *MapBase) Write(w *readerwriter.Writer) {
-	c.offsetColumn.Write(w)
-	c.keyColumn.Write(w)
-	c.valueColumn.Write(w)
+func (c *MapBase) WriteTo(w io.Writer) (int64, error) {
+	nw, err := c.offsetColumn.WriteTo(w)
+	if err != nil {
+		return nw, fmt.Errorf("write len data: %w", err)
+	}
+	n, errDataColumn := c.keyColumn.WriteTo(w)
+	nw += n
+	if errDataColumn != nil {
+		return nw, fmt.Errorf("write key data: %w", errDataColumn)
+	}
+
+	n, errDataColumn = c.valueColumn.WriteTo(w)
+	nw += n
+	if errDataColumn != nil {
+		return nw, fmt.Errorf("write value data: %w", errDataColumn)
+	}
+
+	return nw + n, errDataColumn
 }
 
 // HeaderWriter writes header data to writer

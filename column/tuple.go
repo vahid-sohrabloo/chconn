@@ -2,6 +2,7 @@ package column
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -243,13 +244,22 @@ func (c *Tuple) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *Tuple) Write(w *readerwriter.Writer) {
+func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 	if c.isJSON {
-		w.String(c.FullType())
+		// todo find a more efficient way
+		wf := readerwriter.NewWriter()
+		wf.String(c.FullType())
+		wf.WriteTo(w)
 	}
-	for _, col := range c.columns {
-		col.Write(w)
+	var n int64
+	for i, col := range c.columns {
+		nw, err := col.WriteTo(w)
+		if err != nil {
+			return n, fmt.Errorf("tuple: write column index %d: %w", i, err)
+		}
+		n += nw
 	}
+	return n, nil
 }
 
 // HeaderWriter writes header data to writer

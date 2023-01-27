@@ -3,6 +3,7 @@ package column
 import (
 	"encoding"
 	"fmt"
+	"io"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -231,13 +232,19 @@ func (c *StringMarshaler[T]) ColumnType() string {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *StringMarshaler[T]) Write(w *readerwriter.Writer) {
-	w.Output = append(w.Output, c.writerData...)
+func (c *StringMarshaler[T]) WriteTo(w io.Writer) (int64, error) {
+	nw, err := w.Write(c.writerData)
+	return int64(nw), err
 }
 
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *StringMarshaler[T]) HeaderWriter(w *readerwriter.Writer) {
+}
+
+func (c *StringMarshaler[T]) appendEmpty() {
+	var emptyValue T
+	c.Append(emptyValue)
 }
 
 func (c *StringMarshaler[T]) Elem(arrayLevel int, nullable bool) ColumnBasic {

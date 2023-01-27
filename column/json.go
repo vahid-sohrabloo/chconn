@@ -1,6 +1,8 @@
 package column
 
 import (
+	"io"
+
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
@@ -104,10 +106,16 @@ func (c *JSONString) HeaderWriter(w *readerwriter.Writer) {
 
 // WriteTo write data to ClickHouse.
 // it uses internally
-func (c *JSONString) Write(w *readerwriter.Writer) {
+func (c *JSONString) WriteTo(w io.Writer) (int64, error) {
+	var nw int64
 	for _, v := range c.columns {
-		v.Write(w)
+		n, err := v.WriteTo(w)
+		nw += n
+		if err != nil {
+			return nw, err
+		}
 	}
+	return nw, nil
 }
 
 func (c *JSONString) ColumnType() string {

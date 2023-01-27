@@ -43,7 +43,7 @@ func TestInsertError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.Insert(context.Background(), "insert into system.numbers VALUES")
-	require.EqualError(t, err, "write block data (timeout)")
+	require.EqualError(t, err, "write block info (timeout)")
 	assert.True(t, c.IsClosed())
 
 	// test insert server error
@@ -407,8 +407,6 @@ func TestInsertColumnError(t *testing.T) {
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
 
-	config.UseWriteBuffer = false
-
 	c, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
@@ -429,9 +427,14 @@ func TestInsertColumnError(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "write block data",
-			wantErr:     "write block data (timeout)",
+			name:        "write header",
+			wantErr:     "block: write header block data for column int8 (timeout)",
 			numberValid: startValidReader,
+		},
+		{
+			name:        "write block data",
+			wantErr:     "block: write block data for column int8 (timeout)",
+			numberValid: startValidReader + 1,
 		},
 	}
 	for _, tt := range tests {
@@ -456,13 +459,78 @@ func TestInsertColumnError(t *testing.T) {
 	}
 }
 
+func TestInsertColumnErrorCompress(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	config.Compress = CompressLZ4
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_column_error_compress`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_column_error_compress (
+		int8  Int8
+	) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	startValidReader := 3
+
+	tests := []struct {
+		name        string
+		wantErr     string
+		numberValid int
+	}{
+		{
+			name:        "write header",
+			wantErr:     "write block info (timeout)",
+			numberValid: startValidReader,
+		},
+		{
+			name:        "flush block info",
+			wantErr:     "flush block info (timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "flush data",
+			wantErr:     "block: flush block data (timeout)",
+			numberValid: startValidReader + 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.WriterFunc = func(w io.Writer) io.Writer {
+				return &writerErrorHelper{
+					err:         errors.New("timeout"),
+					w:           w,
+					numberValid: tt.numberValid,
+				}
+			}
+			c, err = ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			col := column.New[int8]()
+			err = c.Insert(context.Background(),
+				"insert into clickhouse_test_insert_column_error_compress (int8) VALUES",
+				col,
+			)
+			require.EqualError(t, errors.Unwrap(err), tt.wantErr)
+			assert.True(t, c.IsClosed())
+		})
+	}
+}
+
 func TestInsertColumnDataError(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
 
 	config, err := ParseConfig(connString)
-	config.UseWriteBuffer = false
 	require.NoError(t, err)
 
 	c, err := ConnectConfig(context.Background(), config)
@@ -485,9 +553,39 @@ func TestInsertColumnDataError(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "write block data",
-			wantErr:     "write block data (timeout)",
+			name:        "write header",
+			wantErr:     "block: write header block data for column col (timeout)",
 			numberValid: startValidReader,
+		},
+		{
+			name:        "write stype",
+			wantErr:     "block: write block data for column col (error writing stype: timeout)",
+			numberValid: startValidReader + 1,
+		},
+		{
+			name:        "write dictionarySize",
+			wantErr:     "block: write block data for column col (error writing dictionarySize: timeout)",
+			numberValid: startValidReader + 2,
+		},
+		{
+			name:        "write dictionary",
+			wantErr:     "block: write block data for column col (error writing dictionary: timeout)",
+			numberValid: startValidReader + 3,
+		},
+		{
+			name:        "write keys len",
+			wantErr:     "block: write block data for column col (error writing keys len: timeout)",
+			numberValid: startValidReader + 4,
+		},
+		{
+			name:        "write indices",
+			wantErr:     "block: write block data for column col (error writing indices: timeout)",
+			numberValid: startValidReader + 5,
+		},
+		{
+			name:        "write block info",
+			wantErr:     "write block info (timeout)",
+			numberValid: startValidReader + 6,
 		},
 	}
 	for _, tt := range tests {
