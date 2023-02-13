@@ -109,6 +109,28 @@ func TestString(t *testing.T) {
 			colArrayLCNullable.AppendP(valArrayNil)
 		}
 
+		if insertN == 0 {
+			blockID.Remove(rows / 2)
+			col.Remove(rows / 2)
+			colNullable.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLCNullable.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colInsertByte = colInsertByte[:rows/2]
+			colNullableInsert = colNullableInsert[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCNullableInsert = colLCNullableInsert[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
+		}
+
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
 				block_id,

@@ -14,7 +14,7 @@ import (
 )
 
 func TestMapUint8(t *testing.T) {
-	testMapColumn(t, "UInt8", "uint8", func(i int) []uint8 {
+	testMapColumn(t, false, "UInt8", "uint8", func(i int) []uint8 {
 		d := make([]uint8, 2)
 		d[0] = uint8(i)
 		d[1] = uint8(i + 1)
@@ -28,7 +28,7 @@ func TestMapUint8(t *testing.T) {
 }
 
 func TestMapUint16(t *testing.T) {
-	testMapColumn(t, "UInt16", "uint16", func(i int) []uint16 {
+	testMapColumn(t, false, "UInt16", "uint16", func(i int) []uint16 {
 		d := make([]uint16, 2)
 		d[0] = uint16(i)
 		d[1] = uint16(i + 1)
@@ -42,7 +42,7 @@ func TestMapUint16(t *testing.T) {
 }
 
 func TestMapUint32(t *testing.T) {
-	testMapColumn(t, "UInt32", "uint32", func(i int) []uint32 {
+	testMapColumn(t, false, "UInt32", "uint32", func(i int) []uint32 {
 		d := make([]uint32, 2)
 		d[0] = uint32(i)
 		d[1] = uint32(i + 1)
@@ -56,7 +56,7 @@ func TestMapUint32(t *testing.T) {
 }
 
 func TestMapUint64(t *testing.T) {
-	testMapColumn(t, "UInt64", "uint64", func(i int) []uint64 {
+	testMapColumn(t, false, "UInt64", "uint64", func(i int) []uint64 {
 		d := make([]uint64, 2)
 		d[0] = uint64(i)
 		d[1] = uint64(i + 1)
@@ -69,7 +69,7 @@ func TestMapUint64(t *testing.T) {
 	})
 }
 func TestMapInt8(t *testing.T) {
-	testMapColumn(t, "Int8", "int8", func(i int) []int8 {
+	testMapColumn(t, false, "Int8", "int8", func(i int) []int8 {
 		d := make([]int8, 2)
 		d[0] = int8(i)
 		d[1] = int8(i + 1)
@@ -83,7 +83,7 @@ func TestMapInt8(t *testing.T) {
 }
 
 func TestMapInt16(t *testing.T) {
-	testMapColumn(t, "Int16", "int16", func(i int) []int16 {
+	testMapColumn(t, false, "Int16", "int16", func(i int) []int16 {
 		d := make([]int16, 2)
 		d[0] = int16(i)
 		d[1] = int16(i + 1)
@@ -97,7 +97,7 @@ func TestMapInt16(t *testing.T) {
 }
 
 func TestMapInt32(t *testing.T) {
-	testMapColumn(t, "Int32", "int32", func(i int) []int32 {
+	testMapColumn(t, false, "Int32", "int32", func(i int) []int32 {
 		d := make([]int32, 2)
 		d[0] = int32(i)
 		d[1] = int32(i + 1)
@@ -111,7 +111,7 @@ func TestMapInt32(t *testing.T) {
 }
 
 func TestMapInt64(t *testing.T) {
-	testMapColumn(t, "Int64", "int64", func(i int) []int64 {
+	testMapColumn(t, false, "Int64", "int64", func(i int) []int64 {
 		d := make([]int64, 2)
 		d[0] = int64(i)
 		d[1] = int64(i + 1)
@@ -125,7 +125,7 @@ func TestMapInt64(t *testing.T) {
 }
 
 func TestMapFloat32(t *testing.T) {
-	testMapColumn(t, "Float32", "float32", func(i int) []float32 {
+	testMapColumn(t, false, "Float32", "float32", func(i int) []float32 {
 		d := make([]float32, 2)
 		d[0] = float32(i)
 		d[1] = float32(i + 1)
@@ -139,7 +139,21 @@ func TestMapFloat32(t *testing.T) {
 }
 
 func TestMapFloat64(t *testing.T) {
-	testMapColumn(t, "Float64", "float64", func(i int) []float64 {
+	testMapColumn(t, false, "Float64", "float64", func(i int) []float64 {
+		d := make([]float64, 2)
+		d[0] = float64(i)
+		d[1] = float64(i + 1)
+		return d
+	}, func(i int) []float64 {
+		d := make([]float64, 2)
+		d[0] = float64(i)
+		d[1] = float64(i + 1)
+		return d
+	})
+}
+
+func TestMapWihDeleteFloat64(t *testing.T) {
+	testMapColumn(t, true, "Float64", "float64", func(i int) []float64 {
 		d := make([]float64, 2)
 		d[0] = float64(i)
 		d[1] = float64(i + 1)
@@ -154,6 +168,7 @@ func TestMapFloat64(t *testing.T) {
 
 func testMapColumn[V column.BaseType](
 	t *testing.T,
+	withDelete bool,
 	chType, tableName string,
 	firstVal func(i int) []V,
 	secondVal func(i int) []V,
@@ -164,6 +179,10 @@ func testMapColumn[V column.BaseType](
 
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
+
+	if withDelete {
+		tableName += "_with_delete"
+	}
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_map_%s`, tableName),
@@ -176,6 +195,7 @@ func testMapColumn[V column.BaseType](
 		},
 	}
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_map_%[1]s (
+				block_id UInt8,
 				%[1]s Map(String,%[2]s),
 				%[1]s_nullable Map(String,Nullable(%[2]s)),
 				%[1]s_array Map(String,Array(%[2]s)),
@@ -189,7 +209,7 @@ func testMapColumn[V column.BaseType](
 	})
 
 	require.NoError(t, err)
-
+	blockID := column.New[uint8]()
 	col := column.NewMap[string, V](
 		column.NewString(),
 		column.New[V](),
@@ -274,8 +294,9 @@ func testMapColumn[V column.BaseType](
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
 	for insertN := 0; insertN < 2; insertN++ {
-		rows := 10
+		rows := 2
 		for i := 0; i < rows; i++ {
+			blockID.Append(uint8(insertN))
 			valData := firstVal(i)
 			val2Data := secondVal(i)
 			val := map[string]V{
@@ -447,8 +468,38 @@ func testMapColumn[V column.BaseType](
 			}
 		}
 
+		if withDelete && insertN == 0 {
+			blockID.Remove(rows / 2)
+			col.Remove(rows / 2)
+			colNullable.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLCNullable.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colInsertStruct = colInsertStruct[:rows/2]
+			colNullableInsert = colNullableInsert[:rows/2]
+			colNullableInsertStruct = colNullableInsertStruct[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayInsertStruct = colArrayInsertStruct[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colArrayNullableInsertStruct = colArrayNullableInsertStruct[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCInsertStruct = colLCInsertStruct[:rows/2]
+			colLCNullableInsert = colLCNullableInsert[:rows/2]
+			colLCNullableInsertStruct = colLCNullableInsertStruct[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCArrayInsertStruct = colLCArrayInsertStruct[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
+			colLCNullableArrayInsertStruct = colLCNullableArrayInsertStruct[:rows/2]
+		}
+
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 		test_map_%[1]s (
+			block_id,
 			%[1]s,
 			%[1]s_nullable,
 			%[1]s_array,
@@ -459,6 +510,7 @@ func testMapColumn[V column.BaseType](
 			%[1]s_array_lc_nullable
 			)
 		VALUES`, tableName),
+			blockID,
 			col,
 			colNullable,
 			colArray,
@@ -521,7 +573,7 @@ func testMapColumn[V column.BaseType](
 	%[1]s_nullable_lc,
 	%[1]s_array_lc,
 	%[1]s_array_lc_nullable
-	FROM test_map_%[1]s`, tableName),
+	FROM test_map_%[1]s order by block_id`, tableName),
 		colRead,
 		colNullableRead,
 		colArrayRead,
@@ -626,7 +678,7 @@ func testMapColumn[V column.BaseType](
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
 		%[1]s_array_lc_nullable
-		FROM test_map_%[1]s`, tableName),
+		FROM test_map_%[1]s order by block_id`, tableName),
 		colRead,
 		colNullableRead,
 		colArrayRead,
@@ -670,7 +722,7 @@ func testMapColumn[V column.BaseType](
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
 		%[1]s_array_lc_nullable
-		FROM test_map_%[1]s`, tableName),
+		FROM test_map_%[1]s order by block_id`, tableName),
 	)
 
 	require.NoError(t, err)

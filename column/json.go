@@ -81,6 +81,10 @@ func (c *JSONString) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
+func (c *JSONString) Remove(num int) {
+	// todo
+}
+
 // NumRow return number of row for this block
 func (c *JSONString) NumRow() int {
 	return c.columns[0].NumRow()

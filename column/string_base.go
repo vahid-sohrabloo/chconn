@@ -1,6 +1,7 @@
 package column
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -140,6 +141,22 @@ func (c *StringBase[T]) AppendMulti(v ...T) {
 		c.writerData = append(c.writerData, v...)
 	}
 	c.numRow += len(v)
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *StringBase[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	skip := 0
+	for i := 0; i < n; i++ {
+		strLen, l := binary.Uvarint(c.writerData[skip:])
+		skip += l + int(strLen)
+	}
+	c.numRow = n
+	c.writerData = c.writerData[:skip]
 }
 
 // AppendBytes value of bytes for insert

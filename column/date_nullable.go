@@ -148,6 +148,18 @@ func (c *DateNullable[T]) AppendMultiP(v ...*time.Time) {
 	}
 }
 
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *DateNullable[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.writerData = c.writerData[:n]
+	c.dataColumn.Remove(n)
+	c.numRow = len(c.writerData)
+}
+
 // Append nil value for insert
 func (c *DateNullable[T]) AppendNil() {
 	c.writerData = append(c.writerData, 1)

@@ -245,13 +245,18 @@ func (c *Tuple) ColumnType() string {
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
+	var n int64
 	if c.isJSON {
 		// todo find a more efficient way
 		wf := readerwriter.NewWriter()
 		wf.String(c.FullType())
-		wf.WriteTo(w)
+		nw, err := wf.WriteTo(w)
+		if err != nil {
+			return n, fmt.Errorf("tuple: write type: %w", err)
+		}
+		n += nw
 	}
-	var n int64
+
 	for i, col := range c.columns {
 		nw, err := col.WriteTo(w)
 		if err != nil {
@@ -278,6 +283,15 @@ func (c *Tuple) Elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *Tuple) Remove(n int) {
+	for _, col := range c.columns {
+		col.Remove(n)
+	}
 }
 
 func (c *Tuple) FullType() string {

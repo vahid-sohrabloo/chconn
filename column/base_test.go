@@ -18,7 +18,7 @@ import (
 )
 
 func TestBool(t *testing.T) {
-	testColumn(t, true, "UInt8", "bool", func(i int) bool {
+	testColumn(t, false, true, "UInt8", "bool", func(i int) bool {
 		return true
 	}, func(i int) bool {
 		return false
@@ -26,7 +26,7 @@ func TestBool(t *testing.T) {
 }
 
 func TestUint8(t *testing.T) {
-	testColumn(t, true, "UInt8", "uint8", func(i int) uint8 {
+	testColumn(t, false, true, "UInt8", "uint8", func(i int) uint8 {
 		return uint8(i)
 	}, func(i int) uint8 {
 		return uint8(i + 1)
@@ -34,7 +34,7 @@ func TestUint8(t *testing.T) {
 }
 
 func TestUint16(t *testing.T) {
-	testColumn(t, true, "UInt16", "uint16", func(i int) uint16 {
+	testColumn(t, false, true, "UInt16", "uint16", func(i int) uint16 {
 		return uint16(i)
 	}, func(i int) uint16 {
 		return uint16(i + 1)
@@ -42,7 +42,7 @@ func TestUint16(t *testing.T) {
 }
 
 func TestUint32(t *testing.T) {
-	testColumn(t, true, "UInt32", "uint32", func(i int) uint32 {
+	testColumn(t, false, true, "UInt32", "uint32", func(i int) uint32 {
 		return uint32(i)
 	}, func(i int) uint32 {
 		return uint32(i + 1)
@@ -50,7 +50,7 @@ func TestUint32(t *testing.T) {
 }
 
 func TestUint64(t *testing.T) {
-	testColumn(t, true, "UInt64", "uint64", func(i int) uint64 {
+	testColumn(t, false, true, "UInt64", "uint64", func(i int) uint64 {
 		return uint64(i)
 	}, func(i int) uint64 {
 		return uint64(i + 1)
@@ -58,7 +58,7 @@ func TestUint64(t *testing.T) {
 }
 
 func TestUint128(t *testing.T) {
-	testColumn(t, true, "UInt128", "uint128", func(i int) types.Uint128 {
+	testColumn(t, false, true, "UInt128", "uint128", func(i int) types.Uint128 {
 		return types.Uint128FromBig(big.NewInt(int64(i)))
 	}, func(i int) types.Uint128 {
 		x := big.NewInt(int64(i))
@@ -68,7 +68,7 @@ func TestUint128(t *testing.T) {
 }
 
 func TestUint256(t *testing.T) {
-	testColumn(t, true, "UInt256", "uint256", func(i int) types.Uint256 {
+	testColumn(t, false, true, "UInt256", "uint256", func(i int) types.Uint256 {
 		return types.Uint256FromBig(big.NewInt(int64(i)))
 	}, func(i int) types.Uint256 {
 		x := big.NewInt(int64(i))
@@ -79,7 +79,7 @@ func TestUint256(t *testing.T) {
 }
 
 func TestInt8(t *testing.T) {
-	testColumn(t, true, "Int8", "int8", func(i int) int8 {
+	testColumn(t, false, true, "Int8", "int8", func(i int) int8 {
 		return int8(i)
 	}, func(i int) int8 {
 		return int8(i + 1)
@@ -87,7 +87,7 @@ func TestInt8(t *testing.T) {
 }
 
 func TestInt16(t *testing.T) {
-	testColumn(t, true, "Int16", "int16", func(i int) int16 {
+	testColumn(t, false, true, "Int16", "int16", func(i int) int16 {
 		return int16(i)
 	}, func(i int) int16 {
 		return int16(i + 1)
@@ -95,7 +95,7 @@ func TestInt16(t *testing.T) {
 }
 
 func TestInt32(t *testing.T) {
-	testColumn(t, true, "Int32", "int32", func(i int) int32 {
+	testColumn(t, false, true, "Int32", "int32", func(i int) int32 {
 		return int32(i)
 	}, func(i int) int32 {
 		return int32(i + 1)
@@ -103,7 +103,7 @@ func TestInt32(t *testing.T) {
 }
 
 func TestInt64(t *testing.T) {
-	testColumn(t, true, "Int64", "int64", func(i int) int64 {
+	testColumn(t, false, true, "Int64", "int64", func(i int) int64 {
 		return int64(i)
 	}, func(i int) int64 {
 		return int64(i + 1)
@@ -111,7 +111,7 @@ func TestInt64(t *testing.T) {
 }
 
 func TestInt128(t *testing.T) {
-	testColumn(t, true, "Int128", "int128", func(i int) types.Int128 {
+	testColumn(t, false, true, "Int128", "int128", func(i int) types.Int128 {
 		return types.Int128FromBig(big.NewInt(int64(i * -1)))
 	}, func(i int) types.Int128 {
 		x := big.NewInt(int64(i) * -1)
@@ -121,7 +121,7 @@ func TestInt128(t *testing.T) {
 }
 
 func TestInt256(t *testing.T) {
-	testColumn(t, true, "Int256", "int256", func(i int) types.Int256 {
+	testColumn(t, false, true, "Int256", "int256", func(i int) types.Int256 {
 		return types.Int256FromBig(big.NewInt(int64(i)))
 	}, func(i int) types.Int256 {
 		x := big.NewInt(int64(i) * -1)
@@ -131,7 +131,7 @@ func TestInt256(t *testing.T) {
 	})
 }
 func TestFixedString(t *testing.T) {
-	testColumn(t, true, "FixedString(2)", "fixedString", func(i int) [2]byte {
+	testColumn(t, false, true, "FixedString(2)", "fixedString", func(i int) [2]byte {
 		return [2]byte{byte(i), byte(i + 1)}
 	}, func(i int) [2]byte {
 		return [2]byte{byte(i + 1), byte(i + 2)}
@@ -139,7 +139,7 @@ func TestFixedString(t *testing.T) {
 }
 
 func TestFloat32(t *testing.T) {
-	testColumn(t, true, "Float32", "float32", func(i int) float32 {
+	testColumn(t, false, true, "Float32", "float32", func(i int) float32 {
 		return float32(i)
 	}, func(i int) float32 {
 		return float32(i + 1)
@@ -147,7 +147,7 @@ func TestFloat32(t *testing.T) {
 }
 
 func TestFloat64(t *testing.T) {
-	testColumn(t, true, "Float64", "float64", func(i int) float64 {
+	testColumn(t, false, true, "Float64", "float64", func(i int) float64 {
 		return float64(i)
 	}, func(i int) float64 {
 		return float64(i + 1)
@@ -155,14 +155,14 @@ func TestFloat64(t *testing.T) {
 }
 
 func TestDecimal32(t *testing.T) {
-	testColumn(t, false, "Decimal32(3)", "decimal32", func(i int) types.Decimal32 {
+	testColumn(t, false, false, "Decimal32(3)", "decimal32", func(i int) types.Decimal32 {
 		return types.Decimal32(i)
 	}, func(i int) types.Decimal32 {
 		return types.Decimal32(i + 1)
 	})
 }
 func TestDecimal64(t *testing.T) {
-	testColumn(t, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
+	testColumn(t, false, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
 		return types.Decimal64(i)
 	}, func(i int) types.Decimal64 {
 		return types.Decimal64(i + 1)
@@ -170,7 +170,7 @@ func TestDecimal64(t *testing.T) {
 }
 
 func TestDecimal128(t *testing.T) {
-	testColumn(t, false, "Decimal128(3)", "decimal128", func(i int) types.Decimal128 {
+	testColumn(t, false, false, "Decimal128(3)", "decimal128", func(i int) types.Decimal128 {
 		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i))))
 	}, func(i int) types.Decimal128 {
 		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i + 1))))
@@ -178,7 +178,7 @@ func TestDecimal128(t *testing.T) {
 }
 
 func TestDecimal256(t *testing.T) {
-	testColumn(t, false, "Decimal256(3)", "decimal256", func(i int) types.Decimal256 {
+	testColumn(t, false, false, "Decimal256(3)", "decimal256", func(i int) types.Decimal256 {
 		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i))))
 	}, func(i int) types.Decimal256 {
 		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i + 1))))
@@ -186,7 +186,7 @@ func TestDecimal256(t *testing.T) {
 }
 
 func TestIPv4(t *testing.T) {
-	testColumn(t, true, "IPv4", "ipv4", func(i int) types.IPv4 {
+	testColumn(t, false, true, "IPv4", "ipv4", func(i int) types.IPv4 {
 		// or directly return types.IPv4
 		return types.IPv4FromAddr(netip.AddrFrom4([4]byte{0, 0, 0, byte(i)}))
 	}, func(i int) types.IPv4 {
@@ -196,7 +196,7 @@ func TestIPv4(t *testing.T) {
 }
 
 func TestIPv6(t *testing.T) {
-	testColumn(t, true, "IPv6", "ipv6", func(i int) types.IPv6 {
+	testColumn(t, false, true, "IPv6", "ipv6", func(i int) types.IPv6 {
 		// or directly return types.IPv6
 		return types.IPv6FromAddr(netip.MustParseAddr("2001:0db8:85a3:0000:0000:8a2e:0370:7334"))
 	}, func(i int) types.IPv6 {
@@ -206,7 +206,203 @@ func TestIPv6(t *testing.T) {
 }
 
 func TestUUID(t *testing.T) {
-	testColumn(t, true, "UUID", "uuid", func(i int) types.UUID {
+	testColumn(t, false, true, "UUID", "uuid", func(i int) types.UUID {
+		return types.UUIDFromBigEndian(uuid.New())
+	}, func(i int) types.UUID {
+		return types.UUIDFromBigEndian(uuid.New())
+	})
+}
+
+func TestBoolWithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt8", "bool", func(i int) bool {
+		return true
+	}, func(i int) bool {
+		return false
+	})
+}
+
+func TestUint8WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt8", "uint8", func(i int) uint8 {
+		return uint8(i)
+	}, func(i int) uint8 {
+		return uint8(i + 1)
+	})
+}
+
+func TestUint16WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt16", "uint16", func(i int) uint16 {
+		return uint16(i)
+	}, func(i int) uint16 {
+		return uint16(i + 1)
+	})
+}
+
+func TestUint32WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt32", "uint32", func(i int) uint32 {
+		return uint32(i)
+	}, func(i int) uint32 {
+		return uint32(i + 1)
+	})
+}
+
+func TestUint64WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt64", "uint64", func(i int) uint64 {
+		return uint64(i)
+	}, func(i int) uint64 {
+		return uint64(i + 1)
+	})
+}
+
+func TestUint128WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt128", "uint128", func(i int) types.Uint128 {
+		return types.Uint128FromBig(big.NewInt(int64(i)))
+	}, func(i int) types.Uint128 {
+		x := big.NewInt(int64(i))
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		return types.Uint128FromBig(x)
+	})
+}
+
+func TestUint256WithDelete(t *testing.T) {
+	testColumn(t, true, true, "UInt256", "uint256", func(i int) types.Uint256 {
+		return types.Uint256FromBig(big.NewInt(int64(i)))
+	}, func(i int) types.Uint256 {
+		x := big.NewInt(int64(i))
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		return types.Uint256FromBig(x)
+	})
+}
+
+func TestInt8WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int8", "int8", func(i int) int8 {
+		return int8(i)
+	}, func(i int) int8 {
+		return int8(i + 1)
+	})
+}
+
+func TestInt16WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int16", "int16", func(i int) int16 {
+		return int16(i)
+	}, func(i int) int16 {
+		return int16(i + 1)
+	})
+}
+
+func TestInt32WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int32", "int32", func(i int) int32 {
+		return int32(i)
+	}, func(i int) int32 {
+		return int32(i + 1)
+	})
+}
+
+func TestInt64WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int64", "int64", func(i int) int64 {
+		return int64(i)
+	}, func(i int) int64 {
+		return int64(i + 1)
+	})
+}
+
+func TestInt128WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int128", "int128", func(i int) types.Int128 {
+		return types.Int128FromBig(big.NewInt(int64(i * -1)))
+	}, func(i int) types.Int128 {
+		x := big.NewInt(int64(i) * -1)
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		return types.Int128FromBig(x)
+	})
+}
+
+func TestInt256WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Int256", "int256", func(i int) types.Int256 {
+		return types.Int256FromBig(big.NewInt(int64(i)))
+	}, func(i int) types.Int256 {
+		x := big.NewInt(int64(i) * -1)
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		x = x.Mul(x, big.NewInt(math.MaxInt64))
+		return types.Int256FromBig(x)
+	})
+}
+func TestFixedStringWithDelete(t *testing.T) {
+	testColumn(t, true, true, "FixedString(2)", "fixedString", func(i int) [2]byte {
+		return [2]byte{byte(i), byte(i + 1)}
+	}, func(i int) [2]byte {
+		return [2]byte{byte(i + 1), byte(i + 2)}
+	})
+}
+
+func TestFloat32WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Float32", "float32", func(i int) float32 {
+		return float32(i)
+	}, func(i int) float32 {
+		return float32(i + 1)
+	})
+}
+
+func TestFloat64WithDelete(t *testing.T) {
+	testColumn(t, true, true, "Float64", "float64", func(i int) float64 {
+		return float64(i)
+	}, func(i int) float64 {
+		return float64(i + 1)
+	})
+}
+
+func TestDecimal32WithDelete(t *testing.T) {
+	testColumn(t, true, false, "Decimal32(3)", "decimal32", func(i int) types.Decimal32 {
+		return types.Decimal32(i)
+	}, func(i int) types.Decimal32 {
+		return types.Decimal32(i + 1)
+	})
+}
+func TestDecimal64WithDelete(t *testing.T) {
+	testColumn(t, true, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
+		return types.Decimal64(i)
+	}, func(i int) types.Decimal64 {
+		return types.Decimal64(i + 1)
+	})
+}
+
+func TestDecimal128WithDelete(t *testing.T) {
+	testColumn(t, true, false, "Decimal128(3)", "decimal128", func(i int) types.Decimal128 {
+		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i))))
+	}, func(i int) types.Decimal128 {
+		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i + 1))))
+	})
+}
+
+func TestDecimal256WithDelete(t *testing.T) {
+	testColumn(t, true, false, "Decimal256(3)", "decimal256", func(i int) types.Decimal256 {
+		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i))))
+	}, func(i int) types.Decimal256 {
+		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i + 1))))
+	})
+}
+
+func TestIPv4WithDelete(t *testing.T) {
+	testColumn(t, true, true, "IPv4", "ipv4", func(i int) types.IPv4 {
+		// or directly return types.IPv4
+		return types.IPv4FromAddr(netip.AddrFrom4([4]byte{0, 0, 0, byte(i)}))
+	}, func(i int) types.IPv4 {
+		// or directly return types.IPv4
+		return types.IPv4FromAddr(netip.AddrFrom4([4]byte{0, 0, byte(i), 0}))
+	})
+}
+
+func TestIPv6WithDelete(t *testing.T) {
+	testColumn(t, true, true, "IPv6", "ipv6", func(i int) types.IPv6 {
+		// or directly return types.IPv6
+		return types.IPv6FromAddr(netip.MustParseAddr("2001:0db8:85a3:0000:0000:8a2e:0370:7334"))
+	}, func(i int) types.IPv6 {
+		// or directly return types.IPv6
+		return types.IPv6FromAddr(netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i + 1)}))
+	})
+}
+
+func TestUUIDWithDelete(t *testing.T) {
+	testColumn(t, true, true, "UUID", "uuid", func(i int) types.UUID {
 		return types.UUIDFromBigEndian(uuid.New())
 	}, func(i int) types.UUID {
 		return types.UUIDFromBigEndian(uuid.New())
@@ -215,7 +411,7 @@ func TestUUID(t *testing.T) {
 
 func testColumn[T column.BaseType](
 	t *testing.T,
-	isLC bool,
+	withDelete, isLC bool,
 	chType, tableName string,
 	firstVal func(i int) T,
 	secondVal func(i int) T,
@@ -226,6 +422,10 @@ func testColumn[T column.BaseType](
 
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
+
+	if withDelete {
+		tableName += "_with_delete"
+	}
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
@@ -332,6 +532,26 @@ func testColumn[T column.BaseType](
 
 			colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
 			colArrayLCNullable.AppendP(valArrayNil)
+		}
+		if withDelete && insertN == 0 {
+			blockID.Remove(rows / 2)
+			col.Remove(rows / 2)
+			colNullable.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLCNullable.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colNullableInsert = colNullableInsert[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCNullableInsert = colLCNullableInsert[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
 		}
 		if isLC {
 			err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO

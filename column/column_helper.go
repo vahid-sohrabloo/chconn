@@ -25,6 +25,7 @@ type ColumnBasic interface {
 	RowI(int) any
 	Scan(row int, dest any) error
 	FullType() string
+	Remove(n int)
 }
 
 type Column[T any] interface {

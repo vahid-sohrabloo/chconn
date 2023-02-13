@@ -112,12 +112,17 @@ func (c *StringMarshaler[T]) Each(f func(i int, b []byte) bool) {
 
 func (c *StringMarshaler[T]) appendLen(x int) {
 	i := 0
+	p := stringPos{
+		start: len(c.writerData),
+	}
 	for x >= 0x80 {
 		c.writerData = append(c.writerData, byte(x)|0x80)
 		x >>= 7
 		i++
 	}
 	c.writerData = append(c.writerData, byte(x))
+	// we don't need the end position of the string. we use position only for remove
+	c.pos = append(c.pos, p)
 }
 
 // Append value for insert
@@ -136,6 +141,19 @@ func (c *StringMarshaler[T]) AppendMulti(v ...T) {
 		c.writerData = append(c.writerData, d...)
 	}
 	c.numRow += len(v)
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *StringMarshaler[T]) Remove(n int) {
+	if len(c.writerData) == 0 || c.NumRow() <= n {
+		return
+	}
+	pos := c.pos[n]
+	c.writerData = c.writerData[:pos.start]
+	c.pos = c.pos[:n]
+	c.numRow = len(c.pos)
 }
 
 // AppendBytes value of bytes for insert
@@ -240,11 +258,6 @@ func (c *StringMarshaler[T]) WriteTo(w io.Writer) (int64, error) {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *StringMarshaler[T]) HeaderWriter(w *readerwriter.Writer) {
-}
-
-func (c *StringMarshaler[T]) appendEmpty() {
-	var emptyValue T
-	c.Append(emptyValue)
 }
 
 func (c *StringMarshaler[T]) Elem(arrayLevel int, nullable bool) ColumnBasic {

@@ -135,6 +135,17 @@ func (c *StringNullable[T]) AppendBytesMulti(v ...[]byte) {
 	c.dataColumn.AppendBytesMulti(v...)
 }
 
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *StringNullable[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.writerData = c.writerData[:n]
+	c.dataColumn.Remove(n)
+}
+
 // AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value

@@ -112,6 +112,17 @@ func (c *LowCardinality[T]) AppendMulti(v ...T) {
 	c.numRow += len(v)
 }
 
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *LowCardinality[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.keys = c.keys[:n]
+	c.numRow = len(c.keys)
+}
+
 // Dicts get dictionary data
 // each key is an index of the dictionary
 func (c *LowCardinality[T]) Dicts() []T {

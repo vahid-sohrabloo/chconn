@@ -183,7 +183,6 @@ func (c *Base[T]) Scan(row int, dest any) error {
 		**dest = c.getInt256(c.Row(row))
 		return nil
 	case *time.Time:
-		fmt.Println(c.rtype.String())
 		panic(c.rtype.Name())
 	}
 
@@ -224,7 +223,6 @@ func (c *Base[T]) scanReflect(row int, val reflect.Value) error {
 			str := c.String(row)
 			for i := 0; i < val.Elem().Len() && i < len(str); i++ {
 				val.Elem().Index(i).SetUint(uint64(str[i]))
-				fmt.Println(i, str[i], val.Elem().Index(i).Interface())
 			}
 			return nil
 		}
@@ -238,324 +236,395 @@ func (c *Base[T]) scanReflect(row int, val reflect.Value) error {
 }
 
 func (c *Base[T]) getInt64(val T) int64 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return int64(*(*int8)(unsafe.Pointer(&val)))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return int64(*(*int16)(unsafe.Pointer(&val)))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return int64(*(*int32)(unsafe.Pointer(&val)))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return *(*int64)(unsafe.Pointer(&val))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return int64(*(*uint8)(unsafe.Pointer(&val)))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return int64(*(*uint16)(unsafe.Pointer(&val)))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return int64(*(*uint32)(unsafe.Pointer(&val)))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return int64(*(*uint64)(unsafe.Pointer(&val)))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return int64(*(*float32)(unsafe.Pointer(&val)))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return int64(*(*float64)(unsafe.Pointer(&val)))
+	}
 	//nolint:dupl
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return int64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
-			case types.Int128:
-				return int64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
-			case types.Uint256:
-				return int64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
-			case types.Int256:
-				return int64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
-			}
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return int64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
+		case types.Int128:
+			return int64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
+		case types.Uint256:
+			return int64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
+		case types.Int256:
+			return int64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
 		}
 	}
+
 	return 0
 }
 
 func (c *Base[T]) getUint64(val T) uint64 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return uint64(*(*int8)(unsafe.Pointer(&val)))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return uint64(*(*int16)(unsafe.Pointer(&val)))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return uint64(*(*int32)(unsafe.Pointer(&val)))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return uint64(*(*int64)(unsafe.Pointer(&val)))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return uint64(*(*uint8)(unsafe.Pointer(&val)))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return uint64(*(*uint16)(unsafe.Pointer(&val)))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return uint64(*(*uint32)(unsafe.Pointer(&val)))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return *(*uint64)(unsafe.Pointer(&val))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return uint64(*(*float32)(unsafe.Pointer(&val)))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return uint64(*(*float64)(unsafe.Pointer(&val)))
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return (*types.Uint128)(unsafe.Pointer(&val)).Uint64()
-			case types.Int128:
-				return (*types.Int128)(unsafe.Pointer(&val)).Uint64()
-			case types.Uint256:
-				return (*types.Uint256)(unsafe.Pointer(&val)).Uint64()
-			case types.Int256:
-				return (*types.Int256)(unsafe.Pointer(&val)).Uint64()
-			}
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return (*types.Uint128)(unsafe.Pointer(&val)).Uint64()
+		case types.Int128:
+			return (*types.Int128)(unsafe.Pointer(&val)).Uint64()
+		case types.Uint256:
+			return (*types.Uint256)(unsafe.Pointer(&val)).Uint64()
+		case types.Int256:
+			return (*types.Int256)(unsafe.Pointer(&val)).Uint64()
 		}
 	}
+
 	return 0
 }
 
 func (c *Base[T]) geFloat64(val T) float64 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return float64(*(*int8)(unsafe.Pointer(&val)))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return float64(*(*int16)(unsafe.Pointer(&val)))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return float64(*(*int32)(unsafe.Pointer(&val)))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return float64(*(*int64)(unsafe.Pointer(&val)))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return float64(*(*uint8)(unsafe.Pointer(&val)))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return float64(*(*uint16)(unsafe.Pointer(&val)))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return float64(*(*uint32)(unsafe.Pointer(&val)))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return float64(*(*uint64)(unsafe.Pointer(&val)))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return float64(*(*float32)(unsafe.Pointer(&val)))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return *(*float64)(unsafe.Pointer(&val))
+	}
 	//nolint:dupl
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return float64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
-			case types.Int128:
-				return float64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
-			case types.Uint256:
-				return float64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
-			case types.Int256:
-				return float64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
-			}
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return float64((*types.Uint128)(unsafe.Pointer(&val)).Uint64())
+		case types.Int128:
+			return float64((*types.Int128)(unsafe.Pointer(&val)).Uint64())
+		case types.Uint256:
+			return float64((*types.Uint256)(unsafe.Pointer(&val)).Uint64())
+		case types.Int256:
+			return float64((*types.Int256)(unsafe.Pointer(&val)).Uint64())
 		}
 	}
+
 	return 0
 }
 
 func (c *Base[T]) getBool(val T) bool {
-	switch c.kind {
-	case reflect.Int8:
-		return *(*int8)(unsafe.Pointer(&val)) > 0
-	case reflect.Int16:
-		return *(*int16)(unsafe.Pointer(&val)) > 0
-	case reflect.Int32:
-		return *(*int32)(unsafe.Pointer(&val)) > 0
-	case reflect.Int64:
-		return *(*int64)(unsafe.Pointer(&val)) > 0
-	case reflect.Uint8:
-		return *(*uint8)(unsafe.Pointer(&val)) > 0
-	case reflect.Uint16:
-		return *(*uint16)(unsafe.Pointer(&val)) > 0
-	case reflect.Uint32:
-		return *(*uint32)(unsafe.Pointer(&val)) > 0
-	case reflect.Uint64:
-		return *(*uint64)(unsafe.Pointer(&val)) > 0
-	case reflect.Float32:
-		return *(*float32)(unsafe.Pointer(&val)) > 0
-	case reflect.Float64:
-		return *(*float64)(unsafe.Pointer(&val)) > 0
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return (*types.Uint128)(unsafe.Pointer(&val)).Uint64() > 0
-			case types.Int128:
-				return (*types.Int128)(unsafe.Pointer(&val)).Uint64() > 0
-			case types.Uint256:
-				return (*types.Uint256)(unsafe.Pointer(&val)).Uint64() > 0
-			case types.Int256:
-				return (*types.Int256)(unsafe.Pointer(&val)).Uint64() > 0
-			}
+	if c.kind == reflect.Int8 {
+		return *(*int8)(unsafe.Pointer(&val)) != 0
+	}
+
+	if c.kind == reflect.Int16 {
+		return *(*int16)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Int32 {
+		return *(*int32)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Int64 {
+		return *(*int64)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Uint8 {
+		return *(*uint8)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Uint16 {
+		return *(*uint16)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Uint32 {
+		return *(*uint32)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Uint64 {
+		return *(*uint64)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Float32 {
+		return *(*float32)(unsafe.Pointer(&val)) != 0
+	}
+	if c.kind == reflect.Float64 {
+		return *(*float64)(unsafe.Pointer(&val)) != 0
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return (*types.Uint128)(unsafe.Pointer(&val)).Uint64() > 0
+		case types.Int128:
+			return (*types.Int128)(unsafe.Pointer(&val)).Uint64() > 0
+		case types.Uint256:
+			return (*types.Uint256)(unsafe.Pointer(&val)).Uint64() > 0
+		case types.Int256:
+			return (*types.Int256)(unsafe.Pointer(&val)).Uint64() > 0
 		}
 	}
+
 	return false
 }
 
 func (c *Base[T]) getUint128(val T) types.Uint128 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return types.Uint128From64(uint64(*(*int8)(unsafe.Pointer(&val))))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return types.Uint128From64(uint64(*(*int16)(unsafe.Pointer(&val))))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return types.Uint128From64(uint64(*(*int32)(unsafe.Pointer(&val))))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return types.Uint128From64(uint64(*(*int64)(unsafe.Pointer(&val))))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return types.Uint128From64(uint64(*(*uint8)(unsafe.Pointer(&val))))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return types.Uint128From64(uint64(*(*uint16)(unsafe.Pointer(&val))))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return types.Uint128From64(uint64(*(*uint32)(unsafe.Pointer(&val))))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return types.Uint128From64(*(*uint64)(unsafe.Pointer(&val)))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return types.Uint128From64(uint64(*(*float32)(unsafe.Pointer(&val))))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return types.Uint128From64(uint64(*(*float64)(unsafe.Pointer(&val))))
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return *(*types.Uint128)(unsafe.Pointer(&val))
-			case types.Int128:
-				return (*types.Int128)(unsafe.Pointer(&val)).Uint128()
-			case types.Uint256:
-				return (*types.Uint256)(unsafe.Pointer(&val)).Uint128()
-			case types.Int256:
-				return (*types.Int256)(unsafe.Pointer(&val)).Uint128()
-			}
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return *(*types.Uint128)(unsafe.Pointer(&val))
+		case types.Int128:
+			return (*types.Int128)(unsafe.Pointer(&val)).Uint128()
+		case types.Uint256:
+			return (*types.Uint256)(unsafe.Pointer(&val)).Uint128()
+		case types.Int256:
+			return (*types.Int256)(unsafe.Pointer(&val)).Uint128()
 		}
 	}
+
 	return types.Uint128{}
 }
 
 func (c *Base[T]) getInt128(val T) types.Int128 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return types.Int128From64(int64(*(*int8)(unsafe.Pointer(&val))))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return types.Int128From64(int64(*(*int16)(unsafe.Pointer(&val))))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return types.Int128From64(int64(*(*int32)(unsafe.Pointer(&val))))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return types.Int128From64(*(*int64)(unsafe.Pointer(&val)))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return types.Int128{Lo: uint64(*(*uint8)(unsafe.Pointer(&val)))}
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return types.Int128{Lo: uint64(*(*uint16)(unsafe.Pointer(&val)))}
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return types.Int128{Lo: uint64(*(*uint32)(unsafe.Pointer(&val)))}
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return types.Int128{Lo: *(*uint64)(unsafe.Pointer(&val))}
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return types.Int128{Lo: uint64(*(*float32)(unsafe.Pointer(&val)))}
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return types.Int128{Lo: uint64(*(*float64)(unsafe.Pointer(&val)))}
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return (*types.Uint128)(unsafe.Pointer(&val)).Int128()
-			case types.Int128:
-				return *(*types.Int128)(unsafe.Pointer(&val))
-			case types.Uint256:
-				return (*types.Uint256)(unsafe.Pointer(&val)).Uint128().Int128()
-			case types.Int256:
-				return (*types.Int256)(unsafe.Pointer(&val)).Uint128().Int128()
-			}
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return (*types.Uint128)(unsafe.Pointer(&val)).Int128()
+		case types.Int128:
+			return *(*types.Int128)(unsafe.Pointer(&val))
+		case types.Uint256:
+			return (*types.Uint256)(unsafe.Pointer(&val)).Uint128().Int128()
+		case types.Int256:
+			return (*types.Int256)(unsafe.Pointer(&val)).Uint128().Int128()
 		}
 	}
+
 	return types.Int128{}
 }
 
 func (c *Base[T]) getUint256(val T) types.Uint256 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return types.Uint256From64(uint64(*(*int8)(unsafe.Pointer(&val))))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return types.Uint256From64(uint64(*(*int16)(unsafe.Pointer(&val))))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return types.Uint256From64(uint64(*(*int32)(unsafe.Pointer(&val))))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return types.Uint256From64(uint64(*(*int64)(unsafe.Pointer(&val))))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return types.Uint256From64(uint64(*(*uint8)(unsafe.Pointer(&val))))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return types.Uint256From64(uint64(*(*uint16)(unsafe.Pointer(&val))))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return types.Uint256From64(uint64(*(*uint32)(unsafe.Pointer(&val))))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return types.Uint256From64(*(*uint64)(unsafe.Pointer(&val)))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return types.Uint256From64(uint64(*(*float32)(unsafe.Pointer(&val))))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return types.Uint256From64(uint64(*(*float64)(unsafe.Pointer(&val))))
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return types.Uint256From128(*(*types.Uint128)(unsafe.Pointer(&val)))
-			case types.Int128:
-				return types.Uint256From128((*types.Int128)(unsafe.Pointer(&val)).Uint128())
-			case types.Uint256:
-				return (*(*types.Uint256)(unsafe.Pointer(&val)))
-			case types.Int256:
-				return (*types.Int256)(unsafe.Pointer(&val)).Uint256()
-			}
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return types.Uint256From128(*(*types.Uint128)(unsafe.Pointer(&val)))
+		case types.Int128:
+			return types.Uint256From128((*types.Int128)(unsafe.Pointer(&val)).Uint128())
+		case types.Uint256:
+			return (*(*types.Uint256)(unsafe.Pointer(&val)))
+		case types.Int256:
+			return (*types.Int256)(unsafe.Pointer(&val)).Uint256()
 		}
 	}
+
 	return types.Uint256{}
 }
 
 func (c *Base[T]) getInt256(val T) types.Int256 {
-	switch c.kind {
-	case reflect.Int8:
+	if c.kind == reflect.Int8 {
 		return types.Int256From64(int64(*(*int8)(unsafe.Pointer(&val))))
-	case reflect.Int16:
+	}
+	if c.kind == reflect.Int16 {
 		return types.Int256From64(int64(*(*int16)(unsafe.Pointer(&val))))
-	case reflect.Int32:
+	}
+	if c.kind == reflect.Int32 {
 		return types.Int256From64(int64(*(*int32)(unsafe.Pointer(&val))))
-	case reflect.Int64:
+	}
+	if c.kind == reflect.Int64 {
 		return types.Int256From64(*(*int64)(unsafe.Pointer(&val)))
-	case reflect.Uint8:
+	}
+	if c.kind == reflect.Uint8 {
 		return types.Int256From64(int64(*(*uint8)(unsafe.Pointer(&val))))
-	case reflect.Uint16:
+	}
+	if c.kind == reflect.Uint16 {
 		return types.Int256From64(int64(*(*uint16)(unsafe.Pointer(&val))))
-	case reflect.Uint32:
+	}
+	if c.kind == reflect.Uint32 {
 		return types.Int256From64(int64(*(*uint32)(unsafe.Pointer(&val))))
-	case reflect.Uint64:
+	}
+	if c.kind == reflect.Uint64 {
 		return types.Int256From64(int64(*(*uint64)(unsafe.Pointer(&val))))
-	case reflect.Float32:
+	}
+	if c.kind == reflect.Float32 {
 		return types.Int256From64(int64(*(*float32)(unsafe.Pointer(&val))))
-	case reflect.Float64:
+	}
+	if c.kind == reflect.Float64 {
 		return types.Int256From64(int64(*(*float64)(unsafe.Pointer(&val))))
-	default:
-		if c.kind == reflect.Struct {
-			var t T
-			switch any(t).(type) {
-			case types.Uint128:
-				return types.Int256From128((*types.Uint128)(unsafe.Pointer(&val)).Int128())
-			case types.Int128:
-				return types.Int256From128(*(*types.Int128)(unsafe.Pointer(&val)))
-			case types.Uint256:
-				return (*types.Uint256)(unsafe.Pointer(&val)).Int256()
-			case types.Int256:
-				return *(*types.Int256)(unsafe.Pointer(&val))
-			}
+	}
+
+	if c.kind == reflect.Struct {
+		var t T
+		switch any(t).(type) {
+		case types.Uint128:
+			return types.Int256From128((*types.Uint128)(unsafe.Pointer(&val)).Int128())
+		case types.Int128:
+			return types.Int256From128(*(*types.Int128)(unsafe.Pointer(&val)))
+		case types.Uint256:
+			return (*types.Uint256)(unsafe.Pointer(&val)).Int256()
+		case types.Int256:
+			return *(*types.Int256)(unsafe.Pointer(&val))
 		}
 	}
+
 	return types.Int256{}
 }
 
@@ -571,6 +640,17 @@ func (c *Base[T]) AppendMulti(v ...T) {
 	c.numRow += len(v)
 }
 
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *Base[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.values = c.values[:n]
+	c.numRow = len(c.values)
+}
+
 // NumRow return number of row for this block
 func (c *Base[T]) NumRow() int {
 	return c.numRow
@@ -583,7 +663,7 @@ func (c *Base[T]) Array() *Array[T] {
 
 // Nullable return a nullable type for this column
 func (c *Base[T]) Nullable() *BaseNullable[T] {
-	return NewBaseNullable[T](c)
+	return NewBaseNullable(c)
 }
 
 // LC return a low cardinality type for this column
@@ -597,7 +677,6 @@ func (c *Base[T]) LowCardinality() *LowCardinality[T] {
 }
 
 // appendEmpty append empty value for insert
-// this use internally for nullable and low cardinality nullable column
 func (c *Base[T]) appendEmpty() {
 	var emptyValue T
 	c.Append(emptyValue)
@@ -707,7 +786,6 @@ func (c *Base[T]) getChTypeFromKind() string {
 		return "Float64"
 	// todo more types
 	default:
-		fmt.Printf("%#v", c)
 		panic(fmt.Sprintf("unsupported type: %s", c.kind))
 	}
 }

@@ -37,6 +37,19 @@ func (c *ArrayBase) AppendLen(v int) {
 	c.offsetColumn.Append(c.offset)
 }
 
+// Remove inserted value from index
+func (c *ArrayBase) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	var offset uint64
+	if n != 0 {
+		offset = c.offsetColumn.values[n-1]
+	}
+	c.offsetColumn.Remove(n)
+	c.dataColumn.Remove(int(offset))
+}
+
 func (c *ArrayBase) RowI(row int) any {
 	var lastOffset uint64
 	if row != 0 {
