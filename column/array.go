@@ -50,6 +50,10 @@ func (c *Array) TotalRows() int {
 func (c *Array) HeaderWriter(w *readerwriter.Writer) {
 	c.dataColumn.HeaderWriter(w)
 }
+func (c *Array) SetType(t []byte) {
+	c.Uint64.SetType(t)
+	c.dataColumn.SetType(t[len("Array(") : len(t)-1])
+}
 
 // HeaderReader reads header data from read
 // it uses internally
@@ -62,7 +66,6 @@ func (c *Array) HeaderReader(r *readerwriter.Reader, readColumn bool) error {
 	if err != nil {
 		return err
 	}
-	c.dataColumn.SetType(c.Type()[len("Array(") : len(c.Type())-1])
 	return err
 }
 

@@ -352,6 +352,11 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 		j.out = append(j.out, doubleQuoteJSON)
 		j.out = append(j.out, v.Row(row).String()...)
 		j.out = append(j.out, doubleQuoteJSON)
+	case *column.Nothing:
+		if col.RowIsNil(row) {
+			j.out = append(j.out, nullJSON...)
+			return
+		}
 	case *column.LC:
 		// currently only support String and FixedString
 		switch dict := v.DictColumn.(type) {

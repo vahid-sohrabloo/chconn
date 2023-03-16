@@ -294,6 +294,8 @@ func (s *selectStmt) columnByType(columns *[]column.Column, chType []byte, nulla
 		*columns = append(*columns, column.NewIPv4(nullable))
 	case string(chType) == "IPv6":
 		*columns = append(*columns, column.NewIPv6(nullable))
+	case string(chType) == "Nothing":
+		*columns = append(*columns, column.NewNothing(nullable))
 	case bytes.HasPrefix(chType, []byte("Enum8(")):
 		*columns = append(*columns, column.NewEnum8(nullable))
 	case bytes.HasPrefix(chType, []byte("Enum16(")):
