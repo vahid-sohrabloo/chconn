@@ -183,6 +183,10 @@ func (ch *conn) InsertWithOption(
 	if err != nil {
 		return err
 	}
+
+	if stmt == nil {
+		return nil
+	}
 	defer stmt.Close()
 	err = stmt.Write(ctx, columns...)
 	if err != nil {
@@ -268,6 +272,9 @@ func (ch *conn) InsertStreamWithOption(
 				queryOptions.OnProfileEvent(profileEvent)
 			}
 			continue
+		}
+		if res == nil {
+			return nil, nil
 		}
 		hasError = true
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
