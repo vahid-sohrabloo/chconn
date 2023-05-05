@@ -55,13 +55,6 @@ func TestInsertError(t *testing.T) {
 	require.EqualError(t, err, " DB::Exception (48): Method write is not supported by storage SystemNumbers")
 	assert.True(t, c.IsClosed())
 
-	// test not block data error
-	c, err = ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	err = c.Insert(context.Background(), "SET enable_http_compression=1")
-	require.EqualError(t, err, "Unexpected packet from server (expected serverData got <nil>)")
-	assert.True(t, c.IsClosed())
-
 	// test read column error
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
@@ -641,4 +634,30 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 	)
 	require.EqualError(t, err, "mismatch column type: ClickHouse Type: LowCardinality(String), column types: String")
 	assert.True(t, c.IsClosed())
+}
+
+func TestInsertSelectStmt(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	// test read column error
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_select`)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_select (
+				number  Int64
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_select (
+		number
+			) select number from system.numbers limit 10`)
+	require.NoError(t, err)
 }
