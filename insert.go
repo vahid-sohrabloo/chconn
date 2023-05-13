@@ -185,6 +185,9 @@ func (ch *conn) InsertWithOption(
 	}
 
 	if stmt == nil {
+		ch.reader.SetCompress(false)
+		ch.contextWatcher.Unwatch()
+		ch.unlock()
 		return nil
 	}
 	defer stmt.Close()
