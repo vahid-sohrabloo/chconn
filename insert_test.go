@@ -660,4 +660,16 @@ func TestInsertSelectStmt(t *testing.T) {
 		number
 			) select number from system.numbers limit 10`)
 	require.NoError(t, err)
+
+	colRead := column.New[int64]()
+	selectStmt, err := c.Select(context.Background(), `SELECT number FROM clickhouse_test_insert_select`, colRead)
+	require.NoError(t, err)
+
+	var colData []int64
+
+	for selectStmt.Next() {
+		colData = colRead.Read(colData)
+	}
+	assert.Equal(t, []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, colData)
+	require.NoError(t, selectStmt.Err())
 }
