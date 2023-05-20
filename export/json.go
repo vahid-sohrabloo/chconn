@@ -2,6 +2,7 @@ package export
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -247,7 +248,7 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 		}
 		val := float64(v.Row(row))
 		// NaN
-		if val != val {
+		if val != val || math.IsInf(val, 0) {
 			j.out = append(j.out, nullJSON...)
 			return
 		}
@@ -259,7 +260,7 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 		}
 		val := v.Row(row)
 		// NaN
-		if val != val {
+		if val != val || math.IsInf(val, 0) {
 			j.out = append(j.out, nullJSON...)
 			return
 		}
