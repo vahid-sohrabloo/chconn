@@ -192,9 +192,6 @@ func (ch *conn) InsertWithOption(
 	if err != nil {
 		return err
 	}
-	for _, col := range columns {
-		col.Reset()
-	}
 	return nil
 }
 
