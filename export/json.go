@@ -156,10 +156,10 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 	switch v := col.(type) {
 	case *column.Array:
 		j.out = append(j.out, '[')
-		lenDara := v.Row(row)
+		lenData := v.Row(row)
 		dataColumn := v.DataColumn()
-		iRow := 0
-		for i := 0; i < lenDara; i++ {
+		iRow := int(v.Uint64.Row(row)) - lenData
+		for i := 0; i < lenData; i++ {
 			if i > 0 {
 				j.out = append(j.out, semiColonJSON)
 			}
