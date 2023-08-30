@@ -158,7 +158,7 @@ func (j *JSON) writeColumn(col column.Column, row int) {
 		j.out = append(j.out, '[')
 		lenData := v.Row(row)
 		dataColumn := v.DataColumn()
-		iRow := int(v.Uint64.Row(row)) - 1
+		iRow := int(v.Uint64.Row(row)) - lenData
 		for i := 0; i < lenData; i++ {
 			if i > 0 {
 				j.out = append(j.out, semiColonJSON)
