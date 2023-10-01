@@ -38,6 +38,8 @@ func (c *ArrayBase) AppendLen(v int) {
 }
 
 // Remove inserted value from index
+//
+// its equal to data = data[:n]
 func (c *ArrayBase) Remove(n int) {
 	if c.NumRow() == 0 || c.NumRow() <= n {
 		return

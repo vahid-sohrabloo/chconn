@@ -32,6 +32,31 @@ var chColumnByteSize = map[string]int{
 	"IPv6":       16,
 }
 
+var goTypeToChType = map[string]string{
+	"bool":             "UInt8",
+	"int8":             "Int8",
+	"int16":            "Int16",
+	"int32":            "Int32",
+	"int64":            "Int64",
+	"types.Int128":     "Int128",
+	"types.Int256":     "Int256",
+	"uint8":            "UInt8",
+	"uint16":           "UInt16",
+	"uint32":           "UInt32",
+	"uint64":           "UInt64",
+	"types.Uint128":    "UInt128",
+	"types.Uint256":    "UInt256",
+	"float32":          "Float32",
+	"float64":          "Float64",
+	"types.Date":       "Date",
+	"types.Date32":     "Date32",
+	"types.DateTime":   "DateTime",
+	"types.DateTime64": "DateTime64",
+	"types.UUID":       "UUID",
+	"types.IPv4":       "IPv4",
+	"types.IPv6":       "IPv6",
+}
+
 var byteChColumnType = map[int]string{
 	1:  "Int8|UInt8|Enum8",
 	2:  "Int16|UInt16|Enum16|Date",
@@ -41,26 +66,32 @@ var byteChColumnType = map[int]string{
 	32: "Int256|UInt256|Decimal256",
 }
 
+func (c *Base[T]) SetStrict(strict bool) *Base[T] {
+	c.strict = strict
+	return c
+}
+
 func (c *Base[T]) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
+
 	if byteSize, ok := chColumnByteSize[string(chType)]; ok {
 		if byteSize != c.size {
 			return &ErrInvalidType{
 				column: c,
 			}
 		}
+		if c.strict {
+			if goTypeToChType[c.kind.String()] != string(chType) && goTypeToChType[c.rtype.String()] != string(chType) {
+				fmt.Println(string(chType), c.kind.String(), c.rtype.String(), goTypeToChType[string(chType)])
+				return &ErrInvalidType{
+					column: c,
+				}
+			}
+		}
 		return nil
 	}
 
 	if ok, err := c.checkEnum8(chType); ok {
-		return err
-	}
-
-	if ok, err := c.checkEnum16(chType); ok {
-		return err
-	}
-
-	if ok, err := c.checkDateTime(chType); ok {
 		return err
 	}
 
@@ -85,7 +116,15 @@ func (c *Base[T]) Validate() error {
 
 func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 	if helper.IsEnum8(chType) {
-		if c.size != Uint8Size {
+		if c.strict {
+			if c.kind.String() != "int8" {
+				return true, &ErrInvalidType{
+					column: c,
+				}
+			}
+			return true, nil
+		}
+		if c.size != Int8Size {
 			return true, &ErrInvalidType{
 				column: c,
 			}
@@ -97,7 +136,15 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 	if helper.IsEnum16(chType) {
-		if c.size != Uint16Size {
+		if c.strict {
+			if c.kind.String() != "int16" {
+				return true, &ErrInvalidType{
+					column: c,
+				}
+			}
+			return true, nil
+		}
+		if c.size != Int16Size {
 			return true, &ErrInvalidType{
 				column: c,
 			}
@@ -109,7 +156,13 @@ func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 	if helper.IsDateTimeWithParam(chType) {
-		if c.size != 4 {
+		if c.strict {
+			if c.kind.String() != "uint32" {
+				return true, &ErrInvalidType{
+					column: c,
+				}
+			}
+		} else if c.size != DateTimeSize {
 			return true, &ErrInvalidType{
 				column: c,
 			}
@@ -127,7 +180,13 @@ func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkDateTime64(chType []byte) (bool, error) {
 	if helper.IsDateTime64(chType) {
-		if c.size != 8 {
+		if c.strict {
+			if c.kind.String() != "int64" {
+				return true, &ErrInvalidType{
+					column: c,
+				}
+			}
+		} else if c.size != DateTime64Size {
 			return true, &ErrInvalidType{
 				column: c,
 			}

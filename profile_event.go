@@ -17,11 +17,11 @@ type ProfileEvent struct {
 func newProfileEvent() *ProfileEvent {
 	return &ProfileEvent{
 		Host:     column.NewString(),
-		Time:     column.New[uint32](),
-		ThreadID: column.New[uint64](),
-		Type:     column.New[int8](),
+		Time:     column.New[uint32]().SetStrict(false),
+		ThreadID: column.New[uint64]().SetStrict(false),
+		Type:     column.New[int8]().SetStrict(false),
 		Name:     column.NewString(),
-		Value:    column.New[int64](),
+		Value:    column.New[int64]().SetStrict(false),
 	}
 }
 

@@ -29,7 +29,8 @@ func newIndicesColumn[T indicatedTypes]() *indicesColumn[T] {
 	size := int(unsafe.Sizeof(tmpValue))
 	return &indicesColumn[T]{
 		Base: Base[T]{
-			size: size,
+			strict: true,
+			size:   size,
 		},
 	}
 }

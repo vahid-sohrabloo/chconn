@@ -58,9 +58,10 @@ func NewDate[T DateType[T]]() *Date[T] {
 	size := int(unsafe.Sizeof(tmpValue))
 	return &Date[T]{
 		Base: Base[T]{
-			size:  size,
-			kind:  reflect.TypeOf(tmpValue).Kind(),
-			rtype: reflect.TypeOf(tmpValue),
+			size:   size,
+			strict: true,
+			kind:   reflect.TypeOf(tmpValue).Kind(),
+			rtype:  reflect.TypeOf(tmpValue),
 		},
 	}
 }

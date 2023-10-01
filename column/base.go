@@ -30,6 +30,7 @@ type BaseType interface {
 type Base[T BaseType] struct {
 	column
 	size   int
+	strict bool
 	numRow int
 	kind   reflect.Kind
 	rtype  reflect.Type
@@ -42,9 +43,10 @@ func New[T BaseType]() *Base[T] {
 	var tmpValue T
 	size := int(unsafe.Sizeof(tmpValue))
 	return &Base[T]{
-		size:  size,
-		kind:  reflect.TypeOf(tmpValue).Kind(),
-		rtype: reflect.TypeOf(tmpValue),
+		size:   size,
+		strict: true,
+		kind:   reflect.TypeOf(tmpValue).Kind(),
+		rtype:  reflect.TypeOf(tmpValue),
 	}
 }
 

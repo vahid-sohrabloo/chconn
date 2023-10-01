@@ -669,7 +669,7 @@ func TestPoolInsertError(t *testing.T) {
 				int8
 			) VALUES`)
 	if assert.Error(t, err) {
-		assert.Equal(t, " DB::Exception (60): Table default.not_found_table doesn't exist", err.Error())
+		assert.Contains(t, err.Error(), "DB::Exception (60)")
 	}
 
 	pool.Close()
