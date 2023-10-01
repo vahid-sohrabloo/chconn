@@ -162,9 +162,6 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 			remoteAddr: s.conn.RawConn().RemoteAddr(),
 		}
 	}
-	for _, col := range columns {
-		col.Reset()
-	}
 	return nil
 }
 
