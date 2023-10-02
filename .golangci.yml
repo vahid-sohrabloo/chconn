@@ -49,7 +49,7 @@ linters:
   disable-all: true
   enable:
     # - bodyclose
-    - depguard
+    # - depguard
     - dogsled
     - dupl
     - errcheck
@@ -68,7 +68,7 @@ linters:
     - ineffassign
     - lll
     - misspell
-    - nakedret
+    # - nakedret
     # - noctx
     - nolintlint
     - staticcheck

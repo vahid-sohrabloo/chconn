@@ -94,6 +94,9 @@ func (c *Base[T]) Validate() error {
 	if ok, err := c.checkEnum8(chType); ok {
 		return err
 	}
+	if ok, err := c.checkEnum16(chType); ok {
+		return err
+	}
 
 	if ok, err := c.checkDateTime(chType); ok {
 		return err

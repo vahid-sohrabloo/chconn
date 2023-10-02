@@ -663,5 +663,4 @@ func TestInsertIntoSelect(t *testing.T) {
 	if err := conn.Exec(context.Background(), `INSERT INTO test_insert_into_select (n) VALUES (1)`); err != nil {
 		t.Fatal(err)
 	}
-
 }
