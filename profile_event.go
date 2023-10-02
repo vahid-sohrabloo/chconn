@@ -26,5 +26,5 @@ func newProfileEvent() *ProfileEvent {
 }
 
 func (p ProfileEvent) read(c *conn) error {
-	return c.block.readColumnsData(c, true, p.Host, p.Time, p.ThreadID, p.Type, p.Name, p.Value)
+	return c.block.readColumnsData(true, p.Host, p.Time, p.ThreadID, p.Type, p.Name, p.Value)
 }

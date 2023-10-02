@@ -377,7 +377,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.sendAddendum()
 
-	c.block = newBlock()
+	c.block = newBlock(c)
 	c.profileEvent = newProfileEvent()
 	c.status = connStatusIdle
 
@@ -523,7 +523,7 @@ func (ch *conn) sendData(block *block, numRows int) error {
 			return &writeError{"write block info", err}
 		}
 	}
-	return block.writeHeader(ch, numRows)
+	return block.writeHeader(numRows)
 }
 
 func (ch *conn) sendEmptyBlock() error {
@@ -553,7 +553,7 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
 		ch.block.reset()
-		err = ch.block.read(ch)
+		err = ch.block.read()
 		return ch.block, err
 	case serverProfileInfo:
 		profile := newProfile()
@@ -593,7 +593,7 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 			ch.compress = oldCompress
 		}()
 		ch.compress = false
-		err = ch.block.read(ch)
+		err = ch.block.read()
 		if err != nil {
 			return nil, err
 		}
@@ -661,10 +661,15 @@ func (ch *conn) ExecWithOption(
 	if err != nil {
 		return preferContextOverNetTimeoutError(ctx, err)
 	}
+
 	if queryOptions.OnProgress == nil {
 		queryOptions.OnProgress = emptyOnProgress
 	}
 
-	_, err = ch.receiveAndProcessData(queryOptions.OnProgress)
+	res, err := ch.receiveAndProcessData(queryOptions.OnProgress)
+
+	if block, ok := res.(*block); ok {
+		return preferContextOverNetTimeoutError(ctx, block.skipBlock())
+	}
 	return preferContextOverNetTimeoutError(ctx, err)
 }

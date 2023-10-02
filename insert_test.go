@@ -642,3 +642,26 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 	require.EqualError(t, err, "mismatch column type: ClickHouse Type: LowCardinality(String), column types: String")
 	assert.True(t, c.IsClosed())
 }
+
+func TestInsertIntoSelect(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	err = conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_insert_into_select`)
+	require.NoError(t, err)
+
+	err = conn.Exec(context.Background(), `CREATE TABLE test_insert_into_select (
+				n UInt64
+			) Engine=Memory`)
+
+	require.NoError(t, err)
+
+	if err := conn.Exec(context.Background(), `INSERT INTO test_insert_into_select (n) VALUES (1)`); err != nil {
+		t.Fatal(err)
+	}
+
+}

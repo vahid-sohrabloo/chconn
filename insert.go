@@ -154,7 +154,7 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 		}
 	}
 
-	err = s.block.writeColumnsBuffer(s.conn, columns...)
+	err = s.block.writeColumnsBuffer(columns...)
 	if err != nil {
 		s.hasError = true
 		return &InsertError{
@@ -270,7 +270,7 @@ func (ch *conn) InsertStreamWithOption(
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
-	err = blockData.readColumns(ch)
+	err = blockData.readColumns()
 	if err != nil {
 		hasError = true
 		return nil, preferContextOverNetTimeoutError(ctx, err)
