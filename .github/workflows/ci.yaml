@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        golang-version: [1.20, 1.121]
+        golang-version: [1.20, 1.21]
         clickhouse-version: ['23.9', '23.8', '23.7', '22.3', '22.8']
     env:
       VERBOSE: 1
