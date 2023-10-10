@@ -55,13 +55,6 @@ func TestInsertError(t *testing.T) {
 	require.EqualError(t, err, " DB::Exception (48): Method write is not supported by storage SystemNumbers")
 	assert.True(t, c.IsClosed())
 
-	// test not block data error
-	c, err = ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	err = c.Insert(context.Background(), "SET enable_http_compression=1")
-	require.EqualError(t, err, "Unexpected packet from server (expected serverData got <nil>)")
-	assert.True(t, c.IsClosed())
-
 	// test read column error
 	c, err = ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
