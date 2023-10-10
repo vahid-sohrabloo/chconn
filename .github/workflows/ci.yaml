@@ -18,13 +18,13 @@ jobs:
     steps:
     - uses: vahid-sohrabloo/clickhouse-action@v1
       with:
-        version: '22.9'
+        version: '23.9'
 
         
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.19
+        go-version: 1.21
 
     - name: Checkout code
       uses: actions/checkout@v3.3.0
@@ -40,8 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        golang-version: [1.18.5, 1.19]
-        clickhouse-version: ['22.11', '22.10', '22.9', '22.8', '22.7', '22.6', '22.5', '22.4']
+        golang-version: [1.20, 1.121]
+        clickhouse-version: ['23.9', '23.8', '23.7', '22.3', '22.8']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
@@ -54,7 +54,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: 1.18.5
+        go-version: 1.21
 
     - name: Checkout code
       uses: actions/checkout@v4
