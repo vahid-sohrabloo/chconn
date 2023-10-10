@@ -46,13 +46,21 @@ func TestServerInfoError(t *testing.T) {
 			name:        "server version patch",
 			wantErr:     "ServerInfo: could not read server version patch",
 			numberValid: startValidReader + 11,
+		}, {
+			name:        "server password complexity",
+			wantErr:     "ServerInfo: could not read server password complexity rules: len",
+			numberValid: startValidReader + 12,
+		}, {
+			name:        "server interserver secret nonce",
+			wantErr:     "ServerInfo: could not read server interserver secret nonce",
+			numberValid: startValidReader + 13,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,

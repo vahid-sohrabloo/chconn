@@ -22,6 +22,9 @@ func TestInt256(t *testing.T) {
 		i := new(big.Int).SetInt64(124)
 		assert.Equal(t, Int256FromBig(i).Big().String(), "124")
 
+		i = new(big.Int).SetInt64(-124)
+		assert.Equal(t, Int256FromBig(i).Big().String(), "-124")
+
 		int256From64 := Int256From64(124)
 		assert.Equal(t, int256From64.Big().String(), "124")
 	})

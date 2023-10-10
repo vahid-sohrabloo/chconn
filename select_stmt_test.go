@@ -235,43 +235,67 @@ func TestSelectParameters(t *testing.T) {
 }
 
 func TestSelectProgressError(t *testing.T) {
-	startValidReader := 33
+	startValidReader := 35
 
 	tests := []struct {
 		name        string
 		wantErr     string
-		numberValid int
+		numberValid func(c Conn) int
 		minRevision uint64
 	}{
 		{
 			name:        "read ReadRows",
 			wantErr:     "progress: read ReadRows (timeout)",
-			numberValid: startValidReader,
+			numberValid: func(c Conn) int { return startValidReader },
 		},
 		{
 			name:        "read ReadBytes",
 			wantErr:     "progress: read ReadBytes (timeout)",
-			numberValid: startValidReader + 1,
+			numberValid: func(c Conn) int { return startValidReader + 1 },
 		},
 		{
 			name:        "read TotalRows ",
 			wantErr:     "progress: read TotalRows (timeout)",
-			numberValid: startValidReader + 2,
+			numberValid: func(c Conn) int { return startValidReader + 2 },
 		},
 		{
-			name:        "read WriterRows",
-			wantErr:     "progress: read WriterRows (timeout)",
-			numberValid: startValidReader + 3,
+			name:        "read TotalBytes",
+			wantErr:     "progress: read TotalBytes (timeout)",
+			numberValid: func(c Conn) int { return startValidReader + 3 },
+			minRevision: helper.DbmsMinProtocolVersionWithTotalBytesInProgress,
 		},
 		{
-			name:        "read WrittenBytes",
-			wantErr:     "progress: read WrittenBytes (timeout)",
-			numberValid: startValidReader + 4,
+			name:    "read WriterRows",
+			wantErr: "progress: read WriterRows (timeout)",
+			numberValid: func(c Conn) int {
+				moreIncrement := 0
+				if c.ServerInfo().Revision >= helper.DbmsMinProtocolVersionWithTotalBytesInProgress {
+					moreIncrement++
+				}
+				return startValidReader + 3 + moreIncrement
+			},
 		},
 		{
-			name:        "read ElapsedNS",
-			wantErr:     "progress: read ElapsedNS (timeout)",
-			numberValid: startValidReader + 5,
+			name:    "read WrittenBytes",
+			wantErr: "progress: read WrittenBytes (timeout)",
+			numberValid: func(c Conn) int {
+				moreIncrement := 0
+				if c.ServerInfo().Revision >= helper.DbmsMinProtocolVersionWithTotalBytesInProgress {
+					moreIncrement++
+				}
+				return startValidReader + 4 + moreIncrement
+			},
+		},
+		{
+			name:    "read ElapsedNS",
+			wantErr: "progress: read ElapsedNS (timeout)",
+			numberValid: func(c Conn) int {
+				moreIncrement := 0
+				if c.ServerInfo().Revision >= helper.DbmsMinProtocolVersionWithTotalBytesInProgress {
+					moreIncrement++
+				}
+				return startValidReader + 5 + moreIncrement
+			},
 			minRevision: helper.DbmsMinProtocolWithServerQueryTimeInProgress,
 		},
 	}
@@ -279,16 +303,17 @@ func TestSelectProgressError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
-					err:         errors.New("timeout"),
-					r:           r,
-					numberValid: tt.numberValid,
+					err:             errors.New("timeout"),
+					r:               r,
+					c:               c,
+					numberValidFunc: tt.numberValid,
 				}
 			}
-
 			c, err := ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
+
 			if c.ServerInfo().Revision < tt.minRevision {
 				c.Close()
 				return

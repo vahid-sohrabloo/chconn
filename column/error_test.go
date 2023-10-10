@@ -98,7 +98,7 @@ func TestInsertColumnLowCardinalityError(t *testing.T) {
 }
 
 func TestSelectReadLCError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -175,7 +175,7 @@ func TestSelectReadLCError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -257,7 +257,7 @@ func TestInsertColumnArrayError(t *testing.T) {
 }
 
 func TestSelectReadArrayError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -304,7 +304,7 @@ func TestSelectReadArrayError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -391,7 +391,7 @@ func TestInsertColumnArrayNullable(t *testing.T) {
 }
 
 func TestSelectReadArrayNullableError(t *testing.T) {
-	startValidReader := 39
+	startValidReader := 41
 
 	tests := []struct {
 		name        string
@@ -423,7 +423,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -444,7 +444,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 }
 
 func TestSelectReadNullableError(t *testing.T) {
-	startValidReader := 39
+	startValidReader := 41
 
 	tests := []struct {
 		name        string
@@ -471,7 +471,7 @@ func TestSelectReadNullableError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -553,7 +553,7 @@ func TestInsertColumnArray2Error(t *testing.T) {
 }
 
 func TestSelectReadArray2Error(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -600,7 +600,7 @@ func TestSelectReadArray2Error(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -681,7 +681,7 @@ func TestInsertColumnArray3Error(t *testing.T) {
 }
 
 func TestSelectReadArray3Error(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -728,7 +728,7 @@ func TestSelectReadArray3Error(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -811,7 +811,7 @@ func TestInsertColumnTupleError(t *testing.T) {
 }
 
 func TestSelectReadTupleError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -861,7 +861,7 @@ func TestSelectReadTupleError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -961,7 +961,7 @@ func TestInsertColumnMapError(t *testing.T) {
 }
 
 func TestSelectReadMapError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := 38
 
 	tests := []struct {
 		name        string
@@ -1027,7 +1027,7 @@ func TestSelectReadMapError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,

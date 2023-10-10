@@ -66,13 +66,14 @@ const (
 	serverReadTaskRequest = 13
 	// Packet with profile events from server
 	serverProfileEvents = 14
+	// Receive server's (session-wide) default timezone
+	serverTimezoneUpdate = 17
 )
 
 const (
-	dbmsVersionMajor    = 1
-	dbmsVersionMinor    = 0
-	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54460
+	clientVersionMajor = 1
+	clientVersionMinor = 0
+	clientVersionPatch = 0
 )
 
 type queryProcessingStage uint64
@@ -90,7 +91,7 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 type LookupFunc func(ctx context.Context, host string) (addrs []string, err error)
 
 // ReaderFunc is a function that can be used get reader for read from server
-type ReaderFunc func(io.Reader) io.Reader
+type ReaderFunc func(io.Reader, Conn) io.Reader
 
 // WriterFunc is a function that can be used to get writer to writer from server
 // Note: DO NOT use bufio.Writer, chconn doesn't support flush
@@ -354,7 +355,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.writer = readerwriter.NewWriter()
 	if config.ReaderFunc != nil {
-		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
+		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn, c))
 	} else {
 		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, c.config.MinReadBufferSize))
 	}
@@ -405,9 +406,9 @@ func (ch *conn) RawConn() net.Conn {
 func (ch *conn) hello() error {
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
-	ch.writer.Uvarint(dbmsVersionMajor)
-	ch.writer.Uvarint(dbmsVersionMinor)
-	ch.writer.Uvarint(dbmsVersionRevision)
+	ch.writer.Uvarint(clientVersionMajor)
+	ch.writer.Uvarint(clientVersionMinor)
+	ch.writer.Uvarint(helper.ClientTCPVersion)
 	ch.writer.String(ch.config.Database)
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
@@ -602,7 +603,12 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 			return nil, err
 		}
 		return ch.profileEvent, nil
+	case serverTimezoneUpdate:
+		// TODO: save timezone
+		ch.reader.String() //nolint:errcheck //no needed
+		return ch.receiveAndProcessData(onProgress)
 	}
+
 	return nil, &notImplementedPacket{packet: packet}
 }
 

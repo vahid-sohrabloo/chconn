@@ -65,7 +65,7 @@ func TestProfileReadError(t *testing.T) {
 				tt.numberValid++
 			}
 
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,

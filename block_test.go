@@ -12,7 +12,7 @@ import (
 )
 
 func TestBlockReadError(t *testing.T) {
-	startValidReader := 15
+	startValidReader := 17
 
 	tests := []struct {
 		name        string
@@ -65,7 +65,7 @@ func TestBlockReadError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,

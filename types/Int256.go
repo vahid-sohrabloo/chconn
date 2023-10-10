@@ -69,30 +69,21 @@ func Int256FromBigEx(i *big.Int) (Int256, bool) {
 		return Int256Max(), false // value overflows 256-bit!
 	}
 
-	neg := false
 	if i.Sign() == -1 {
-		i = new(big.Int).Neg(i)
-		neg = true
+		i = new(big.Int).Add(i, new(big.Int).Lsh(big.NewInt(1), 256))
 	}
 
-	t := new(big.Int)
-	lolo := i.Uint64()
-	lohi := t.Rsh(i, 64).Uint64()
-	hilo := t.Rsh(i, 128).Uint64()
-	hihi := int64(t.Rsh(i, 192).Uint64())
-	val := Int256{
-		Lo: Uint128{Lo: lolo, Hi: lohi},
-		Hi: Int128{Lo: hilo, Hi: hihi},
-	}
-	if neg {
-		val = val.Neg()
-	}
-	return val, true
+	// Extract lower and upper 128 bits
+	lo := new(big.Int).And(i, new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)))
+	hi := new(big.Int).Rsh(i, 128)
+
+	return Int256{
+		Lo: Uint128FromBig(lo),
+		Hi: Int128FromBig(hi),
+	}, true
 }
 
 // Big returns 256-bit value as a *big.Int.
-//
-//nolint:dupl
 func (u Int256) Big() *big.Int {
 	t := new(big.Int)
 	i := new(big.Int).SetInt64(u.Hi.Hi)
@@ -110,18 +101,6 @@ func (u Int256) Big() *big.Int {
 // but use of the Equals method is preferred for consistency.
 func (u Int256) Equals(v Int256) bool {
 	return u.Lo.Equals(v.Lo) && u.Hi.Equals(v.Hi)
-}
-
-// Neg returns the additive inverse of an Int256
-func (u Int256) Neg() (z Int256) {
-	z.Hi = u.Hi.Neg()
-	z.Lo.Lo = -u.Lo.Lo
-	z.Lo.Hi = -u.Lo.Hi
-	// TODO, I'm not sure here.
-	if z.Lo.Hi > 0 || z.Lo.Lo > 0 {
-		z.Hi.Lo--
-	}
-	return z
 }
 
 func (u Int256) Uint128() Uint128 {
