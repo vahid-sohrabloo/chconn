@@ -245,7 +245,7 @@ func (ch *conn) InsertStreamWithOption(
 	var blockData *block
 	for {
 		var res interface{}
-		res, err = ch.receiveAndProcessData(emptyOnProgress)
+		res, err = ch.receiveAndProcessData(queryOptions.OnProgress)
 		if err != nil {
 			hasError = true
 			return nil, preferContextOverNetTimeoutError(ctx, err)
