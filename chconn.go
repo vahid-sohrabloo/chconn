@@ -159,8 +159,35 @@ type Conn interface {
 		queryOptions *QueryOptions,
 		columns ...column.ColumnBasic,
 	) (SelectStmt, error)
-}
 
+	// Query sends a select query to the server and returns a Rows to read the results. Only errors encountered sending the query
+	// and initializing Rows will be returned. Err() on the returned Rows must be checked after the Rows is closed to
+	// determine if the query executed successfully.
+	//
+	// For better performance use Select instead of Query when possible. specially when you want to read al lot of data.
+	//
+	// The returned Rows must be closed before the connection can be used again. It is safe to attempt to read from the
+	// returned Rows even if an error is returned. The error will be the available in rows.Err() after rows are closed. It
+	// is allowed to ignore the error returned from Query and handle it in Rows.
+	//
+	// It is possible for a query to return one or more rows before encountering an error. In most cases the rows should be
+	// collected before processing rather than processed while receiving each row. This avoids the possibility of the
+	// application processing rows from a query that the server rejected. The CollectRows function is useful here.
+	//
+	// NOTE: Only use this function for select queries (or any other queries that return rows).
+	Query(ctx context.Context, sql string, args ...Parameter) (Rows, error)
+
+	// QueryWithOption is the same as Query but with QueryOptions
+	QueryWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) (Rows, error)
+
+	// QueryRow is a convenience wrapper over Query. Any error that occurs while
+	// querying is deferred until calling Scan on the returned Row. That Row will
+	// error with ErrNoRows if no rows are returned.
+	QueryRow(ctx context.Context, sql string, args ...Parameter) Row
+
+	// QueryRowWithOptions is the same as QueryRow but with QueryOptions
+	QueryRowWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) Row
+}
 type writeFlusher interface {
 	io.Writer
 	Flush() error

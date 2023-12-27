@@ -28,7 +28,7 @@ func TestSelectError(t *testing.T) {
 
 	c.(*conn).status = connStatusUninitialized
 	res, err := c.Select(context.Background(), "select * from system.numbers limit 5")
-	require.Nil(t, res)
+	require.NotNil(t, res)
 	require.EqualError(t, err, "conn uninitialized")
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 	c.Close()
@@ -44,7 +44,7 @@ func TestSelectError(t *testing.T) {
 	require.NoError(t, err)
 	res, err = c.Select(context.Background(), "select * from system.numbers limit 5")
 	require.EqualError(t, err, "write block info (timeout)")
-	require.Nil(t, res)
+	require.NotNil(t, res)
 	assert.True(t, c.IsClosed())
 
 	config.WriterFunc = nil
@@ -74,7 +74,7 @@ func TestSelectCtxError(t *testing.T) {
 	cancel()
 	res, err := c.Select(ctx, "select * from system.numbers limit 1")
 	require.EqualError(t, err, "timeout: context already done: context canceled")
-	require.Nil(t, res)
+	require.NotNil(t, res)
 	assert.False(t, c.IsClosed())
 
 	config.WriterFunc = func(w io.Writer) io.Writer {
@@ -89,7 +89,7 @@ func TestSelectCtxError(t *testing.T) {
 	defer cancel()
 	res, err = c.Select(ctx, "select * from system.numbers")
 	require.EqualError(t, errors.Unwrap(err), "context deadline exceeded")
-	require.Nil(t, res)
+	require.NotNil(t, res)
 	assert.True(t, c.IsClosed())
 }
 

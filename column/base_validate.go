@@ -82,7 +82,6 @@ func (c *Base[T]) Validate() error {
 		}
 		if c.strict {
 			if goTypeToChType[c.kind.String()] != string(chType) && goTypeToChType[c.rtype.String()] != string(chType) {
-				fmt.Println(string(chType), c.kind.String(), c.rtype.String(), goTypeToChType[string(chType)])
 				return &ErrInvalidType{
 					column: c,
 				}

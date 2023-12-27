@@ -3,7 +3,6 @@ package chconn
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -83,7 +82,6 @@ func TestProfileReadError(t *testing.T) {
 			require.Error(t, stmt.Err())
 			readErr, ok := stmt.Err().(*readError)
 			require.True(t, ok)
-			fmt.Println("readErr.msg:", readErr.msg)
 			require.Equal(t, tt.wantErr, readErr.msg)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
 			assert.True(t, c.IsClosed())

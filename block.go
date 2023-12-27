@@ -27,9 +27,9 @@ type block struct {
 	headerWriter *readerwriter.Writer
 }
 
-func newBlock(c *conn) *block {
+func newBlock(ch *conn) *block {
 	return &block{
-		c:            c,
+		c:            ch,
 		headerWriter: readerwriter.NewWriter(),
 	}
 }
@@ -308,6 +308,8 @@ func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (
 		return column.New[float64]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "String":
 		return column.NewString().Elem(arrayLevel, nullable, lc), nil
+	case string(chType) == "Nothing":
+		return column.NewNothing().Elem(arrayLevel, nullable, lc), nil
 	case helper.IsFixedString(chType):
 		strLen, err := strconv.Atoi(string(chType[helper.FixedStringStrLen : len(chType)-1]))
 		if err != nil {

@@ -60,6 +60,10 @@ func IsMultiPolygon(chType []byte) bool {
 	return string(chType) == MultiPolygonStr
 }
 
+func IsNothing(chType []byte) bool {
+	return string(chType) == NothingStr
+}
+
 func IsNested(chType []byte) bool {
 	return len(chType) > LenNestedStr && string(chType[:LenNestedStr]) == NestedStr
 }

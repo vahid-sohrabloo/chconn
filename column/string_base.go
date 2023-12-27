@@ -96,7 +96,7 @@ func (c *StringBase[T]) Scan(row int, value any) error {
 	case *[]byte:
 		*d = c.RowBytes(row)
 	default:
-		return fmt.Errorf("unsupported type %T", value)
+		return fmt.Errorf("cannot scan text into %T", value)
 	}
 	return nil
 }

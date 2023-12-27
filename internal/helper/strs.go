@@ -69,3 +69,7 @@ const (
 const (
 	StringStr = "String"
 )
+
+const (
+	NothingStr = "Nothing"
+)

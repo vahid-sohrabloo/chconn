@@ -77,7 +77,7 @@ func TestBlockReadError(t *testing.T) {
 			assert.NoError(t, err)
 			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 			require.Error(t, err)
-			require.Nil(t, stmt)
+			require.NotNil(t, stmt)
 
 			readErr, ok := err.(*readError)
 			require.True(t, ok)

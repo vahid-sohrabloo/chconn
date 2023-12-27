@@ -19,8 +19,6 @@ type TupleStruct[T any] interface {
 // Tuple is a column of Tuple(T1,T2,.....,Tn) ClickHouse data type
 //
 // this is actually a group of columns. it doesn't have any method for read or write data
-//
-// You MUST use this on Select and Insert methods and for append and read data use the sub columns
 type Tuple struct {
 	column
 	isJSON  bool
@@ -31,8 +29,6 @@ type Tuple struct {
 // NewTuple create a new tuple of Tuple(T1,T2,.....,Tn) ClickHouse data type
 //
 // this is actually a group of columns. it doesn't have any method for read or write data
-//
-// You MUST use this on Select and Insert methods and for append and read data use the sub columns
 func NewTuple(columns ...ColumnBasic) *Tuple {
 	if len(columns) < 1 {
 		panic("tuple must have at least one column")
@@ -163,6 +159,7 @@ func (c *Tuple) scanStruct(row int, val reflect.Value) error {
 	}
 	return nil
 }
+
 func (c *Tuple) scanSlice(row int, val reflect.Value) error {
 	for _, col := range c.columns {
 		val.Elem().Set(reflect.Append(val.Elem(), reflect.ValueOf(col.RowI(row))))

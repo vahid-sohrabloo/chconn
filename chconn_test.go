@@ -190,7 +190,7 @@ func TestLockError(t *testing.T) {
 
 	resSelect, err := c.Select(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "conn uninitialized")
-	require.Nil(t, resSelect)
+	require.NotNil(t, resSelect)
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 }
 

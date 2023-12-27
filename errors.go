@@ -39,6 +39,13 @@ var ErrInvalidquoted = errors.New("unterminated quoted string in connection info
 // ErrIPNotFound when can't found ip in connecting
 var ErrIPNotFound = errors.New("ip addr wasn't found")
 
+var (
+	// ErrNoRows occurs when rows are expected but none are returned.
+	ErrNoRows = errors.New("no rows in result set")
+	// ErrTooManyRows occurs when more rows than expected are returned.
+	ErrTooManyRows = errors.New("too many rows in result set")
+)
+
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
 	Code       ChErrorType

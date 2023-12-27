@@ -22,8 +22,8 @@ type execer interface {
 	Exec(ctx context.Context, sql string) error
 }
 
-func testExec(t *testing.T, db execer) {
-	err := db.Exec(context.Background(), "SET enable_http_compression=1")
+func testExec(t *testing.T, ctx context.Context, db execer) {
+	err := db.Exec(ctx, "SET enable_http_compression=1")
 	require.NoError(t, err)
 }
 

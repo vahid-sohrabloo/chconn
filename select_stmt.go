@@ -20,9 +20,22 @@ func (ch *conn) SelectWithOption(
 	queryOptions *QueryOptions,
 	columns ...column.ColumnBasic,
 ) (SelectStmt, error) {
+	if queryOptions == nil {
+		queryOptions = emptyQueryOptions
+	}
+	s := &selectStmt{
+		conn:           ch,
+		query:          query,
+		queryOptions:   queryOptions,
+		clientInfo:     nil,
+		ctx:            ctx,
+		columnsForRead: columns,
+	}
+
 	err := ch.lock()
 	if err != nil {
-		return nil, err
+		s.lastErr = err
+		return s, s.lastErr
 	}
 
 	var hasError bool
@@ -35,45 +48,39 @@ func (ch *conn) SelectWithOption(
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
-			return nil, newContextAlreadyDoneError(ctx)
+			s.lastErr = newContextAlreadyDoneError(ctx)
+			return s, s.lastErr
 		default:
 		}
 		ch.contextWatcher.Watch(ctx)
 	}
 
-	if queryOptions == nil {
-		queryOptions = emptyQueryOptions
-	}
-
 	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
 	if err != nil {
 		hasError = true
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		s.lastErr = preferContextOverNetTimeoutError(ctx, err)
+		return s, s.lastErr
 	}
-	s := &selectStmt{
-		conn:           ch,
-		query:          query,
-		queryOptions:   queryOptions,
-		clientInfo:     nil,
-		ctx:            ctx,
-		columnsForRead: columns,
-	}
+
 	res, err := s.conn.receiveAndProcessData(nil)
 	if err != nil {
 		s.lastErr = err
 		s.Close()
-		return nil, err
+		return s, s.lastErr
 	}
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
 			err = s.skipBlock(block)
 			if err != nil {
-				return nil, err
+				s.lastErr = err
+				s.Close()
+				return s, s.lastErr
 			}
 			return s, nil
 		}
 	}
-	return nil, &unexpectedPacket{expected: "serverData with zero len", actual: res}
+	s.lastErr = &unexpectedPacket{expected: "serverData with zero len", actual: res}
+	return s, s.lastErr
 }
 
 // SelectStmt is a interface for select statement
@@ -94,7 +101,8 @@ type SelectStmt interface {
 	// the Rows are closed automatically and it will suffice to check the result of Err.
 	// Close is idempotent and does not affect the result of Err.
 	Close()
-	Rows() *Rows
+	// Rows return the rows of this select statement.
+	Rows() Rows
 }
 
 type selectStmt struct {
@@ -233,7 +241,7 @@ func (s *selectStmt) Err() error {
 
 // Close close the statement and release the connection
 // If Next is called and returns false and there are no further blocks,
-// the Rows are closed automatically and it will suffice to check the result of Err.
+// the Select are closed automatically and it will suffice to check the result of Err.
 // Close is idempotent and does not affect the result of Err.
 func (s *selectStmt) Close() {
 	s.conn.reader.SetCompress(false)
@@ -251,8 +259,8 @@ func (s *selectStmt) Columns() []column.ColumnBasic {
 	return s.columnsForRead
 }
 
-func (s *selectStmt) Rows() *Rows {
-	return &Rows{
+func (s *selectStmt) Rows() Rows {
+	return &baseRows{
 		selectStmt: s,
 	}
 }
