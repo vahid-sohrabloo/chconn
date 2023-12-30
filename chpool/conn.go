@@ -129,7 +129,12 @@ func (ch *conn) Query(ctx context.Context, sql string, args ...chconn.Parameter)
 	return ch.Conn().Query(ctx, sql, args...)
 }
 
-func (ch *conn) QueryWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) (chconn.Rows, error) {
+func (ch *conn) QueryWithOption(
+	ctx context.Context,
+	sql string,
+	queryOptions *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) (chconn.Rows, error) {
 	return ch.Conn().QueryWithOption(ctx, sql, queryOptions, args...)
 }
 
@@ -137,7 +142,12 @@ func (ch *conn) QueryRow(ctx context.Context, sql string, args ...chconn.Paramet
 	return ch.Conn().QueryRow(ctx, sql, args...)
 }
 
-func (ch *conn) QueryRowWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) chconn.Row {
+func (ch *conn) QueryRowWithOption(
+	ctx context.Context,
+	sql string,
+	queryOptions *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) chconn.Row {
 	return ch.Conn().QueryRowWithOption(ctx, sql, queryOptions, args...)
 }
 

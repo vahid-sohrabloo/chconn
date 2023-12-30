@@ -328,7 +328,7 @@ func NewWithConfig(config *Config) (Pool, error) {
 						return nil, err
 					}
 				}
-
+				//nolint:gosec // it's not a security issue
 				jitterSecs := rand.Float64() * config.MaxConnLifetimeJitter.Seconds()
 				maxAgeTime := time.Now().Add(config.MaxConnLifetime).Add(time.Duration(jitterSecs) * time.Second)
 
@@ -362,7 +362,7 @@ func NewWithConfig(config *Config) (Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString. It parses connString with the same behavior as chconn.ParseConfig with the
+// ParseConfig builds a Config from connString. It parses connString with the same behavior as [chconn.ParseConfig] with the
 // addition of the following variables:
 //
 //   - pool_max_conns: integer greater than 0
@@ -720,7 +720,12 @@ func (p *pool) QueryRow(ctx context.Context, sql string, args ...chconn.Paramete
 //
 // If there is an error, the returned chconn.Rows will be returned in an error state.
 // If preferred, ignore the error returned from Query and handle errors using the returned chconn.Rows.
-func (p *pool) QueryWithOption(ctx context.Context, sql string, queryOption *chconn.QueryOptions, args ...chconn.Parameter) (chconn.Rows, error) {
+func (p *pool) QueryWithOption(
+	ctx context.Context,
+	sql string,
+	queryOption *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) (chconn.Rows, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return errRows{err: err}, err
@@ -794,7 +799,6 @@ func (p *pool) InsertStream(ctx context.Context, query string) (chconn.InsertStm
 }
 
 func (p *pool) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
-
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err

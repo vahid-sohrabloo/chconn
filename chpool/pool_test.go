@@ -66,7 +66,7 @@ func TestConstructorIgnoresContext(t *testing.T) {
 	var cancel func()
 	config.BeforeConnect = func(context.Context, *chconn.Config) error {
 		// cancel the query's context before we actually Dial to ensure the Dial's
-		// context isn't cancelled
+		// context isn't canceled
 		cancel()
 		return nil
 	}

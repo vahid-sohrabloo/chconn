@@ -66,7 +66,7 @@ func (rows *poolRows) Scan(dest ...any) error {
 }
 
 func (rows *poolRows) Values() []any {
-	return rows.Values()
+	return rows.r.Values()
 }
 
 func (rows *poolRows) Conn() chconn.Conn {
