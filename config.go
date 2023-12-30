@@ -602,14 +602,16 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		var decryptedKey []byte
 		var decryptedError error
 		// If PEM is encrypted, attempt to decrypt using pass phrase
+		//nolint:staticcheck
 		if x509.IsEncryptedPEMBlock(block) {
 			// Attempt decryption with pass phrase
 			// NOTE: only supports RSA (PKCS#1)
 			if sslpassword != "" {
+				//nolint:ineffassign
 				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			}
-			//if sslpassword not provided or has decryption error when use it
-			//try to find sslpassword with callback function
+			// if sslpassword not provided or has decryption error when use it
+			// try to find sslpassword with callback function
 			if sslpassword == "" || decryptedError != nil {
 				if parseConfigOptions.GetSSLPassword != nil {
 					sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
@@ -618,6 +620,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 					return nil, fmt.Errorf("unable to find sslpassword")
 				}
 			}
+			//nolint:staticcheck
 			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			// Should we also provide warning for PKCS#1 needed?
 			if decryptedError != nil {

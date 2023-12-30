@@ -662,6 +662,66 @@ func TestPoolSelect(t *testing.T) {
 	}
 	assert.EqualValues(t, maxConns, stats.MaxConns())
 }
+func TestPoolRow(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Test common usage
+	testSelect(t, pool)
+	waitForReleaseToComplete()
+
+	// Test expected pool behavior
+	rows, err := pool.Query(
+		ctx,
+		"select number, number * 2 from system.numbers where number > 0 limit {n: UInt32}",
+		chconn.IntParameter("n", 3),
+	)
+	require.NoError(t, err)
+
+	var actualResults []any
+
+	var a, b int
+	err = chconn.ForEachRow(rows, []any{&a, &b}, func() error {
+		actualResults = append(actualResults, []any{a, b})
+		return nil
+	})
+	require.NoError(t, err)
+
+	expectedResults := []any{
+		[]any{1, 2},
+		[]any{2, 4},
+		[]any{3, 6},
+	}
+	require.Equal(t, expectedResults, actualResults)
+	require.NoError(t, rows.Err())
+}
+
+type testRowScanner struct {
+	name string
+	age  int32
+}
+
+func (rs *testRowScanner) ScanRow(rows chconn.Rows) error {
+	return rows.Scan(&rs.name, &rs.age)
+}
+func TestQueryRow(t *testing.T) {
+	t.Parallel()
+	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	var s testRowScanner
+	err = pool.QueryRow(context.Background(), "select 'Adam' as name, 72 as height").Scan(&s)
+	require.NoError(t, err)
+	require.Equal(t, "Adam", s.name)
+	require.Equal(t, int32(72), s.age)
+}
 
 func TestPoolSelectError(t *testing.T) {
 	t.Parallel()

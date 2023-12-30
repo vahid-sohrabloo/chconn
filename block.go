@@ -336,12 +336,12 @@ func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (
 		return col.Elem(arrayLevel, nullable, lc), nil
 	case helper.IsDateTime64(chType):
 		params := bytes.Split(chType[helper.DateTime64StrLen:len(chType)-1], []byte(", "))
-		if len(params) == 0 {
-			panic("DateTime64 invalid params")
+		if len(params) == 0 || len(params[0]) == 0 {
+			return nil, fmt.Errorf("DateTime64 invalid params: precision is required: %s", string(chType))
 		}
 		precision, err := strconv.Atoi(string(params[0]))
 		if err != nil {
-			panic("DateTime64 invalid precision: " + err.Error())
+			return nil, fmt.Errorf("DateTime64 invalid precision (%s): %w", string(chType), err)
 		}
 		col := column.NewDate[types.DateTime64]()
 		col.SetPrecision(precision)
@@ -370,7 +370,7 @@ func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (
 		if precision <= 76 {
 			return column.New[types.Decimal256]().Elem(arrayLevel, nullable, lc), nil
 		}
-		panic("Decimal invalid precision: " + string(chType))
+		return nil, fmt.Errorf("max precision is 76 but got %d: %s", precision, string(chType))
 
 	case string(chType) == "UUID":
 		return column.New[types.UUID]().Elem(arrayLevel, nullable, lc), nil

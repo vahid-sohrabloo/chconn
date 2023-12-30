@@ -15,6 +15,21 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
+func TestExecReturnBlock(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	err = c.Exec(context.Background(), "SELECT 1")
+	require.NoError(t, err)
+}
+
 func TestSelectError(t *testing.T) {
 	t.Parallel()
 

@@ -636,7 +636,6 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 }
 
 func TestParseConfigEnv(t *testing.T) {
-
 	chEnvvars := []string{
 		"CHHOST",
 		"CHPORT",
