@@ -15,7 +15,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	if s.conn == nil {
 		return nil
 	}
-	defer s.conn.Release()
+	defer s.Close()
 	return s.InsertStmt.Flush(ctx)
 }
 
