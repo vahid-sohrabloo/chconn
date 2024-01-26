@@ -90,9 +90,9 @@ func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}
 	})
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) RowI(row int) any {
+func (c *Tuple{{.Numbrer}}[T{{- range $val := iterate .Numbrer "1" }} ,T{{$val}}{{end}}]) RowAny(row int) any {
 	return c.Row(row)
 }
 

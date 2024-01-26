@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -76,14 +77,18 @@ func (c *LowCardinality[T]) Row(row int) T {
 	return c.readedDict[c.readedKeys[row]]
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *LowCardinality[T]) RowI(row int) any {
+func (c *LowCardinality[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
 func (c *LowCardinality[T]) Scan(row int, dest any) error {
 	return c.dictColumn.Scan(c.readedKeys[row], dest)
+}
+
+func (c *LowCardinality[T]) ScanValue(row int, dest reflect.Value) error {
+	return c.dictColumn.ScanValue(c.readedKeys[row], dest)
 }
 
 // Append value for insert
@@ -245,11 +250,11 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	return c.dictColumn.HeaderReader(r, false, revision)
 }
 
-func (c *LowCardinality[T]) ColumnType() string {
+func (c *LowCardinality[T]) structType() string {
 	if !c.nullable {
-		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.ColumnType())
+		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.structType())
 	}
-	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.ColumnType())
+	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.structType())
 }
 
 func (c *LowCardinality[T]) Validate() error {
@@ -257,21 +262,24 @@ func (c *LowCardinality[T]) Validate() error {
 	if !c.nullable {
 		if !helper.IsLowCardinality(chType) {
 			return &ErrInvalidType{
-				column: c,
+				chType:     string(c.chType),
+				structType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
 	} else {
 		if !helper.IsNullableLowCardinality(chType) {
 			return &ErrInvalidType{
-				column: c,
+				chType:     string(c.chType),
+				structType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
 	}
 	if err := c.dictColumn.Validate(); err != nil {
 		return &ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil

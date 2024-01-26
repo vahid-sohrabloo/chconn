@@ -309,7 +309,10 @@ func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (
 	case string(chType) == "String":
 		return column.NewString().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "Nothing":
-		return column.NewNothing().Elem(arrayLevel, nullable, lc), nil
+		if lc {
+			return nil, fmt.Errorf("LowCardinality is not allowed in nothing")
+		}
+		return column.NewNothing().Elem(arrayLevel, nullable), nil
 	case helper.IsFixedString(chType):
 		strLen, err := strconv.Atoi(string(chType[helper.FixedStringStrLen : len(chType)-1]))
 		if err != nil {

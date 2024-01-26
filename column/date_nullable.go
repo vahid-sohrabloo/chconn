@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"time"
 	"unsafe"
@@ -74,7 +75,7 @@ func (c *DateNullable[T]) Row(i int) time.Time {
 }
 
 // Append value for insert
-func (c *DateNullable[T]) RowI(i int) any {
+func (c *DateNullable[T]) RowAny(i int) any {
 	return c.RowP(i)
 }
 
@@ -83,6 +84,13 @@ func (c *DateNullable[T]) Scan(row int, dest any) error {
 		return nil
 	}
 	return c.dataColumn.Scan(row, dest)
+}
+
+func (c *DateNullable[T]) ScanValue(row int, dest reflect.Value) error {
+	if c.RowIsNil(row) {
+		return nil
+	}
+	return c.dataColumn.ScanValue(row, dest)
 }
 
 // RowP return the value of given row for nullable data
@@ -240,20 +248,20 @@ func (c *DateNullable[T]) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType: string(c.chType),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
 	if c.dataColumn.Validate() != nil {
 		return ErrInvalidType{
-			column: c,
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *DateNullable[T]) ColumnType() string {
-	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.ColumnType())
+func (c *DateNullable[T]) structType() string {
+	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.structType())
 }
 
 // WriteTo write data to ClickHouse.
@@ -281,5 +289,8 @@ func (c *DateNullable[T]) elem(arrayLevel int) ColumnBasic {
 }
 
 func (c *DateNullable[T]) FullType() string {
-	return "Nullable(" + c.dataColumn.FullType() + ")"
+	if len(c.name) == 0 {
+		return "Nullable(" + c.dataColumn.FullType() + ")"
+	}
+	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
 }

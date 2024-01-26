@@ -1,6 +1,9 @@
 package column
 
 import (
+	"reflect"
+	"unsafe"
+
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
@@ -12,27 +15,59 @@ type Nothing struct {
 	Base[int8]
 }
 
+type NothingData struct{}
+
 // New create a new column
 func NewNothing() *Nothing {
-	return &Nothing{}
+	var tmpValue int8
+	size := int(unsafe.Sizeof(tmpValue))
+	return &Nothing{
+		Base: Base[int8]{
+			size:   size,
+			strict: true,
+			kind:   reflect.TypeOf(tmpValue).Kind(),
+			rtype:  reflect.TypeOf(tmpValue),
+		},
+	}
+}
+
+// Data get all the nullable  data in current block as a slice of pointer.
+//
+// NOTE: it always return slice of nil
+func (c *Nothing) Data() []NothingData {
+	return make([]NothingData, c.numRow)
+}
+
+// Read reads all the data in current block and append to the input.
+//
+// NOTE: it always append values of NothingData
+func (c *Nothing) Read(value []NothingData) []NothingData {
+	return append(value, make([]NothingData, c.numRow)...)
+}
+
+// Append value for insert
+func (c *Nothing) Row(i int) NothingData {
+	return NothingData{}
 }
 
 func (c *Nothing) Scan(row int, dest any) error {
 	return nil
 }
 
+func (c *Nothing) ScanValue(row int, dest reflect.Value) error {
+	return nil
+}
+
 // Append value for insert
 //
 // Should not use this method. Nothing column is only for select query
-func (c *Nothing) Append(v int8) {
-	c.numRow++
+func (c *Nothing) Append(v NothingData) {
 }
 
 // AppendMulti value for insert
 //
 // Should not use this method. Nothing column is only for select query
-func (c *Nothing) AppendMulti(v ...int8) {
-	c.numRow += len(v)
+func (c *Nothing) AppendMulti(v ...NothingData) {
 }
 
 func (c *Nothing) FullType() string {
@@ -47,8 +82,8 @@ func (c *Nothing) String(row int) string {
 }
 
 // Array return a Array type for this column
-func (c *Nothing) Array() *Array[int8] {
-	return NewArray[int8](c)
+func (c *Nothing) Array() *Array[NothingData] {
+	return NewArray[NothingData](c)
 }
 
 // Nullable return a nullable type for this column
@@ -56,20 +91,8 @@ func (c *Nothing) Nullable() *NothingNullable {
 	return NewNothingNullable(c)
 }
 
-// LC return a low cardinality type for this column
-func (c *Nothing) LC() *LowCardinality[int8] {
-	return NewLC[int8](c)
-}
+func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnBasic {
 
-// LowCardinality return a low cardinality type for this column
-func (c *Nothing) LowCardinality() *LowCardinality[int8] {
-	return NewLowCardinality[int8](c)
-}
-
-func (c *Nothing) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
-	if lc {
-		return c.LowCardinality().elem(arrayLevel, nullable)
-	}
 	if nullable {
 		return c.Nullable().elem(arrayLevel)
 	}
@@ -83,7 +106,8 @@ func (c *Nothing) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNothing(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil

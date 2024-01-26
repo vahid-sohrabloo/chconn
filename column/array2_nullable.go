@@ -1,6 +1,11 @@
 package column
 
-import "github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+import (
+	"fmt"
+	"reflect"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+)
 
 // Array is a column of Array(Array(Nullable(T))) ClickHouse data type
 type Array2Nullable[T any] struct {
@@ -59,6 +64,45 @@ func (c *Array2Nullable[T]) RowP(row int) [][]*T {
 	var val [][]*T
 	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
 	return val
+}
+
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Array2Nullable[T]) RowAny(row int) any {
+	return c.RowP(row)
+}
+
+//nolint:dupl
+func (c *Array2Nullable[T]) Scan(row int, dest any) error {
+	return c.ScanValue(row, reflect.ValueOf(dest))
+}
+
+//nolint:dupl
+func (c *Array2Nullable[T]) ScanValue(row int, dest reflect.Value) error {
+	destValue := reflect.Indirect(dest)
+	if destValue.Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be a pointer to slice")
+	}
+
+	if destValue.Type().AssignableTo(reflect.TypeOf([][]*T{})) {
+		destValue.Set(reflect.ValueOf(c.RowP(row)))
+		return nil
+	}
+
+	var lastOffset int
+	if row != 0 {
+		lastOffset = int(c.offsetColumn.Row(row - 1))
+	}
+	offset := int(c.offsetColumn.Row(row))
+	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
+	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
+		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+		if err != nil {
+			return fmt.Errorf("cannot scan array item %d: %w", i, err)
+		}
+	}
+	destValue.Set(rSlice)
+	return nil
 }
 
 // AppendP a nullable value for insert

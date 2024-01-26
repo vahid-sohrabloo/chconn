@@ -447,6 +447,10 @@ func testColumn[T column.BaseType](
 			%[1]s_nullable Nullable(%[2]s),
 			%[1]s_array Array(%[2]s),
 			%[1]s_array_nullable Array(Nullable(%[2]s)),
+			%[1]s_array_array Array(Array(%[2]s)),
+			%[1]s_array_array_nullable Array(Array(Nullable(%[2]s))),
+			%[1]s_array_array_array Array(Array(Array(%[2]s))),
+			%[1]s_array_array_array_nullable Array(Array(Array(Nullable(%[2]s)))),
 			%[1]s_lc LowCardinality(%[2]s),
 			%[1]s_nullable_lc LowCardinality(Nullable(%[2]s)),
 			%[1]s_array_lc Array(LowCardinality(%[2]s)),
@@ -458,7 +462,11 @@ func testColumn[T column.BaseType](
 			%[1]s %[2]s,
 			%[1]s_nullable Nullable(%[2]s),
 			%[1]s_array Array(%[2]s),
-			%[1]s_array_nullable Array(Nullable(%[2]s))
+			%[1]s_array_nullable Array(Nullable(%[2]s)),
+			%[1]s_array_array Array(Array(%[2]s)),
+			%[1]s_array_array_nullable Array(Array(Nullable(%[2]s))),
+			%[1]s_array_array_array Array(Array(Array(%[2]s))),
+			%[1]s_array_array_array_nullable Array(Array(Array(Nullable(%[2]s))))
 		) Engine=Memory`, tableName, chType)
 	}
 	err = conn.ExecWithOption(context.Background(), sqlCreate, &chconn.QueryOptions{
@@ -472,6 +480,10 @@ func testColumn[T column.BaseType](
 	colArray := column.New[T]().Array()
 	colNullableArray := column.New[T]().Nullable().Array()
 	colLC := column.New[T]().LC()
+	colArrayArray := column.New[T]().Array().Array()
+	colNullableArrayArray := column.New[T]().Nullable().Array().Array()
+	colArrayArrayArray := column.New[T]().Array().Array().Array()
+	colNullableArrayArrayArray := column.New[T]().Nullable().Array().Array().Array()
 	colLCNullable := column.New[T]().LC().Nullable()
 	colArrayLC := column.New[T]().LC().Array()
 	colArrayLCNullable := column.New[T]().LC().Nullable().Array()
@@ -479,6 +491,10 @@ func testColumn[T column.BaseType](
 	var colNullableInsert []*T
 	var colArrayInsert [][]T
 	var colArrayNullableInsert [][]*T
+	var colArrayArrayInsert [][][]T
+	var colArrayArrayNullableInsert [][][]*T
+	var colArrayArrayArrayInsert [][][][]T
+	var colArrayArrayArrayNullableInsert [][][][]*T
 	var colLCInsert []T
 	var colLCNullableInsert []*T
 	var colLCArrayInsert [][]T
@@ -489,6 +505,11 @@ func testColumn[T column.BaseType](
 	colNullable.SetWriteBufferSize(10)
 	colArray.SetWriteBufferSize(10)
 	colNullableArray.SetWriteBufferSize(10)
+	colLC.SetWriteBufferSize(10)
+	colArrayArray.SetWriteBufferSize(10)
+	colNullableArrayArray.SetWriteBufferSize(10)
+	colArrayArrayArray.SetWriteBufferSize(10)
+	colNullableArrayArrayArray.SetWriteBufferSize(10)
 	colLC.SetWriteBufferSize(10)
 	colLCNullable.SetWriteBufferSize(10)
 	colArrayLC.SetWriteBufferSize(10)
@@ -501,6 +522,10 @@ func testColumn[T column.BaseType](
 			val2 := secondVal(i * (insertN + 1))
 			valArray := []T{val, val2}
 			valArrayNil := []*T{&val, nil}
+			valArrayArray := [][]T{{val, val2}}
+			valArrayArrayNil := [][]*T{{&val, nil}}
+			valArrayArrayArray := [][][]T{{{val, val2}}}
+			valArrayArrayArrayNil := [][][]*T{{{&val, nil}}}
 
 			col.Append(val)
 			colInsert = append(colInsert, val)
@@ -517,12 +542,36 @@ func testColumn[T column.BaseType](
 				colLCNullableInsert = append(colLCNullableInsert, nil)
 				colLCNullable.AppendNil()
 			}
+			if i%2 == 0 {
+				colArray.Append(valArray)
+				colNullableArray.AppendP(valArrayNil)
+			} else {
+				// test append item
+				colArray.AppendLen(len(valArray))
+				for _, d := range valArray {
+					colArray.AppendItem(d)
+				}
 
-			colArray.Append(valArray)
+				colNullableArray.AppendLen(len(valArrayNil))
+				for _, d := range valArrayNil {
+					colNullableArray.AppendItemP(d)
+				}
+
+			}
 			colArrayInsert = append(colArrayInsert, valArray)
-
-			colNullableArray.AppendP(valArrayNil)
 			colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
+
+			colArrayArray.Append(valArrayArray)
+			colArrayArrayInsert = append(colArrayArrayInsert, valArrayArray)
+
+			colNullableArrayArray.AppendP(valArrayArrayNil)
+			colArrayArrayNullableInsert = append(colArrayArrayNullableInsert, valArrayArrayNil)
+
+			colArrayArrayArray.Append(valArrayArrayArray)
+			colArrayArrayArrayInsert = append(colArrayArrayArrayInsert, valArrayArrayArray)
+
+			colNullableArrayArrayArray.AppendP(valArrayArrayArrayNil)
+			colArrayArrayArrayNullableInsert = append(colArrayArrayArrayNullableInsert, valArrayArrayArrayNil)
 
 			colLCInsert = append(colLCInsert, val)
 			colLC.Append(val)
@@ -540,6 +589,11 @@ func testColumn[T column.BaseType](
 			colArray.Remove(rows / 2)
 			colNullableArray.Remove(rows / 2)
 			colLC.Remove(rows / 2)
+			colArrayArray.Remove(rows / 2)
+			colNullableArrayArray.Remove(rows / 2)
+			colArrayArrayArray.Remove(rows / 2)
+			colNullableArrayArrayArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
 			colLCNullable.Remove(rows / 2)
 			colArrayLC.Remove(rows / 2)
 			colArrayLCNullable.Remove(rows / 2)
@@ -548,6 +602,11 @@ func testColumn[T column.BaseType](
 			colNullableInsert = colNullableInsert[:rows/2]
 			colArrayInsert = colArrayInsert[:rows/2]
 			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colArrayArrayInsert = colArrayArrayInsert[:rows/2]
+			colArrayArrayNullableInsert = colArrayArrayNullableInsert[:rows/2]
+			colArrayArrayArrayInsert = colArrayArrayArrayInsert[:rows/2]
+			colArrayArrayArrayNullableInsert = colArrayArrayArrayNullableInsert[:rows/2]
 			colLCInsert = colLCInsert[:rows/2]
 			colLCNullableInsert = colLCNullableInsert[:rows/2]
 			colLCArrayInsert = colLCArrayInsert[:rows/2]
@@ -561,6 +620,10 @@ func testColumn[T column.BaseType](
 				%[1]s_nullable,
 				%[1]s_array,
 				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable,
 				%[1]s_lc,
 				%[1]s_nullable_lc,
 				%[1]s_array_lc,
@@ -572,6 +635,10 @@ func testColumn[T column.BaseType](
 				colNullable,
 				colArray,
 				colNullableArray,
+				colArrayArray,
+				colNullableArrayArray,
+				colArrayArrayArray,
+				colNullableArrayArrayArray,
 				colLC,
 				colLCNullable,
 				colArrayLC,
@@ -584,7 +651,11 @@ func testColumn[T column.BaseType](
 				%[1]s,
 				%[1]s_nullable,
 				%[1]s_array,
-				%[1]s_array_nullable
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable
 			)
 		VALUES`, tableName),
 				blockID,
@@ -592,6 +663,10 @@ func testColumn[T column.BaseType](
 				colNullable,
 				colArray,
 				colNullableArray,
+				colArrayArray,
+				colNullableArrayArray,
+				colArrayArrayArray,
+				colNullableArrayArrayArray,
 			)
 		}
 
@@ -603,6 +678,10 @@ func testColumn[T column.BaseType](
 	colNullableRead := column.New[T]().Nullable()
 	colArrayRead := column.New[T]().Array()
 	colNullableArrayRead := column.New[T]().Nullable().Array()
+	colArrayArrayRead := column.New[T]().Array().Array()
+	colNullableArrayArrayRead := column.New[T]().Nullable().Array().Array()
+	colArrayArrayArrayRead := column.New[T]().Array().Array().Array()
+	colNullableArrayArrayArrayRead := column.New[T]().Nullable().Array().Array().Array()
 	colLCRead := column.New[T]().LC()
 	colLCNullableRead := column.New[T]().LC().Nullable()
 	colArrayLCRead := column.New[T]().LC().Array()
@@ -614,6 +693,10 @@ func testColumn[T column.BaseType](
 		%[1]s_nullable,
 		%[1]s_array,
 		%[1]s_array_nullable,
+		%[1]s_array_array,
+		%[1]s_array_array_nullable,
+		%[1]s_array_array_array,
+		%[1]s_array_array_array_nullable,
 		%[1]s_lc,
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
@@ -623,6 +706,10 @@ func testColumn[T column.BaseType](
 			colNullableRead,
 			colArrayRead,
 			colNullableArrayRead,
+			colArrayArrayRead,
+			colNullableArrayArrayRead,
+			colArrayArrayArrayRead,
+			colNullableArrayArrayArrayRead,
 			colLCRead,
 			colLCNullableRead,
 			colArrayLCRead,
@@ -633,12 +720,20 @@ func testColumn[T column.BaseType](
 			%[1]s,
 			%[1]s_nullable,
 			%[1]s_array,
-			%[1]s_array_nullable
+			%[1]s_array_nullable,
+			%[1]s_array_array,
+			%[1]s_array_array_nullable,
+			%[1]s_array_array_array,
+			%[1]s_array_array_array_nullable
 		FROM test_%[1]s order by block_id`, tableName),
 			colRead,
 			colNullableRead,
 			colArrayRead,
 			colNullableArrayRead,
+			colArrayArrayRead,
+			colNullableArrayArrayRead,
+			colArrayArrayArrayRead,
+			colNullableArrayArrayArrayRead,
 		)
 	}
 
@@ -649,6 +744,10 @@ func testColumn[T column.BaseType](
 	var colNullableData []*T
 	var colArrayData [][]T
 	var colArrayNullableData [][]*T
+	var colArrayArrayData [][][]T
+	var colArrayArrayNullableData [][][]*T
+	var colArrayArrayArrayData [][][][]T
+	var colArrayArrayArrayNullableData [][][][]*T
 	var colLCData []T
 	var colLCDataWithKeys []T
 	var dictData []T
@@ -662,6 +761,10 @@ func testColumn[T column.BaseType](
 		colNullableData = colNullableRead.ReadP(colNullableData)
 		colArrayData = colArrayRead.Read(colArrayData)
 		colArrayNullableData = colNullableArrayRead.ReadP(colArrayNullableData)
+		colArrayArrayData = colArrayArrayRead.Read(colArrayArrayData)
+		colArrayArrayNullableData = colNullableArrayArrayRead.ReadP(colArrayArrayNullableData)
+		colArrayArrayArrayData = colArrayArrayArrayRead.Read(colArrayArrayArrayData)
+		colArrayArrayArrayNullableData = colNullableArrayArrayArrayRead.ReadP(colArrayArrayArrayNullableData)
 		if isLC {
 			colLCData = colLCRead.Read(colLCData)
 			colLCNullableData = colLCNullableRead.ReadP(colLCNullableData)
@@ -682,6 +785,10 @@ func testColumn[T column.BaseType](
 	assert.Equal(t, colNullableInsert, colNullableData)
 	assert.Equal(t, colArrayInsert, colArrayData)
 	assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+	assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
+	assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
+	assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
+	assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
 	if isLC {
 		assert.Equal(t, colLCInsert, colLCData)
 		assert.Equal(t, colLCInsert, colLCDataWithKeys)
@@ -695,6 +802,10 @@ func testColumn[T column.BaseType](
 	colNullableRead = column.New[T]().Nullable()
 	colArrayRead = column.New[T]().Array()
 	colNullableArrayRead = column.New[T]().Nullable().Array()
+	colArrayArrayRead = column.New[T]().Array().Array()
+	colNullableArrayArrayRead = column.New[T]().Nullable().Array().Array()
+	colArrayArrayArrayRead = column.New[T]().Array().Array().Array()
+	colNullableArrayArrayArrayRead = column.New[T]().Nullable().Array().Array().Array()
 	colLCRead = column.New[T]().LowCardinality()
 	colLCNullableRead = column.New[T]().LowCardinality().Nullable()
 	colArrayLCRead = column.New[T]().LowCardinality().Array()
@@ -705,6 +816,10 @@ func testColumn[T column.BaseType](
 			%[1]s_nullable,
 			%[1]s_array,
 			%[1]s_array_nullable,
+			%[1]s_array_array,
+			%[1]s_array_array_nullable,
+			%[1]s_array_array_array,
+			%[1]s_array_array_array_nullable,
 			%[1]s_lc,
 			%[1]s_nullable_lc,
 			%[1]s_array_lc,
@@ -714,6 +829,10 @@ func testColumn[T column.BaseType](
 			colNullableRead,
 			colArrayRead,
 			colNullableArrayRead,
+			colArrayArrayRead,
+			colNullableArrayArrayRead,
+			colArrayArrayArrayRead,
+			colNullableArrayArrayArrayRead,
 			colLCRead,
 			colLCNullableRead,
 			colArrayLCRead,
@@ -724,12 +843,20 @@ func testColumn[T column.BaseType](
 				%[1]s,
 				%[1]s_nullable,
 				%[1]s_array,
-				%[1]s_array_nullable
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable
 			FROM test_%[1]s order by block_id`, tableName),
 			colRead,
 			colNullableRead,
 			colArrayRead,
 			colNullableArrayRead,
+			colArrayArrayRead,
+			colNullableArrayArrayRead,
+			colArrayArrayArrayRead,
+			colNullableArrayArrayArrayRead,
 		)
 	}
 
@@ -740,6 +867,10 @@ func testColumn[T column.BaseType](
 	colNullableData = colNullableData[:0]
 	colArrayData = colArrayData[:0]
 	colArrayNullableData = colArrayNullableData[:0]
+	colArrayArrayData = colArrayArrayData[:0]
+	colArrayArrayNullableData = colArrayArrayNullableData[:0]
+	colArrayArrayArrayData = colArrayArrayArrayData[:0]
+	colArrayArrayArrayNullableData = colArrayArrayArrayNullableData[:0]
 	colLCData = colLCData[:0]
 	colLCNullableData = colLCNullableData[:0]
 	colLCArrayData = colLCArrayData[:0]
@@ -751,6 +882,10 @@ func testColumn[T column.BaseType](
 			colNullableData = append(colNullableData, colNullableRead.RowP(i))
 			colArrayData = append(colArrayData, colArrayRead.Row(i))
 			colArrayNullableData = append(colArrayNullableData, colNullableArrayRead.RowP(i))
+			colArrayArrayData = append(colArrayArrayData, colArrayArrayRead.Row(i))
+			colArrayArrayNullableData = append(colArrayArrayNullableData, colNullableArrayArrayRead.RowP(i))
+			colArrayArrayArrayData = append(colArrayArrayArrayData, colArrayArrayArrayRead.Row(i))
+			colArrayArrayArrayNullableData = append(colArrayArrayArrayNullableData, colNullableArrayArrayArrayRead.RowP(i))
 			if isLC {
 				colLCData = append(colLCData, colLCRead.Row(i))
 				colLCNullableData = append(colLCNullableData, colLCNullableRead.RowP(i))
@@ -765,6 +900,10 @@ func testColumn[T column.BaseType](
 	assert.Equal(t, colNullableInsert, colNullableData)
 	assert.Equal(t, colArrayInsert, colArrayData)
 	assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+	assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
+	assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
+	assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
+	assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
 	if isLC {
 		assert.Equal(t, colLCInsert, colLCData)
 		assert.Equal(t, colLCNullableInsert, colLCNullableData)
@@ -779,6 +918,10 @@ func testColumn[T column.BaseType](
 		%[1]s_nullable,
 		%[1]s_array,
 		%[1]s_array_nullable,
+		%[1]s_array_array,
+		%[1]s_array_array_nullable,
+		%[1]s_array_array_array,
+		%[1]s_array_array_array_nullable,
 		%[1]s_lc,
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
@@ -790,7 +933,11 @@ func testColumn[T column.BaseType](
 				%[1]s,
 				%[1]s_nullable,
 				%[1]s_array,
-				%[1]s_array_nullable
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable
 			FROM test_%[1]s order by block_id`, tableName),
 		)
 	}
@@ -800,37 +947,54 @@ func testColumn[T column.BaseType](
 	colNullableData = colNullableData[:0]
 	colArrayData = colArrayData[:0]
 	colArrayNullableData = colArrayNullableData[:0]
+	colArrayArrayData = colArrayArrayData[:0]
+	colArrayArrayNullableData = colArrayArrayNullableData[:0]
+	colArrayArrayArrayData = colArrayArrayArrayData[:0]
+	colArrayArrayArrayNullableData = colArrayArrayArrayNullableData[:0]
 	colLCData = colLCData[:0]
 	colLCNullableData = colLCNullableData[:0]
 	colLCArrayData = colLCArrayData[:0]
 	colLCNullableArrayData = colLCNullableArrayData[:0]
 	if isLC {
-		assert.Len(t, autoColumns, 8)
+		assert.Len(t, autoColumns, 12)
 		if tableName == "bool" {
-			assert.Equal(t, column.New[uint8]().ColumnType(), autoColumns[0].ColumnType())
-			assert.Equal(t, column.New[uint8]().Nullable().ColumnType(), autoColumns[1].ColumnType())
-			assert.Equal(t, column.New[uint8]().Array().ColumnType(), autoColumns[2].ColumnType())
-			assert.Equal(t, column.New[uint8]().Nullable().Array().ColumnType(), autoColumns[3].ColumnType())
-			assert.Equal(t, column.New[uint8]().LowCardinality().ColumnType(), autoColumns[4].ColumnType())
-			assert.Equal(t, column.New[uint8]().LowCardinality().Nullable().ColumnType(), autoColumns[5].ColumnType())
-			assert.Equal(t, column.New[uint8]().LowCardinality().Array().ColumnType(), autoColumns[6].ColumnType())
-			assert.Equal(t, column.New[uint8]().LowCardinality().Nullable().Array().ColumnType(), autoColumns[7].ColumnType())
+			fmt.Println(column.New[uint8]().FullType())
+			assert.Equal(t, fmt.Sprintf("%s ", "bool")+column.New[uint8]().FullType(), autoColumns[0].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_nullable ", "bool")+column.New[uint8]().Nullable().FullType(), autoColumns[1].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array ", "bool")+column.New[uint8]().Array().FullType(), autoColumns[2].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().FullType(), autoColumns[3].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_array ", "bool")+column.New[uint8]().Array().Array().FullType(), autoColumns[4].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().FullType(), autoColumns[5].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_array_array ", "bool")+column.New[uint8]().Array().Array().Array().FullType(), autoColumns[6].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().Array().FullType(), autoColumns[7].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_lc ", "bool")+column.New[uint8]().LowCardinality().FullType(), autoColumns[8].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_nullable_lc ", "bool")+column.New[uint8]().LowCardinality().Nullable().FullType(), autoColumns[9].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_lc ", "bool")+column.New[uint8]().LowCardinality().Array().FullType(), autoColumns[10].FullType())
+			assert.Equal(t, fmt.Sprintf("%s_array_lc_nullable ", "bool")+column.New[uint8]().LowCardinality().Nullable().Array().FullType(), autoColumns[11].FullType())
 		} else {
-			assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-			assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-			assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-			assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-			assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-			assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-			assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-			assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+			assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+			assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+			assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+			assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+			assert.Equal(t, colArrayArrayRead.FullType(), autoColumns[4].FullType())
+			assert.Equal(t, colNullableArrayArrayRead.FullType(), autoColumns[5].FullType())
+			assert.Equal(t, colArrayArrayArrayRead.FullType(), autoColumns[6].FullType())
+			assert.Equal(t, colNullableArrayArrayArrayRead.FullType(), autoColumns[7].FullType())
+			assert.Equal(t, colLCRead.FullType(), autoColumns[8].FullType())
+			assert.Equal(t, colLCNullableRead.FullType(), autoColumns[9].FullType())
+			assert.Equal(t, colArrayLCRead.FullType(), autoColumns[10].FullType())
+			assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[11].FullType())
 		}
 	} else {
-		assert.Len(t, autoColumns, 4)
-		assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-		assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-		assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-		assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
+		assert.Len(t, autoColumns, 8)
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+		assert.Equal(t, colArrayArrayRead.FullType(), autoColumns[4].FullType())
+		assert.Equal(t, colNullableArrayArrayRead.FullType(), autoColumns[5].FullType())
+		assert.Equal(t, colArrayArrayArrayRead.FullType(), autoColumns[6].FullType())
+		assert.Equal(t, colNullableArrayArrayArrayRead.FullType(), autoColumns[7].FullType())
 	}
 	rows := selectStmt.Rows()
 
@@ -839,6 +1003,10 @@ func testColumn[T column.BaseType](
 		var colNullableVal *T
 		var colArrayVal []T
 		var colArrayNullableVal []*T
+		var colArrayArrayVal [][]T
+		var colArrayArrayNullableVal [][]*T
+		var colArrayArrayArrayVal [][][]T
+		var colArrayArrayArrayNullableVal [][][]*T
 		var colLCVal T
 		var colLCNullableVal *T
 		var colLCArrayVal []T
@@ -849,6 +1017,10 @@ func testColumn[T column.BaseType](
 				&colNullableVal,
 				&colArrayVal,
 				&colArrayNullableVal,
+				&colArrayArrayVal,
+				&colArrayArrayNullableVal,
+				&colArrayArrayArrayVal,
+				&colArrayArrayArrayNullableVal,
 				&colLCVal,
 				&colLCNullableVal,
 				&colLCArrayVal,
@@ -861,6 +1033,10 @@ func testColumn[T column.BaseType](
 				&colNullableVal,
 				&colArrayVal,
 				&colArrayNullableVal,
+				&colArrayArrayVal,
+				&colArrayArrayNullableVal,
+				&colArrayArrayArrayVal,
+				&colArrayArrayArrayNullableVal,
 			)
 			require.NoError(t, err)
 		}
@@ -869,6 +1045,10 @@ func testColumn[T column.BaseType](
 		colNullableData = append(colNullableData, colNullableVal)
 		colArrayData = append(colArrayData, colArrayVal)
 		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+		colArrayArrayData = append(colArrayArrayData, colArrayArrayVal)
+		colArrayArrayNullableData = append(colArrayArrayNullableData, colArrayArrayNullableVal)
+		colArrayArrayArrayData = append(colArrayArrayArrayData, colArrayArrayArrayVal)
+		colArrayArrayArrayNullableData = append(colArrayArrayArrayNullableData, colArrayArrayArrayNullableVal)
 		colLCData = append(colLCData, colLCVal)
 		colLCNullableData = append(colLCNullableData, colLCNullableVal)
 		colLCArrayData = append(colLCArrayData, colLCArrayVal)
@@ -880,6 +1060,10 @@ func testColumn[T column.BaseType](
 		assert.Equal(t, colNullableInsert, colNullableData)
 		assert.Equal(t, colArrayInsert, colArrayData)
 		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+		assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
+		assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
+		assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
+		assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
 		assert.Equal(t, colLCInsert, colLCData)
 		assert.Equal(t, colLCNullableInsert, colLCNullableData)
 		assert.Equal(t, colLCArrayInsert, colLCArrayData)
@@ -889,6 +1073,10 @@ func testColumn[T column.BaseType](
 		assert.Equal(t, colNullableInsert, colNullableData)
 		assert.Equal(t, colArrayInsert, colArrayData)
 		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+		assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
+		assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
+		assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
+		assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
 	}
 
 	selectStmt.Close()
@@ -1005,38 +1193,29 @@ func TestEmptyCollection(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, conn.IsBusy())
 
-	colArrayData = colArrayData[:0]
-	colArrayNullableData = colArrayNullableData[:0]
-	colLCArrayData = colLCArrayData[:0]
-	colLCNullableArrayData = colLCNullableArrayData[:0]
-
 	rows := selectStmt.Rows()
+	assert.True(t, rows.Next())
+	var colArrayVal []uint16
+	var colArrayNullableVal []*uint16
+	var colLCArrayVal []uint16
+	var colLCNullableArrayVal []*uint16
 
-	for rows.Next() {
-		var colArrayVal []uint16
-		var colArrayNullableVal []*uint16
-		var colLCArrayVal []uint16
-		var colLCNullableArrayVal []*uint16
+	err = rows.Scan(
+		&colArrayVal,
+		&colArrayNullableVal,
+		&colLCArrayVal,
+		&colLCNullableArrayVal,
+	)
+	require.NoError(t, err)
 
-		err := rows.Scan(
-			&colArrayVal,
-			&colArrayNullableVal,
-			&colLCArrayVal,
-			&colLCNullableArrayVal,
-		)
-		require.NoError(t, err)
-
-		colArrayData = append(colArrayData, colArrayVal)
-		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
-
-		colLCArrayData = append(colLCArrayData, colLCArrayVal)
-		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
-	}
+	var colArrayResult []uint16
+	var colArrayNullableResult []*uint16
+	var colArrayLCResult []uint16
+	var colArrayLCNullableResult []*uint16
+	assert.Equal(t, colArrayResult, colArrayVal)
+	assert.Equal(t, colArrayNullableResult, colArrayNullableVal)
+	assert.Equal(t, colArrayLCResult, colLCArrayVal)
+	assert.Equal(t, colArrayLCNullableResult, colLCNullableArrayVal)
 
 	require.NoError(t, selectStmt.Err())
-
-	assert.Equal(t, [][]uint16{{}}, colArrayData)
-	assert.Equal(t, [][]*uint16{{}}, colArrayNullableData)
-	assert.Equal(t, [][]uint16{{}}, colLCArrayData)
-	assert.Equal(t, [][]*uint16{{}}, colLCNullableArrayData)
 }

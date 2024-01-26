@@ -126,9 +126,9 @@ func (c *Tuple5[T, T1, T2, T3, T4, T5]) Row(row int) T {
 	})
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Tuple5[T, T1, T2, T3, T4, T5]) RowI(row int) any {
+func (c *Tuple5[T, T1, T2, T3, T4, T5]) RowAny(row int) any {
 	return c.Row(row)
 }
 

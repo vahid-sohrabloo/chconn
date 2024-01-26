@@ -1,5 +1,7 @@
 package column
 
+import "reflect"
+
 // LowCardinalityNullable for LowCardinality(Nullable(T)) ClickHouse DataTypes
 type LowCardinalityNullable[T comparable] struct {
 	LowCardinality[T]
@@ -63,9 +65,9 @@ func (c *LowCardinalityNullable[T]) RowP(row int) *T {
 	return &val
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *LowCardinalityNullable[T]) RowI(row int) any {
+func (c *LowCardinalityNullable[T]) RowAny(row int) any {
 	return c.RowP(row)
 }
 
@@ -74,6 +76,13 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 		return nil
 	}
 	return c.dictColumn.Scan(c.readedKeys[row], dest)
+}
+
+func (c *LowCardinalityNullable[T]) ScanValue(row int, dest reflect.Value) error {
+	if c.readedKeys[row] == 0 {
+		return nil
+	}
+	return c.dictColumn.ScanValue(c.readedKeys[row], dest)
 }
 
 // Append value for insert

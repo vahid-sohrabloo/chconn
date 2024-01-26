@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"unsafe"
 
@@ -28,21 +29,22 @@ func NewNothingNullable(dataColumn *Nothing) *NothingNullable {
 
 // Data get all the data in current block as a slice.
 //
-// NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
-func (c *NothingNullable) Data() []int8 {
+// NOTE: it always return slice of zero value of NothingData
+func (c *NothingNullable) Data() []NothingData {
 	return c.dataColumn.Data()
 }
 
 // Data get all the nullable  data in current block as a slice of pointer.
 //
-// As an alternative (for better performance).
-// You can use `Data` and one of `RowIsNil` and `ReadNil` and `DataNil`  to detect if value is null or not.
-func (c *NothingNullable) DataP() []*int8 {
-	return make([]*int8, c.numRow)
+// NOTE: it always return slice of nil
+func (c *NothingNullable) DataP() []*NothingData {
+	return make([]*NothingData, c.numRow)
 }
 
 // Read reads all the data in current block and append to the input.
-func (c *NothingNullable) Read(value []int8) []int8 {
+//
+// NOTE: it always append zero value of NothingData
+func (c *NothingNullable) Read(value []NothingData) []NothingData {
 	return c.dataColumn.Read(value)
 }
 
@@ -50,32 +52,34 @@ func (c *NothingNullable) Read(value []int8) []int8 {
 //
 // As an alternative (for better performance), You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`
 // to detect if value is null or not.
-func (c *NothingNullable) ReadP(value []*int8) []*int8 {
-	return value
+func (c *NothingNullable) ReadP(value []*NothingData) []*NothingData {
+	return append(value, make([]*NothingData, c.numRow)...)
 }
 
 // Append value for insert
-func (c *NothingNullable) Row(i int) int8 {
+func (c *NothingNullable) Row(i int) NothingData {
 	return c.dataColumn.Row(i)
 }
 
 // Append value for insert
-func (c *NothingNullable) RowI(i int) any {
+func (c *NothingNullable) RowAny(i int) any {
 	return c.RowP(i)
 }
 
 func (c *NothingNullable) Scan(row int, dest any) error {
-	if c.RowIsNil(row) {
-		return nil
-	}
-	return c.dataColumn.Scan(row, dest)
+	return nil
+}
+
+func (c *NothingNullable) ScanValue(row int, dest reflect.Value) error {
+	return nil
 }
 
 // RowP return the value of given row for nullable data
+//
 // NOTE: Row number start from zero
 //
-// As an alternative (for better performance), you can use `Row()` to get a value and `RowIsNil()` to check if it is null.
-func (c *NothingNullable) RowP(row int) *int8 {
+// NOTE: it always return nil
+func (c *NothingNullable) RowP(row int) *NothingData {
 	return nil
 }
 
@@ -97,13 +101,13 @@ func (c *NothingNullable) RowIsNil(row int) bool {
 // Append value for insert
 //
 // Should not use this method. NothingNullable column is only for select query
-func (c *NothingNullable) Append(v int8) {
+func (c *NothingNullable) Append(v NothingData) {
 }
 
 // AppendMulti value for insert
 //
 // Should not use this method. NothingNullable column is only for select query
-func (c *NothingNullable) AppendMulti(v ...int8) {
+func (c *NothingNullable) AppendMulti(v ...NothingData) {
 }
 
 // Remove inserted value from index
@@ -117,7 +121,7 @@ func (c *NothingNullable) Remove(n int) {
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
 //
 // Should not use this method. NothingNullable column is only for select query
-func (c *NothingNullable) AppendP(v *int8) {
+func (c *NothingNullable) AppendP(v *NothingData) {
 }
 
 // AppendMultiP nullable value for insert
@@ -125,15 +129,13 @@ func (c *NothingNullable) AppendP(v *int8) {
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
 //
 // Should not use this method. NothingNullable column is only for select query
-func (c *NothingNullable) AppendMultiP(v ...*int8) {
+func (c *NothingNullable) AppendMultiP(v ...*NothingData) {
 }
 
 // Append nil value for insert
 //
 // Should not use this method. NothingNullable column is only for select query
 func (c *NothingNullable) AppendNil() {
-	c.writerData = append(c.writerData, 1)
-	c.dataColumn.appendEmpty()
 }
 
 // NumRow return number of row for this block
@@ -142,8 +144,8 @@ func (c *NothingNullable) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *NothingNullable) Array() *ArrayNullable[int8] {
-	return NewArrayNullable[int8](c)
+func (c *NothingNullable) Array() *ArrayNullable[NothingData] {
+	return NewArrayNullable[NothingData](c)
 }
 
 // Reset all statuses and buffered data
@@ -160,13 +162,9 @@ func (c *NothingNullable) Reset() {
 }
 
 // SetWriteBufferSize set write buffer (number of rows)
-// this buffer only used for writing.
-// By setting this buffer, you will avoid allocating the memory several times.
+//
+// NOTE: Should not use this method. NothingNullable column is only for select query
 func (c *NothingNullable) SetWriteBufferSize(row int) {
-	if cap(c.writerData) < row {
-		c.writerData = make([]byte, 0, row)
-	}
-	c.dataColumn.SetWriteBufferSize(row)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
@@ -210,32 +208,26 @@ func (c *NothingNullable) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType: string(c.chType),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
 	if c.dataColumn.Validate() != nil {
 		return ErrInvalidType{
-			column: c,
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *NothingNullable) ColumnType() string {
-	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.ColumnType())
+func (c *NothingNullable) structType() string {
+	return strings.ReplaceAll(helper.NullableTypeStr, "<type>", c.dataColumn.structType())
 }
 
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *NothingNullable) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(c.writerData)
-	if err != nil {
-		return int64(n), fmt.Errorf("write nullable data: %w", err)
-	}
-
-	nw, err := c.dataColumn.WriteTo(w)
-	return nw + int64(n), err
+	return 0, fmt.Errorf("NothingNullable column is only for select query")
 }
 
 // HeaderWriter writes header data to writer
@@ -251,5 +243,9 @@ func (c *NothingNullable) elem(arrayLevel int) ColumnBasic {
 }
 
 func (c *NothingNullable) FullType() string {
-	return "Nullable(" + c.dataColumn.FullType() + ")"
+	if len(c.name) == 0 {
+		return "Nullable(" + c.dataColumn.FullType() + ")"
+	}
+	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
+
 }

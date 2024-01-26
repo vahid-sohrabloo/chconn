@@ -632,7 +632,7 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 		"insert into clickhouse_test_insert_column_error_l_validate (col) VALUES",
 		col,
 	)
-	require.EqualError(t, err, "mismatch column type: ClickHouse Type: LowCardinality(String), column types: String")
+	require.EqualError(t, err, "invalid type: expected clickhouse type 'LowCardinality(String)' for struct type 'String'")
 	assert.True(t, c.IsClosed())
 }
 

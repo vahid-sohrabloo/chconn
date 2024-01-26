@@ -90,9 +90,9 @@ func (c *Tuple2[T, T1, T2]) Row(row int) T {
 	})
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Tuple2[T, T1, T2]) RowI(row int) any {
+func (c *Tuple2[T, T1, T2]) RowAny(row int) any {
 	return c.Row(row)
 }
 

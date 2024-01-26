@@ -110,6 +110,21 @@ func (c *Date[T]) Scan(row int, dest any) error {
 	}
 }
 
+func (c *Date[T]) ScanValue(row int, dest reflect.Value) error {
+	val := dest.Interface()
+	switch d := val.(type) {
+	case *time.Time:
+		*d = c.Row(row)
+		return nil
+	case **time.Time:
+		*d = new(time.Time)
+		**d = c.Row(row)
+		return nil
+	default:
+		return c.Base.ScanValue(row, dest)
+	}
+}
+
 // Data get all the data in current block as a slice.
 func (c *Date[T]) Data() []time.Time {
 	values := make([]time.Time, c.numRow)

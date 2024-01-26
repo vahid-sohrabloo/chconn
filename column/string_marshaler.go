@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -75,13 +76,26 @@ func (c *StringMarshaler[T]) Row(row int) T {
 	return *t.(*T)
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *StringMarshaler[T]) RowI(row int) any {
+func (c *StringMarshaler[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
 func (c *StringMarshaler[T]) Scan(row int, value any) error {
+	// TODO: implement
+	// switch d := value.(type) {
+	// case *string:
+	// 	*d = string(c.RowBytes(row))
+	// case *[]byte:
+	// 	*d = c.RowBytes(row)
+	// default:
+	// 	return fmt.Errorf("unsupported type %T", value)
+	// }
+	return nil
+}
+
+func (c *StringMarshaler[T]) ScanValue(row int, value reflect.Value) error {
 	// TODO: implement
 	// switch d := value.(type) {
 	// case *string:
@@ -238,13 +252,14 @@ func (c *StringMarshaler[T]) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsString(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *StringMarshaler[T]) ColumnType() string {
+func (c *StringMarshaler[T]) structType() string {
 	return helper.StringStr
 }
 

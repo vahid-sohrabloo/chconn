@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -328,14 +329,14 @@ func TestTuple(t *testing.T) {
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+	assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+	assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+	assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+	assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+	assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+	assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+	assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+	assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 	rows := selectStmt.Rows()
 	var colData []interface{}
 	var colNullableData []interface{}
@@ -446,6 +447,93 @@ func TestTuple(t *testing.T) {
 
 func TestTupleNoColumn(t *testing.T) {
 	assert.Panics(t, func() { column.NewTuple() })
+}
+
+func TestTupleScan(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	tupleColString := column.NewString()
+	tupleColVal1 := column.New[int64]()
+	tupleColVal2 := column.New[int64]()
+	tupleColInside := column.NewTuple(tupleColVal1, tupleColVal2)
+	tupleCol := column.NewTuple(tupleColString, tupleColInside)
+
+	stmt, err := conn.Select(context.Background(), `SELECT tuple('test',tuple(toInt64(1),toInt64(2)))`, tupleCol)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+	type tupleData struct {
+		Col1 string           `db:"0"`
+		Col2 map[string]int64 `db:"1"`
+	}
+	mapData := make(map[string]any)
+	structData := tupleData{}
+	for stmt.Next() {
+		for i := 0; i < stmt.RowsInBlock(); i++ {
+			require.NoError(t, tupleCol.Scan(i, &mapData))
+			require.NoError(t, tupleCol.Scan(i, &structData))
+
+		}
+	}
+
+	assert.Equal(t, map[string]any{
+		"0": "test",
+		"1": []any{
+			int64(1),
+			int64(2),
+		},
+	}, mapData)
+
+	assert.Equal(t, tupleData{
+		Col1: "test",
+		Col2: map[string]int64{
+			"0": int64(1),
+			"1": int64(2),
+		},
+	}, structData)
+
+}
+
+func TestTupleArrayScan(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	rows, err := conn.Query(ctx, "SELECT [tuple(1,2),tuple(3,4)] AS arr")
+	require.NoError(t, err)
+	defer rows.Close()
+	assert.True(t, rows.Next())
+	require.NoError(t, rows.Err())
+	var arr []map[string]int64
+	err = rows.Scan(&arr)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]int64{
+		{
+			"0": int64(1),
+			"1": int64(2),
+		},
+		{
+			"0": int64(3),
+			"1": int64(4),
+		},
+	}, arr)
+
+	var invalidArr int64
+	err = rows.Scan(&invalidArr)
+	assert.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+
+	var invalidArrInside []int64
+	err = rows.Scan(&invalidArrInside)
+	assert.Equal(t, "can't scan into dest[0]: cannot scan array item 0: tuple: scan: unsupported type int64", err.Error())
+
 }
 
 func TestGeo(t *testing.T) {

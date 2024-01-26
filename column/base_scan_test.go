@@ -14,48 +14,89 @@ import (
 )
 
 func TestScanUint8(t *testing.T) {
-	testColumnScan(t, "toUInt8(number)")
+	testColumnScan(t, "toUInt8(number)", true, nil)
 }
 
 func TestScanInt8(t *testing.T) {
-	testColumnScan(t, "toInt8(number)")
+	testColumnScan(t, "toInt8(number)", true, nil)
 }
 
 func TestScanUint16(t *testing.T) {
-	testColumnScan(t, "toUInt16(number)")
+	testColumnScan(t, "toUInt16(number)", true, nil)
 }
 
 func TestScanInt16(t *testing.T) {
-	testColumnScan(t, "toInt16(number)")
+	testColumnScan(t, "toInt16(number)", true, nil)
 }
 
 func TestScanUint32(t *testing.T) {
-	testColumnScan(t, "toUInt32(number)")
+	testColumnScan(t, "toUInt32(number)", true, nil)
 }
 
 func TestScanInt32(t *testing.T) {
-	testColumnScan(t, "toInt32(number)")
+	testColumnScan(t, "toInt32(number)", true, nil)
 }
 
 func TestScanUint64(t *testing.T) {
-	testColumnScan(t, "toUInt64(number)")
+	testColumnScan(t, "toUInt64(number)", true, nil)
 }
 
 func TestScanInt64(t *testing.T) {
-	testColumnScan(t, "toInt64(number)")
+	testColumnScan(t, "toInt64(number)", true, nil)
 }
 
 func TestScanFloat32(t *testing.T) {
-	testColumnScan(t, "toFloat32(number)")
+	testColumnScan(t, "toFloat32(number)", true, nil)
 }
 
 func TestScanFloat64(t *testing.T) {
-	testColumnScan(t, "toFloat64(number)")
+	testColumnScan(t, "toFloat64(number)", true, nil)
 }
 
+func TestScanInt128(t *testing.T) {
+	testColumnScan(t, "toInt128(number)", false, nil)
+}
+
+func TestScanInt256(t *testing.T) {
+	testColumnScan(t, "toInt256(number)", false, nil)
+}
+
+func TestScanUint128(t *testing.T) {
+	testColumnScan(t, "toUInt128(number)", false, nil)
+}
+
+func TestScanUint256(t *testing.T) {
+	testColumnScan(t, "toUInt256(number)", false, nil)
+}
+
+func TestScanDecimal32(t *testing.T) {
+	testColumnScan(t, "toDecimal32(number, 3)", true, func(i int) string {
+		return strconv.Itoa(int(i)) + ".000"
+	})
+}
+
+func TestScanDecimal64(t *testing.T) {
+	testColumnScan(t, "toDecimal64(number, 3)", true, func(i int) string {
+		return strconv.Itoa(int(i)) + ".000"
+	})
+}
+
+func TestScanDecimal128(t *testing.T) {
+	testColumnScan(t, "toDecimal128(number, 3)", false, func(i int) string {
+		return strconv.Itoa(int(i)) + ".000"
+	})
+}
+
+func TestScanDecimal256(t *testing.T) {
+	testColumnScan(t, "toDecimal256(number, 3)", false, func(i int) string {
+		return strconv.Itoa(int(i)) + ".000"
+	})
+}
 func testColumnScan(
 	t *testing.T,
 	toType string,
+	testAny bool,
+	strFunc func(int) string,
 ) {
 	t.Parallel()
 
@@ -81,11 +122,23 @@ func testColumnScan(
 		testScanEqual[int64](t, rows, int64(i))
 		testScanEqual[float32](t, rows, float32(i))
 		testScanEqual[float64](t, rows, float64(i))
-		testScanEqual[string](t, rows, strconv.Itoa(int(i)))
-		testScanEqual[types.Decimal32](t, rows, types.Decimal32(i))
-		testScanEqual[types.Decimal64](t, rows, types.Decimal64(i))
-		testScanEqual[types.Decimal128](t, rows, types.Decimal128(types.Int128From64(i)))
-		// testScanEqual[bool](t, rows, bool(i))
+		testScanEqual[types.Int128](t, rows, types.Int128(types.Int128From64(i)))
+		testScanEqual[types.Int256](t, rows, types.Int256(types.Int256From64(i)))
+		testScanEqual[types.Uint128](t, rows, types.Uint128(types.Uint128From64(uint64(i))))
+		testScanEqual[types.Uint256](t, rows, types.Uint256(types.Uint256From64(uint64(i))))
+		str := strconv.Itoa(int(i))
+		if strFunc != nil {
+			str = strFunc(int(i))
+		}
+		testScanEqual[string](t, rows, str)
+		testScanEqual[*string](t, rows, &str)
+		testScanEqual[bool](t, rows, i > 0)
+		if testAny {
+			var varAny any
+			err := rows.Scan(&varAny)
+			assert.NoError(t, err)
+			assert.EqualValues(t, i, varAny)
+		}
 		i++
 	}
 	require.NoError(t, rows.Err())

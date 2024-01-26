@@ -71,9 +71,9 @@ func (c *Map[K, V]) Row(row int) map[K]V {
 	return val
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Map[K, V]) RowI(row int) any {
+func (c *Map[K, V]) RowAny(row int) any {
 	return c.Row(row)
 }
 

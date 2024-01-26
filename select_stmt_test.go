@@ -71,7 +71,7 @@ func TestSelectError(t *testing.T) {
 	for res.Next() {
 	}
 	assert.False(t, res.Next())
-	require.EqualError(t, res.Err(), "read 1 column(s), but available 2 column(s)")
+	require.EqualError(t, res.Err(), "read 1 column(s) but 2 column(s) available")
 	assert.True(t, c.IsClosed())
 }
 
@@ -355,7 +355,7 @@ func TestSelectProgressError(t *testing.T) {
 	}
 }
 
-func TestGetFixedColumnType(t *testing.T) {
+func TestGetFixedstructType(t *testing.T) {
 	tests := []struct {
 		name string
 		len  int

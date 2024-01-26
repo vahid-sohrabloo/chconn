@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -83,9 +84,9 @@ func (c *StringBase[T]) Row(row int) T {
 	return T(c.RowBytes(row))
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *StringBase[T]) RowI(row int) any {
+func (c *StringBase[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
@@ -95,10 +96,35 @@ func (c *StringBase[T]) Scan(row int, value any) error {
 		*d = string(c.Row(row))
 	case *[]byte:
 		*d = c.RowBytes(row)
+	case *any:
+		*d = c.Row(row)
 	default:
 		return fmt.Errorf("cannot scan text into %T", value)
 	}
 	return nil
+}
+
+func (c *StringBase[T]) ScanValue(row int, value reflect.Value) error {
+	if value.Kind() != reflect.Ptr {
+		return fmt.Errorf("scan dest should be a pointer")
+	}
+	v := value.Elem()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(string(c.Row(row)))
+		return nil
+	case reflect.Slice:
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			v.SetBytes(c.RowBytes(row))
+			return nil
+		}
+	case reflect.Interface:
+		if value.NumMethod() == 0 {
+			v.Set(reflect.ValueOf(c.Row(row)))
+			return nil
+		}
+	}
+	return fmt.Errorf("cannot scan text into %s", v.Type().String())
 }
 
 // Row return the value of given row.
@@ -258,13 +284,14 @@ func (c *StringBase[T]) Validate() error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsString(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *StringBase[T]) ColumnType() string {
+func (c *StringBase[T]) structType() string {
 	return helper.StringStr
 }
 

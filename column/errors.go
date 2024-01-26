@@ -1,17 +1,12 @@
 package column
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type ErrInvalidType struct {
-	column     ColumnBasic
-	ColumnType string
+	chType     string
+	structType string
 }
 
 func (e ErrInvalidType) Error() string {
-	return fmt.Sprintf("mismatch column type: ClickHouse Type: %s, column types: %s",
-		string(e.column.Type()),
-		e.column.ColumnType(),
-	)
+	return fmt.Sprintf("invalid type: expected clickhouse type '%s' for struct type '%s'", e.chType, e.structType)
 }

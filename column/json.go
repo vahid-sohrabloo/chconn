@@ -2,6 +2,7 @@ package column
 
 import (
 	"io"
+	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
@@ -64,12 +65,17 @@ func (c *JSONString) Validate() error {
 }
 
 // todo
-func (c *JSONString) RowI(row int) any {
+func (c *JSONString) RowAny(row int) any {
 	return nil
 }
 
 // todo
 func (c *JSONString) Scan(row int, dest any) error {
+	return nil
+}
+
+// todo
+func (c *JSONString) ScanValue(row int, dest reflect.Value) error {
 	return nil
 }
 
@@ -122,7 +128,7 @@ func (c *JSONString) WriteTo(w io.Writer) (int64, error) {
 	return nw, nil
 }
 
-func (c *JSONString) ColumnType() string {
+func (c *JSONString) structType() string {
 	return "Object('JSON')"
 }
 

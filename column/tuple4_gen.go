@@ -114,9 +114,9 @@ func (c *Tuple4[T, T1, T2, T3, T4]) Row(row int) T {
 	})
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Tuple4[T, T1, T2, T3, T4]) RowI(row int) any {
+func (c *Tuple4[T, T1, T2, T3, T4]) RowAny(row int) any {
 	return c.Row(row)
 }
 

@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -20,10 +21,11 @@ type ColumnBasic interface {
 	SetName(v []byte)
 	Name() []byte
 	Validate() error
-	ColumnType() string
+	structType() string
 	SetWriteBufferSize(int)
-	RowI(int) any
+	RowAny(int) any
 	Scan(row int, dest any) error
+	ScanValue(row int, dest reflect.Value) error
 	FullType() string
 	Remove(n int)
 }

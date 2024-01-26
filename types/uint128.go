@@ -3,6 +3,7 @@ package types
 import (
 	"math"
 	"math/big"
+	"strconv"
 )
 
 // Note, Zero and Max are functions just to make read-only values.
@@ -100,4 +101,13 @@ func (u Uint128) Int128() Int128 {
 
 func (u Uint128) Uint64() uint64 {
 	return u.Lo
+}
+
+func (u Uint128) String() string {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.FormatUint(u.Lo, 10)
+	}
+
+	return u.Big().String()
 }

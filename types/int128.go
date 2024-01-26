@@ -3,6 +3,7 @@ package types
 import (
 	"math"
 	"math/big"
+	"strconv"
 )
 
 // Note, Zero and Max are functions just to make read-only values.
@@ -22,7 +23,7 @@ func Int128Max() Int128 {
 	}
 }
 
-// Int128 is an unsigned 128-bit number.
+// Int128 is an signed 128-bit number.
 // All methods are immutable, works just like standard uint64.
 type Int128 struct {
 	Lo uint64 // lower 64-bit half
@@ -117,4 +118,12 @@ func (u Int128) Uint128() Uint128 {
 
 func (u Int128) Uint64() uint64 {
 	return u.Lo
+}
+
+func (u Int128) String() string {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.FormatUint(u.Lo, 10)
+	}
+	return u.Big().String()
 }

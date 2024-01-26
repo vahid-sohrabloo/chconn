@@ -88,7 +88,7 @@ func (c *MapBase) Remove(n int) {
 	c.valueColumn.Remove(int(offset))
 }
 
-func (c *MapBase) RowI(row int) any {
+func (c *MapBase) RowAny(row int) any {
 	var lastOffset uint64
 	if row != 0 {
 		lastOffset = c.offsetColumn.Row(row - 1)
@@ -99,22 +99,26 @@ func (c *MapBase) RowI(row int) any {
 		if val == nil {
 			val = make(map[any]any)
 		}
-		val[c.keyColumn.RowI(int(i))] = c.valueColumn.RowI(int(i))
+		val[c.keyColumn.RowAny(int(i))] = c.valueColumn.RowAny(int(i))
 	}
 	return val
 }
 
 func (c *MapBase) Scan(row int, dest any) error {
 	val := reflect.ValueOf(dest)
-	if val.Kind() != reflect.Ptr {
+	return c.ScanValue(row, val)
+}
+
+func (c *MapBase) ScanValue(row int, dest reflect.Value) error {
+	if dest.Kind() != reflect.Ptr {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
-	if val.Elem().Kind() == reflect.Map {
-		return c.scanMap(row, val)
+	if dest.Elem().Kind() == reflect.Map {
+		return c.scanMap(row, dest)
 	}
 
-	if val.Elem().Kind() == reflect.Slice && val.Elem().Type().Elem().Kind() == reflect.Struct {
-		return c.scanStruct(row, val)
+	if dest.Elem().Kind() == reflect.Slice && dest.Elem().Type().Elem().Kind() == reflect.Struct {
+		return c.scanStruct(row, dest)
 	}
 
 	return fmt.Errorf("scan dest should be a pointer of map or slice of struct")
@@ -130,7 +134,7 @@ func (c *MapBase) scanMap(row int, val reflect.Value) error {
 		val.Elem().Set(reflect.MakeMap(val.Elem().Type()))
 	}
 	for i := lastOffset; i < endOffset; i++ {
-		val.Elem().SetMapIndex(reflect.ValueOf(c.keyColumn.RowI(int(i))), reflect.ValueOf(c.valueColumn.RowI(int(i))))
+		val.Elem().SetMapIndex(reflect.ValueOf(c.keyColumn.RowAny(int(i))), reflect.ValueOf(c.valueColumn.RowAny(int(i))))
 	}
 	return nil
 }
@@ -257,7 +261,8 @@ func (c *MapBase) Validate() error {
 
 	if !helper.IsMap(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	columnsMap, err := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
@@ -277,21 +282,23 @@ func (c *MapBase) Validate() error {
 
 	if c.keyColumn.Validate() != nil {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	if c.valueColumn.Validate() != nil {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *MapBase) ColumnType() string {
+func (c *MapBase) structType() string {
 	return strings.ReplaceAll(
-		strings.ReplaceAll(helper.MapTypeStr, "<key>", c.keyColumn.ColumnType()),
-		"<value>", c.valueColumn.ColumnType())
+		strings.ReplaceAll(helper.MapTypeStr, "<key>", c.keyColumn.structType()),
+		"<value>", c.valueColumn.structType())
 }
 
 // WriteTo write data to ClickHouse.

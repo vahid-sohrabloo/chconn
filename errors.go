@@ -293,7 +293,7 @@ type ColumnNumberReadError struct {
 }
 
 func (e *ColumnNumberReadError) Error() string {
-	return fmt.Sprintf("read %d column(s), but available %d column(s)", e.Read, e.Available)
+	return fmt.Sprintf("read %d column(s) but %d column(s) available", e.Read, e.Available)
 }
 
 // ColumnNumberWriteError represents an error when number of write column is not equal to number of query column

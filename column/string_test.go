@@ -250,14 +250,14 @@ func TestString(t *testing.T) {
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+	assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+	assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+	assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+	assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+	assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+	assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+	assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+	assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 
 	for selectStmt.Next() {
 	}

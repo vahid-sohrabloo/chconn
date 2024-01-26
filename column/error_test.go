@@ -1078,145 +1078,145 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "1 byte invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int8|UInt8|Enum8",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Int8|UInt8|Enum8'",
 			column:         column.New[int8](),
 		},
 		{
 			name:           "2 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int16|UInt16|Enum16|Date",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Int16|UInt16|Enum16|Date'",
 			column:         column.New[int16](),
 		},
 		{
 			name:           "4 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4'",
 			column:         column.New[int32](),
 		},
 		{
 			name:           "8 bytes invalid",
 			columnSelector: "toInt32(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Int32, column types: Int64|UInt64|Float64|Decimal64|DateTime64",
+			wantErr:        "invalid type: expected clickhouse type 'Int32' for struct type 'Int64|UInt64|Float64|Decimal64|DateTime64'",
 			column:         column.New[int64](),
 		},
 		{
 			name:           "16 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int128|UInt128|Decimal128|IPv6|UUID",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Int128|UInt128|Decimal128|IPv6|UUID'",
 			column:         column.New[types.Int128](),
 		},
 		{
 			name:           "32 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int256|UInt256|Decimal256",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Int256|UInt256|Decimal256'",
 			column:         column.New[types.Int256](),
 		},
 		{
 			name:           "string invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: String",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'String'",
 			column:         column.NewString(),
 		},
 		{
 			name:           "fixed string invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: T(20 bytes size)",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'T(20 bytes size)'",
 			column:         column.New[[20]byte](),
 		},
 		{
 			name:           "fixed string invalid size",
 			columnSelector: "toFixedString(toString(number),2)",
-			wantErr:        "mismatch column type: ClickHouse Type: FixedString(2), column types: T(20 bytes size)",
+			wantErr:        "invalid type: expected clickhouse type 'FixedString(2)' for struct type 'T(20 bytes size)'",
 			column:         column.New[[20]byte](),
 		},
 		{
 			name:           "invalid nullable",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Nullable(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Nullable(Int64|UInt64|Float64|Decimal64|DateTime64)'",
 			column:         column.New[int64]().Nullable(),
 		},
 		{
 			name:           "invalid nullable inside",
 			columnSelector: "toNullable(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Nullable(UInt64), column types: Nullable(Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'Nullable(UInt64)' for struct type 'Nullable(Int8|UInt8|Enum8)'",
 			column:         column.New[int8]().Nullable(),
 		},
 		{
 			name:           "invalid LowCardinality",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)'",
 			column:         column.New[int64]().LC(),
 		},
 		{
 			name:           "invalid LowCardinality inside",
 			columnSelector: "toLowCardinality(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: LowCardinality(UInt64), column types: LowCardinality(Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'LowCardinality(UInt64)' for struct type 'LowCardinality(Int8|UInt8|Enum8)'",
 			column:         column.New[int8]().LC(),
 		},
 		{
 			name:           "invalid nullable LowCardinality",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			wantErr: "invalid type: expected clickhouse type 'UInt64' for struct type '" +
+				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))'",
 			column: column.New[int64]().LC().Nullable(),
 		},
 		{
 			name:           "invalid nullable LowCardinality inside",
 			columnSelector: "toLowCardinality(toNullable(number))",
-			wantErr: "mismatch column type: ClickHouse Type: LowCardinality(Nullable(UInt64)), column types: " +
-				"LowCardinality(Int8|UInt8|Enum8)",
+			wantErr: "invalid type: expected clickhouse type 'LowCardinality(Nullable(UInt64))' for struct type '" +
+				"LowCardinality(Int8|UInt8|Enum8)'",
 
 			column: column.New[int8]().LC(),
 		},
 		{
 			name:           "invalid array",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Array(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Array(Int64|UInt64|Float64|Decimal64|DateTime64)'",
 			column:         column.New[int64]().Array(),
 		},
 		{
 			name:           "invalid array inside",
 			columnSelector: "array(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'Array(UInt64)' for struct type 'Array(Int8|UInt8|Enum8)'",
 			column:         column.New[int8]().Array(),
 		},
 		{
 			name:           "invalid array nullable",
 			columnSelector: "array(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Nullable(Int8|UInt8|Enum8))",
+			wantErr:        "invalid type: expected clickhouse type 'Array(UInt64)' for struct type 'Array(Nullable(Int8|UInt8|Enum8))'",
 			column:         column.New[int8]().Nullable().Array(),
 		},
 		{
 			name:           "invalid map",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)'",
 			column:         column.NewMap[int8, int8](column.New[int8](), column.New[int8]()),
 		},
 		{
 			name:           "invalid map key",
 			columnSelector: "map(number,number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'Map(UInt64, UInt64)' for struct type 'Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)'",
 			column:         column.NewMap[int8, int8](column.New[int8](), column.New[int8]()),
 		},
 		{
 			name:           "invalid map value",
 			columnSelector: "map(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: " +
-				"Map(Int64|UInt64|Float64|Decimal64|DateTime64, Int8|UInt8|Enum8)",
+			wantErr: "invalid type: expected clickhouse type 'Map(UInt64, UInt64)' for struct type '" +
+				"Map(Int64|UInt64|Float64|Decimal64|DateTime64, Int8|UInt8|Enum8)'",
 			column: column.NewMap[int64, int8](column.New[int64](), column.New[int8]()),
 		},
 		{
 			name:           "invalid tuple",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
+			wantErr: "invalid type: expected clickhouse type 'UInt64' for struct type '" +
+				"Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)'",
 
 			column: column.NewTuple(column.New[int64](), column.New[int8]()),
 		},
 		{
 			name:           "invalid tuple inside",
 			columnSelector: "tuple(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Tuple(UInt64), column types: Tuple(Int8|UInt8|Enum8)",
+			wantErr:        "invalid type: expected clickhouse type 'Tuple(UInt64)' for struct type 'Tuple(Int8|UInt8|Enum8)'",
 			column:         column.NewTuple(column.New[int8]()),
 		},
 		{
@@ -1228,54 +1228,61 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "date time with timezone",
 			columnSelector: "toDateTime('2010-01-01', 'America/New_York') + number",
-			wantErr: "mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: " +
-				"Int64|UInt64|Float64|Decimal64|DateTime64",
+			wantErr: "invalid type: expected clickhouse type 'DateTime('America/New_York')' for struct type '" +
+				"Int64|UInt64|Float64|Decimal64|DateTime64'",
 
 			column: column.New[uint64](),
 		},
 		{
 			name:           "date time 64 with timezone",
 			columnSelector: "toDateTime64('2010-01-01', 3, 'America/New_York') + number",
-			wantErr: "mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: " +
-				"Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
+			wantErr: "invalid type: expected clickhouse type 'DateTime64(3, 'America/New_York')' for struct type '" +
+				"Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4'",
 
 			column: column.New[uint32](),
 		},
 		{
 			name:           "Decimal",
 			columnSelector: "toDecimal32(number,3)",
-			wantErr:        "mismatch column type: ClickHouse Type: Decimal(9, 3), column types: Int64|UInt64|Float64|Decimal64|DateTime64",
+			wantErr:        "invalid type: expected clickhouse type 'Decimal(9, 3)' for struct type 'Int64|UInt64|Float64|Decimal64|DateTime64'",
 			column:         column.New[uint64](),
 		},
 		{
 			name:           "Array2",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))'",
 			column:         column.New[uint64]().Array().Array(),
 		},
 		{
 			name:           "Array2 inside",
 			columnSelector: "array(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types:" +
-				" Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			wantErr: "invalid type: expected clickhouse type 'Array(UInt64)' " +
+				"for struct type 'Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))'",
 
 			column: column.New[uint64]().Array().Array(),
 		},
 		{
 			name:           "Array3",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			wantErr: "invalid type: expected clickhouse type 'UInt64' for struct type '" +
+				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))'",
 
 			column: column.New[uint64]().Array().Array().Array(),
 		},
 		{
 			name:           "Array3 inside",
 			columnSelector: "array(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types: " +
-				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			wantErr: "invalid type: expected clickhouse type 'Array(UInt64)' for struct type '" +
+				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))'",
 
 			column: column.New[uint64]().Array().Array().Array(),
+		},
+		{
+			name:           "NothingNullable",
+			columnSelector: "NULL",
+			wantErr:        "invalid type: expected clickhouse type 'Nullable(Nothing)' for struct type 'Int64|UInt64|Float64|Decimal64|DateTime64'",
+
+			column: column.New[uint64](),
 		},
 	}
 	for _, tt := range tests {
@@ -1315,14 +1322,14 @@ func TestEnum8InvalidType(t *testing.T) {
 	m := column.New[int16]()
 	m.SetType([]byte("Enum8()"))
 	err := m.Validate()
-	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum8(), column types: Int16|UInt16|Enum16|Date")
+	assert.Equal(t, err.Error(), "invalid type: expected clickhouse type 'Enum8()' for struct type 'Int16|UInt16|Enum16|Date'")
 }
 func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
 	m.SetType([]byte("Enum16()"))
 	err := m.Validate()
-	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum16(), "+
-		"column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4")
+	assert.Equal(t, err.Error(), "invalid type: expected clickhouse type 'Enum16()' "+
+		"for struct type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4'")
 }
 
 func TestDecimalInvalidType(t *testing.T) {

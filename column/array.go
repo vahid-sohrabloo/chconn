@@ -66,21 +66,27 @@ func (c *Array[T]) Row(row int) []T {
 	return val
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Array[T]) RowI(row int) any {
+func (c *Array[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
-//nolint:dupl
 func (c *Array[T]) Scan(row int, dest any) error {
-	destValue := reflect.Indirect(reflect.ValueOf(dest))
+	err := c.ScanValue(row, reflect.ValueOf(dest))
+	return err
+}
+
+//nolint:dupl
+func (c *Array[T]) ScanValue(row int, dest reflect.Value) error {
+	destValue := reflect.Indirect(dest)
 	if destValue.Kind() != reflect.Slice {
-		return fmt.Errorf("column.ArrayBase.Scan: dest must be a pointer to slice")
+		return fmt.Errorf("dest must be a pointer to slice")
 	}
 
 	if destValue.Type().AssignableTo(reflect.TypeOf([]T{})) {
 		destValue.Set(reflect.ValueOf(c.Row(row)))
+		return nil
 	}
 
 	var lastOffset int
@@ -93,7 +99,7 @@ func (c *Array[T]) Scan(row int, dest any) error {
 	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
 		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
 		if err != nil {
-			return fmt.Errorf("column.ArrayBase.Scan: %w", err)
+			return fmt.Errorf("cannot scan array item %d: %w", i, err)
 		}
 	}
 	destValue.Set(rSlice)

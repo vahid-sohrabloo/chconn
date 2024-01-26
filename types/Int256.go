@@ -117,3 +117,7 @@ func (u Int256) Uint256() Uint256 {
 func (u Int256) Uint64() uint64 {
 	return u.Lo.Uint64()
 }
+
+func (u Int256) String() string {
+	return u.Big().String()
+}

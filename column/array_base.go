@@ -52,7 +52,7 @@ func (c *ArrayBase) Remove(n int) {
 	c.dataColumn.Remove(int(offset))
 }
 
-func (c *ArrayBase) RowI(row int) any {
+func (c *ArrayBase) RowAny(row int) any {
 	var lastOffset uint64
 	if row != 0 {
 		lastOffset = c.offsetColumn.Row(row - 1)
@@ -60,13 +60,41 @@ func (c *ArrayBase) RowI(row int) any {
 	var val []any
 	endOffset := c.offsetColumn.Row(row)
 	for i := lastOffset; i < endOffset; i++ {
-		val = append(val, c.dataColumn.RowI(int(i)))
+		val = append(val, c.dataColumn.RowAny(int(i)))
 	}
 	return val
 }
 
 func (c *ArrayBase) Scan(row int, dest any) error {
-	reflect.ValueOf(dest).Elem().Set(reflect.ValueOf(c.RowI(row)))
+	return c.ScanValue(row, reflect.ValueOf(dest))
+}
+
+func (c *ArrayBase) ScanValue(row int, dest reflect.Value) error {
+	destValue := reflect.Indirect(dest)
+	if destValue.Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be a pointer to slice")
+	}
+	rowVal := reflect.ValueOf(c.RowAny(row))
+	if destValue.Type().AssignableTo(rowVal.Type()) {
+		destValue.Set(rowVal)
+		return nil
+	}
+
+	var lastOffset int
+	if row != 0 {
+		lastOffset = int(c.offsetColumn.Row(row - 1))
+	}
+	offset := int(c.offsetColumn.Row(row))
+
+	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
+	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
+		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+		if err != nil {
+			return fmt.Errorf("cannot scan array item %d: %w", i, err)
+		}
+	}
+	destValue.Set(rSlice)
+
 	return nil
 }
 
@@ -168,20 +196,22 @@ func (c *ArrayBase) Validate() error {
 
 	if !helper.IsArray(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenArrayStr : len(chType)-1])
 	if c.dataColumn.Validate() != nil {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *ArrayBase) ColumnType() string {
-	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.ColumnType())
+func (c *ArrayBase) structType() string {
+	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.structType())
 }
 
 // WriteTo write data to ClickHouse.

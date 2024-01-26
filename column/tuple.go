@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -103,66 +104,109 @@ func (c *Tuple) Row(row int) any {
 	if c.isNamed {
 		ret := make(map[string]any, len(c.columns))
 		for _, col := range c.columns {
-			ret[string(col.Name())] = col.RowI(row)
+			ret[string(col.Name())] = col.RowAny(row)
 		}
 	}
 	ret := make([]any, len(c.columns))
 	for i, col := range c.columns {
-		ret[i] = col.RowI(row)
+		ret[i] = col.RowAny(row)
 	}
 	return ret
 }
 
-func (c *Tuple) RowI(row int) any {
+func (c *Tuple) RowAny(row int) any {
 	return c.Row(row)
 }
 
 func (c *Tuple) Scan(row int, dest any) error {
-	val := reflect.ValueOf(dest)
-	if val.Kind() != reflect.Ptr {
+	return c.ScanValue(row, reflect.ValueOf(dest))
+}
+
+func (c *Tuple) ScanValue(row int, dest reflect.Value) error {
+	if dest.Kind() != reflect.Ptr {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
-	switch val.Elem().Kind() {
+	switch dest.Elem().Kind() {
 	case reflect.Struct:
-		return c.scanStruct(row, val)
+		return c.scanStruct(row, dest)
 	case reflect.Map:
-		if !c.isNamed {
-			return fmt.Errorf("tuple: scan: map should be named")
-		}
-		return c.scanMap(row, val)
+		return c.scanMap(row, dest)
 	case reflect.Slice:
-		return c.scanSlice(row, val)
+		return c.scanSlice(row, dest)
+	case reflect.Interface:
+		if dest.NumMethod() == 0 {
+			dest.Elem().Set(reflect.ValueOf(c.RowAny(row)))
+			return nil
+		}
+		return fmt.Errorf("tuple: scan: unsupported type %s", dest.Elem().Kind())
 	default:
-		return fmt.Errorf("tuple: scan: unsupported type %s", val.Elem().Kind())
+		return fmt.Errorf("tuple: scan: unsupported type %s", dest.Elem().Kind())
 	}
 }
 
 func (c *Tuple) scanMap(row int, val reflect.Value) error {
-	if val.Type().Key().Kind() != reflect.String {
+	if val.Elem().Type().Key().Kind() != reflect.String {
 		return fmt.Errorf("tuple: scan: map key should be string")
 	}
-	for _, col := range c.columns {
+	if val.Elem().IsNil() {
+		val.Elem().Set(reflect.MakeMapWithSize(val.Elem().Type(), len(c.columns)))
+	}
+	for i, col := range c.columns {
 		colName := string(col.Name())
-		val.Elem().SetMapIndex(reflect.ValueOf(colName), reflect.ValueOf(col.RowI(row)))
+		if colName == "" {
+			colName = strconv.Itoa(i)
+		}
+		index := reflect.ValueOf(colName)
+
+		// Check if the key exists in the map
+		mapIndexValue := val.Elem().MapIndex(index)
+
+		// If the key does not exist, create a new value of the appropriate type
+		if !mapIndexValue.IsValid() {
+			mapIndexValue = reflect.New(val.Elem().Type().Elem()).Elem()
+		}
+		if colTuple, ok := col.(*Tuple); ok {
+			err := colTuple.ScanValue(row, mapIndexValue.Addr())
+			if err != nil {
+				return fmt.Errorf("tuple: scan %s: %w", colName, err)
+			}
+		} else {
+			err := col.Scan(row, mapIndexValue.Addr().Interface())
+
+			if err != nil {
+				return fmt.Errorf("tuple: scan %s: %w", colName, err)
+			}
+		}
+
+		// Set the new or existing value in the map
+		val.Elem().SetMapIndex(index, mapIndexValue)
 	}
 	return nil
 }
 
 func (c *Tuple) scanStruct(row int, val reflect.Value) error {
-	for _, col := range c.columns {
+	for i, col := range c.columns {
 		colName := string(col.Name())
+		if colName == "" {
+			colName = strconv.Itoa(i)
+		}
 		sField, ok := getStructFieldValue(val.Elem(), colName)
 		if !ok {
 			continue
 		}
-		sField.Set(reflect.ValueOf(col.RowI(row)))
+
+		err := col.ScanValue(row, sField.Addr())
+		if err != nil {
+			return fmt.Errorf("tuple: scan %s: %w", colName, err)
+		}
+
 	}
 	return nil
 }
 
 func (c *Tuple) scanSlice(row int, val reflect.Value) error {
 	for _, col := range c.columns {
-		val.Elem().Set(reflect.Append(val.Elem(), reflect.ValueOf(col.RowI(row))))
+		val.Elem().Set(reflect.Append(val.Elem(), reflect.ValueOf(col.RowAny(row))))
 	}
 	return nil
 }
@@ -170,7 +214,7 @@ func (c *Tuple) scanSlice(row int, val reflect.Value) error {
 func getStructFieldValue(field reflect.Value, name string) (reflect.Value, bool) {
 	tField := field.Type()
 	for i := 0; i < tField.NumField(); i++ {
-		if tag := tField.Field(i).Tag.Get("chname"); tag == name {
+		if tag := tField.Field(i).Tag.Get("db"); tag == name {
 			return field.Field(i), true
 		}
 		if tag := tField.Field(i).Tag.Get("json"); tag == name {
@@ -198,7 +242,8 @@ func (c *Tuple) Validate() error {
 
 	if !helper.IsTuple(chType) {
 		return ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			structType: c.structType(),
 		}
 	}
 
@@ -224,17 +269,18 @@ func (c *Tuple) Validate() error {
 		col.SetName(columnsTuple[i].Name)
 		if col.Validate() != nil {
 			return ErrInvalidType{
-				column: c,
+				chType:     string(c.chType),
+				structType: c.structType(),
 			}
 		}
 	}
 	return nil
 }
 
-func (c *Tuple) ColumnType() string {
+func (c *Tuple) structType() string {
 	str := helper.TupleStr
 	for _, col := range c.columns {
-		str += col.ColumnType() + ","
+		str += col.structType() + ","
 	}
 	return str[:len(str)-1] + ")"
 }

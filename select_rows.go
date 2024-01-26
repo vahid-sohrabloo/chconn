@@ -192,7 +192,7 @@ func (r *baseRows) Values() []any {
 	columns := r.selectStmt.Columns()
 	values := make([]any, len(columns))
 	for i, c := range columns {
-		values[i] = c.RowI(r.currentRow)
+		values[i] = c.RowAny(r.currentRow)
 	}
 	return values
 }
@@ -387,7 +387,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	*rs = make(mapRowScanner, len(columns))
 
 	for _, c := range columns {
-		(*rs)[string(c.Name())] = c.RowI(rows.CurrentRow())
+		(*rs)[string(c.Name())] = c.RowAny(rows.CurrentRow())
 	}
 
 	return nil

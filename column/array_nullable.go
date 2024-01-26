@@ -7,9 +7,13 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
+type arrayAlias[T any] struct {
+	Array[T]
+}
+
 // Array is a column of Array(Nullable(T)) ClickHouse data type
 type ArrayNullable[T any] struct {
-	Array[T]
+	arrayAlias[T]
 	dataColumn NullableColumn[T]
 	columnData []*T
 }
@@ -18,10 +22,12 @@ type ArrayNullable[T any] struct {
 func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
 	a := &ArrayNullable[T]{
 		dataColumn: dataColumn,
-		Array: Array[T]{
-			ArrayBase: ArrayBase{
-				dataColumn:   dataColumn,
-				offsetColumn: New[uint64](),
+		arrayAlias: arrayAlias[T]{
+			Array: Array[T]{
+				ArrayBase: ArrayBase{
+					dataColumn:   dataColumn,
+					offsetColumn: New[uint64](),
+				},
 			},
 		},
 	}
@@ -66,21 +72,27 @@ func (c *ArrayNullable[T]) RowP(row int) []*T {
 	return val
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *ArrayNullable[T]) RowI(row int) any {
+func (c *ArrayNullable[T]) RowAny(row int) any {
 	return c.RowP(row)
 }
 
 //nolint:dupl
 func (c *ArrayNullable[T]) Scan(row int, dest any) error {
-	destValue := reflect.Indirect(reflect.ValueOf(dest))
+	return c.ScanValue(row, reflect.ValueOf(dest))
+}
+
+//nolint:dupl
+func (c *ArrayNullable[T]) ScanValue(row int, dest reflect.Value) error {
+	destValue := reflect.Indirect(dest)
 	if destValue.Kind() != reflect.Slice {
-		return fmt.Errorf("column.ArrayBase.Scan: dest must be a pointer to slice")
+		return fmt.Errorf("dest must be a pointer to slice")
 	}
 
-	if destValue.Type().AssignableTo(reflect.TypeOf([]T{})) {
-		destValue.Set(reflect.ValueOf(c.Row(row)))
+	if destValue.Type().AssignableTo(reflect.TypeOf([]*T{})) {
+		destValue.Set(reflect.ValueOf(c.RowP(row)))
+		return nil
 	}
 
 	var lastOffset int
@@ -92,7 +104,7 @@ func (c *ArrayNullable[T]) Scan(row int, dest any) error {
 	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
 		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
 		if err != nil {
-			return fmt.Errorf("column.ArrayBase.Scan: %w", err)
+			return fmt.Errorf("cannot scan array item %d: %w", i, err)
 		}
 	}
 	destValue.Set(rSlice)
@@ -127,13 +139,13 @@ func (c *ArrayNullable[T]) AppendItemP(v *T) {
 }
 
 // ArrayOf return a Array type for this column
-func (c *ArrayNullable[T]) ArrayOf() *Array2Nullable[T] {
+func (c *ArrayNullable[T]) Array() *Array2Nullable[T] {
 	return NewArray2Nullable(c)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
 func (c *ArrayNullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.Array.ReadRaw(num, r)
+	err := c.arrayAlias.Array.ReadRaw(num, r)
 	if err != nil {
 		return err
 	}
@@ -150,7 +162,7 @@ func (c *ArrayNullable[T]) getColumnData() []*T {
 
 func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnBasic {
 	if arrayLevel > 0 {
-		return c.ArrayOf().elem(arrayLevel - 1)
+		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
 }

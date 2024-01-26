@@ -6,15 +6,31 @@ import (
 
 type Date uint16
 
+func (d Date) GetCHType() string {
+	return "Date"
+}
+
 const minDate32 = int32(-25567) // 1900-01-01 00:00:00 +0000 UTC
 
 type Date32 int32
 
+func (d Date32) GetCHType() string {
+	return "Date32"
+}
+
 type DateTime uint32
+
+func (d DateTime) GetCHType() string {
+	return "DateTime"
+}
 
 const minDateTime64 = int64(-2208988800) // 1900-01-01 00:00:00 +0000 UTC
 
 type DateTime64 int64
+
+func (d DateTime64) GetCHType() string {
+	return "DateTime64"
+}
 
 const daySeconds = 24 * 60 * 60
 

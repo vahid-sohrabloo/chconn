@@ -47,9 +47,9 @@ func (c *Tuple1[T]) Row(row int) T {
 	return c.col1.Row(row)
 }
 
-// RowI return the value of given row.
+// RowAny return the value of given row.
 // NOTE: Row number start from zero
-func (c *Tuple1[T]) RowI(row int) any {
+func (c *Tuple1[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
