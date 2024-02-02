@@ -336,3 +336,23 @@ func (c *MapBase) FullType() string {
 	}
 	return string(c.name) + " Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
 }
+
+// ToJSON
+func (c *MapBase) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '{')
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		b = append(b, '"')
+		b = c.keyColumn.ToJSON(int(i), true, b)
+		b = append(b, '"', ':')
+		b = c.valueColumn.ToJSON(int(i), false, b)
+	}
+	return append(b, '}')
+}

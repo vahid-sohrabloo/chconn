@@ -135,3 +135,7 @@ func (c *JSONString) structType() string {
 func (c *JSONString) FullType() string {
 	return "Object('JSON')"
 }
+
+func (c *JSONString) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return nil
+}

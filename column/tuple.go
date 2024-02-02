@@ -13,8 +13,6 @@ import (
 type TupleStruct[T any] interface {
 	Column[T]
 	Array() *Array[T]
-	// TODO must complete
-	// Nullable() *Nullable[T]
 }
 
 // Tuple is a column of Tuple(T1,T2,.....,Tn) ClickHouse data type
@@ -199,7 +197,6 @@ func (c *Tuple) scanStruct(row int, val reflect.Value) error {
 		if err != nil {
 			return fmt.Errorf("tuple: scan %s: %w", colName, err)
 		}
-
 	}
 	return nil
 }
@@ -348,4 +345,36 @@ func (c *Tuple) FullType() string {
 		chType += col.FullType() + ", "
 	}
 	return chType[:len(chType)-2] + ")"
+}
+
+func (c *Tuple) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	if c.isNamed {
+		b = append(b, '{')
+	} else {
+		b = append(b, '[')
+	}
+
+	for i, col := range c.columns {
+		if c.isNamed {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = append(b, col.Name()...)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = append(b, ':')
+		}
+		b = col.ToJSON(row, ignoreDoubleQuotes, b)
+		if i < len(c.columns)-1 {
+			b = append(b, ',')
+		}
+	}
+
+	if c.isNamed {
+		b = append(b, '}')
+	} else {
+		b = append(b, ']')
+	}
+	return b
 }

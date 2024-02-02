@@ -1,12 +1,17 @@
 package column_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
+	"net/http"
 	"net/netip"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -14,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
@@ -82,7 +88,7 @@ func TestInt8(t *testing.T) {
 	testColumn(t, false, true, "Int8", "int8", func(i int) int8 {
 		return int8(i)
 	}, func(i int) int8 {
-		return int8(i + 1)
+		return int8(i * -1)
 	})
 }
 
@@ -90,7 +96,7 @@ func TestInt16(t *testing.T) {
 	testColumn(t, false, true, "Int16", "int16", func(i int) int16 {
 		return int16(i)
 	}, func(i int) int16 {
-		return int16(i + 1)
+		return int16(i * -1)
 	})
 }
 
@@ -98,7 +104,7 @@ func TestInt32(t *testing.T) {
 	testColumn(t, false, true, "Int32", "int32", func(i int) int32 {
 		return int32(i)
 	}, func(i int) int32 {
-		return int32(i + 1)
+		return int32(i * -1)
 	})
 }
 
@@ -106,7 +112,7 @@ func TestInt64(t *testing.T) {
 	testColumn(t, false, true, "Int64", "int64", func(i int) int64 {
 		return int64(i)
 	}, func(i int) int64 {
-		return int64(i + 1)
+		return int64(i * -1)
 	})
 }
 
@@ -142,7 +148,7 @@ func TestFloat32(t *testing.T) {
 	testColumn(t, false, true, "Float32", "float32", func(i int) float32 {
 		return float32(i)
 	}, func(i int) float32 {
-		return float32(i + 1)
+		return float32(i * -1)
 	})
 }
 
@@ -150,7 +156,7 @@ func TestFloat64(t *testing.T) {
 	testColumn(t, false, true, "Float64", "float64", func(i int) float64 {
 		return float64(i)
 	}, func(i int) float64 {
-		return float64(i + 1)
+		return float64(i * -1)
 	})
 }
 
@@ -158,14 +164,14 @@ func TestDecimal32(t *testing.T) {
 	testColumn(t, false, false, "Decimal32(3)", "decimal32", func(i int) types.Decimal32 {
 		return types.Decimal32(i)
 	}, func(i int) types.Decimal32 {
-		return types.Decimal32(i + 1)
+		return types.Decimal32(i * -1)
 	})
 }
 func TestDecimal64(t *testing.T) {
 	testColumn(t, false, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
 		return types.Decimal64(i)
 	}, func(i int) types.Decimal64 {
-		return types.Decimal64(i + 1)
+		return types.Decimal64(i * -1)
 	})
 }
 
@@ -173,7 +179,7 @@ func TestDecimal128(t *testing.T) {
 	testColumn(t, false, false, "Decimal128(3)", "decimal128", func(i int) types.Decimal128 {
 		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i))))
 	}, func(i int) types.Decimal128 {
-		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i + 1))))
+		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i * -1))))
 	})
 }
 
@@ -181,7 +187,7 @@ func TestDecimal256(t *testing.T) {
 	testColumn(t, false, false, "Decimal256(3)", "decimal256", func(i int) types.Decimal256 {
 		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i))))
 	}, func(i int) types.Decimal256 {
-		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i + 1))))
+		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i * -1))))
 	})
 }
 
@@ -556,7 +562,6 @@ func testColumn[T column.BaseType](
 				for _, d := range valArrayNil {
 					colNullableArray.AppendItemP(d)
 				}
-
 			}
 			colArrayInsert = append(colArrayInsert, valArray)
 			colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
@@ -686,9 +691,10 @@ func testColumn[T column.BaseType](
 	colLCNullableRead := column.New[T]().LC().Nullable()
 	colArrayLCRead := column.New[T]().LC().Array()
 	colArrayLCNullableRead := column.New[T]().LC().Nullable().Array()
-	var selectStmt chconn.SelectStmt
+
+	var selectQuery string
 	if isLC {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		selectQuery = fmt.Sprintf(`SELECT
 		%[1]s,
 		%[1]s_nullable,
 		%[1]s_array,
@@ -701,7 +707,22 @@ func testColumn[T column.BaseType](
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
 		%[1]s_array_lc_nullable
-	FROM test_%[1]s order by block_id`, tableName),
+	FROM test_%[1]s order by block_id`, tableName)
+	} else {
+		selectQuery = fmt.Sprintf(`SELECT
+			%[1]s,
+			%[1]s_nullable,
+			%[1]s_array,
+			%[1]s_array_nullable,
+			%[1]s_array_array,
+			%[1]s_array_array_nullable,
+			%[1]s_array_array_array,
+			%[1]s_array_array_array_nullable
+		FROM test_%[1]s order by block_id`, tableName)
+	}
+	var selectStmt chconn.SelectStmt
+	if isLC {
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -716,16 +737,7 @@ func testColumn[T column.BaseType](
 			colArrayLCNullableRead,
 		)
 	} else {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-			%[1]s,
-			%[1]s_nullable,
-			%[1]s_array,
-			%[1]s_array_nullable,
-			%[1]s_array_array,
-			%[1]s_array_array_nullable,
-			%[1]s_array_array_array,
-			%[1]s_array_array_array_nullable
-		FROM test_%[1]s order by block_id`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -811,20 +823,7 @@ func testColumn[T column.BaseType](
 	colArrayLCRead = column.New[T]().LowCardinality().Array()
 	colArrayLCNullableRead = column.New[T]().LowCardinality().Nullable().Array()
 	if isLC {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-			%[1]s,
-			%[1]s_nullable,
-			%[1]s_array,
-			%[1]s_array_nullable,
-			%[1]s_array_array,
-			%[1]s_array_array_nullable,
-			%[1]s_array_array_array,
-			%[1]s_array_array_array_nullable,
-			%[1]s_lc,
-			%[1]s_nullable_lc,
-			%[1]s_array_lc,
-			%[1]s_array_lc_nullable
-		FROM test_%[1]s order by block_id`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -839,16 +838,7 @@ func testColumn[T column.BaseType](
 			colArrayLCNullableRead,
 		)
 	} else {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-				%[1]s,
-				%[1]s_nullable,
-				%[1]s_array,
-				%[1]s_array_nullable,
-				%[1]s_array_array,
-				%[1]s_array_array_nullable,
-				%[1]s_array_array_array,
-				%[1]s_array_array_array_nullable
-			FROM test_%[1]s order by block_id`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -894,6 +884,7 @@ func testColumn[T column.BaseType](
 			}
 		}
 	}
+
 	require.NoError(t, selectStmt.Err())
 
 	assert.Equal(t, colInsert, colData)
@@ -912,35 +903,9 @@ func testColumn[T column.BaseType](
 	}
 
 	// check dynamic column
-	if isLC {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-		%[1]s,
-		%[1]s_nullable,
-		%[1]s_array,
-		%[1]s_array_nullable,
-		%[1]s_array_array,
-		%[1]s_array_array_nullable,
-		%[1]s_array_array_array,
-		%[1]s_array_array_array_nullable,
-		%[1]s_lc,
-		%[1]s_nullable_lc,
-		%[1]s_array_lc,
-		%[1]s_array_lc_nullable
-		FROM test_%[1]s order by block_id`, tableName),
-		)
-	} else {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-				%[1]s,
-				%[1]s_nullable,
-				%[1]s_array,
-				%[1]s_array_nullable,
-				%[1]s_array_array,
-				%[1]s_array_array_nullable,
-				%[1]s_array_array_array,
-				%[1]s_array_array_array_nullable
-			FROM test_%[1]s order by block_id`, tableName),
-		)
-	}
+
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
 	colData = colData[:0]
@@ -958,19 +923,28 @@ func testColumn[T column.BaseType](
 	if isLC {
 		assert.Len(t, autoColumns, 12)
 		if tableName == "bool" {
-			fmt.Println(column.New[uint8]().FullType())
 			assert.Equal(t, fmt.Sprintf("%s ", "bool")+column.New[uint8]().FullType(), autoColumns[0].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_nullable ", "bool")+column.New[uint8]().Nullable().FullType(), autoColumns[1].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_array ", "bool")+column.New[uint8]().Array().FullType(), autoColumns[2].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().FullType(), autoColumns[3].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_array_array ", "bool")+column.New[uint8]().Array().Array().FullType(), autoColumns[4].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().FullType(), autoColumns[5].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_array_array ", "bool")+column.New[uint8]().Array().Array().Array().FullType(), autoColumns[6].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().Array().FullType(), autoColumns[7].FullType())
+			assert.Equal(t,
+				fmt.Sprintf("%s_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().FullType(),
+				autoColumns[5].FullType())
+			assert.Equal(t,
+				fmt.Sprintf("%s_array_array_array ", "bool")+column.New[uint8]().Array().Array().Array().FullType(),
+				autoColumns[6].FullType())
+			assert.Equal(t,
+				fmt.Sprintf("%s_array_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().Array().FullType(),
+				autoColumns[7].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_lc ", "bool")+column.New[uint8]().LowCardinality().FullType(), autoColumns[8].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_nullable_lc ", "bool")+column.New[uint8]().LowCardinality().Nullable().FullType(), autoColumns[9].FullType())
+			assert.Equal(t,
+				fmt.Sprintf("%s_nullable_lc ", "bool")+column.New[uint8]().LowCardinality().Nullable().FullType(),
+				autoColumns[9].FullType())
 			assert.Equal(t, fmt.Sprintf("%s_array_lc ", "bool")+column.New[uint8]().LowCardinality().Array().FullType(), autoColumns[10].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_lc_nullable ", "bool")+column.New[uint8]().LowCardinality().Nullable().Array().FullType(), autoColumns[11].FullType())
+			assert.Equal(t,
+				fmt.Sprintf("%s_array_lc_nullable ", "bool")+column.New[uint8]().LowCardinality().Nullable().Array().FullType(),
+				autoColumns[11].FullType())
 		} else {
 			assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
 			assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
@@ -1080,6 +1054,86 @@ func testColumn[T column.BaseType](
 	}
 
 	selectStmt.Close()
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(selectQuery)
+
+	d := json.NewDecoder(strings.NewReader(strings.Join(chconnJSON, "\n")))
+	var valsChconn []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsChconn = append(valsChconn, v)
+	}
+
+	d = json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
+}
+
+func httpJSON(query string) []byte {
+	// URL of your ClickHouse server
+	url := os.Getenv("CHX_TEST_HTTP_CONN_STRING")
+	if url == "" {
+		url = "http://localhost:8123"
+	}
+
+	url += "?output_format_json_quote_decimals=1"
+
+	// Your ClickHouse query
+	query += " FORMAT JSONEachRow"
+
+	// Create a new HTTP request with the query
+	req, err := http.NewRequest("POST", url, bytes.NewBufferString(query))
+	if err != nil {
+		panic(err)
+	}
+
+	// Set appropriate headers (if needed, e.g., for authentication)
+	// req.Header.Set("X-Custom-Header", "my-value")
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	// The body contains the JSON response
+	return body
 }
 
 func TestEmptyCollection(t *testing.T) {

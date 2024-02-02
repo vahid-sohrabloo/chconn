@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// two bytes as the number of days since 1970-01-01 (unsigned).
 type Date uint16
 
 func (d Date) GetCHType() string {
@@ -50,6 +51,27 @@ func (d Date) ToTime(loc *time.Location, precision int) time.Time {
 	return time.Unix(d.Unix(), 0).UTC()
 }
 
+func (d Date) Append(b []byte, loc *time.Location, precision int) []byte {
+	year, month, day := d.ToTime(loc, precision).Date()
+	initialSize := len(b)
+	b = growSlice(b, len(b)+10)
+	dateByte := b[initialSize:]
+	_ = dateByte[9]
+
+	dateByte[0] = '0' + byte(year/1000%10)
+	dateByte[1] = '0' + byte(year/100%10)
+	dateByte[2] = '0' + byte(year/10%10)
+	dateByte[3] = '0' + byte(year%10)
+	dateByte[4] = '-'
+	dateByte[5] = '0' + byte(month/10)
+	dateByte[6] = '0' + byte(month%10)
+	dateByte[7] = '-'
+	dateByte[8] = '0' + byte(day/10)
+	dateByte[9] = '0' + byte(day%10)
+
+	return b
+}
+
 func (d Date) Unix() int64 {
 	return daySeconds * int64(d)
 }
@@ -64,6 +86,27 @@ func (d Date32) FromTime(v time.Time, precision int) Date32 {
 
 func (d Date32) ToTime(loc *time.Location, precision int) time.Time {
 	return time.Unix(d.Unix(), 0).UTC()
+}
+
+func (d Date32) Append(b []byte, loc *time.Location, precision int) []byte {
+	year, month, day := d.ToTime(loc, precision).Date()
+	initialSize := len(b)
+	b = growSlice(b, len(b)+10)
+	dateByte := b[initialSize:]
+	_ = dateByte[9]
+
+	dateByte[0] = '0' + byte(year/1000%10)
+	dateByte[1] = '0' + byte(year/100%10)
+	dateByte[2] = '0' + byte(year/10%10)
+	dateByte[3] = '0' + byte(year%10)
+	dateByte[4] = '-'
+	dateByte[5] = '0' + byte(month/10)
+	dateByte[6] = '0' + byte(month%10)
+	dateByte[7] = '-'
+	dateByte[8] = '0' + byte(day/10)
+	dateByte[9] = '0' + byte(day%10)
+
+	return b
 }
 
 func TimeToDate32(t time.Time) Date32 {
@@ -89,6 +132,11 @@ func (d DateTime) FromTime(v time.Time, precision int) DateTime {
 
 func (d DateTime) ToTime(loc *time.Location, precision int) time.Time {
 	return time.Unix(int64(d), 0).In(loc)
+}
+
+func (d DateTime) Append(b []byte, loc *time.Location, precision int) []byte {
+	// todo find optimized way like golang RFC3339
+	return d.ToTime(loc, precision).AppendFormat(b, "2006-01-02 15:04:05")
 }
 
 var precisionFactor = [...]int64{
@@ -121,4 +169,9 @@ func (d DateTime64) ToTime(loc *time.Location, precision int) time.Time {
 	}
 	nsec := int64(d) * precisionFactor[precision]
 	return time.Unix(nsec/1e9, nsec%1e9).In(loc)
+}
+
+func (d DateTime64) Append(b []byte, loc *time.Location, precision int) []byte {
+	// todo find optimized way like golang RFC3339
+	return d.ToTime(loc, precision).AppendFormat(b, "2006-01-02 15:04:05.000000000")
 }

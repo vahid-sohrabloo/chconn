@@ -331,3 +331,8 @@ func (c *StringBase[T]) FullType() string {
 	}
 	return string(c.name) + " String"
 }
+
+// ToJSON
+func (c *StringBase[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return helper.AppendJSONSting(b, ignoreDoubleQuotes, c.RowBytes(row))
+}

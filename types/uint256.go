@@ -64,10 +64,6 @@ func Uint256FromBigEx(i *big.Int) (Uint256, bool) {
 
 	bits := i.Bits()
 
-	if len(bits) > 4 {
-		return Uint256{}, false
-	}
-
 	var u Uint256
 
 	for idx, b := range bits {
@@ -120,5 +116,16 @@ func (u Uint256) Uint64() uint64 {
 }
 
 func (u Uint256) String() string {
+	if u.Hi.Zero() {
+		return u.Lo.String()
+	}
 	return u.Big().String()
+}
+
+func (u Uint256) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi.Zero() {
+		return u.Lo.Append(b)
+	}
+	return u.Big().Append(b, 10)
 }

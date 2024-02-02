@@ -28,14 +28,13 @@ type Int256 struct {
 	Hi Int128  // upper 128-bit half
 }
 
-// From128 converts 128-bit value v to a Int256 value.
-// Upper 128-bit half will be zero.
 func Int256From128(v Int128) Int256 {
 	var hi Int128
 	if v.Hi < 0 {
-		hi = Int128{Lo: 0, Hi: -1}
-		v = v.Neg()
+		// If v is negative, set all bits of hi to 1 for sign extension
+		hi = Int128{Lo: ^uint64(0), Hi: -1}
 	}
+	// No need to call v.Neg() because the sign extension is now handled correctly.
 	return Int256{Lo: Uint128{
 		Lo: v.Lo,
 		Hi: uint64(v.Hi),
@@ -103,6 +102,10 @@ func (u Int256) Equals(v Int256) bool {
 	return u.Lo.Equals(v.Lo) && u.Hi.Equals(v.Hi)
 }
 
+func (u Int256) Zero() bool {
+	return u.Hi.Zero() && u.Lo.Zero()
+}
+
 func (u Int256) Uint128() Uint128 {
 	return u.Lo
 }
@@ -119,5 +122,16 @@ func (u Int256) Uint64() uint64 {
 }
 
 func (u Int256) String() string {
+	if u.Hi.Zero() {
+		return u.Lo.String()
+	}
 	return u.Big().String()
+}
+
+func (u Int256) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi.Zero() {
+		return u.Lo.Append(b)
+	}
+	return u.Big().Append(b, 10)
 }

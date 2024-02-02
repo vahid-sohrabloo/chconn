@@ -121,3 +121,24 @@ func (c *Array3[T]) elem(arrayLevel int) ColumnBasic {
 	}
 	return c
 }
+
+func (c *Array3[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	first := true
+	for i := lastOffset; i < offset; i++ {
+		b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+
+		if !first {
+			b = append(b, ',')
+		} else {
+			first = false
+		}
+	}
+	return append(b, ']')
+}

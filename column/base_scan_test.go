@@ -70,27 +70,19 @@ func TestScanUint256(t *testing.T) {
 }
 
 func TestScanDecimal32(t *testing.T) {
-	testColumnScan(t, "toDecimal32(number, 3)", true, func(i int) string {
-		return strconv.Itoa(int(i)) + ".000"
-	})
+	testColumnScan(t, "toDecimal32(number, 3)", true, strconv.Itoa)
 }
 
 func TestScanDecimal64(t *testing.T) {
-	testColumnScan(t, "toDecimal64(number, 3)", true, func(i int) string {
-		return strconv.Itoa(int(i)) + ".000"
-	})
+	testColumnScan(t, "toDecimal64(number, 3)", true, strconv.Itoa)
 }
 
 func TestScanDecimal128(t *testing.T) {
-	testColumnScan(t, "toDecimal128(number, 3)", false, func(i int) string {
-		return strconv.Itoa(int(i)) + ".000"
-	})
+	testColumnScan(t, "toDecimal128(number, 3)", false, strconv.Itoa)
 }
 
 func TestScanDecimal256(t *testing.T) {
-	testColumnScan(t, "toDecimal256(number, 3)", false, func(i int) string {
-		return strconv.Itoa(int(i)) + ".000"
-	})
+	testColumnScan(t, "toDecimal256(number, 3)", false, strconv.Itoa)
 }
 func testColumnScan(
 	t *testing.T,
@@ -105,10 +97,10 @@ func testColumnScan(
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	selectSql := "SELECT " + toType + " from system.numbers limit 10"
+	selectSQL := "SELECT " + toType + " from system.numbers limit 10"
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	rows, err := conn.Query(ctx, selectSql)
+	rows, err := conn.Query(ctx, selectSQL)
 	require.NoError(t, err)
 	var i int64
 	for rows.Next() {
@@ -119,13 +111,13 @@ func testColumnScan(
 		testScanEqual[uint32](t, rows, uint32(i))
 		testScanEqual[int32](t, rows, int32(i))
 		testScanEqual[uint64](t, rows, uint64(i))
-		testScanEqual[int64](t, rows, int64(i))
+		testScanEqual[int64](t, rows, i)
 		testScanEqual[float32](t, rows, float32(i))
 		testScanEqual[float64](t, rows, float64(i))
-		testScanEqual[types.Int128](t, rows, types.Int128(types.Int128From64(i)))
-		testScanEqual[types.Int256](t, rows, types.Int256(types.Int256From64(i)))
-		testScanEqual[types.Uint128](t, rows, types.Uint128(types.Uint128From64(uint64(i))))
-		testScanEqual[types.Uint256](t, rows, types.Uint256(types.Uint256From64(uint64(i))))
+		testScanEqual[types.Int128](t, rows, types.Int128From64(i))
+		testScanEqual[types.Int256](t, rows, types.Int256From64(i))
+		testScanEqual[types.Uint128](t, rows, types.Uint128From64(uint64(i)))
+		testScanEqual[types.Uint256](t, rows, types.Uint256From64(uint64(i)))
 		str := strconv.Itoa(int(i))
 		if strFunc != nil {
 			str = strFunc(int(i))
@@ -142,7 +134,6 @@ func testColumnScan(
 		i++
 	}
 	require.NoError(t, rows.Err())
-
 }
 
 func testScanEqual[T any](t *testing.T, rows chconn.Rows, i T) {

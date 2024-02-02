@@ -71,6 +71,12 @@ func (c *LowCardinalityNullable[T]) RowAny(row int) any {
 	return c.RowP(row)
 }
 
+// RowIsNil return true if value of given row is null
+// NOTE: Row number start from zero
+func (c *LowCardinalityNullable[T]) RowIsNil(row int) bool {
+	return c.readedKeys[row] == 0
+}
+
 func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 	if c.readedKeys[row] == 0 {
 		return nil
@@ -180,4 +186,12 @@ func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	k := c.readedKeys[row]
+	if k == 0 {
+		return append(b, "null"...)
+	}
+	return c.dictColumn.ToJSON(k, ignoreDoubleQuotes, b)
 }

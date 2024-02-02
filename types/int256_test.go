@@ -8,7 +8,7 @@ import (
 )
 
 // TestUint256 unit tests for various Int256 helpers.
-func TestInt256(t *testing.T) {
+func TestInt256Big(t *testing.T) {
 	t.Run("FromBig", func(t *testing.T) {
 		if got := Int256FromBig(nil); !got.Equals(Int256Zero()) {
 			t.Fatalf("FromBig(nil) does not equal to 0, got %#x", got)
@@ -28,4 +28,38 @@ func TestInt256(t *testing.T) {
 		int256From64 := Int256From64(124)
 		assert.Equal(t, int256From64.Big().String(), "124")
 	})
+}
+
+func TestInt256(t *testing.T) {
+	d := Int256From64(12_234)
+	assert.Equal(t, "12234", string(d.Append([]byte{})))
+	assert.Equal(t, "12234", d.String())
+
+	d = Int256From64(12_234_567_890)
+	assert.Equal(t, "12234567890", string(d.Append([]byte{})))
+	assert.Equal(t, "12234567890", d.String())
+
+	d = Int256From64(-12_234)
+	assert.Equal(t, "-12234", string(d.Append([]byte{})))
+	assert.Equal(t, "-12234", d.String())
+
+	d = Int256From64(3)
+	assert.Equal(t, "3", string(d.Append([]byte{})))
+	assert.Equal(t, "3", d.String())
+
+	d = Int256From64(30)
+	assert.Equal(t, "30", string(d.Append([]byte{})))
+	assert.Equal(t, "30", d.String())
+
+	assert.Equal(t, uint64(30), d.Uint64())
+	assert.Equal(t, "30", d.Uint128().String())
+	assert.Equal(t, "30", d.Uint256().String())
+
+	d = Int256From64(-3)
+	assert.Equal(t, "-3", string(d.Append([]byte{})))
+	assert.Equal(t, "-3", d.String())
+
+	d = Int256From64(-30)
+	assert.Equal(t, "-30", string(d.Append([]byte{})))
+	assert.Equal(t, "-30", d.String())
 }

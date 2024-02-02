@@ -247,5 +247,8 @@ func (c *NothingNullable) FullType() string {
 		return "Nullable(" + c.dataColumn.FullType() + ")"
 	}
 	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
+}
 
+func (c *NothingNullable) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return append(b, "null"...)
 }

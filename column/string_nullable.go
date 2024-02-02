@@ -303,5 +303,11 @@ func (c *StringNullable[T]) FullType() string {
 		return "Nullable(" + c.dataColumn.FullType() + ")"
 	}
 	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
+}
 
+func (c *StringNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	if c.RowIsNil(row) {
+		return append(b, "null"...)
+	}
+	return c.dataColumn.ToJSON(row, ignoreDoubleQuotes, b)
 }

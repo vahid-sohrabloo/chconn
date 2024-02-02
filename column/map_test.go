@@ -1,8 +1,11 @@
 package column_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"testing"
@@ -11,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
 )
 
 func TestMapUint8(t *testing.T) {
@@ -711,19 +715,18 @@ func testMapColumn[V column.BaseType](
 	assert.Equal(t, colLCInsert, colLCData)
 	assert.Equal(t, colLCNullableInsert, colLCNullableData)
 	assert.Equal(t, colLCArrayInsert, colLCArrayData)
-
+	selectQuery := fmt.Sprintf(`SELECT
+	 %[1]s,
+	 %[1]s_nullable,
+	 %[1]s_array,
+	 %[1]s_array_nullable,
+	 %[1]s_lc,
+	 %[1]s_nullable_lc,
+	 %[1]s_array_lc,
+	 %[1]s_array_lc_nullable
+	 FROM test_map_%[1]s order by block_id`, tableName)
 	// check dynamic column
-	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-		%[1]s,
-		%[1]s_nullable,
-		%[1]s_array,
-		%[1]s_array_nullable,
-		%[1]s_lc,
-		%[1]s_nullable_lc,
-		%[1]s_array_lc,
-		%[1]s_array_lc_nullable
-		FROM test_map_%[1]s order by block_id`, tableName),
-	)
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
 
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
@@ -964,6 +967,46 @@ func testMapColumn[V column.BaseType](
 	assert.Equal(t, colLCNullableArrayInsertStruct, colLCNullableArrayDataStruct)
 
 	selectStmt.Close()
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(selectQuery)
+
+	var valsChconn []any
+	for index, j := range chconnJSON {
+		var v any
+		if err := json.Unmarshal([]byte(j), &v); err == io.EOF {
+			break
+		} else if err != nil {
+			require.NoError(t, err, "index %d", index)
+		}
+		valsChconn = append(valsChconn, v)
+	}
+
+	d := json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
 }
 
 func TestMapEmptyResult(t *testing.T) {

@@ -1,8 +1,8 @@
 package types
 
 import (
-	"fmt"
 	"math/big"
+	"strconv"
 )
 
 // Decimal32 represents a 32-bit decimal number.
@@ -55,49 +55,105 @@ func Decimal64FromFloat64(f float64, scale int) Decimal64 {
 }
 
 func (d Decimal32) String(scale int) string {
-	// Convert to string
-	strNum := fmt.Sprintf("%d", d)
+	if d == 0 {
+		return "0"
+	}
+	return string(d.Append(scale, []byte{}))
+}
 
-	// Ensure that the string is long enough to insert a decimal point
-	for len(strNum) <= scale {
-		if d < 0 {
-			// For negative numbers, pad after the negative sign
-			strNum = strNum[:1] + "0" + strNum[1:]
-		} else {
-			strNum = "0" + strNum
-		}
+func (d Decimal32) Append(scale int, b []byte) []byte {
+	if d == 0 {
+		return append(b, '0')
 	}
 
-	// Calculate the insertion point for the decimal
-	decimalInsertionPoint := len(strNum) - scale
+	initialLen := len(b)
 
-	// Insert the decimal point
-	result := strNum[:decimalInsertionPoint] + "." + strNum[decimalInsertionPoint:]
+	// Reduce scale and d while the least significant digit is zero
+	for d%10 == 0 && scale > 0 {
+		scale--
+		d /= 10
+	}
 
-	return result
+	// Append the integer part of d to b
+	b = strconv.AppendInt(b, int64(d), 10)
+
+	return fixDecimalPoint(b, initialLen, scale, d < 0)
 }
 
 func (d Decimal64) String(scale int) string {
-	// Convert to string
-	strNum := fmt.Sprintf("%d", d)
+	if d == 0 {
+		return "0"
+	}
+	return string(d.Append(scale, []byte{}))
+}
 
-	// Ensure that the string is long enough to insert a decimal point
-	for len(strNum) <= scale {
-		if d < 0 {
-			// For negative numbers, pad after the negative sign
-			strNum = strNum[:1] + "0" + strNum[1:]
-		} else {
-			strNum = "0" + strNum
-		}
+// Append .
+
+var zeroStringBytes = []byte("00000000000000000000000000000000000000000000000000000000000000000000")
+
+func (d Decimal64) Append(scale int, b []byte) []byte {
+	if d == 0 {
+		return append(b, '0')
+	}
+	initialLen := len(b)
+
+	// Reduce scale and d while the least significant digit is zero
+	for d%10 == 0 && scale > 0 {
+		scale--
+		d /= 10
 	}
 
+	// Append the integer part of d to b
+	b = strconv.AppendInt(b, int64(d), 10)
+	return fixDecimalPoint(b, initialLen, scale, d < 0)
+}
+
+func growSlice(b []byte, n int) []byte {
+	if cap(b) >= n {
+		return b[:n]
+	}
+	b = append(b, make([]byte, n-len(b))...)
+	return b
+}
+
+func fixDecimalPoint(b []byte, initialLen, scale int, isNegative bool) []byte {
+	// No decimal places required
+	if scale == 0 {
+		return b
+	}
+
+	// Calculate the length of the number (ignoring what was previously in b)
+	numberLen := len(b) - initialLen
+	if isNegative {
+		numberLen-- // Adjust for negative sign
+	}
+
+	// Check if zeros need to be prepended
+	if scale > numberLen {
+		zeroesNeeded := scale - numberLen + 1
+		initialLenCopy := initialLen
+		if isNegative {
+			initialLenCopy++
+		}
+		b = growSlice(b, len(b)+zeroesNeeded)
+		copy(b[initialLenCopy+zeroesNeeded:], b[initialLenCopy:])
+		copy(b[initialLenCopy:], zeroStringBytes[:zeroesNeeded])
+	}
+
+	// Recalculate the length of the number part
+	numberLen = len(b) - initialLen
+
 	// Calculate the insertion point for the decimal
-	decimalInsertionPoint := len(strNum) - scale
+	decimalInsertionPoint := initialLen + numberLen - scale
+
+	// Make room for the decimal point by shifting bytes to the right
+	b = append(b, 0) // Extend slice by 1
+	copy(b[decimalInsertionPoint+1:], b[decimalInsertionPoint:])
 
 	// Insert the decimal point
-	result := strNum[:decimalInsertionPoint] + "." + strNum[decimalInsertionPoint:]
+	b[decimalInsertionPoint] = '.'
 
-	return result
+	return b
 }
 
 func (d Decimal128) ToInt128(scale int) Int128 {
@@ -107,28 +163,37 @@ func (d Decimal128) ToInt128(scale int) Int128 {
 	return Int128FromBig(bigInt.Div(bigInt, divisor))
 }
 
-// Float64 converts decimal number to float64.
+// Float64 converts decimal number to string.
 func (d Decimal128) String(scale int) string {
-	// Convert to string
-	strNum := Int128(d).String()
+	if Int128(d).Zero() {
+		return "0"
+	}
+	return string(d.Append(scale, []byte{}))
+}
 
-	// Ensure that the string is long enough to insert a decimal point
-	for len(strNum) <= scale {
-		if d.Hi < 0 {
-			// For negative numbers, pad after the negative sign
-			strNum = strNum[:1] + "0" + strNum[1:]
-		} else {
-			strNum = "0" + strNum
-		}
+// Float64 converts decimal number to float64.
+func (d Decimal128) Append(scale int, b []byte) []byte {
+	if Int128(d).Zero() {
+		return append(b, '0')
 	}
 
-	// Calculate the insertion point for the decimal
-	decimalInsertionPoint := len(strNum) - scale
+	initialLen := len(b)
 
-	// Insert the decimal point
-	result := strNum[:decimalInsertionPoint] + "." + strNum[decimalInsertionPoint:]
+	bigInt := Int128(d).Big()
+	ten := big.NewInt(10) // Define a constant for 10
 
-	return result
+	// Reduce scale and d while the least significant digit is zero
+	checkMod := new(big.Int).Set(bigInt)
+	for scale > 0 && len(checkMod.Mod(checkMod, ten).Bits()) == 0 {
+		scale--
+		bigInt.Div(bigInt, ten)
+		checkMod = new(big.Int).Set(bigInt)
+	}
+
+	// Append the integer part of d to b
+	b = bigInt.Append(b, 10)
+
+	return fixDecimalPoint(b, initialLen, scale, bigInt.Sign() == -1)
 }
 
 func (d Decimal256) ToInt256(scale int) Int256 {
@@ -138,26 +203,35 @@ func (d Decimal256) ToInt256(scale int) Int256 {
 	return Int256FromBig(bigInt.Div(bigInt, divisor))
 }
 
-// Float64 converts decimal number to float64.
+// Float64 converts decimal number to string.
 func (d Decimal256) String(scale int) string {
-	// Convert to string
-	strNum := Int256(d).String()
+	if Int256(d).Zero() {
+		return "0"
+	}
+	return string(d.Append(scale, []byte{}))
+}
 
-	// Ensure that the string is long enough to insert a decimal point
-	for len(strNum) <= scale {
-		if d.Hi.Hi < 0 {
-			// For negative numbers, pad after the negative sign
-			strNum = strNum[:1] + "0" + strNum[1:]
-		} else {
-			strNum = "0" + strNum
-		}
+// Float64 converts decimal number to float64.
+func (d Decimal256) Append(scale int, b []byte) []byte {
+	if Int256(d).Zero() {
+		return append(b, '0')
+	}
+	initialLen := len(b)
+
+	bigInt := Int256(d).Big()
+	ten := big.NewInt(10) // Define a constant for 10
+
+	// Reduce scale and d while the least significant digit is zero
+	checkMod := new(big.Int).Set(bigInt)
+	for scale > 0 && len(checkMod.Mod(checkMod, ten).Bits()) == 0 {
+		scale--
+		bigInt.Div(bigInt, ten)
+		checkMod = new(big.Int).Set(bigInt)
 	}
 
-	// Calculate the insertion point for the decimal
-	decimalInsertionPoint := len(strNum) - scale
+	// Append the integer part of d to b
+	b = bigInt.Append(b, 10)
 
-	// Insert the decimal point
-	result := strNum[:decimalInsertionPoint] + "." + strNum[decimalInsertionPoint:]
-
-	return result
+	// Append the integer part of d to b
+	return fixDecimalPoint(b, initialLen, scale, bigInt.Sign() == -1)
 }

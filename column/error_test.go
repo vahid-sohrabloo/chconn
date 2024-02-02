@@ -1144,8 +1144,9 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "invalid LowCardinality",
 			columnSelector: "number",
-			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)'",
-			column:         column.New[int64]().LC(),
+			wantErr: "invalid type: expected clickhouse type 'UInt64' for struct type" +
+				" 'LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)'",
+			column: column.New[int64]().LC(),
 		},
 		{
 			name:           "invalid LowCardinality inside",
@@ -1250,8 +1251,9 @@ func TestInvalidType(t *testing.T) {
 		{
 			name:           "Array2",
 			columnSelector: "number",
-			wantErr:        "invalid type: expected clickhouse type 'UInt64' for struct type 'Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))'",
-			column:         column.New[uint64]().Array().Array(),
+			wantErr: "invalid type: expected clickhouse type 'UInt64' for struct type" +
+				" 'Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))'",
+			column: column.New[uint64]().Array().Array(),
 		},
 		{
 			name:           "Array2 inside",

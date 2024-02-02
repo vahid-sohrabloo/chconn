@@ -102,6 +102,11 @@ func (u Int128) Equals(v Int128) bool {
 	return (u.Lo == v.Lo) && (u.Hi == v.Hi)
 }
 
+// Zero returns true if this is a zero value.
+func (u Int128) Zero() bool {
+	return u.Hi == 0 && u.Lo == 0
+}
+
 // Neg returns the additive inverse of an Int128
 func (u Int128) Neg() (z Int128) {
 	z.Hi = -u.Hi
@@ -126,4 +131,12 @@ func (u Int128) String() string {
 		return strconv.FormatUint(u.Lo, 10)
 	}
 	return u.Big().String()
+}
+
+func (u Int128) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.AppendUint(b, u.Lo, 10)
+	}
+	return u.Big().Append(b, 10)
 }

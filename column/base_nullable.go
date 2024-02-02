@@ -90,7 +90,6 @@ func (c *BaseNullable[T]) ScanValue(row int, dest reflect.Value) error {
 		return nil
 	}
 	return c.dataColumn.ScanValue(row, dest)
-
 }
 
 // RowP return the value of given row for nullable data
@@ -294,4 +293,11 @@ func (c *BaseNullable[T]) FullType() string {
 		return "Nullable(" + c.dataColumn.FullType() + ")"
 	}
 	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
+}
+
+func (c *BaseNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	if c.RowIsNil(row) {
+		return append(b, "null"...)
+	}
+	return c.dataColumn.ToJSON(row, ignoreDoubleQuotes, b)
 }

@@ -166,3 +166,24 @@ func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnBasic {
 	}
 	return c
 }
+
+func (c *ArrayNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		if c.dataColumn.RowIsNil(int(i)) {
+			b = append(b, "null"...)
+		} else {
+			b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+		}
+	}
+	return append(b, ']')
+}

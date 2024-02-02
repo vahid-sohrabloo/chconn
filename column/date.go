@@ -10,15 +10,11 @@ import (
 )
 
 // DateType is an interface to handle convert between time.Time and T.
-// type DateType[T any] interface {
-// 	comparable
-// 	FromTime(val time.Time, precision int) T
-// 	ToTime(val *time.Location, precision int) time.Time
-// }
 
 type DateType[T types.Date | types.Date32 | types.DateTime | types.DateTime64] interface {
 	types.Date | types.Date32 | types.DateTime | types.DateTime64
 	ToTime(val *time.Location, precision int) time.Time
+	Append(b []byte, val *time.Location, precision int) []byte
 	FromTime(val time.Time, precision int) T
 }
 
@@ -26,13 +22,13 @@ type DateType[T types.Date | types.Date32 | types.DateTime | types.DateTime64] i
 // it is a wrapper of time.Time. but if you want to work with the raw data like unix timestamp
 // you can directly use `Column` (`New[T]()`)
 //
-// `uint16` or `types.Date` or any 16 bits data types For `Date`.
+// `types.Date` data types For `Date`.
 //
-// `uint32` or `types.Date32` or any 32 bits data types For `Date32`
+// `types.Date32` data types For `Date32`
 //
-// `uint32` or `types.DateTime` or any 32 bits data types For `DateTime`
+// `types.DateTime` data types For `DateTime`
 //
-// `uint64` or `types.DateTime64` or any 64 bits data types For `DateTime64`
+// `types.DateTime64` data types For `DateTime64`
 type Date[T DateType[T]] struct {
 	Base[T]
 	loc       *time.Location
@@ -51,7 +47,7 @@ type Date[T DateType[T]] struct {
 //
 // `uint64` or `types.DateTime64` or any 64 bits data types For `DateTime64`
 //
-// ONLY ON SELECT, timezone set automatically for `DateTime` and `DateTime64` if not set and present in clickhouse datatype)
+// ONLY ON SELECT: timezone set automatically for `DateTime` and `DateTime64` if not set and present in clickhouse datatype)
 
 func NewDate[T DateType[T]]() *Date[T] {
 	var tmpValue T
@@ -74,7 +70,7 @@ func (c *Date[T]) SetLocation(loc *time.Location) *Date[T] {
 
 // Location get location
 //
-// ONLY ON SELECT, set automatically for `DateTime` and `DateTime64` if not set and present in clickhouse datatype)
+// ONLY ON SELECT: set automatically for `DateTime` and `DateTime64` if not set and present in clickhouse datatype)
 func (c *Date[T]) Location() *time.Location {
 	if c.loc == nil && len(c.params) >= 2 && len(c.params[1].([]byte)) > 0 {
 		loc, err := time.LoadLocation(strings.Trim(string(c.params[1].([]byte)), "'"))
@@ -213,4 +209,16 @@ func (c *Date[T]) FullType() string {
 		return chType
 	}
 	return string(c.name) + " " + chType
+}
+
+func (c Date[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	i := row * c.size
+	if !ignoreDoubleQuotes {
+		b = append(b, '"')
+	}
+	b = (*(*T)(unsafe.Pointer(&c.b[i]))).Append(b, c.Location(), c.precision)
+	if !ignoreDoubleQuotes {
+		b = append(b, '"')
+	}
+	return b
 }

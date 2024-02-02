@@ -28,6 +28,7 @@ type ColumnBasic interface {
 	ScanValue(row int, dest reflect.Value) error
 	FullType() string
 	Remove(n int)
+	ToJSON(row int, stringQuotes bool, b []byte) []byte
 }
 
 type Column[T any] interface {
@@ -46,6 +47,7 @@ type NullableColumn[T any] interface {
 	RowP(int) *T
 	AppendP(*T)
 	AppendMultiP(...*T)
+	RowIsNil(row int) bool
 }
 
 type column struct {

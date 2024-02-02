@@ -386,3 +386,7 @@ func (c *LowCardinality[T]) FullType() string {
 	}
 	return string(c.name) + " LowCardinality(" + c.dictColumn.FullType() + ")"
 }
+
+func (c *LowCardinality[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return c.dictColumn.ToJSON(c.readedKeys[row], ignoreDoubleQuotes, b)
+}

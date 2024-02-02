@@ -2,10 +2,12 @@ package column
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"unsafe"
 
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
@@ -213,7 +215,6 @@ func (c *Base[T]) FullType() string {
 	chType := string(c.chType)
 	if chType == "" {
 		chType = c.getChTypeFromKind()
-		fmt.Println(len(chType), chType)
 	}
 	if len(c.name) == 0 {
 		return chType
@@ -266,12 +267,12 @@ func (c *Base[T]) String(row int) string {
 		return strconv.FormatInt(int64(*(*int16)(unsafe.Pointer(&val))), 10)
 	case reflect.Int32:
 		if c.isDecimal == decimal32Type {
-			return types.Decimal32(*(*types.Decimal32)(unsafe.Pointer(&val))).String(c.getDecimalScale())
+			return (*types.Decimal32)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		return strconv.FormatInt(int64(*(*int32)(unsafe.Pointer(&val))), 10)
 	case reflect.Int64:
 		if c.isDecimal == decimal64Type {
-			return types.Decimal64(*(*types.Decimal64)(unsafe.Pointer(&val))).String(c.getDecimalScale())
+			return (*types.Decimal64)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		return strconv.FormatInt(*(*int64)(unsafe.Pointer(&val)), 10)
 	case reflect.Uint8:
@@ -288,19 +289,129 @@ func (c *Base[T]) String(row int) string {
 		return strconv.FormatFloat(*(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
 		// todo more types
 	default:
-		//nolint:staticcheck
 		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
 			return string(*(*[]byte)(unsafe.Pointer(&val)))
 		}
 		if c.isDecimal == decimal128Type {
-			return types.Decimal128(*(*types.Decimal128)(unsafe.Pointer(&val))).String(c.getDecimalScale())
+			return (*types.Decimal128)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		if c.isDecimal == decimal256Type {
-			return types.Decimal256(*(*types.Decimal256)(unsafe.Pointer(&val))).String(c.getDecimalScale())
+			return (*types.Decimal256)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		if val, ok := any(val).(fmt.Stringer); ok {
 			return val.String()
 		}
 		return fmt.Sprintf("%v", val)
+	}
+}
+
+type appender interface {
+	Append([]byte) []byte
+}
+
+//nolint:funlen,gocyclo
+func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	val := c.Row(row)
+	switch c.kind {
+	case reflect.Int8:
+		return strconv.AppendInt(b, int64(*(*int8)(unsafe.Pointer(&val))), 10)
+	case reflect.Int16:
+		return strconv.AppendInt(b, int64(*(*int16)(unsafe.Pointer(&val))), 10)
+	case reflect.Int32:
+		if c.isDecimal == decimal32Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal32)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		return strconv.AppendInt(b, int64(*(*int32)(unsafe.Pointer(&val))), 10)
+	case reflect.Int64:
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		if c.isDecimal == decimal64Type {
+			b = (*types.Decimal64)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+		} else {
+			b = strconv.AppendInt(b, *(*int64)(unsafe.Pointer(&val)), 10)
+		}
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		return b
+	case reflect.Uint8:
+		return strconv.AppendUint(b, uint64(*(*uint8)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint16:
+		return strconv.AppendUint(b, uint64(*(*uint16)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint32:
+		return strconv.AppendUint(b, uint64(*(*uint32)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint64:
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		b = strconv.AppendUint(b, *(*uint64)(unsafe.Pointer(&val)), 10)
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		return b
+	case reflect.Float32:
+		v := float64(*(*float32)(unsafe.Pointer(&val)))
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return append(b, "null"...)
+		}
+		return strconv.AppendFloat(b, v, 'f', -1, 32)
+	case reflect.Float64:
+		v := *(*float64)(unsafe.Pointer(&val))
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return append(b, "null"...)
+		}
+		return strconv.AppendFloat(b, *(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
+		// todo more types
+	default:
+		if val, ok := any(val).(appender); ok {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = val.Append(b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		if val, ok := any(val).(fmt.Stringer); ok {
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(val.String()))
+		}
+		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
+			arrayLength := c.rtype.Len()
+			byteSlice := unsafe.Slice((*byte)(unsafe.Pointer(&val)), arrayLength)
+			// Marshal the byte slice to JSON.
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, byteSlice)
+		}
+		if c.isDecimal == decimal128Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal128)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		if c.isDecimal == decimal256Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal256)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+
+		// todo
+		panic("not support")
 	}
 }

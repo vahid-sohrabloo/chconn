@@ -92,7 +92,6 @@ func (c *Nothing) Nullable() *NothingNullable {
 }
 
 func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnBasic {
-
 	if nullable {
 		return c.Nullable().elem(arrayLevel)
 	}
@@ -111,4 +110,8 @@ func (c *Nothing) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (c *Nothing) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return b
 }

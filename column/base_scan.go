@@ -257,11 +257,11 @@ func (c *Base[T]) Scan(row int, dest any) error {
 	case *any:
 		val := c.Row(row)
 		if c.isDecimal == decimal32Type {
-			*dest = (*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())
+			*dest = (*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())
 			return nil
 		}
 		if c.isDecimal == decimal64Type {
-			*dest = (*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())
+			*dest = (*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())
 			return nil
 		}
 		*dest = c.Row(row)
@@ -342,13 +342,13 @@ func (c *Base[T]) getInt64(val T) (int64, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return int64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())), nil
+			return int64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())), nil
 		}
 		return int64(*(*int32)(unsafe.Pointer(&val))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return int64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())), nil
+			return int64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())), nil
 		}
 		return *(*int64)(unsafe.Pointer(&val)), nil
 	}
@@ -401,13 +401,13 @@ func (c *Base[T]) getUint64(val T) (uint64, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return uint64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())), nil
+			return uint64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())), nil
 		}
 		return uint64(*(*int32)(unsafe.Pointer(&val))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return uint64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale())), nil
+			return uint64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())), nil
 		}
 		return uint64(*(*int64)(unsafe.Pointer(&val))), nil
 	}
@@ -459,13 +459,13 @@ func (c *Base[T]) geFloat64(val T) (float64, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return (*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()), nil
+			return (*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()), nil
 		}
 		return float64(*(*int32)(unsafe.Pointer(&val))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return (*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()), nil
+			return (*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()), nil
 		}
 		return float64(*(*int64)(unsafe.Pointer(&val))), nil
 	}
@@ -569,13 +569,13 @@ func (c *Base[T]) getUint128(val T) (types.Uint128, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return types.Uint128From64(uint64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Uint128From64(uint64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Uint128From64(uint64(*(*int32)(unsafe.Pointer(&val)))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return types.Uint128From64(uint64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Uint128From64(uint64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Uint128From64(uint64(*(*int64)(unsafe.Pointer(&val)))), nil
 	}
@@ -627,13 +627,13 @@ func (c *Base[T]) getInt128(val T) (types.Int128, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return types.Int128From64(int64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Int128From64(int64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Int128From64(int64(*(*int32)(unsafe.Pointer(&val)))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return types.Int128From64(int64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Int128From64(int64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Int128From64(*(*int64)(unsafe.Pointer(&val))), nil
 	}
@@ -685,13 +685,13 @@ func (c *Base[T]) getUint256(val T) (types.Uint256, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return types.Uint256From64(uint64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Uint256From64(uint64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Uint256From64(uint64(*(*int32)(unsafe.Pointer(&val)))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return types.Uint256From64(uint64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Uint256From64(uint64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Uint256From64(uint64(*(*int64)(unsafe.Pointer(&val)))), nil
 	}
@@ -743,13 +743,13 @@ func (c *Base[T]) getInt256(val T) (types.Int256, error) {
 	}
 	if c.kind == reflect.Int32 {
 		if c.isDecimal == decimal32Type {
-			return types.Int256From64(int64((*(*types.Decimal32)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Int256From64(int64((*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Int256From64(int64(*(*int32)(unsafe.Pointer(&val)))), nil
 	}
 	if c.kind == reflect.Int64 {
 		if c.isDecimal == decimal64Type {
-			return types.Int256From64(int64((*(*types.Decimal64)(unsafe.Pointer(&val))).Float64(c.getDecimalScale()))), nil
+			return types.Int256From64(int64((*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale()))), nil
 		}
 		return types.Int256From64(*(*int64)(unsafe.Pointer(&val))), nil
 	}

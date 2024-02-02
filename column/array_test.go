@@ -200,7 +200,6 @@ func TestArray2Data(t *testing.T) {
 	require.NoError(t, stmt.Err())
 	assert.Equal(t, [][][]string{{{"1", "2", "3"}}}, col.Data())
 	assert.Equal(t, [][]string{{"1", "2", "3"}}, col.RowAny(0))
-
 }
 
 func TestArray2NullableData(t *testing.T) {
@@ -241,7 +240,6 @@ func TestArray3Data(t *testing.T) {
 	require.NoError(t, stmt.Err())
 	assert.Equal(t, [][][][]string{{{{"1", "2", "3"}}}}, col.Data())
 	assert.Equal(t, [][][]string{{{"1", "2", "3"}}}, col.RowAny(0))
-
 }
 
 func TestArray3NullableData(t *testing.T) {

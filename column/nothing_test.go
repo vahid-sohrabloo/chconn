@@ -11,7 +11,24 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
 )
+
+func nothingJSON(t *testing.T, conn chconn.Conn, selectQuery string) []string {
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err := conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+	return chconnJSON
+}
 
 func TestNothing(t *testing.T) {
 	t.Parallel()
@@ -33,6 +50,11 @@ func TestNothing(t *testing.T) {
 	require.False(t, rows.Next())
 	require.NoError(t, rows.Err())
 
+	jsonFromClickhouse := httpJSON("SELECT NULL")
+	chconnJSON := nothingJSON(t, conn, "SELECT NULL")
+	require.Len(t, chconnJSON, 1)
+	assert.Equal(t, string(jsonFromClickhouse), chconnJSON[0]+"\n")
+
 	rows, err = conn.Query(ctx, "SELECT array()")
 	require.NoError(t, err)
 	defer rows.Close()
@@ -43,6 +65,11 @@ func TestNothing(t *testing.T) {
 	require.False(t, rows.Next())
 	require.NoError(t, rows.Err())
 	require.Len(t, dataArr, 0)
+
+	jsonFromClickhouse = httpJSON("SELECT array()")
+	chconnJSON = nothingJSON(t, conn, "SELECT array()")
+	require.Len(t, chconnJSON, 1)
+	assert.Equal(t, string(jsonFromClickhouse), chconnJSON[0]+"\n")
 
 	rows, err = conn.Query(ctx, "SELECT array(NULL)")
 	require.NoError(t, err)
@@ -90,5 +117,4 @@ func TestNothing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, dataCol)
 	assert.Equal(t, int64(0), refValue.Elem().Int())
-
 }

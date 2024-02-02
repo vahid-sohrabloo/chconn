@@ -72,12 +72,10 @@ func (c *Array2Nullable[T]) RowAny(row int) any {
 	return c.RowP(row)
 }
 
-//nolint:dupl
 func (c *Array2Nullable[T]) Scan(row int, dest any) error {
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 
-//nolint:dupl
 func (c *Array2Nullable[T]) ScanValue(row int, dest reflect.Value) error {
 	destValue := reflect.Indirect(dest)
 	if destValue.Kind() != reflect.Slice {
@@ -146,4 +144,21 @@ func (c *Array2Nullable[T]) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Array2Nullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+	}
+	return append(b, ']')
 }

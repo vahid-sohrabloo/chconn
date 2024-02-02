@@ -99,6 +99,11 @@ func (u Uint128) Int128() Int128 {
 	}
 }
 
+// Zero returns true if Uint128 value is zero.
+func (u Uint128) Zero() bool {
+	return u.Lo == 0 && u.Hi == 0
+}
+
 func (u Uint128) Uint64() uint64 {
 	return u.Lo
 }
@@ -110,4 +115,12 @@ func (u Uint128) String() string {
 	}
 
 	return u.Big().String()
+}
+
+func (u Uint128) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.AppendUint(b, u.Lo, 10)
+	}
+	return u.Big().Append(b, 10)
 }

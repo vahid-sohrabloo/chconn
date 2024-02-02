@@ -2,6 +2,7 @@ package column
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -12,6 +13,9 @@ import (
 
 type marshalerUnmarshalerText interface {
 	encoding.TextMarshaler
+	encoding.TextUnmarshaler
+	json.Marshaler
+	json.Unmarshaler
 }
 
 type StringMarshaler[T marshalerUnmarshalerText] struct {
@@ -70,10 +74,10 @@ func (c *StringMarshaler[T]) ReadBytes(value [][]byte) [][]byte {
 //
 // NOTE: Row number start from zero
 func (c *StringMarshaler[T]) Row(row int) T {
-	var t any = new(T)
+	var t T
 	//nolint:errcheck
-	t.(encoding.TextUnmarshaler).UnmarshalText(c.RowBytes(row))
-	return *t.(*T)
+	t.UnmarshalText(c.RowBytes(row))
+	return t
 }
 
 // RowAny return the value of given row.
@@ -291,4 +295,11 @@ func (c *StringMarshaler[T]) FullType() string {
 		return "String"
 	}
 	return string(c.name) + " String"
+}
+
+// ToJSON
+func (c *StringMarshaler[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	d := c.Row(row)
+	t, _ := d.MarshalJSON()
+	return append(b, t...)
 }

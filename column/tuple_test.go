@@ -1,9 +1,13 @@
 package column_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
@@ -233,7 +238,8 @@ func TestTuple(t *testing.T) {
 	colArrayLCNullableStringRead := column.NewString().LowCardinality().Nullable().Array()
 	colArrayLCNullableIntRead := column.New[int64]().LowCardinality().Nullable().Array()
 	colArrayLCNullableRead := column.NewTuple(colArrayLCNullableStringRead, colArrayLCNullableIntRead)
-	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
+
+	selectQuery := fmt.Sprintf(`SELECT
 	%[1]s,
 	%[1]s_nullable,
 	%[1]s_array,
@@ -242,7 +248,8 @@ func TestTuple(t *testing.T) {
 	%[1]s_nullable_lc,
 	%[1]s_array_lc,
 	%[1]s_array_lc_nullable
-	FROM test_%[1]s`, tableName),
+	FROM test_%[1]s`, tableName)
+	selectStmt, err := conn.Select(context.Background(), selectQuery,
 		colRead,
 		colNullableRead,
 		colArrayRead,
@@ -312,17 +319,7 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colLCNullableArrayIntInsert, colLCNullableArrayIntData)
 
 	// check dynamic column
-	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-		%[1]s,
-		%[1]s_nullable,
-		%[1]s_array,
-		%[1]s_array_nullable,
-		%[1]s_lc,
-		%[1]s_nullable_lc,
-		%[1]s_array_lc,
-		%[1]s_array_lc_nullable
-		FROM test_%[1]s`, tableName),
-	)
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
 
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
@@ -443,6 +440,49 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colLCNullableStringDataI, colLCNullableData)
 	assert.Equal(t, colLCArrayStringDataI, colLCArrayData)
 	assert.Equal(t, colLCNullableArrayStringDataI, colLCNullableArrayData)
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(selectQuery)
+
+	d := json.NewDecoder(strings.NewReader(strings.Join(chconnJSON, "\n")))
+	var valsChconn []any
+	iff := 0
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		iff++
+		valsChconn = append(valsChconn, v)
+	}
+
+	d = json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
 }
 
 func TestTupleNoColumn(t *testing.T) {
@@ -476,7 +516,6 @@ func TestTupleScan(t *testing.T) {
 		for i := 0; i < stmt.RowsInBlock(); i++ {
 			require.NoError(t, tupleCol.Scan(i, &mapData))
 			require.NoError(t, tupleCol.Scan(i, &structData))
-
 		}
 	}
 
@@ -495,7 +534,6 @@ func TestTupleScan(t *testing.T) {
 			"1": int64(2),
 		},
 	}, structData)
-
 }
 
 func TestTupleArrayScan(t *testing.T) {
@@ -533,7 +571,6 @@ func TestTupleArrayScan(t *testing.T) {
 	var invalidArrInside []int64
 	err = rows.Scan(&invalidArrInside)
 	assert.Equal(t, "can't scan into dest[0]: cannot scan array item 0: tuple: scan: unsupported type int64", err.Error())
-
 }
 
 func TestGeo(t *testing.T) {
