@@ -71,7 +71,7 @@ func (c *Base[T]) SetStrict(strict bool) *Base[T] {
 	return c
 }
 
-func (c *Base[T]) Validate() error {
+func (c *Base[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 
 	if byteSize, ok := chColumnByteSize[string(chType)]; ok {
@@ -178,7 +178,7 @@ func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 				structType: c.structType(),
 			}
 		}
-		c.params = []interface{}{
+		c.params = []any{
 			// precision
 			0,
 			// timezone
@@ -205,7 +205,7 @@ func (c *Base[T]) checkDateTime64(chType []byte) (bool, error) {
 			}
 		}
 		parts := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
-		c.params = []interface{}{
+		c.params = []any{
 			parts[0],
 			[]byte{},
 		}
@@ -249,7 +249,7 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 		if err != nil {
 			return true, fmt.Errorf("invalid scale: %s", err)
 		}
-		c.params = []interface{}{precision, scale}
+		c.params = []any{precision, scale}
 		var size int
 		switch {
 		case precision >= 1 && precision <= 9:

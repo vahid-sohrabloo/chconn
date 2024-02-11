@@ -129,6 +129,7 @@ func (c *StringMarshaler[T]) Each(f func(i int, b []byte) bool) {
 }
 
 func (c *StringMarshaler[T]) appendLen(x int) {
+	c.preHookAppend()
 	i := 0
 	p := stringPos{
 		start: len(c.writerData),
@@ -252,7 +253,7 @@ func (c *StringMarshaler[T]) HeaderReader(r *readerwriter.Reader, readColumn boo
 	return c.readColumn(readColumn, revision)
 }
 
-func (c *StringMarshaler[T]) Validate() error {
+func (c *StringMarshaler[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsString(chType) {
 		return ErrInvalidType{

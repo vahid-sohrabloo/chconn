@@ -1309,27 +1309,27 @@ func TestInvalidType(t *testing.T) {
 func TestMapInvalidColumnNumber(t *testing.T) {
 	m := column.NewMap[uint8, uint8](column.New[uint8](), column.New[uint8]())
 	m.SetType([]byte("Map(UInt8,UInt8,UInt8)"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.Equal(t, err.Error(), "columns number is not equal to map columns number: 3 != 2")
 }
 
 func TestFixedStringInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
 	m.SetType([]byte("FixedString(a)"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid size: strconv.Atoi: parsing \"a\": invalid syntax")
 }
 
 func TestEnum8InvalidType(t *testing.T) {
 	m := column.New[int16]()
 	m.SetType([]byte("Enum8()"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid type: expected clickhouse type 'Enum8()' for struct type 'Int16|UInt16|Enum16|Date'")
 }
 func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
 	m.SetType([]byte("Enum16()"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid type: expected clickhouse type 'Enum16()' "+
 		"for struct type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4'")
 }
@@ -1337,26 +1337,26 @@ func TestEnum16InvalidType(t *testing.T) {
 func TestDecimalInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
 	m.SetType([]byte("Decimal()"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid decimal type (should have precision and scale): Decimal()")
 
 	m.SetType([]byte("Decimal(a, a)"))
-	err = m.Validate()
+	err = m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid precision: strconv.Atoi: parsing \"a\": invalid syntax")
 
 	m.SetType([]byte("Decimal(3, a)"))
-	err = m.Validate()
+	err = m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid scale: strconv.Atoi: parsing \"a\": invalid syntax")
 
 	m.SetType([]byte("Decimal(200, 3)"))
-	err = m.Validate()
+	err = m.Validate(false)
 	assert.Equal(t, err.Error(), "invalid precision: 200. it should be between 1 and 76")
 }
 
 func TestInvalidDate(t *testing.T) {
 	m := column.NewDate[types.DateTime]()
 	m.SetType([]byte("DateTime('InvalidTimeZone')"))
-	err := m.Validate()
+	err := m.Validate(false)
 	assert.NoError(t, err)
 	assert.Equal(t, m.Location(), time.Local)
 }
@@ -1365,6 +1365,6 @@ func TestInvalidSimpleAggregateFunction(t *testing.T) {
 	m := column.New[int32]()
 	m.SetType([]byte("SimpleAggregateFunction(sum))"))
 	assert.Panics(t, func() {
-		m.Validate()
+		m.Validate(false)
 	})
 }

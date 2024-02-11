@@ -830,9 +830,9 @@ func TestPoolInsertCompress(t *testing.T) {
 
 	require.NoError(t, pool.Ping(ctx))
 
-	err = pool.Exec(ctx, `DROP TABLE IF EXISTS clickhouse_test_insert_pool`)
+	err = pool.Exec(ctx, `DROP TABLE IF EXISTS clickhouse_test_insert_pool_compress`)
 	require.NoError(t, err)
-	err = pool.Exec(ctx, `CREATE TABLE clickhouse_test_insert_pool (
+	err = pool.Exec(ctx, `CREATE TABLE clickhouse_test_insert_pool_compress (
 				int8  Int8
 			) Engine=Memory`)
 
@@ -842,7 +842,7 @@ func TestPoolInsertCompress(t *testing.T) {
 	for i := 1; i <= 10; i++ {
 		col.Append(int8(-1 * i))
 	}
-	stmt, err := pool.InsertStream(ctx, `INSERT INTO clickhouse_test_insert_pool (
+	stmt, err := pool.InsertStream(ctx, `INSERT INTO clickhouse_test_insert_pool_compress (
 				int8
 			) VALUES`)
 	require.NoError(t, err)

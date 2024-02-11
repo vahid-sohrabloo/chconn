@@ -66,6 +66,15 @@ func (c *Array2[T]) RowAny(row int) any {
 }
 
 func (c *Array2[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *[][]T:
+		*d = c.Row(row)
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	}
+
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 

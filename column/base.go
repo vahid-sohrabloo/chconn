@@ -46,7 +46,7 @@ type Base[T BaseType] struct {
 	kind      reflect.Kind
 	rtype     reflect.Type
 	values    []T
-	params    []interface{}
+	params    []any
 	isDecimal decimalType
 }
 
@@ -90,12 +90,14 @@ func (c *Base[T]) RowAny(row int) any {
 
 // Append value for insert
 func (c *Base[T]) Append(v T) {
+	c.preHookAppend()
 	c.values = append(c.values, v)
 	c.numRow++
 }
 
 // AppendMulti value for insert
 func (c *Base[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	c.values = append(c.values, v...)
 	c.numRow += len(v)
 }

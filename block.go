@@ -90,7 +90,7 @@ func (b *block) readColumnsData(needValidateData bool, columns ...column.ColumnB
 			return fmt.Errorf("read column header: %w", err)
 		}
 		if needValidateData {
-			if errValidate := col.Validate(); errValidate != nil {
+			if errValidate := col.Validate(false); errValidate != nil {
 				return fmt.Errorf("validate %q: %w", col.Name(), errValidate)
 			}
 		}
@@ -214,7 +214,7 @@ func (b *block) getColumnsByChType() ([]column.ColumnBasic, error) {
 		}
 		columnByType.SetName(col.Name)
 		columnByType.SetType(col.ChType)
-		err = columnByType.Validate()
+		err = columnByType.Validate(false)
 		if err != nil {
 			return nil, err
 		}
@@ -415,6 +415,21 @@ func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (
 			columns[i] = col
 		}
 		return column.NewTuple(columns...).Elem(arrayLevel), nil
+	case helper.IsVariant(chType):
+		columnsVariant, err := helper.TypesInParentheses(chType[helper.LenVariantStr : len(chType)-1])
+		if err != nil {
+			return nil, fmt.Errorf("variant invalid types: %w", err)
+		}
+		columns := make([]column.ColumnBasic, len(columnsVariant))
+		for i, c := range columnsVariant {
+			col, err := b.columnByType(c.ChType, 0, false, false)
+			if err != nil {
+				return nil, err
+			}
+			col.SetName(c.Name)
+			columns[i] = col
+		}
+		return column.NewVariant(columns...).Elem(arrayLevel), nil
 	case helper.IsMap(chType):
 		columnsMap, err := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
 		if err != nil {

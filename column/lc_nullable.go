@@ -93,6 +93,7 @@ func (c *LowCardinalityNullable[T]) ScanValue(row int, dest reflect.Value) error
 
 // Append value for insert
 func (c *LowCardinalityNullable[T]) Append(v T) {
+	c.preHookAppend()
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
@@ -105,6 +106,7 @@ func (c *LowCardinalityNullable[T]) Append(v T) {
 
 // AppendMulti value for insert
 func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
@@ -120,6 +122,7 @@ func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 
 // Append nil value for insert
 func (c *LowCardinalityNullable[T]) AppendNil() {
+	c.preHookAppend()
 	c.keys = append(c.keys, 0)
 	c.numRow++
 }
@@ -128,6 +131,7 @@ func (c *LowCardinalityNullable[T]) AppendNil() {
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
 func (c *LowCardinalityNullable[T]) AppendP(v *T) {
+	c.preHookAppend()
 	if v == nil {
 		c.keys = append(c.keys, 0)
 		return
@@ -147,6 +151,7 @@ func (c *LowCardinalityNullable[T]) AppendP(v *T) {
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
 func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		if v == nil {
 			c.keys = append(c.keys, 0)

@@ -204,7 +204,7 @@ func (c *NothingNullable) HeaderReader(r *readerwriter.Reader, readColumn bool, 
 	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
-func (c *NothingNullable) Validate() error {
+func (c *NothingNullable) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
@@ -212,7 +212,7 @@ func (c *NothingNullable) Validate() error {
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
-	if c.dataColumn.Validate() != nil {
+	if c.dataColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			structType: c.structType(),
 		}

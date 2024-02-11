@@ -74,6 +74,14 @@ func (c *Array3Nullable[T]) RowAny(row int) any {
 
 //nolint:dupl
 func (c *Array3Nullable[T]) Scan(row int, dest any) error {
+	switch v := dest.(type) {
+	case *[][][]*T:
+		*v = c.RowP(row)
+		return nil
+	case *any:
+		*v = c.RowP(row)
+		return nil
+	}
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 

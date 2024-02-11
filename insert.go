@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
@@ -53,7 +54,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 		}
 	}
 
-	var res interface{}
+	var res any
 	for {
 		res, err = s.conn.receiveAndProcessData(emptyOnProgress)
 
@@ -129,9 +130,9 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 	}
 	for i, col := range columns {
 		col.SetType(s.block.Columns[i].ChType)
-		if errValidate := col.Validate(); errValidate != nil {
+		if errValidate := col.Validate(true); errValidate != nil {
 			s.hasError = true
-			return errValidate
+			return fmt.Errorf("column at index %d: %w", i, errValidate)
 		}
 	}
 
@@ -244,7 +245,7 @@ func (ch *conn) InsertStreamWithOption(
 	}
 	var blockData *block
 	for {
-		var res interface{}
+		var res any
 		res, err = ch.receiveAndProcessData(queryOptions.OnProgress)
 		if err != nil {
 			hasError = true

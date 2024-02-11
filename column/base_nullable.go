@@ -121,12 +121,14 @@ func (c *BaseNullable[T]) RowIsNil(row int) bool {
 
 // Append value for insert
 func (c *BaseNullable[T]) Append(v T) {
+	c.preHookAppend()
 	c.writerData = append(c.writerData, 0)
 	c.dataColumn.Append(v)
 }
 
 // AppendMulti value for insert
 func (c *BaseNullable[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	c.writerData = append(c.writerData, make([]uint8, len(v))...)
 	c.dataColumn.AppendMulti(v...)
 }
@@ -168,6 +170,7 @@ func (c *BaseNullable[T]) AppendMultiP(v ...*T) {
 
 // Append nil value for insert
 func (c *BaseNullable[T]) AppendNil() {
+	c.preHookAppend()
 	c.writerData = append(c.writerData, 1)
 	c.dataColumn.appendEmpty()
 }
@@ -242,7 +245,7 @@ func (c *BaseNullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, 
 	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
-func (c *BaseNullable[T]) Validate() error {
+func (c *BaseNullable[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
@@ -251,7 +254,7 @@ func (c *BaseNullable[T]) Validate() error {
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
-	if c.dataColumn.Validate() != nil {
+	if c.dataColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			chType:     string(c.chType),
 			structType: c.structType(),

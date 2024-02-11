@@ -35,6 +35,7 @@ func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 func (c *ArrayBase) AppendLen(v int) {
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
+	c.preHookAppend()
 }
 
 // Remove inserted value from index
@@ -66,6 +67,14 @@ func (c *ArrayBase) RowAny(row int) any {
 }
 
 func (c *ArrayBase) Scan(row int, dest any) error {
+	switch v := dest.(type) {
+	case *any:
+		*v = c.RowAny(row)
+		return nil
+	case *[]any:
+		*v = c.RowAny(row).([]any)
+		return nil
+	}
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 
@@ -181,7 +190,7 @@ func (c *ArrayBase) Column() ColumnBasic {
 	return c.dataColumn
 }
 
-func (c *ArrayBase) Validate() error {
+func (c *ArrayBase) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	switch {
 	case helper.IsRing(chType):
@@ -201,7 +210,7 @@ func (c *ArrayBase) Validate() error {
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenArrayStr : len(chType)-1])
-	if c.dataColumn.Validate() != nil {
+	if c.dataColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			chType:     string(c.chType),
 			structType: c.structType(),

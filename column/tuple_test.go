@@ -335,24 +335,24 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
 	assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 	rows := selectStmt.Rows()
-	var colData []interface{}
-	var colNullableData []interface{}
-	var colArrayData []interface{}
-	var colArrayNullableData []interface{}
-	var colLCData []interface{}
-	var colLCNullableData []interface{}
-	var colLCArrayData []interface{}
-	var colLCNullableArrayData []interface{}
+	var colData []any
+	var colNullableData []any
+	var colArrayData []any
+	var colArrayNullableData []any
+	var colLCData []any
+	var colLCNullableData []any
+	var colLCArrayData []any
+	var colLCNullableArrayData []any
 
 	for rows.Next() {
-		var colVal []interface{}
-		var colNullableVal []interface{}
-		var colArrayVal []interface{}
-		var colArrayNullableVal []interface{}
-		var colLCVal []interface{}
-		var colLCNullableVal []interface{}
-		var colLCArrayVal []interface{}
-		var colLCNullableArrayVal []interface{}
+		var colVal []any
+		var colNullableVal []any
+		var colArrayVal []any
+		var colArrayNullableVal []any
+		var colLCVal []any
+		var colLCNullableVal []any
+		var colLCArrayVal []any
+		var colLCNullableArrayVal []any
 		err := rows.Scan(
 			&colVal,
 			&colNullableVal,
@@ -375,58 +375,58 @@ func TestTuple(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 	rows.Close()
-	var colStringDataI []interface{}
-	var colNullableStringDataI []interface{}
-	var colArrayStringDataI []interface{}
-	var colArrayNullableStringDataI []interface{}
-	var colLCStringDataI []interface{}
-	var colLCNullableStringDataI []interface{}
-	var colLCArrayStringDataI []interface{}
-	var colLCNullableArrayStringDataI []interface{}
+	var colStringDataI []any
+	var colNullableStringDataI []any
+	var colArrayStringDataI []any
+	var colArrayNullableStringDataI []any
+	var colLCStringDataI []any
+	var colLCNullableStringDataI []any
+	var colLCArrayStringDataI []any
+	var colLCNullableArrayStringDataI []any
 	for i, v := range colStringData {
-		colStringDataI = append(colStringDataI, []interface{}{
+		colStringDataI = append(colStringDataI, []any{
 			v,
 			colIntData[i],
 		})
 	}
 	for i, v := range colNullableStringData {
-		colNullableStringDataI = append(colNullableStringDataI, []interface{}{
+		colNullableStringDataI = append(colNullableStringDataI, []any{
 			v,
 			colNullableIntData[i],
 		})
 	}
 	for i, v := range colArrayStringData {
-		colArrayStringDataI = append(colArrayStringDataI, []interface{}{
+		colArrayStringDataI = append(colArrayStringDataI, []any{
 			v,
 			colArrayIntData[i],
 		})
 	}
 	for i, v := range colArrayNullableStringData {
-		colArrayNullableStringDataI = append(colArrayNullableStringDataI, []interface{}{
+		colArrayNullableStringDataI = append(colArrayNullableStringDataI, []any{
 			v,
 			colArrayNullableIntData[i],
 		})
 	}
 	for i, v := range colLCStringData {
-		colLCStringDataI = append(colLCStringDataI, []interface{}{
+		colLCStringDataI = append(colLCStringDataI, []any{
 			v,
 			colLCIntData[i],
 		})
 	}
 	for i, v := range colLCNullableStringData {
-		colLCNullableStringDataI = append(colLCNullableStringDataI, []interface{}{
+		colLCNullableStringDataI = append(colLCNullableStringDataI, []any{
 			v,
 			colLCNullableIntData[i],
 		})
 	}
 	for i, v := range colLCArrayStringData {
-		colLCArrayStringDataI = append(colLCArrayStringDataI, []interface{}{
+		colLCArrayStringDataI = append(colLCArrayStringDataI, []any{
 			v,
 			colLCArrayIntData[i],
 		})
 	}
 	for i, v := range colLCNullableArrayStringData {
-		colLCNullableArrayStringDataI = append(colLCNullableArrayStringDataI, []interface{}{
+		colLCNullableArrayStringDataI = append(colLCNullableArrayStringDataI, []any{
 			v,
 			colLCNullableArrayIntData[i],
 		})

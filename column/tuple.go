@@ -227,7 +227,7 @@ func (c *Tuple) Columns() []ColumnBasic {
 	return c.columns
 }
 
-func (c *Tuple) Validate() error {
+func (c *Tuple) Validate(forInsert bool) error {
 	if string(c.chType) == "Object('json')" {
 		c.isJSON = true
 		return nil
@@ -264,7 +264,7 @@ func (c *Tuple) Validate() error {
 		}
 		col.SetType(columnsTuple[i].ChType)
 		col.SetName(columnsTuple[i].Name)
-		if col.Validate() != nil {
+		if col.Validate(forInsert) != nil {
 			return ErrInvalidType{
 				chType:     string(c.chType),
 				structType: c.structType(),

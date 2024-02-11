@@ -95,7 +95,11 @@ func (c *StringBase[T]) Scan(row int, value any) error {
 	case *string:
 		*d = string(c.Row(row))
 	case *[]byte:
-		*d = c.RowBytes(row)
+		b := c.RowBytes(row)
+		if len(*d) < len(b) {
+			*d = make([]byte, len(b))
+		}
+		copy(*d, b)
 	case *any:
 		*d = c.Row(row)
 	default:
@@ -144,6 +148,7 @@ func (c *StringBase[T]) Each(f func(i int, b []byte) bool) {
 }
 
 func (c *StringBase[T]) appendLen(x int) {
+	c.preHookAppend()
 	i := 0
 	for x >= 0x80 {
 		c.writerData = append(c.writerData, byte(x)|0x80)
@@ -280,7 +285,7 @@ func (c *StringBase[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, re
 	return c.readColumn(readColumn, revision)
 }
 
-func (c *StringBase[T]) Validate() error {
+func (c *StringBase[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsString(chType) {
 		return ErrInvalidType{

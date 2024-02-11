@@ -68,6 +68,7 @@ func (c *MapBase) Each(f func(start, end uint64) bool) {
 
 // AppendLen Append len for insert
 func (c *MapBase) AppendLen(v int) {
+	c.preHookAppend()
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
 }
@@ -256,7 +257,7 @@ func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision
 	return nil
 }
 
-func (c *MapBase) Validate() error {
+func (c *MapBase) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 
 	if !helper.IsMap(chType) {
@@ -280,13 +281,13 @@ func (c *MapBase) Validate() error {
 	c.valueColumn.SetType(columnsMap[1].ChType)
 	c.valueColumn.SetName(columnsMap[1].Name)
 
-	if c.keyColumn.Validate() != nil {
+	if c.keyColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			chType:     string(c.chType),
 			structType: c.structType(),
 		}
 	}
-	if c.valueColumn.Validate() != nil {
+	if c.valueColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			chType:     string(c.chType),
 			structType: c.structType(),

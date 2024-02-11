@@ -159,7 +159,7 @@ func newContextAlreadyDoneError(ctx context.Context) (err error) {
 
 type unexpectedPacket struct {
 	expected string
-	actual   interface{}
+	actual   any
 }
 
 func (e *unexpectedPacket) Error() string {

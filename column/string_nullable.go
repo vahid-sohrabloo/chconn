@@ -68,12 +68,12 @@ func (c *StringNullable[T]) ReadP(value []*T) []*T {
 	return value
 }
 
-// Append value for insert
+// Row return the value of given row
 func (c *StringNullable[T]) Row(i int) T {
 	return c.dataColumn.Row(i)
 }
 
-// Append value for insert
+// RowAny return the value of given row
 func (c *StringNullable[T]) RowAny(i int) any {
 	return c.RowP(i)
 }
@@ -121,24 +121,28 @@ func (c *StringNullable[T]) RowIsNil(row int) bool {
 
 // Append value for insert
 func (c *StringNullable[T]) Append(v T) {
+	c.preHookAppend()
 	c.writerData = append(c.writerData, 0)
 	c.dataColumn.Append(v)
 }
 
 // Append value for insert
 func (c *StringNullable[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	c.writerData = append(c.writerData, make([]uint8, len(v))...)
 	c.dataColumn.AppendMulti(v...)
 }
 
 // Append value for insert
 func (c *StringNullable[T]) AppendBytes(v []byte) {
+	c.preHookAppend()
 	c.writerData = append(c.writerData, 0)
 	c.dataColumn.AppendBytes(v)
 }
 
 // Append value for insert
 func (c *StringNullable[T]) AppendBytesMulti(v ...[]byte) {
+	c.preHookAppendMulti(len(v))
 	c.writerData = append(c.writerData, make([]uint8, len(v))...)
 	c.dataColumn.AppendBytesMulti(v...)
 }
@@ -180,6 +184,7 @@ func (c *StringNullable[T]) AppendMultiP(v ...*T) {
 
 // Append nil value for insert
 func (c *StringNullable[T]) AppendNil() {
+	c.preHookAppend()
 	c.writerData = append(c.writerData, 1)
 	c.dataColumn.appendEmpty()
 }
@@ -254,7 +259,7 @@ func (c *StringNullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	return c.dataColumn.HeaderReader(r, false, revision)
 }
 
-func (c *StringNullable[T]) Validate() error {
+func (c *StringNullable[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
 		return ErrInvalidType{
@@ -262,7 +267,7 @@ func (c *StringNullable[T]) Validate() error {
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
-	if c.dataColumn.Validate() != nil {
+	if c.dataColumn.Validate(forInsert) != nil {
 		return ErrInvalidType{
 			structType: c.structType(),
 		}

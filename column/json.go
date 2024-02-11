@@ -60,7 +60,7 @@ func (c *JSONString) SetWriteBufferSize(b int) {
 }
 
 // todo
-func (c *JSONString) Validate() error {
+func (c *JSONString) Validate(forInsert bool) error {
 	return nil
 }
 

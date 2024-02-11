@@ -9,7 +9,7 @@ import (
 
 func TestDate(t *testing.T) {
 	// Test TimeToDate function
-	t1 := time.Now()
+	t1 := time.Now().UTC()
 	d := TimeToDate(t1)
 	assert.Equal(t, "Date", d.GetCHType())
 	expected := Date(t1.Unix() / (24 * 60 * 60))
@@ -36,7 +36,7 @@ func TestDate(t *testing.T) {
 
 func TestDate32(t *testing.T) {
 	// Test TimeToDate32 function
-	t1 := time.Now()
+	t1 := time.Now().UTC()
 	d := TimeToDate32(t1)
 	assert.Equal(t, "Date32", d.GetCHType())
 	expected := Date32(t1.Unix() / (24 * 60 * 60))

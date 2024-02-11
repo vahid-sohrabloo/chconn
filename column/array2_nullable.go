@@ -73,6 +73,14 @@ func (c *Array2Nullable[T]) RowAny(row int) any {
 }
 
 func (c *Array2Nullable[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *[][]*T:
+		*d = c.RowP(row)
+		return nil
+	case *any:
+		*d = c.RowP(row)
+		return nil
+	}
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 

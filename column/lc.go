@@ -93,6 +93,7 @@ func (c *LowCardinality[T]) ScanValue(row int, dest reflect.Value) error {
 
 // Append value for insert
 func (c *LowCardinality[T]) Append(v T) {
+	c.preHookAppend()
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
@@ -105,6 +106,7 @@ func (c *LowCardinality[T]) Append(v T) {
 
 // AppendMulti value for insert
 func (c *LowCardinality[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
@@ -257,7 +259,7 @@ func (c *LowCardinality[T]) structType() string {
 	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.structType())
 }
 
-func (c *LowCardinality[T]) Validate() error {
+func (c *LowCardinality[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !c.nullable {
 		if !helper.IsLowCardinality(chType) {
@@ -276,7 +278,7 @@ func (c *LowCardinality[T]) Validate() error {
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
 	}
-	if err := c.dictColumn.Validate(); err != nil {
+	if err := c.dictColumn.Validate(forInsert); err != nil {
 		return &ErrInvalidType{
 			chType:     string(c.chType),
 			structType: c.structType(),

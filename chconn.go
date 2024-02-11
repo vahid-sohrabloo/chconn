@@ -573,7 +573,7 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (any, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}

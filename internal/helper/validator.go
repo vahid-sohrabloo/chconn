@@ -116,6 +116,10 @@ func IsTuple(chType []byte) bool {
 	return len(chType) > LenTupleStr && string(chType[:LenTupleStr]) == TupleStr
 }
 
+func IsVariant(chType []byte) bool {
+	return len(chType) > LenVariantStr && string(chType[:LenVariantStr]) == VariantStr
+}
+
 type ColumnData struct {
 	ChType, Name []byte
 }

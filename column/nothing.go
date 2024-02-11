@@ -101,7 +101,7 @@ func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnBasic {
 	return c
 }
 
-func (c *Nothing) Validate() error {
+func (c *Nothing) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNothing(chType) {
 		return ErrInvalidType{

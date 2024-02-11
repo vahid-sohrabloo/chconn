@@ -6,6 +6,11 @@ const (
 	PointStr    = "Point"
 )
 
+const (
+	VariantStr    = "Variant("
+	LenVariantStr = len(VariantStr)
+)
+
 var PointMainTypeStr = []byte("Tuple(Float64, Float64)")
 
 const PolygonStr = "Polygon"
