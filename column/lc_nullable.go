@@ -104,6 +104,32 @@ func (c *LowCardinalityNullable[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case T:
+		c.Append(v)
+
+		return nil
+	case *T:
+		c.AppendP(v)
+
+		return nil
+	default:
+		val := reflect.ValueOf(value)
+		valueKind := val.Kind()
+		if valueKind == reflect.Ptr {
+			value = reflect.ValueOf(value).Elem().Interface()
+		}
+
+		return c.dictColumn.AppendAny(value)
+	}
+
+}
+
 // AppendMulti value for insert
 func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

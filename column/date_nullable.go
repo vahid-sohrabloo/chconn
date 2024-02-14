@@ -127,6 +127,39 @@ func (c *DateNullable[T]) Append(v time.Time) {
 	c.dataColumn.Append(v)
 }
 
+func (c *DateNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v.ToTime(c.dataColumn.loc, c.dataColumn.precision))
+
+		return nil
+	case *T:
+		if v == nil {
+			c.AppendNil()
+
+			return nil
+		}
+		var t = (*v).ToTime(c.dataColumn.loc, c.dataColumn.precision)
+		c.AppendP(&t)
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case time.Time:
+		c.Append(v)
+
+		return nil
+	case int64:
+		c.Append(time.Unix(v, 0))
+
+		return nil
+	// TODO: are there more types?
+	default:
+		return fmt.Errorf("invalid type %T", value)
+	}
+	return nil
+}
+
 // AppendMulti value for insert
 func (c *DateNullable[T]) AppendMulti(v ...time.Time) {
 	c.preHookAppend()

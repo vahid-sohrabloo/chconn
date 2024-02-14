@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -101,6 +102,33 @@ func (c *Tuple2[T, T1, T2]) Append(v T) {
 	t := tuple2Value[T1, T2](v)
 	c.col1.Append(t.Col1)
 	c.col2.Append(t.Col2)
+}
+
+func (c *Tuple2[T, T1, T2]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+
+		return nil
+	case []any:
+		if len(v) != 2 {
+			return fmt.Errorf("length of the value slice must be 2")
+		}
+
+		err := c.col1.AppendAny(v[0])
+		if err != nil {
+			return fmt.Errorf("could not append col1: %w", err)
+		}
+		err = c.col2.AppendAny(v[1])
+		if err != nil {
+			c.col1.Remove(c.col1.NumRow() - 1)
+			return fmt.Errorf("could not append col2: %w", err)
+		}
+
+		return nil
+	default:
+		return fmt.Errorf("could not append value of type %T", value)
+	}
 }
 
 // AppendMulti value for insert

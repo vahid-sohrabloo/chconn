@@ -126,6 +126,31 @@ func (c *BaseNullable[T]) Append(v T) {
 	c.dataColumn.Append(v)
 }
 
+func (c *BaseNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case T:
+		c.Append(v)
+
+		return nil
+	case *T:
+		c.AppendP(v)
+
+		return nil
+	default:
+		val := reflect.ValueOf(value)
+		valueKind := val.Kind()
+		if valueKind == reflect.Ptr {
+			value = reflect.ValueOf(value).Elem().Interface()
+		}
+
+		return c.dataColumn.AppendAny(value)
+	}
+}
+
 // AppendMulti value for insert
 func (c *BaseNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

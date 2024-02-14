@@ -139,6 +139,10 @@ func (c *Variant) Append(v any) {
 	panic("not implemented yet")
 }
 
+func (c *Variant) AppendAny(v any) error {
+	panic("not implemented yet")
+}
+
 // AppendMulti append multiple value to the column
 func (c *Variant) AppendMulti(v ...any) {
 	panic("not implemented yet")

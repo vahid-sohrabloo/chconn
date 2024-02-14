@@ -126,6 +126,27 @@ func (c *StringNullable[T]) Append(v T) {
 	c.dataColumn.Append(v)
 }
 
+func (c *StringNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+	case string:
+		c.Append(T(v))
+	case []byte:
+		c.AppendBytes(v)
+	case *string:
+		var tmp = T(*v)
+		c.AppendP(&tmp)
+	case *[]byte:
+		c.AppendBytes(*v)
+	case nil:
+		c.AppendNil()
+	default:
+		return fmt.Errorf("cannot convert %T to string", value)
+	}
+	return nil
+}
+
 // Append value for insert
 func (c *StringNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

@@ -121,6 +121,49 @@ func (c *Array[T]) Append(v []T) {
 	c.dataColumn.(Column[T]).AppendMulti(v...)
 }
 
+func (c *Array[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case []T:
+		c.Append(v)
+
+		return nil
+	case []any:
+		// TODO: maybe record all errors?
+		var lastErr error
+		for _, item := range v {
+			err := c.dataColumn.(Column[T]).AppendAny(item)
+			if err == nil {
+				c.AppendLen(1)
+			} else {
+				lastErr = err
+			}
+		}
+
+		return lastErr
+		// TODO: maybe check all other slice types like []int and []float
+	default:
+		sliceVal := reflect.ValueOf(value)
+		if sliceVal.Kind() != reflect.Slice {
+			return fmt.Errorf("value is not a slice")
+		}
+
+		// TODO: maybe record all errors?
+		var lastErr error
+		for i := 0; i < sliceVal.Len(); i++ {
+			c.AppendLen(1)
+			err := c.dataColumn.(Column[T]).AppendAny(sliceVal.Index(i).Interface())
+			if err == nil {
+				c.AppendLen(1)
+			} else {
+				lastErr = err
+			}
+			lastErr = err
+		}
+
+		return lastErr
+	}
+}
+
 // AppendMulti value for insert
 func (c *Array[T]) AppendMulti(v ...[]T) {
 	for _, v := range v {

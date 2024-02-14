@@ -152,6 +152,11 @@ func (c *StringMarshaler[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *StringMarshaler[T]) AppendAny(value any) error {
+	// TODO: implement this
+	return nil
+}
+
 // AppendMulti value for insert
 func (c *StringMarshaler[T]) AppendMulti(v ...T) {
 	for _, v := range v {

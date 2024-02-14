@@ -1,5 +1,10 @@
 package column
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Map is a column of Map(K,V) ClickHouse data type
 // Map in clickhouse actually is a array of pair(K,V)
 type Map[K comparable, V any] struct {
@@ -84,6 +89,60 @@ func (c *Map[K, V]) Append(v map[K]V) {
 		c.keyColumn.(Column[K]).Append(k)
 		c.valueColumn.(Column[V]).Append(d)
 	}
+}
+
+func (c *Map[K, V]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case map[K]V:
+		c.Append(v)
+	case map[any]any:
+		var lastErr error
+		for k, v := range v {
+			err := c.keyColumn.(Column[K]).AppendAny(k)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			err = c.valueColumn.(Column[V]).AppendAny(v)
+			if err != nil {
+				lastErr = err
+				c.keyColumn.(Column[K]).Remove(c.keyColumn.NumRow() - 1)
+				continue
+			} else {
+				c.AppendLen(1)
+			}
+		}
+
+		return lastErr
+	default:
+		mapVal := reflect.ValueOf(value)
+		if mapVal.Kind() != reflect.Map {
+			return fmt.Errorf("value is not a map")
+		}
+
+		var lastErr error
+
+		for _, key := range mapVal.MapKeys() {
+			err := c.keyColumn.(Column[K]).AppendAny(key.Interface())
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			err = c.valueColumn.(Column[V]).AppendAny(mapVal.MapIndex(key).Interface())
+			if err != nil {
+				lastErr = err
+				c.keyColumn.(Column[K]).Remove(c.keyColumn.NumRow() - 1)
+				continue
+			} else {
+				c.AppendLen(1)
+			}
+
+		}
+
+		return lastErr
+
+	}
+	return nil
 }
 
 // AppendMulti value for insert

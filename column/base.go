@@ -95,6 +95,113 @@ func (c *Base[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *Base[T]) AppendAny(value any) error {
+	switch c.kind {
+	case reflect.Int8:
+		tmp, ok := getInt8Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Int16:
+		tmp, ok := getInt16Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Int32:
+		tmp, ok := getInt32Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Int64:
+		tmp, ok := getInt64Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Int:
+		tmp, ok := getIntValue(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Uint8:
+		tmp, ok := getUint8Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Uint16:
+		tmp, ok := getUint16Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Uint32:
+		tmp, ok := getUint32Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Uint64:
+		tmp, ok := getUint64Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Uint:
+		tmp, ok := getUintValue(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Float32:
+		tmp, ok := getFloat32Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Float64:
+		tmp, ok := getFloat64Value(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.Bool:
+		tmp, ok := getBoolValue(value)
+		if ok {
+			value = tmp
+		}
+
+	case reflect.String:
+		tmp, ok := getStringValue(value)
+		if ok {
+			value = tmp
+		}
+
+	}
+
+	v, ok := value.(T)
+	if ok {
+		c.Append(v)
+
+		return nil
+	}
+
+	val := reflect.ValueOf(value)
+
+	if val.Type().ConvertibleTo(c.rtype) {
+		convertedVal := val.Convert(c.rtype).Interface()
+		c.Append(convertedVal.(T))
+
+		return nil
+	} else {
+		return fmt.Errorf("cannot convert value of type %T to %T", value, (*T)(nil))
+	}
+}
+
 // AppendMulti value for insert
 func (c *Base[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

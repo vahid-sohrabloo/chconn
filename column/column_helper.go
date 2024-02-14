@@ -39,6 +39,7 @@ type Column[T any] interface {
 	Read([]T) []T
 	Row(int) T
 	Append(T)
+	AppendAny(any) error
 	AppendMulti(...T)
 }
 

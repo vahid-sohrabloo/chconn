@@ -104,6 +104,33 @@ func (c *LowCardinality[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *LowCardinality[T]) AppendAny(value any) error {
+	v, ok := value.(T)
+	if ok {
+		c.Append(v)
+
+		return nil
+	}
+
+	c.preHookAppend()
+	err := c.dictColumn.AppendAny(value)
+	if err != nil {
+		return err
+	}
+
+	v = c.dictColumn.Row(c.dictColumn.NumRow() - 1)
+
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+	}
+	c.keys = append(c.keys, key)
+	c.numRow++
+
+	return nil
+}
+
 // AppendMulti value for insert
 func (c *LowCardinality[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

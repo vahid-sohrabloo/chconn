@@ -104,6 +104,10 @@ func (c *NothingNullable) RowIsNil(row int) bool {
 func (c *NothingNullable) Append(v NothingData) {
 }
 
+func (c *NothingNullable) AppendAny(value any) error {
+	return nil
+}
+
 // AppendMulti value for insert
 //
 // Should not use this method. NothingNullable column is only for select query

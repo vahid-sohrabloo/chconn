@@ -64,6 +64,10 @@ func (c *Nothing) ScanValue(row int, dest reflect.Value) error {
 func (c *Nothing) Append(v NothingData) {
 }
 
+func (c *Nothing) AppendAny(value any) error {
+	return nil
+}
+
 // AppendMulti value for insert
 //
 // Should not use this method. Nothing column is only for select query

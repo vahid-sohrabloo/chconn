@@ -110,6 +110,45 @@ func (c *Array3[T]) Append(v [][][]T) {
 	c.dataColumn.(*Array2[T]).AppendMulti(v...)
 }
 
+func (c *Array3[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case [][][]T:
+		c.Append(v)
+
+		return nil
+	case [][][]any:
+		var lastErr error
+		for _, item := range v {
+			err := c.dataColumn.(*Array2[T]).AppendAny(item)
+			if err == nil {
+				c.AppendLen(1)
+			} else {
+				lastErr = err
+			}
+
+		}
+
+		return lastErr
+	default:
+		sliceVal := reflect.ValueOf(value)
+		if sliceVal.Kind() != reflect.Slice {
+			return fmt.Errorf("value is not a slice")
+		}
+
+		var lastErr error
+		for i := 0; i < sliceVal.Len(); i++ {
+			err := c.dataColumn.(*Array2[T]).AppendAny(sliceVal.Index(i).Interface())
+			if err == nil {
+				c.AppendLen(1)
+			} else {
+				lastErr = err
+			}
+		}
+
+		return lastErr
+	}
+}
+
 // AppendMulti value for insert
 func (c *Array3[T]) AppendMulti(v ...[][][]T) {
 	for _, v := range v {
