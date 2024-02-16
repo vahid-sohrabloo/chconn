@@ -153,7 +153,7 @@ func (c *StringMarshaler[T]) Append(v T) {
 }
 
 func (c *StringMarshaler[T]) AppendAny(value any) error {
-	// TODO: implement this
+	// TODO: discuss about implementation details
 	return nil
 }
 

@@ -96,94 +96,143 @@ func (c *Base[T]) Append(v T) {
 }
 
 func (c *Base[T]) AppendAny(value any) error {
+	v, ok := value.(T)
+	if ok {
+		c.Append(v)
+
+		return nil
+	}
+
 	switch c.kind {
 	case reflect.Int8:
-		tmp, ok := getInt8Value(value)
+		tmp, ok, err := getInt8Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Int16:
-		tmp, ok := getInt16Value(value)
+		tmp, ok, err := getInt16Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Int32:
-		tmp, ok := getInt32Value(value)
+		tmp, ok, err := getInt32Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Int64:
-		tmp, ok := getInt64Value(value)
+		tmp, ok, err := getInt64Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Int:
-		tmp, ok := getIntValue(value)
+		tmp, ok, err := getIntValue(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Uint8:
-		tmp, ok := getUint8Value(value)
+		tmp, ok, err := getUint8Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Uint16:
-		tmp, ok := getUint16Value(value)
+		tmp, ok, err := getUint16Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Uint32:
-		tmp, ok := getUint32Value(value)
+		tmp, ok, err := getUint32Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Uint64:
-		tmp, ok := getUint64Value(value)
+		tmp, ok, err := getUint64Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Uint:
-		tmp, ok := getUintValue(value)
+		tmp, ok, err := getUintValue(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Float32:
-		tmp, ok := getFloat32Value(value)
+		tmp, ok, err := getFloat32Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Float64:
-		tmp, ok := getFloat64Value(value)
+		tmp, ok, err := getFloat64Value(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.Bool:
-		tmp, ok := getBoolValue(value)
+		tmp, ok, err := getBoolValue(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	case reflect.String:
-		tmp, ok := getStringValue(value)
+		tmp, ok, err := getStringValue(value)
+		if err != nil {
+			return fmt.Errorf("could not append %v to column: %w", value, err)
+		}
 		if ok {
 			value = tmp
 		}
 
 	}
 
-	v, ok := value.(T)
+	v, ok = value.(T)
 	if ok {
 		c.Append(v)
 
@@ -192,14 +241,14 @@ func (c *Base[T]) AppendAny(value any) error {
 
 	val := reflect.ValueOf(value)
 
-	if val.Type().ConvertibleTo(c.rtype) {
-		convertedVal := val.Convert(c.rtype).Interface()
-		c.Append(convertedVal.(T))
-
-		return nil
-	} else {
+	convertedVal, err := tryConvert(val, c.rtype)
+	if err != nil {
 		return fmt.Errorf("cannot convert value of type %T to %T", value, (*T)(nil))
 	}
+
+	c.Append(convertedVal.(T))
+
+	return nil
 }
 
 // AppendMulti value for insert

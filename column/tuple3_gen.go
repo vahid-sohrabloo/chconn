@@ -134,14 +134,11 @@ func (c *Tuple3[T, T1, T2, T3]) AppendAny(value any) error {
 		}
 		err = c.col2.AppendAny(v[1])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
 			return fmt.Errorf("could not append col2: %w", err)
 		}
 
 		err = c.col3.AppendAny(v[2])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
-			c.col2.Remove(c.col2.NumRow() - 1)
 			return fmt.Errorf("could not append col3: %w", err)
 		}
 

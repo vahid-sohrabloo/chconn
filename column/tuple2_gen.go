@@ -121,7 +121,6 @@ func (c *Tuple2[T, T1, T2]) AppendAny(value any) error {
 		}
 		err = c.col2.AppendAny(v[1])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
 			return fmt.Errorf("could not append col2: %w", err)
 		}
 

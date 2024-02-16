@@ -115,7 +115,7 @@ func (c *LowCardinality[T]) AppendAny(value any) error {
 	c.preHookAppend()
 	err := c.dictColumn.AppendAny(value)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not append %v to column: %w", value, err)
 	}
 
 	v = c.dictColumn.Row(c.dictColumn.NumRow() - 1)

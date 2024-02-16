@@ -174,7 +174,6 @@ func (c *Date[T]) AppendAny(value any) error {
 		c.Append(time.Unix(v, 0))
 
 		return nil
-	// TODO: are there more types?
 	default:
 		return fmt.Errorf("invalid type %T", value)
 

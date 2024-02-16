@@ -161,31 +161,21 @@ func (c *Tuple5[T, T1, T2, T3, T4, T5]) AppendAny(value any) error {
 
 		err = c.col2.AppendAny(v[1])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
 			return fmt.Errorf("could not append col2: %w", err)
 		}
 
 		err = c.col3.AppendAny(v[2])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
-			c.col2.Remove(c.col2.NumRow() - 1)
 			return fmt.Errorf("could not append col3: %w", err)
 		}
 
 		err = c.col4.AppendAny(v[3])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
-			c.col2.Remove(c.col2.NumRow() - 1)
-			c.col3.Remove(c.col3.NumRow() - 1)
 			return fmt.Errorf("could not append col4: %w", err)
 		}
 
 		err = c.col4.AppendAny(v[4])
 		if err != nil {
-			c.col1.Remove(c.col1.NumRow() - 1)
-			c.col2.Remove(c.col2.NumRow() - 1)
-			c.col3.Remove(c.col3.NumRow() - 1)
-			c.col4.Remove(c.col4.NumRow() - 1)
 			return fmt.Errorf("could not append col5: %w", err)
 		}
 

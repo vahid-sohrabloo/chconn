@@ -125,6 +125,12 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 			value = reflect.ValueOf(value).Elem().Interface()
 		}
 
+		if value == nil {
+			c.AppendNil()
+
+			return nil
+		}
+
 		return c.dictColumn.AppendAny(value)
 	}
 

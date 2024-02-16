@@ -117,35 +117,31 @@ func (c *Array3[T]) AppendAny(value any) error {
 
 		return nil
 	case [][][]any:
-		var lastErr error
+		c.AppendLen(len(v))
 		for _, item := range v {
 			err := c.dataColumn.(*Array2[T]).AppendAny(item)
-			if err == nil {
-				c.AppendLen(1)
-			} else {
-				lastErr = err
+			if err != nil {
+				return fmt.Errorf("cannot append array2 item %v: %w", item, err)
 			}
-
 		}
 
-		return lastErr
+		return nil
 	default:
 		sliceVal := reflect.ValueOf(value)
 		if sliceVal.Kind() != reflect.Slice {
 			return fmt.Errorf("value is not a slice")
 		}
 
-		var lastErr error
+		c.AppendLen(sliceVal.Len())
 		for i := 0; i < sliceVal.Len(); i++ {
-			err := c.dataColumn.(*Array2[T]).AppendAny(sliceVal.Index(i).Interface())
-			if err == nil {
-				c.AppendLen(1)
-			} else {
-				lastErr = err
+			item := sliceVal.Index(i).Interface()
+			err := c.dataColumn.(*Array2[T]).AppendAny(item)
+			if err != nil {
+				return fmt.Errorf("cannot append array2 item %v: %w", item, err)
 			}
 		}
 
-		return lastErr
+		return nil
 	}
 }
 

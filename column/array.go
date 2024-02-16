@@ -128,39 +128,31 @@ func (c *Array[T]) AppendAny(value any) error {
 
 		return nil
 	case []any:
-		// TODO: maybe record all errors?
-		var lastErr error
+		c.AppendLen(len(v))
 		for _, item := range v {
 			err := c.dataColumn.(Column[T]).AppendAny(item)
-			if err == nil {
-				c.AppendLen(1)
-			} else {
-				lastErr = err
+			if err != nil {
+				return fmt.Errorf("cannot append array item %v: %w", item, err)
 			}
 		}
 
-		return lastErr
-		// TODO: maybe check all other slice types like []int and []float
+		return nil
 	default:
 		sliceVal := reflect.ValueOf(value)
 		if sliceVal.Kind() != reflect.Slice {
 			return fmt.Errorf("value is not a slice")
 		}
 
-		// TODO: maybe record all errors?
-		var lastErr error
+		c.AppendLen(sliceVal.Len())
 		for i := 0; i < sliceVal.Len(); i++ {
-			c.AppendLen(1)
-			err := c.dataColumn.(Column[T]).AppendAny(sliceVal.Index(i).Interface())
-			if err == nil {
-				c.AppendLen(1)
-			} else {
-				lastErr = err
+			item := sliceVal.Index(i).Interface()
+			err := c.dataColumn.(Column[T]).AppendAny(item)
+			if err != nil {
+				return fmt.Errorf("cannot append array item %v: %w", item, err)
 			}
-			lastErr = err
 		}
 
-		return lastErr
+		return nil
 	}
 }
 

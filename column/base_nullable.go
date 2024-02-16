@@ -147,6 +147,12 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 			value = reflect.ValueOf(value).Elem().Interface()
 		}
 
+		if value == nil {
+			c.AppendNil()
+
+			return nil
+		}
+
 		return c.dataColumn.AppendAny(value)
 	}
 }
