@@ -480,7 +480,7 @@ func testColumn[T column.BaseType](
 	})
 
 	require.NoError(t, err)
-	//blockID := column.New[uint8]()
+	blockID := column.New[uint8]()
 	col := column.New[T]()
 	colNullable := column.New[T]().Nullable()
 	colArray := column.New[T]().Array()
@@ -520,163 +520,163 @@ func testColumn[T column.BaseType](
 	colLCNullable.SetWriteBufferSize(10)
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
-	//for insertN := 0; insertN < 2; insertN++ {
-	//	rows := 10
-	//	for i := 0; i < rows; i++ {
-	//		blockID.Append(uint8(insertN))
-	//		val := firstVal(i * (insertN + 1))
-	//		val2 := secondVal(i * (insertN + 1))
-	//		valArray := []T{val, val2}
-	//		valArrayNil := []*T{&val, nil}
-	//		valArrayArray := [][]T{{val, val2}}
-	//		valArrayArrayNil := [][]*T{{&val, nil}}
-	//		valArrayArrayArray := [][][]T{{{val, val2}}}
-	//		valArrayArrayArrayNil := [][][]*T{{{&val, nil}}}
-	//
-	//		col.Append(val)
-	//		colInsert = append(colInsert, val)
-	//
-	//		// example add nullable
-	//		if i%2 == 0 {
-	//			colNullableInsert = append(colNullableInsert, &val)
-	//			colNullable.Append(val)
-	//			colLCNullableInsert = append(colLCNullableInsert, &val)
-	//			colLCNullable.Append(val)
-	//		} else {
-	//			colNullableInsert = append(colNullableInsert, nil)
-	//			colNullable.AppendNil()
-	//			colLCNullableInsert = append(colLCNullableInsert, nil)
-	//			colLCNullable.AppendNil()
-	//		}
-	//		if i%2 == 0 {
-	//			colArray.Append(valArray)
-	//			colNullableArray.AppendP(valArrayNil)
-	//		} else {
-	//			// test append item
-	//			colArray.AppendLen(len(valArray))
-	//			for _, d := range valArray {
-	//				colArray.AppendItem(d)
-	//			}
-	//
-	//			colNullableArray.AppendLen(len(valArrayNil))
-	//			for _, d := range valArrayNil {
-	//				colNullableArray.AppendItemP(d)
-	//			}
-	//		}
-	//		colArrayInsert = append(colArrayInsert, valArray)
-	//		colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
-	//
-	//		colArrayArray.Append(valArrayArray)
-	//		colArrayArrayInsert = append(colArrayArrayInsert, valArrayArray)
-	//
-	//		colNullableArrayArray.AppendP(valArrayArrayNil)
-	//		colArrayArrayNullableInsert = append(colArrayArrayNullableInsert, valArrayArrayNil)
-	//
-	//		colArrayArrayArray.Append(valArrayArrayArray)
-	//		colArrayArrayArrayInsert = append(colArrayArrayArrayInsert, valArrayArrayArray)
-	//
-	//		colNullableArrayArrayArray.AppendP(valArrayArrayArrayNil)
-	//		colArrayArrayArrayNullableInsert = append(colArrayArrayArrayNullableInsert, valArrayArrayArrayNil)
-	//
-	//		colLCInsert = append(colLCInsert, val)
-	//		colLC.Append(val)
-	//
-	//		colLCArrayInsert = append(colLCArrayInsert, valArray)
-	//		colArrayLC.Append(valArray)
-	//
-	//		colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
-	//		colArrayLCNullable.AppendP(valArrayNil)
-	//	}
-	//	if withDelete && insertN == 0 {
-	//		blockID.Remove(rows / 2)
-	//		col.Remove(rows / 2)
-	//		colNullable.Remove(rows / 2)
-	//		colArray.Remove(rows / 2)
-	//		colNullableArray.Remove(rows / 2)
-	//		colLC.Remove(rows / 2)
-	//		colArrayArray.Remove(rows / 2)
-	//		colNullableArrayArray.Remove(rows / 2)
-	//		colArrayArrayArray.Remove(rows / 2)
-	//		colNullableArrayArrayArray.Remove(rows / 2)
-	//		colLC.Remove(rows / 2)
-	//		colLCNullable.Remove(rows / 2)
-	//		colArrayLC.Remove(rows / 2)
-	//		colArrayLCNullable.Remove(rows / 2)
-	//
-	//		colInsert = colInsert[:rows/2]
-	//		colNullableInsert = colNullableInsert[:rows/2]
-	//		colArrayInsert = colArrayInsert[:rows/2]
-	//		colArrayNullableInsert = colArrayNullableInsert[:rows/2]
-	//		colLCInsert = colLCInsert[:rows/2]
-	//		colArrayArrayInsert = colArrayArrayInsert[:rows/2]
-	//		colArrayArrayNullableInsert = colArrayArrayNullableInsert[:rows/2]
-	//		colArrayArrayArrayInsert = colArrayArrayArrayInsert[:rows/2]
-	//		colArrayArrayArrayNullableInsert = colArrayArrayArrayNullableInsert[:rows/2]
-	//		colLCInsert = colLCInsert[:rows/2]
-	//		colLCNullableInsert = colLCNullableInsert[:rows/2]
-	//		colLCArrayInsert = colLCArrayInsert[:rows/2]
-	//		colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
-	//	}
-	//	if isLC {
-	//		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
-	//		test_%[1]s (
-	//			block_id,
-	//			%[1]s,
-	//			%[1]s_nullable,
-	//			%[1]s_array,
-	//			%[1]s_array_nullable,
-	//			%[1]s_array_array,
-	//			%[1]s_array_array_nullable,
-	//			%[1]s_array_array_array,
-	//			%[1]s_array_array_array_nullable,
-	//			%[1]s_lc,
-	//			%[1]s_nullable_lc,
-	//			%[1]s_array_lc,
-	//			%[1]s_array_lc_nullable
-	//		)
-	//	VALUES`, tableName),
-	//			blockID,
-	//			col,
-	//			colNullable,
-	//			colArray,
-	//			colNullableArray,
-	//			colArrayArray,
-	//			colNullableArrayArray,
-	//			colArrayArrayArray,
-	//			colNullableArrayArrayArray,
-	//			colLC,
-	//			colLCNullable,
-	//			colArrayLC,
-	//			colArrayLCNullable,
-	//		)
-	//	} else {
-	//		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
-	//		test_%[1]s (
-	//			block_id,
-	//			%[1]s,
-	//			%[1]s_nullable,
-	//			%[1]s_array,
-	//			%[1]s_array_nullable,
-	//			%[1]s_array_array,
-	//			%[1]s_array_array_nullable,
-	//			%[1]s_array_array_array,
-	//			%[1]s_array_array_array_nullable
-	//		)
-	//	VALUES`, tableName),
-	//			blockID,
-	//			col,
-	//			colNullable,
-	//			colArray,
-	//			colNullableArray,
-	//			colArrayArray,
-	//			colNullableArrayArray,
-	//			colArrayArrayArray,
-	//			colNullableArrayArrayArray,
-	//		)
-	//	}
-	//
-	//	require.NoError(t, err)
-	//}
+	for insertN := 0; insertN < 2; insertN++ {
+		rows := 10
+		for i := 0; i < rows; i++ {
+			blockID.Append(uint8(insertN))
+			val := firstVal(i * (insertN + 1))
+			val2 := secondVal(i * (insertN + 1))
+			valArray := []T{val, val2}
+			valArrayNil := []*T{&val, nil}
+			valArrayArray := [][]T{{val, val2}}
+			valArrayArrayNil := [][]*T{{&val, nil}}
+			valArrayArrayArray := [][][]T{{{val, val2}}}
+			valArrayArrayArrayNil := [][][]*T{{{&val, nil}}}
+
+			col.Append(val)
+			colInsert = append(colInsert, val)
+
+			// example add nullable
+			if i%2 == 0 {
+				colNullableInsert = append(colNullableInsert, &val)
+				colNullable.Append(val)
+				colLCNullableInsert = append(colLCNullableInsert, &val)
+				colLCNullable.Append(val)
+			} else {
+				colNullableInsert = append(colNullableInsert, nil)
+				colNullable.AppendNil()
+				colLCNullableInsert = append(colLCNullableInsert, nil)
+				colLCNullable.AppendNil()
+			}
+			if i%2 == 0 {
+				colArray.Append(valArray)
+				colNullableArray.AppendP(valArrayNil)
+			} else {
+				// test append item
+				colArray.AppendLen(len(valArray))
+				for _, d := range valArray {
+					colArray.AppendItem(d)
+				}
+
+				colNullableArray.AppendLen(len(valArrayNil))
+				for _, d := range valArrayNil {
+					colNullableArray.AppendItemP(d)
+				}
+			}
+			colArrayInsert = append(colArrayInsert, valArray)
+			colArrayNullableInsert = append(colArrayNullableInsert, valArrayNil)
+
+			colArrayArray.Append(valArrayArray)
+			colArrayArrayInsert = append(colArrayArrayInsert, valArrayArray)
+
+			colNullableArrayArray.AppendP(valArrayArrayNil)
+			colArrayArrayNullableInsert = append(colArrayArrayNullableInsert, valArrayArrayNil)
+
+			colArrayArrayArray.Append(valArrayArrayArray)
+			colArrayArrayArrayInsert = append(colArrayArrayArrayInsert, valArrayArrayArray)
+
+			colNullableArrayArrayArray.AppendP(valArrayArrayArrayNil)
+			colArrayArrayArrayNullableInsert = append(colArrayArrayArrayNullableInsert, valArrayArrayArrayNil)
+
+			colLCInsert = append(colLCInsert, val)
+			colLC.Append(val)
+
+			colLCArrayInsert = append(colLCArrayInsert, valArray)
+			colArrayLC.Append(valArray)
+
+			colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNil)
+			colArrayLCNullable.AppendP(valArrayNil)
+		}
+		if withDelete && insertN == 0 {
+			blockID.Remove(rows / 2)
+			col.Remove(rows / 2)
+			colNullable.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colArrayArray.Remove(rows / 2)
+			colNullableArrayArray.Remove(rows / 2)
+			colArrayArrayArray.Remove(rows / 2)
+			colNullableArrayArrayArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLCNullable.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colNullableInsert = colNullableInsert[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colArrayArrayInsert = colArrayArrayInsert[:rows/2]
+			colArrayArrayNullableInsert = colArrayArrayNullableInsert[:rows/2]
+			colArrayArrayArrayInsert = colArrayArrayArrayInsert[:rows/2]
+			colArrayArrayArrayNullableInsert = colArrayArrayArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCNullableInsert = colLCNullableInsert[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
+		}
+		if isLC {
+			err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_nullable,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable,
+				%[1]s_lc,
+				%[1]s_nullable_lc,
+				%[1]s_array_lc,
+				%[1]s_array_lc_nullable
+			)
+		VALUES`, tableName),
+				blockID,
+				col,
+				colNullable,
+				colArray,
+				colNullableArray,
+				colArrayArray,
+				colNullableArrayArray,
+				colArrayArrayArray,
+				colNullableArrayArrayArray,
+				colLC,
+				colLCNullable,
+				colArrayLC,
+				colArrayLCNullable,
+			)
+		} else {
+			err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_nullable,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable
+			)
+		VALUES`, tableName),
+				blockID,
+				col,
+				colNullable,
+				colArray,
+				colNullableArray,
+				colArrayArray,
+				colNullableArrayArray,
+				colArrayArrayArray,
+				colNullableArrayArrayArray,
+			)
+		}
+
+		require.NoError(t, err)
+	}
 
 	// For testing Append on InstertStmt
 	var insertStmt chconn.InsertStmt
