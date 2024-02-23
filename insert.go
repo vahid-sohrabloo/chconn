@@ -9,10 +9,12 @@ import (
 
 // InsertStmt is a interface for insert stream statement
 type InsertStmt interface {
-	// Write write a columns (a block of data) to the clickhouse server
+	// Write writes a columns (a block of data) to the clickhouse server
 	// after each write you need to reset the columns. it will not reset automatically
 	Write(ctx context.Context, columns ...column.ColumnBasic) error
-	// Flush flush the data to the clickhouse server and close the statement
+	// Append appends values of a row to the insert statement.
+	Append(values ...any) error
+	// Flush flushes the data to the clickhouse server and close the statement
 	Flush(ctx context.Context) error
 	// Close close the statement and release the connection
 	// close will be called automatically after Flush
@@ -22,6 +24,7 @@ type InsertStmt interface {
 type insertStmt struct {
 	block        *block
 	conn         *conn
+	columns      []column.ColumnBasic
 	query        string
 	queryOptions *QueryOptions
 	clientInfo   *ClientInfo
@@ -32,6 +35,16 @@ type insertStmt struct {
 
 func (s *insertStmt) Flush(ctx context.Context) error {
 	defer s.Close()
+	if s.columns != nil {
+		err := s.Write(ctx, s.columns...)
+		if err != nil {
+			s.hasError = true
+			return err
+		}
+
+		s.columns = nil
+	}
+
 	s.finishInsert = true
 
 	if ctx != context.Background() {
@@ -163,6 +176,35 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 			remoteAddr: s.conn.RawConn().RemoteAddr(),
 		}
 	}
+	return nil
+}
+
+func (s *insertStmt) Append(values ...any) error {
+	if s.columns == nil {
+		columns, err := s.block.getColumnsByChType()
+		if err != nil {
+			return fmt.Errorf("could not get columns for insert statement: %w", err)
+		}
+		s.columns = columns
+	}
+
+	if len(values) != len(s.columns) {
+		return &InsertError{
+			err: &ColumnNumberWriteError{
+				WriteColumn: len(values),
+				NeedColumn:  s.block.NumColumns,
+			},
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+
+	for i, value := range values {
+		err := s.columns[i].AppendAny(value)
+		if err != nil {
+			return fmt.Errorf("could not append value at index %d: %w", i, err)
+		}
+	}
+
 	return nil
 }
 

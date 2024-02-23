@@ -118,6 +118,8 @@ func (c *LowCardinality[T]) AppendAny(value any) error {
 		return fmt.Errorf("could not append %v to column: %w", value, err)
 	}
 
+	c.dictColumn.Data()
+
 	v = c.dictColumn.Row(c.dictColumn.NumRow() - 1)
 
 	key, ok := c.dict[v]

@@ -39,6 +39,16 @@ func (c *JSONString) AppendBytes(data []byte) {
 	c.columns[0].(*String).AppendBytes(data)
 }
 
+func (c *JSONString) AppendAny(value any) error {
+	if c.columns == nil {
+		c.columns = []ColumnBasic{
+			NewString(),
+		}
+	}
+
+	return c.columns[0].AppendAny(value)
+}
+
 // Reset all status and buffer data
 //
 // Reading data does not require a reset after each read. The reset will be triggered automatically.

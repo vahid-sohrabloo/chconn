@@ -370,7 +370,7 @@ func getIntValue(value any) (int, bool, error) {
 	case uint16:
 		return int(v), true, nil
 	case uint32:
-		if v <= math.MaxInt {
+		if v <= math.MaxInt32 {
 			return int(v), true, nil
 		}
 
@@ -412,7 +412,7 @@ func getIntValue(value any) (int, bool, error) {
 			return 0, false, fmt.Errorf("value %d is out of range for int", v)
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
 			uintVal := val.Uint()
-			if uintVal <= math.MaxInt && uintVal >= math.MinInt {
+			if uintVal <= math.MaxInt32 {
 				return int(uintVal), true, nil
 			}
 
@@ -738,13 +738,13 @@ func getUint64Value(value any) (uint64, bool, error) {
 
 		return 0, false, fmt.Errorf("value %d is out of range for uint64", v)
 	case int64:
-		if v <= math.MaxUint64 && v >= 0 {
+		if v >= 0 {
 			return uint64(v), true, nil
 		}
 
 		return 0, false, fmt.Errorf("value %d is out of range for uint64", v)
 	case int:
-		if v <= math.MaxUint64 && v >= 0 {
+		if v >= 0 {
 			return uint64(v), true, nil
 		}
 
@@ -785,7 +785,7 @@ func getUint64Value(value any) (uint64, bool, error) {
 		switch valKind {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 			intVal := val.Int()
-			if intVal <= math.MaxUint64 && intVal >= 0 {
+			if intVal >= 0 {
 				return uint64(intVal), true, nil
 			}
 
@@ -825,13 +825,13 @@ func getUintValue(value any) (uint, bool, error) {
 
 		return 0, false, fmt.Errorf("value %d is out of range for uint", v)
 	case int64:
-		if v <= math.MaxUint && v >= 0 {
+		if v >= 0 {
 			return uint(v), true, nil
 		}
 
 		return 0, false, fmt.Errorf("value %d is out of range for uint", v)
 	case int:
-		if v <= math.MaxUint && v >= 0 {
+		if v >= 0 {
 			return uint(v), true, nil
 		}
 
@@ -868,7 +868,7 @@ func getUintValue(value any) (uint, bool, error) {
 		switch valKind {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 			intVal := val.Int()
-			if intVal <= math.MaxUint && intVal >= 0 {
+			if intVal >= 0 {
 				return uint(intVal), true, nil
 			}
 
@@ -1033,6 +1033,13 @@ func tryConvert(val reflect.Value, targetType reflect.Type) (any, error) {
 			} else {
 				return nil, fmt.Errorf("cannot convert value of type %s to %s", val.Type().String(), targetType.String())
 			}
+		}
+	} else if val.Kind() == reflect.Bool && targetType.Kind() == reflect.Uint8 {
+		boolVal := val.Bool()
+		if boolVal {
+			return uint8(1), nil
+		} else {
+			return uint8(0), nil
 		}
 	} else {
 		if val.Type().ConvertibleTo(targetType) {

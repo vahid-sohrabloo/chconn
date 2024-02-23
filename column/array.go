@@ -130,7 +130,7 @@ func (c *Array[T]) AppendAny(value any) error {
 	case []any:
 		c.AppendLen(len(v))
 		for _, item := range v {
-			err := c.dataColumn.(Column[T]).AppendAny(item)
+			err := c.dataColumn.AppendAny(item)
 			if err != nil {
 				return fmt.Errorf("cannot append array item %v: %w", item, err)
 			}
@@ -146,7 +146,7 @@ func (c *Array[T]) AppendAny(value any) error {
 		c.AppendLen(sliceVal.Len())
 		for i := 0; i < sliceVal.Len(); i++ {
 			item := sliceVal.Index(i).Interface()
-			err := c.dataColumn.(Column[T]).AppendAny(item)
+			err := c.dataColumn.AppendAny(item)
 			if err != nil {
 				return fmt.Errorf("cannot append array item %v: %w", item, err)
 			}

@@ -282,6 +282,27 @@ func (c *Tuple) structType() string {
 	return str[:len(str)-1] + ")"
 }
 
+func (c *Tuple) AppendAny(value any) error {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return fmt.Errorf("value is not a slice")
+	}
+
+	if sliceVal.Len() != len(c.columns) {
+		return fmt.Errorf("value length is not equal to columns length")
+	}
+
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		err := c.columns[i].AppendAny(item)
+		if err != nil {
+			return fmt.Errorf("cannot append %dth item to tuple %v: %w", i, item, err)
+		}
+	}
+
+	return nil
+}
+
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *Tuple) WriteTo(w io.Writer) (int64, error) {

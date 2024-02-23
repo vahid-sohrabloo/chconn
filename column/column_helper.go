@@ -26,6 +26,7 @@ type ColumnBasic interface {
 	RowAny(int) any
 	Scan(row int, dest any) error
 	ScanValue(row int, dest reflect.Value) error
+	AppendAny(any) error
 	FullType() string
 	Remove(n int)
 	ToJSON(row int, stringQuotes bool, b []byte) []byte
@@ -39,7 +40,6 @@ type Column[T any] interface {
 	Read([]T) []T
 	Row(int) T
 	Append(T)
-	AppendAny(any) error
 	AppendMulti(...T)
 }
 

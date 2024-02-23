@@ -38,6 +38,24 @@ func (c *ArrayBase) AppendLen(v int) {
 	c.preHookAppend()
 }
 
+func (c *ArrayBase) AppendAny(value any) error {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return fmt.Errorf("value is not a slice")
+	}
+
+	c.AppendLen(sliceVal.Len())
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		err := c.dataColumn.AppendAny(item)
+		if err != nil {
+			return fmt.Errorf("cannot append array item %v: %w", item, err)
+		}
+	}
+
+	return nil
+}
+
 // Remove inserted value from index
 //
 // its equal to data = data[:n]

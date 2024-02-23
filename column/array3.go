@@ -119,7 +119,7 @@ func (c *Array3[T]) AppendAny(value any) error {
 	case [][][]any:
 		c.AppendLen(len(v))
 		for _, item := range v {
-			err := c.dataColumn.(*Array2[T]).AppendAny(item)
+			err := c.ArrayBase.dataColumn.AppendAny(item)
 			if err != nil {
 				return fmt.Errorf("cannot append array2 item %v: %w", item, err)
 			}

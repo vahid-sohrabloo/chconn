@@ -153,7 +153,20 @@ func (c *StringMarshaler[T]) Append(v T) {
 }
 
 func (c *StringMarshaler[T]) AppendAny(value any) error {
-	// TODO: discuss about implementation details
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+	case string:
+		c.appendLen(len(v))
+		c.writerData = append(c.writerData, []byte(v)...)
+		c.numRow++
+	case []byte:
+		c.appendLen(len(v))
+		c.writerData = append(c.writerData, v...)
+		c.numRow++
+	default:
+		return fmt.Errorf("cannot convert %T to string", value)
+	}
 	return nil
 }
 
