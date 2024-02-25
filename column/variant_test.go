@@ -44,6 +44,7 @@ func TestVariant(t *testing.T) {
 	}
 
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
+		block_id UInt8,
 		%[1]s Variant(String, Int64),
 		%[1]s_array Variant(Array(String),Array(Int64)),
 		%[1]s_array_nullable Variant(Array(Nullable(String)),Array(Nullable(Int64))),
@@ -56,6 +57,8 @@ func TestVariant(t *testing.T) {
 	})
 
 	require.NoError(t, err)
+
+	blockID := column.New[uint8]()
 
 	colString := column.NewString()
 	colInt := column.New[int64]()
@@ -105,6 +108,7 @@ func TestVariant(t *testing.T) {
 	for insertN := 0; insertN < 2; insertN++ {
 		rows := 10
 		for i := 0; i < rows; i++ {
+			blockID.Append(uint8(insertN))
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
 			val2String := fmt.Sprintf("string %d", i+1)
@@ -180,6 +184,7 @@ func TestVariant(t *testing.T) {
 		}
 
 		if insertN == 0 {
+			blockID.Remove(rows / 2)
 			col.Remove(rows / 2)
 			colArray.Remove(rows / 2)
 			colNullableArray.Remove(rows / 2)
@@ -200,6 +205,7 @@ func TestVariant(t *testing.T) {
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
+				block_id,
 				%[1]s,
 				%[1]s_array,
 				%[1]s_array_nullable,
@@ -209,6 +215,7 @@ func TestVariant(t *testing.T) {
 				%[1]s_array_array_variant
 			)
 		VALUES`, tableName),
+			blockID,
 			col,
 			colArray,
 			colNullableArray,
@@ -253,7 +260,7 @@ func TestVariant(t *testing.T) {
 	%[1]s_lc,
 	%[1]s_array_lc,
 	%[1]s_array_lc_nullable
-	FROM test_%[1]s`, tableName)
+	FROM test_%[1]s order by block_id`, tableName)
 	selectStmt, err := conn.Select(context.Background(), selectQuery,
 		colRead,
 		colArrayRead,
