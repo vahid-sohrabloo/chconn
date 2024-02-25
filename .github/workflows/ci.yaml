@@ -18,7 +18,7 @@ jobs:
     steps:
     - uses: vahid-sohrabloo/clickhouse-action@v1
       with:
-        version: '23.9'
+        version: '24.1'
 
         
     - name: Set up Go
@@ -41,10 +41,11 @@ jobs:
     strategy:
       matrix:
         golang-version: [1.21, 1.22]
-        clickhouse-version: ['23.9', '23.8', '23.7', '22.3', '22.8']
+        clickhouse-version: [''24.1'', '23.10',','23.9', '23.8', '23.7']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
+      CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
 
     steps:
     - uses: vahid-sohrabloo/clickhouse-action@v1
