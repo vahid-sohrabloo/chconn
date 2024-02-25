@@ -1400,14 +1400,17 @@ func TestEnum8InvalidType(t *testing.T) {
 	m := column.New[int16]()
 	m.SetType([]byte("Enum8()"))
 	err := m.Validate(false)
-	assert.Equal(t, err.Error(), "the chconn type 'column.Base[int16]' is mapped to ClickHouse type 'Int16', which does not match the expected ClickHouse type 'Enum8()'")
+	assert.Equal(t,
+		err.Error(),
+		"the chconn type 'column.Base[int16]' is mapped to ClickHouse type 'Int16', which does not match the expected ClickHouse type 'Enum8()'")
 }
 func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
 	m.SetType([]byte("Enum16()"))
 	assert.Equal(t,
 		m.SetStrict(false).Validate(false).Error(),
-		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4', which does not match the expected ClickHouse type 'Enum16()'")
+		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4', "+
+			"which does not match the expected ClickHouse type 'Enum16()'")
 
 	assert.Equal(t,
 		m.SetStrict(true).Validate(false).Error(),
