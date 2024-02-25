@@ -16,7 +16,7 @@ func NewArray2[T any](array *Array[T]) *Array2[T] {
 		ArrayBase: ArrayBase{
 			dataColumn:      array,
 			offsetColumn:    New[uint64](),
-			arrayChconnType: "column.Array2[" + reflect.TypeFor[T]().String() + "]",
+			arrayChconnType: "column.Array2[" + reflect.TypeOf((*T)(nil)).String() + "]",
 		},
 	}
 	return a

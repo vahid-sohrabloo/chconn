@@ -23,8 +23,8 @@ func NewNothing() *Nothing {
 		Base: Base[int8]{
 			size:   size,
 			strict: true,
-			kind:   reflect.TypeFor[int8]().Kind(),
-			rtype:  reflect.TypeFor[int8](),
+			kind:   reflect.TypeOf((*int8)(nil)).Kind(),
+			rtype:  reflect.TypeOf((*int8)(nil)),
 		},
 	}
 }

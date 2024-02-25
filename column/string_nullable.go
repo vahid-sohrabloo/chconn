@@ -283,7 +283,7 @@ func (c *StringNullable[T]) Validate(forInsert bool) error {
 }
 
 func (c *StringNullable[T]) chconnType() string {
-	return "StringNullable[" + reflect.TypeFor[T]().String() + "]"
+	return "StringNullable[" + reflect.TypeOf((*T)(nil)).String() + "]"
 }
 
 func (c *StringNullable[T]) structType() string {

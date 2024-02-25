@@ -17,7 +17,7 @@ func NewArray[T any](dataColumn Column[T]) *Array[T] {
 		ArrayBase: ArrayBase{
 			dataColumn:      dataColumn,
 			offsetColumn:    New[uint64](),
-			arrayChconnType: "column.Array[" + reflect.TypeFor[T]().String() + "]",
+			arrayChconnType: "column.Array[" + reflect.TypeOf((*T)(nil)).String() + "]",
 		},
 	}
 	a.resetHook = func() {
