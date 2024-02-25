@@ -32,11 +32,11 @@ jobs:
     - name: Test
       run: make test-cover
     - name: Send coverage
-      uses: codecov/codecov-action@v4.0.1
+      uses: codecov/codecov-action@v4
       with:
         file: coverage.out
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ secrets.CODECOV_TOKEN }}
+
   test:
     name: Test
     runs-on: ubuntu-latest
