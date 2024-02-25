@@ -22,7 +22,7 @@ func NewArray3Nullable[T any](dataColumn *Array2Nullable[T]) *Array3Nullable[T] 
 			ArrayBase: ArrayBase{
 				dataColumn:      dataColumn,
 				offsetColumn:    New[uint64](),
-				arrayChconnType: "column.Array3Nullable[" + reflect.TypeOf((*T)(nil)).String() + "]",
+				arrayChconnType: "column.Array3Nullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]",
 			},
 		},
 	}

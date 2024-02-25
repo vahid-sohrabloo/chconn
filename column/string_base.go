@@ -303,7 +303,7 @@ func (c *StringBase[T]) Validate(forInsert bool) error {
 }
 
 func (c *StringBase[T]) chconnType() string {
-	return "column.StringBase[" + reflect.TypeOf((*T)(nil)).String() + "]"
+	return "column.StringBase[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 }
 
 func (c *StringBase[T]) structType() string {

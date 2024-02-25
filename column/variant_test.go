@@ -25,7 +25,7 @@ func TestVariant(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	if conn.ServerInfo().MajorVersion < 24 && conn.ServerInfo().MinorVersion < 1 {
+	if conn.ServerInfo().MajorVersion < 24 {
 		t.Skipf("clickhouse-server version %d.%d does not support Variant type", conn.ServerInfo().MajorVersion, conn.ServerInfo().MinorVersion)
 	}
 	err = conn.Exec(context.Background(),

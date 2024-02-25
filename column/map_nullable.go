@@ -27,7 +27,7 @@ func NewMapNullable[K comparable, V any](
 				keyColumn:     keyColumn,
 				valueColumn:   valueColumn,
 				offsetColumn:  New[uint64](),
-				mapChconnType: "MapNullable[]" + reflect.TypeOf((*K)(nil)).String() + ", " + reflect.TypeOf((*V)(nil)).String() + "]",
+				mapChconnType: "MapNullable[]" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
 			},
 		},
 	}

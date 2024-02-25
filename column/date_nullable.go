@@ -271,7 +271,7 @@ func (c *DateNullable[T]) Validate(forInsert bool) error {
 }
 
 func (c *DateNullable[T]) chconnType() string {
-	return "DateNullable[" + reflect.TypeOf((*T)(nil)).String() + "]"
+	return "DateNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 }
 
 func (c *DateNullable[T]) structType() string {

@@ -254,9 +254,9 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 
 func (c *LowCardinality[T]) chconnType() string {
 	if c.nullable {
-		return "column.LowCardinalityNullable[" + reflect.TypeOf((*T)(nil)).String() + "]"
+		return "column.LowCardinalityNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 	}
-	return "column.LowCardinality[" + reflect.TypeOf((*T)(nil)).String() + "]"
+	return "column.LowCardinality[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 }
 
 func (c *LowCardinality[T]) structType() string {

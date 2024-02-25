@@ -234,7 +234,7 @@ func TestSelectParameters(t *testing.T) {
 	assert.Equal(t, []int32{-15, -16}, colAS.Data()[0])
 	assert.Equal(t, "str'", colB.Data()[0])
 	assert.Equal(t, []string{"str", "str2\\'"}, colBS.Data()[0])
-	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].Format("2006-01-02 15:04:05"))
+	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].UTC().Format("2006-01-02 15:04:05"))
 	assert.Equal(t, map[string]uint8{
 		"a": 1,
 		"b": 2,
