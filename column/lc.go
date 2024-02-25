@@ -252,6 +252,13 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	return c.dictColumn.HeaderReader(r, false, revision)
 }
 
+func (c *LowCardinality[T]) chconnType() string {
+	if c.nullable {
+		return "column.LowCardinalityNullable[" + reflect.TypeFor[T]().String() + "]"
+	}
+	return "column.LowCardinality[" + reflect.TypeFor[T]().String() + "]"
+}
+
 func (c *LowCardinality[T]) structType() string {
 	if !c.nullable {
 		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.structType())
@@ -265,7 +272,8 @@ func (c *LowCardinality[T]) Validate(forInsert bool) error {
 		if !helper.IsLowCardinality(chType) {
 			return &ErrInvalidType{
 				chType:     string(c.chType),
-				structType: c.structType(),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
@@ -273,15 +281,20 @@ func (c *LowCardinality[T]) Validate(forInsert bool) error {
 		if !helper.IsNullableLowCardinality(chType) {
 			return &ErrInvalidType{
 				chType:     string(c.chType),
-				structType: c.structType(),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
 	}
 	if err := c.dictColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
 		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil

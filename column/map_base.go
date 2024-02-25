@@ -17,11 +17,12 @@ import (
 // MapBase is a base class for map and also for non generic  of map to use dynamic select column
 type MapBase struct {
 	column
-	offsetColumn *Base[uint64]
-	keyColumn    ColumnBasic
-	valueColumn  ColumnBasic
-	offset       uint64
-	resetHook    func()
+	offsetColumn  *Base[uint64]
+	keyColumn     ColumnBasic
+	valueColumn   ColumnBasic
+	offset        uint64
+	mapChconnType string
+	resetHook     func()
 }
 
 // NewMapBase create a new map column of Map(K,V) ClickHouse data type
@@ -261,9 +262,10 @@ func (c *MapBase) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 
 	if !helper.IsMap(chType) {
-		return ErrInvalidType{
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	columnsMap, err := helper.TypesInParentheses(chType[helper.LenMapStr : len(chType)-1])
@@ -281,19 +283,34 @@ func (c *MapBase) Validate(forInsert bool) error {
 	c.valueColumn.SetType(columnsMap[1].ChType)
 	c.valueColumn.SetName(columnsMap[1].Name)
 
-	if c.keyColumn.Validate(forInsert) != nil {
-		return ErrInvalidType{
+	if err := c.keyColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
-	if c.valueColumn.Validate(forInsert) != nil {
-		return ErrInvalidType{
+	if err := c.valueColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+
+func (c *MapBase) chconnType() string {
+	if c.mapChconnType != "" {
+		return c.mapChconnType
+	}
+	return "MapBase(" + c.keyColumn.chconnType() + ", " + c.valueColumn.chconnType() + ")"
 }
 
 func (c *MapBase) structType() string {

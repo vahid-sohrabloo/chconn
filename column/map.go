@@ -1,5 +1,7 @@
 package column
 
+import "reflect"
+
 // Map is a column of Map(K,V) ClickHouse data type
 // Map in clickhouse actually is a array of pair(K,V)
 type Map[K comparable, V any] struct {
@@ -15,9 +17,10 @@ func NewMap[K comparable, V any](
 ) *Map[K, V] {
 	a := &Map[K, V]{
 		MapBase: MapBase{
-			keyColumn:    keyColumn,
-			valueColumn:  valueColumn,
-			offsetColumn: New[uint64](),
+			keyColumn:     keyColumn,
+			valueColumn:   valueColumn,
+			offsetColumn:  New[uint64](),
+			mapChconnType: "column.Map[" + reflect.TypeFor[K]().String() + ", " + reflect.TypeFor[V]().String() + "]",
 		},
 	}
 	a.resetHook = func() {

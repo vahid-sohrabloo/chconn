@@ -238,9 +238,10 @@ func (c *Tuple) Validate(forInsert bool) error {
 	}
 
 	if !helper.IsTuple(chType) {
-		return ErrInvalidType{
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 
@@ -264,10 +265,14 @@ func (c *Tuple) Validate(forInsert bool) error {
 		}
 		col.SetType(columnsTuple[i].ChType)
 		col.SetName(columnsTuple[i].Name)
-		if col.Validate(forInsert) != nil {
-			return ErrInvalidType{
+		if err := col.Validate(forInsert); err != nil {
+			if !isInvalidType(err) {
+				return err
+			}
+			return &ErrInvalidType{
 				chType:     string(c.chType),
-				structType: c.structType(),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 	}
@@ -280,6 +285,17 @@ func (c *Tuple) structType() string {
 		str += col.structType() + ","
 	}
 	return str[:len(str)-1] + ")"
+}
+
+func (c *Tuple) chconnType() string {
+	if c.isJSON {
+		return "Object('json')"
+	}
+	chConn := "column.Tuple("
+	for _, col := range c.columns {
+		chConn += col.chconnType() + ", "
+	}
+	return chConn[:len(chConn)-2] + ")"
 }
 
 // WriteTo write data to ClickHouse.

@@ -25,8 +25,9 @@ func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
 		arrayAlias: arrayAlias[T]{
 			Array: Array[T]{
 				ArrayBase: ArrayBase{
-					dataColumn:   dataColumn,
-					offsetColumn: New[uint64](),
+					dataColumn:      dataColumn,
+					offsetColumn:    New[uint64](),
+					arrayChconnType: "column.ArrayNullable[" + reflect.TypeFor[T]().String() + "]",
 				},
 			},
 		},

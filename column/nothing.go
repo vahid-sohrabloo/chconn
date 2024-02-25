@@ -2,7 +2,6 @@ package column
 
 import (
 	"reflect"
-	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
@@ -19,14 +18,13 @@ type NothingData struct{}
 
 // New create a new column
 func NewNothing() *Nothing {
-	var tmpValue int8
-	size := int(unsafe.Sizeof(tmpValue))
+	size := 1
 	return &Nothing{
 		Base: Base[int8]{
 			size:   size,
 			strict: true,
-			kind:   reflect.TypeOf(tmpValue).Kind(),
-			rtype:  reflect.TypeOf(tmpValue),
+			kind:   reflect.TypeFor[int8]().Kind(),
+			rtype:  reflect.TypeFor[int8](),
 		},
 	}
 }
@@ -101,12 +99,17 @@ func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnBasic {
 	return c
 }
 
+func (c *Nothing) chconnType() string {
+	return "column.Nothing"
+}
+
 func (c *Nothing) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNothing(chType) {
-		return ErrInvalidType{
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			goToChType: "Nothing",
+			chconnType: c.chconnType(),
 		}
 	}
 	return nil

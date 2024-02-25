@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"runtime/debug"
 	"sort"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -220,6 +219,13 @@ func (c *Variant) Columns() []ColumnBasic {
 // Validate is validate the column  for insert and select.
 // it uses internally
 func (c *Variant) Validate(forInsert bool) error {
+	if !helper.IsVariant(c.chType) {
+		return &ErrInvalidType{
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
+		}
+	}
 	var columnsRowNumber int
 	if forInsert {
 		for _, col := range c.columns {
@@ -228,7 +234,6 @@ func (c *Variant) Validate(forInsert bool) error {
 		expectedRows := c.NumRow() - c.totalNils
 
 		if expectedRows != columnsRowNumber {
-			debug.PrintStack()
 			return fmt.Errorf("Variant: The total number of rows (excluding nils) does not match the sum of rows across all columns."+
 				" Expected %d rows (total rows: %d, nils: %d), but found %d rows in columns",
 				expectedRows, c.NumRow(), c.totalNils, columnsRowNumber)
@@ -252,22 +257,34 @@ func (c *Variant) Validate(forInsert bool) error {
 	for i, col := range c.columns {
 		col.SetType(columnsVariant[i].ChType)
 		col.SetName(columnsVariant[i].Name)
-		if col.Validate(forInsert) != nil {
-			return ErrInvalidType{
+		if err := col.Validate(forInsert); err != nil {
+			if !isInvalidType(err) {
+				return err
+			}
+			return &ErrInvalidType{
 				chType:     string(c.chType),
-				structType: c.structType(),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 	}
 	return nil
 }
 
+func (c *Variant) chconnType() string {
+	chConn := "column.Variant("
+	for _, col := range c.columns {
+		chConn += col.chconnType() + ", "
+	}
+	return chConn[:len(chConn)-2] + ")"
+}
+
 func (c *Variant) structType() string {
 	str := helper.VariantStr
 	for _, col := range c.columns {
-		str += col.structType() + ","
+		str += col.structType() + ", "
 	}
-	return str[:len(str)-1] + ")"
+	return str[:len(str)-2] + ")"
 }
 
 // WriteTo write data to ClickHouse.
@@ -305,12 +322,29 @@ func (c *Variant) Elem(arrayLevel int) ColumnBasic {
 // Remove inserted value from index
 //
 // its equal to data = data[:n]
-//
-// ATTENTION: this method does not remove the values from sub columns. you should remove them manually
 func (c *Variant) Remove(n int) {
 	if c.NumRow() == 0 || c.NumRow() <= n {
 		return
 	}
+	var removes [255]int
+	nDelete := 0
+	for _, v := range c.discriminators.values[n:] {
+		if v == 255 {
+			c.totalNils--
+			nDelete++
+			continue
+		}
+		removes[v]++
+	}
+	dd := 0
+	for i, col := range c.columns {
+		if removes[i] == 0 {
+			continue
+		}
+		col.Remove(col.NumRow() - removes[i])
+		dd += removes[i]
+	}
+	c.discriminators.Remove(n)
 }
 
 func (c *Variant) FullType() string {

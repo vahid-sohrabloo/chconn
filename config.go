@@ -436,7 +436,7 @@ func parseDSNSettings(s string) (map[string]string, error) {
 		"dbname": "database",
 	}
 
-	for len(s) > 0 {
+	for s != "" {
 		var key, val string
 		eqIdx := strings.IndexRune(s, '=')
 		if eqIdx < 0 {

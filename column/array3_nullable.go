@@ -20,8 +20,9 @@ func NewArray3Nullable[T any](dataColumn *Array2Nullable[T]) *Array3Nullable[T] 
 		dataColumn: dataColumn,
 		Array3: Array3[T]{
 			ArrayBase: ArrayBase{
-				dataColumn:   dataColumn,
-				offsetColumn: New[uint64](),
+				dataColumn:      dataColumn,
+				offsetColumn:    New[uint64](),
+				arrayChconnType: "column.Array3Nullable[" + reflect.TypeFor[T]().String() + "]",
 			},
 		},
 	}

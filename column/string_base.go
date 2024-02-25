@@ -102,33 +102,38 @@ func (c *StringBase[T]) Scan(row int, value any) error {
 		copy(*d, b)
 	case *any:
 		*d = c.Row(row)
-	default:
-		return fmt.Errorf("cannot scan text into %T", value)
 	}
-	return nil
+	return c.ScanValue(row, reflect.ValueOf(value))
 }
 
 func (c *StringBase[T]) ScanValue(row int, value reflect.Value) error {
 	if value.Kind() != reflect.Ptr {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
-	v := value.Elem()
-	switch v.Kind() {
+
+	val := value.Elem()
+
+	rowVal := reflect.ValueOf(c.Row(row))
+	if val.Type().AssignableTo(rowVal.Type()) {
+		val.Set(rowVal)
+		return nil
+	}
+	switch val.Kind() {
 	case reflect.String:
-		v.SetString(string(c.Row(row)))
+		val.SetString(string(c.Row(row)))
 		return nil
 	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			v.SetBytes(c.RowBytes(row))
+		if val.Type().Elem().Kind() == reflect.Uint8 {
+			val.SetBytes(c.RowBytes(row))
 			return nil
 		}
 	case reflect.Interface:
 		if value.NumMethod() == 0 {
-			v.Set(reflect.ValueOf(c.Row(row)))
+			val.Set(reflect.ValueOf(c.Row(row)))
 			return nil
 		}
 	}
-	return fmt.Errorf("cannot scan text into %s", v.Type().String())
+	return fmt.Errorf("cannot scan text into %s", val.Type().String())
 }
 
 // Row return the value of given row.
@@ -288,12 +293,17 @@ func (c *StringBase[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, re
 func (c *StringBase[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsString(chType) {
-		return ErrInvalidType{
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+
+func (c *StringBase[T]) chconnType() string {
+	return "column.StringBase[" + reflect.TypeFor[T]().String() + "]"
 }
 
 func (c *StringBase[T]) structType() string {

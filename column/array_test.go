@@ -32,7 +32,7 @@ func TestArrayScanError(t *testing.T) {
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: cannot scan text into *int", err.Error())
+	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: cannot scan text into int", err.Error())
 }
 func TestArrayNullableScanError(t *testing.T) {
 	t.Parallel()
@@ -54,7 +54,7 @@ func TestArrayNullableScanError(t *testing.T) {
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 1: cannot scan text into *int", err.Error())
+	require.Equal(t, "can't scan into dest[0]: cannot scan array item 1: cannot scan text into int", err.Error())
 }
 
 func TestArray2ScanError(t *testing.T) {

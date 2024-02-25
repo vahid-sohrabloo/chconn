@@ -541,7 +541,7 @@ func testDateColumn[T column.DateType[T]](
 	}
 
 	selectStmt.Close()
-	
+
 	var chconnJSON []string
 	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
 		chconnJSON = append(chconnJSON, string(b))

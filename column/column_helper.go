@@ -22,6 +22,7 @@ type ColumnBasic interface {
 	Name() []byte
 	Validate(forInsert bool) error
 	structType() string
+	chconnType() string
 	SetWriteBufferSize(int)
 	RowAny(int) any
 	Scan(row int, dest any) error

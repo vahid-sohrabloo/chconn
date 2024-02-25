@@ -15,8 +15,9 @@ type Array[T any] struct {
 func NewArray[T any](dataColumn Column[T]) *Array[T] {
 	a := &Array[T]{
 		ArrayBase: ArrayBase{
-			dataColumn:   dataColumn,
-			offsetColumn: New[uint64](),
+			dataColumn:      dataColumn,
+			offsetColumn:    New[uint64](),
+			arrayChconnType: "column.Array[" + reflect.TypeFor[T]().String() + "]",
 		},
 	}
 	a.resetHook = func() {

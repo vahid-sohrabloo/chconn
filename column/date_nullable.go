@@ -250,17 +250,28 @@ func (c *DateNullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, 
 func (c *DateNullable[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !helper.IsNullable(chType) {
-		return ErrInvalidType{
-			chType: string(c.chType),
+		return &ErrInvalidType{
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
-	if c.dataColumn.Validate(forInsert) != nil {
-		return ErrInvalidType{
-			structType: c.structType(),
+	if err := c.dataColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
+		return &ErrInvalidType{
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+
+func (c *DateNullable[T]) chconnType() string {
+	return "DateNullable[" + reflect.TypeFor[T]().String() + "]"
 }
 
 func (c *DateNullable[T]) structType() string {

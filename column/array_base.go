@@ -16,17 +16,19 @@ import (
 // ArrayBase is a base class for other arrays or use for none generic use
 type ArrayBase struct {
 	column
-	offsetColumn *Base[uint64]
-	dataColumn   ColumnBasic
-	offset       uint64
-	resetHook    func()
+	offsetColumn    *Base[uint64]
+	dataColumn      ColumnBasic
+	offset          uint64
+	arrayChconnType string
+	resetHook       func()
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
 func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 	a := &ArrayBase{
-		dataColumn:   dataColumn,
-		offsetColumn: New[uint64](),
+		dataColumn:      dataColumn,
+		offsetColumn:    New[uint64](),
+		arrayChconnType: "column.ArrayBase",
 	}
 	return a
 }
@@ -204,19 +206,28 @@ func (c *ArrayBase) Validate(forInsert bool) error {
 	chType = helper.NestedToArrayType(chType)
 
 	if !helper.IsArray(chType) {
-		return ErrInvalidType{
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenArrayStr : len(chType)-1])
-	if c.dataColumn.Validate(forInsert) != nil {
-		return ErrInvalidType{
+	if err := c.dataColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
+		return &ErrInvalidType{
 			chType:     string(c.chType),
-			structType: c.structType(),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+
+func (c *ArrayBase) chconnType() string {
+	return c.arrayChconnType
 }
 
 func (c *ArrayBase) structType() string {

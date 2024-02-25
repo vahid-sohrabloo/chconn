@@ -14,8 +14,9 @@ type Array3[T any] struct {
 func NewArray3[T any](array *Array2[T]) *Array3[T] {
 	a := &Array3[T]{
 		ArrayBase: ArrayBase{
-			dataColumn:   array,
-			offsetColumn: New[uint64](),
+			dataColumn:      array,
+			offsetColumn:    New[uint64](),
+			arrayChconnType: "column.Array3[" + reflect.TypeFor[T]().String() + "]",
 		},
 	}
 	return a

@@ -90,6 +90,15 @@ func TestVariant(t *testing.T) {
 	var colLCArrayInsert []any
 	var colLCNullableArrayInsert []any
 
+	// SetWriteBufferSize is not necessary. this just to show how to set the write buffer
+	col.SetWriteBufferSize(10)
+	colArray.SetWriteBufferSize(10)
+	colNullableArray.SetWriteBufferSize(10)
+	colLC.SetWriteBufferSize(10)
+	colLC.SetWriteBufferSize(10)
+	colArrayLC.SetWriteBufferSize(10)
+	colArrayLCNullable.SetWriteBufferSize(10)
+
 	for insertN := 0; insertN < 2; insertN++ {
 		rows := 10
 		for i := 0; i < rows; i++ {
@@ -165,6 +174,25 @@ func TestVariant(t *testing.T) {
 				colArrayArrayVariantMain.AppendNil()
 				colArrayArrayVariantMain.AppendNil()
 			}
+		}
+
+		if insertN == 0 {
+			col.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+			colArrayArrayVariant.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
