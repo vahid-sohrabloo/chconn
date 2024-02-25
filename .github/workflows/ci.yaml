@@ -35,6 +35,7 @@ jobs:
       uses: codecov/codecov-action@v4.0.1
       with:
         file: coverage.out
+        token: ${{ secrets.CODECOV_TOKEN }} # required
   test:
     name: Test
     runs-on: ubuntu-latest
