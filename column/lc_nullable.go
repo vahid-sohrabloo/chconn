@@ -131,7 +131,12 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 			return nil
 		}
 
-		return c.dictColumn.AppendAny(value)
+		err := c.dictColumn.AppendAny(value)
+		if err == nil {
+			c.numRow++
+		}
+
+		return err
 	}
 
 }

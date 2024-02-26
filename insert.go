@@ -42,6 +42,10 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 			return err
 		}
 
+		for _, col := range s.columns {
+			col.Reset()
+		}
+
 		s.columns = nil
 	}
 

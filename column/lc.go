@@ -118,9 +118,10 @@ func (c *LowCardinality[T]) AppendAny(value any) error {
 		return fmt.Errorf("could not append %v to column: %w", value, err)
 	}
 
-	c.dictColumn.Data()
-
-	v = c.dictColumn.Row(c.dictColumn.NumRow() - 1)
+	v, err = tryConvertTo[T](value)
+	if err != nil {
+		return fmt.Errorf("could not convert %v of type %T to type %T: %w", value, value, v, err)
+	}
 
 	key, ok := c.dict[v]
 	if !ok {

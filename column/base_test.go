@@ -24,7 +24,7 @@ import (
 )
 
 func TestBool(t *testing.T) {
-	testColumn(t, false, false, "UInt8", "bool", func(i int) bool {
+	testColumn(t, false, true, "UInt8", "bool", func(i int) bool {
 		return true
 	}, func(i int) bool {
 		return false
@@ -718,6 +718,7 @@ func testColumn[T column.BaseType](
 
 	rowNum := 10
 	for i := 0; i < rowNum; i++ {
+		blockId := 2
 		val := firstVal(i * 3)
 		val2 := secondVal(i * 3)
 		var nullableVal any = val2
@@ -750,7 +751,7 @@ func testColumn[T column.BaseType](
 
 		if isLC {
 			err := insertStmt.Append(
-				2, // block_id
+				blockId, // block_id
 				val,
 				nullableVal,
 				[]any{val, val2},
@@ -768,7 +769,7 @@ func testColumn[T column.BaseType](
 			assert.NoError(t, err)
 		} else {
 			err := insertStmt.Append(
-				2, // block_id
+				blockId, // block_id
 				val,
 				nullableVal,
 				[]any{val, val2},

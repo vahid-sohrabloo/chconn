@@ -1089,3 +1089,23 @@ func checkIntOverflowUnderflow(val reflect.Value, targetType reflect.Type) error
 	}
 	return nil
 }
+
+func tryConvertTo[T any](value any) (T, error) {
+	var t T
+	val := reflect.ValueOf(value)
+	rtype := reflect.TypeOf(t)
+
+	res, err := tryConvert(val, rtype)
+	if err != nil {
+		var t T
+		return t, err
+	}
+
+	result, ok := res.(T)
+	if !ok {
+		var t T
+		return t, fmt.Errorf("could not cast %v to %T", res, t)
+	}
+
+	return result, nil
+}
