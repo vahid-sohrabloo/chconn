@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -140,6 +141,48 @@ func (c *Tuple5[T, T1, T2, T3, T4, T5]) Append(v T) {
 	c.col3.Append(t.Col3)
 	c.col4.Append(t.Col4)
 	c.col5.Append(t.Col5)
+}
+
+func (c *Tuple5[T, T1, T2, T3, T4, T5]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+
+		return nil
+	case []any:
+		if len(v) != 5 {
+			return fmt.Errorf("length of the value slice must be 5")
+		}
+
+		err := c.col1.AppendAny(v[0])
+		if err != nil {
+			return fmt.Errorf("could not append col1: %w", err)
+		}
+
+		err = c.col2.AppendAny(v[1])
+		if err != nil {
+			return fmt.Errorf("could not append col2: %w", err)
+		}
+
+		err = c.col3.AppendAny(v[2])
+		if err != nil {
+			return fmt.Errorf("could not append col3: %w", err)
+		}
+
+		err = c.col4.AppendAny(v[3])
+		if err != nil {
+			return fmt.Errorf("could not append col4: %w", err)
+		}
+
+		err = c.col4.AppendAny(v[4])
+		if err != nil {
+			return fmt.Errorf("could not append col5: %w", err)
+		}
+
+		return nil
+	default:
+		return fmt.Errorf("could not append value of type %T", value)
+	}
 }
 
 // AppendMulti value for insert

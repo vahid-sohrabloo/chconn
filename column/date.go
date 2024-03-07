@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -157,6 +158,26 @@ func (c *Date[T]) Append(v time.Time) {
 	var val T
 	c.values = append(c.values, val.FromTime(v, c.precision))
 	c.numRow++
+}
+
+func (c *Date[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v.ToTime(c.loc, c.precision))
+
+		return nil
+	case time.Time:
+		c.Append(v)
+
+		return nil
+	case int64:
+		c.Append(time.Unix(v, 0))
+
+		return nil
+	default:
+		return fmt.Errorf("invalid type %T", value)
+
+	}
 }
 
 // AppendMulti value for insert

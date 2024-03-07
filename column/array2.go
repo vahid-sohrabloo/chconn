@@ -3,20 +3,24 @@ package column
 import (
 	"fmt"
 	"reflect"
+	"unsafe"
 )
 
 // Array2 is a column of Array(Array(T)) ClickHouse data type
 type Array2[T any] struct {
 	ArrayBase
+	rtype reflect.Type
 }
 
 // NewArray create a new array column of Array(Array(T)) ClickHouse data type
 func NewArray2[T any](array *Array[T]) *Array2[T] {
+	rtype := reflect.TypeOf((*T)(nil)).Elem()
 	a := &Array2[T]{
+		rtype: rtype,
 		ArrayBase: ArrayBase{
 			dataColumn:      array,
 			offsetColumn:    New[uint64](),
-			arrayChconnType: "column.Array2[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]",
+			arrayChconnType: "column.Array2[" + rtype.String() + "]",
 		},
 	}
 	return a
@@ -106,10 +110,23 @@ func (c *Array2[T]) ScanValue(row int, dest reflect.Value) error {
 	return nil
 }
 
-// Append value for insert
 func (c *Array2[T]) Append(v [][]T) {
 	c.AppendLen(len(v))
 	c.dataColumn.(*Array[T]).AppendMulti(v...)
+}
+
+func (c *Array2[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case [][]T:
+		c.Append(v)
+		return nil
+	case [][]bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			c.Append(*(*[][]T)(unsafe.Pointer(&v)))
+			return nil
+		}
+	}
+	return fmt.Errorf("AppendAny error: expected [][]%[1]s, got %[2]T", c.rtype.String(), value)
 }
 
 // AppendMulti value for insert

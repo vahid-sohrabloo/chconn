@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -36,6 +37,7 @@ type LowCardinality[T comparable] struct {
 	dict           map[T]int
 	keys           []int
 	nullable       bool
+	rtype          reflect.Type
 }
 
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
@@ -48,6 +50,7 @@ func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 	l := &LowCardinality[T]{
 		dict:       make(map[T]int),
 		dictColumn: dictColumn,
+		rtype:      reflect.TypeOf((*T)(nil)).Elem(),
 	}
 	return l
 }
@@ -102,6 +105,26 @@ func (c *LowCardinality[T]) Append(v T) {
 	}
 	c.keys = append(c.keys, key)
 	c.numRow++
+}
+
+func (c *LowCardinality[T]) AppendAny(value any) error {
+
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+		return nil
+	case bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			if v {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
+			} else {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("could not convert %v of type %T to type %T", value, value, value)
 }
 
 // AppendMulti value for insert
