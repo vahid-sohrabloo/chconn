@@ -678,6 +678,104 @@ func testColumn[T column.BaseType](
 		require.NoError(t, err)
 	}
 
+	// For testing Append on InsertStream
+	var insertStmt chconn.InsertStmt
+	if isLC {
+		insertStmt, err = conn.InsertStream(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_nullable,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable,
+				%[1]s_lc,
+				%[1]s_nullable_lc,
+				%[1]s_array_lc,
+				%[1]s_array_lc_nullable
+			)
+		VALUES`, tableName))
+
+		assert.NoError(t, err)
+	} else {
+		insertStmt, err = conn.InsertStream(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_nullable,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_array_array,
+				%[1]s_array_array_nullable,
+				%[1]s_array_array_array,
+				%[1]s_array_array_array_nullable
+			)
+		VALUES`, tableName))
+	}
+
+	require.NoError(t, err)
+
+	rowNum := 10
+	for i := 0; i < rowNum; i++ {
+		blockId := 2
+		val := firstVal(i * 3)
+		val2 := secondVal(i * 3)
+
+		colInsert = append(colInsert, val)
+		colLCInsert = append(colLCInsert, val)
+		colArrayInsert = append(colArrayInsert, []T{val, val2})
+		colLCArrayInsert = append(colLCArrayInsert, []T{val, val2})
+		colArrayArrayInsert = append(colArrayArrayInsert, [][]T{{val, val2}})
+		colArrayArrayArrayInsert = append(colArrayArrayArrayInsert, [][][]T{{{val, val2}}})
+
+		colNullableInsert = append(colNullableInsert, &val2)
+		colLCNullableInsert = append(colLCNullableInsert, &val2)
+		colArrayNullableInsert = append(colArrayNullableInsert, []*T{&val, &val2})
+		colLCNullableArrayInsert = append(colLCNullableArrayInsert, []*T{&val, &val2})
+		colArrayArrayNullableInsert = append(colArrayArrayNullableInsert, [][]*T{{&val, &val2}})
+		colArrayArrayArrayNullableInsert = append(colArrayArrayArrayNullableInsert, [][][]*T{{{&val, &val2}}})
+
+		if isLC {
+			err := insertStmt.Append(
+				uint8(blockId), // block_id
+				val,
+				val2,
+				[]T{val, val2},
+				[]*T{&val, &val2},
+				[][]T{{val, val2}},
+				[][]T{{val, val2}},
+				[][][]T{{{val, val2}}},
+				[][][]*T{{{&val, &val2}}},
+				val,
+				val2,
+				[]T{val, val2},
+				[]*T{&val, &val2},
+			)
+
+			assert.NoError(t, err)
+		} else {
+			err := insertStmt.Append(
+				uint8(blockId), // block_id
+				val,
+				&val2,
+				[]T{val, val2},
+				[]*T{&val, &val2},
+				[][]T{{val, val2}},
+				[][]*T{{&val, &val2}},
+				[][][]T{{{val, val2}}},
+				[][][]*T{{{&val, &val2}}},
+			)
+
+			assert.NoError(t, err)
+		}
+	}
+
+	err = insertStmt.Flush(context.Background())
+	assert.NoError(t, err)
+
 	// test read all
 	colRead := column.New[T]()
 	colNullableRead := column.New[T]().Nullable()
@@ -970,6 +1068,7 @@ func testColumn[T column.BaseType](
 		assert.Equal(t, colArrayArrayArrayRead.FullType(), autoColumns[6].FullType())
 		assert.Equal(t, colNullableArrayArrayArrayRead.FullType(), autoColumns[7].FullType())
 	}
+
 	rows := selectStmt.Rows()
 
 	for rows.Next() {

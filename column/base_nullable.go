@@ -126,6 +126,64 @@ func (c *BaseNullable[T]) Append(v T) {
 	c.dataColumn.Append(v)
 }
 
+func (c *BaseNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case T:
+		c.Append(v)
+
+		return nil
+	case *T:
+		c.AppendP(v)
+
+		return nil
+	case bool:
+		if c.dataColumn.kind == reflect.Int8 || c.dataColumn.kind == reflect.Uint8 {
+			var tmp T
+			if v {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
+			} else {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
+			}
+			c.Append(tmp)
+			return nil
+		}
+	case *bool:
+		if c.dataColumn.kind == reflect.Int8 || c.dataColumn.kind == reflect.Uint8 {
+			if v == nil {
+				c.AppendNil()
+				return nil
+			}
+			var tmp T
+			if *v {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
+			} else {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
+			}
+			c.Append(tmp)
+			return nil
+		}
+	}
+
+	val := reflect.ValueOf(value)
+	valueKind := val.Kind()
+	if valueKind == reflect.Ptr {
+		value = reflect.ValueOf(value).Elem().Interface()
+	}
+
+	if value == nil {
+		c.AppendNil()
+
+		return nil
+	}
+
+	return c.dataColumn.AppendAny(value)
+
+}
+
 // AppendMulti value for insert
 func (c *BaseNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

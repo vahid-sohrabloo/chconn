@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"reflect"
+	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
@@ -20,14 +21,17 @@ type ArrayNullable[T any] struct {
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
 func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
+	rtype := reflect.TypeOf((*T)(nil)).Elem()
+
 	a := &ArrayNullable[T]{
 		dataColumn: dataColumn,
 		arrayAlias: arrayAlias[T]{
 			Array: Array[T]{
+				rtype: rtype,
 				ArrayBase: ArrayBase{
 					dataColumn:      dataColumn,
 					offsetColumn:    New[uint64](),
-					arrayChconnType: "column.ArrayNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]",
+					arrayChconnType: "column.ArrayNullable[" + rtype.String() + "]",
 				},
 			},
 		},
@@ -132,6 +136,28 @@ func (c *ArrayNullable[T]) AppendMultiP(v [][]*T) {
 		c.AppendLen(len(v))
 		c.dataColumn.AppendMultiP(v...)
 	}
+}
+
+func (c *ArrayNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case []T:
+		c.Append(v)
+		return nil
+	case []*T:
+		c.AppendP(v)
+		return nil
+	case []bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			c.Append(*(*[]T)(unsafe.Pointer(&v)))
+			return nil
+		}
+	case []*bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			c.AppendP(*(*[]*T)(unsafe.Pointer(&v)))
+			return nil
+		}
+	}
+	return fmt.Errorf("AppendAny error: expected *[]%[1]s or []%[1]s, got %[2]T", c.rtype.String(), value)
 }
 
 //	AppendItemP Append nullable item value for insert

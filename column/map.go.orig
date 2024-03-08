@@ -1,9 +1,13 @@
 package column
 
+<<<<<<< HEAD
+import "reflect"
+=======
 import (
 	"fmt"
 	"reflect"
 )
+>>>>>>> 51f95b300c40ca297ebd4bf4d6bca4b082eb0e3d
 
 // Map is a column of Map(K,V) ClickHouse data type
 // Map in clickhouse actually is a array of pair(K,V)

@@ -95,6 +95,34 @@ func (c *Base[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *Base[T]) AppendAny(value any) error {
+
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+		return nil
+	case bool:
+		if c.kind == reflect.Int8 || c.kind == reflect.Uint8 {
+			var tmp T
+			if v {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
+			} else {
+				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
+			}
+			c.Append(tmp)
+			return nil
+		}
+	}
+
+	val := reflect.ValueOf(value)
+	if val.Kind() == c.kind {
+		c.Append(val.Convert(c.rtype).Interface().(T))
+		return nil
+	}
+
+	return fmt.Errorf("invalid type: %T, expected type: %s", value, c.rtype)
+}
+
 // AppendMulti value for insert
 func (c *Base[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))

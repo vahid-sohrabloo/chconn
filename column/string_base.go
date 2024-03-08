@@ -170,6 +170,24 @@ func (c *StringBase[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *StringBase[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+	case string:
+		c.Append(T(v))
+	case []byte:
+		c.AppendBytes(v)
+	case *string:
+		c.Append(T(*v))
+	case *[]byte:
+		c.AppendBytes(*v)
+	default:
+		return fmt.Errorf("cannot convert %T to string", value)
+	}
+	return nil
+}
+
 // AppendMulti value for insert
 func (c *StringBase[T]) AppendMulti(v ...T) {
 	for _, v := range v {

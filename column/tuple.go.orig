@@ -287,6 +287,7 @@ func (c *Tuple) structType() string {
 	return str[:len(str)-1] + ")"
 }
 
+<<<<<<< HEAD
 func (c *Tuple) chconnType() string {
 	if c.isJSON {
 		return "Object('json')"
@@ -296,8 +297,7 @@ func (c *Tuple) chconnType() string {
 		chConn += col.chconnType() + ", "
 	}
 	return chConn[:len(chConn)-2] + ")"
-}
-
+=======
 func (c *Tuple) AppendAny(value any) error {
 	sliceVal := reflect.ValueOf(value)
 	if sliceVal.Kind() != reflect.Slice {
@@ -317,6 +317,7 @@ func (c *Tuple) AppendAny(value any) error {
 	}
 
 	return nil
+>>>>>>> 51f95b300c40ca297ebd4bf4d6bca4b082eb0e3d
 }
 
 // WriteTo write data to ClickHouse.

@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"reflect"
+	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
@@ -16,13 +17,15 @@ type Array2Nullable[T any] struct {
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
 func NewArray2Nullable[T any](dataColumn *ArrayNullable[T]) *Array2Nullable[T] {
+	rtype := reflect.TypeOf((*T)(nil)).Elem()
 	a := &Array2Nullable[T]{
 		dataColumn: dataColumn,
 		Array2: Array2[T]{
+			rtype: rtype,
 			ArrayBase: ArrayBase{
 				dataColumn:      dataColumn,
 				offsetColumn:    New[uint64](),
-				arrayChconnType: "column.Array2Nullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]",
+				arrayChconnType: "column.Array2Nullable[" + rtype.String() + "]",
 			},
 		},
 	}
@@ -124,6 +127,33 @@ func (c *Array2Nullable[T]) AppendMultiP(v ...[][]*T) {
 		c.AppendLen(len(v))
 		c.dataColumn.AppendMultiP(v)
 	}
+}
+
+func (c *Array2Nullable[T]) Append(v [][]T) {
+	c.AppendLen(len(v))
+	c.Array2.dataColumn.(*ArrayNullable[T]).AppendMulti(v...)
+}
+
+func (c *Array2Nullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case [][]T:
+		c.Append(v)
+		return nil
+	case [][]*T:
+		c.AppendP(v)
+		return nil
+	case [][]bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			c.Append(*(*[][]T)(unsafe.Pointer(&v)))
+			return nil
+		}
+	case [][]*bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			c.AppendP(*(*[][]*T)(unsafe.Pointer(&v)))
+			return nil
+		}
+	}
+	return fmt.Errorf("AppendAny error: expected *[][]%[1]s or [][]%[1]s, got %[2]T", c.rtype.String(), value)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
