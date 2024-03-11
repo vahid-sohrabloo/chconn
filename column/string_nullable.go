@@ -130,6 +130,7 @@ func (c *StringNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:
 		c.Append(v)
+	//nolint:gocritic // to ignore caseOrder
 	case string:
 		c.Append(T(v))
 	case []byte:

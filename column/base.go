@@ -96,11 +96,11 @@ func (c *Base[T]) Append(v T) {
 }
 
 func (c *Base[T]) AppendAny(value any) error {
-
 	switch v := value.(type) {
 	case T:
 		c.Append(v)
 		return nil
+	//nolint:gocritic // to ignore caseOrder
 	case bool:
 		if c.kind == reflect.Int8 || c.kind == reflect.Uint8 {
 			var tmp T

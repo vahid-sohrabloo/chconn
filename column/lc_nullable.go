@@ -119,9 +119,11 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 		c.Append(v)
 
 		return nil
+	//nolint:gocritic // to ignore caseOrder
 	case *T:
 		c.AppendP(v)
 		return nil
+	//nolint:gocritic // to ignore caseOrder
 	case bool:
 		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
 			if v {
@@ -131,6 +133,7 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 			}
 			return nil
 		}
+	//nolint:gocritic // to ignore caseOrder
 	case *bool:
 		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
 			if v == nil {

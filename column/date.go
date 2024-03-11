@@ -176,7 +176,6 @@ func (c *Date[T]) AppendAny(value any) error {
 		return nil
 	default:
 		return fmt.Errorf("invalid type %T", value)
-
 	}
 }
 

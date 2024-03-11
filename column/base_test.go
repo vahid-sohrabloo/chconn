@@ -720,7 +720,7 @@ func testColumn[T column.BaseType](
 
 	rowNum := 10
 	for i := 0; i < rowNum; i++ {
-		blockId := 2
+		blockID := 2
 		val := firstVal(i * 3)
 		val2 := secondVal(i * 3)
 
@@ -740,7 +740,7 @@ func testColumn[T column.BaseType](
 
 		if isLC {
 			err := insertStmt.Append(
-				uint8(blockId), // block_id
+				uint8(blockID), // block_id
 				val,
 				val2,
 				[]T{val, val2},
@@ -758,7 +758,7 @@ func testColumn[T column.BaseType](
 			assert.NoError(t, err)
 		} else {
 			err := insertStmt.Append(
-				uint8(blockId), // block_id
+				uint8(blockID), // block_id
 				val,
 				&val2,
 				[]T{val, val2},

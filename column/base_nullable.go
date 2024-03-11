@@ -140,6 +140,7 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 		c.AppendP(v)
 
 		return nil
+	//nolint:gocritic // to ignore caseOrder
 	case bool:
 		if c.dataColumn.kind == reflect.Int8 || c.dataColumn.kind == reflect.Uint8 {
 			var tmp T
@@ -181,7 +182,6 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 	}
 
 	return c.dataColumn.AppendAny(value)
-
 }
 
 // AppendMulti value for insert

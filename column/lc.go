@@ -108,11 +108,11 @@ func (c *LowCardinality[T]) Append(v T) {
 }
 
 func (c *LowCardinality[T]) AppendAny(value any) error {
-
 	switch v := value.(type) {
 	case T:
 		c.Append(v)
 		return nil
+	//nolint:gocritic // to ignore caseOrder
 	case bool:
 		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
 			if v {
