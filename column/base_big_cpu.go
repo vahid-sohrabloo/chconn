@@ -3,6 +3,11 @@
 
 package column
 
+import (
+	"io"
+	"unsafe"
+)
+
 // ReadAll read all value in this block and append to the input slice
 func (c *Base[T]) readyBufferHook() {
 	for i := 0; i < c.totalByte; i += c.size {

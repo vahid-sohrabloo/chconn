@@ -3,9 +3,10 @@ package column
 import (
 	"fmt"
 	"io"
+	"reflect"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type ColumnBasic interface {
@@ -19,9 +20,19 @@ type ColumnBasic interface {
 	Type() []byte
 	SetName(v []byte)
 	Name() []byte
-	Validate() error
-	ColumnType() string
+	Validate(forInsert bool) error
+	structType() string
+	chconnType() string
 	SetWriteBufferSize(int)
+	RowAny(int) any
+	Scan(row int, dest any) error
+	ScanValue(row int, dest reflect.Value) error
+	AppendAny(any) error
+	FullType() string
+	Remove(n int)
+	ToJSON(row int, stringQuotes bool, b []byte) []byte
+	setLocationInParent(locationInParent int)
+	setVariantParent(p *Variant)
 }
 
 type Column[T any] interface {
@@ -29,7 +40,8 @@ type Column[T any] interface {
 	Data() []T
 	Read([]T) []T
 	Row(int) T
-	Append(...T)
+	Append(T)
+	AppendMulti(...T)
 }
 
 type NullableColumn[T any] interface {
@@ -37,20 +49,24 @@ type NullableColumn[T any] interface {
 	DataP() []*T
 	ReadP([]*T) []*T
 	RowP(int) *T
-	AppendP(...*T)
+	AppendP(*T)
+	AppendMultiP(...*T)
+	RowIsNil(row int) bool
 }
 
 type column struct {
-	r         *readerwriter.Reader
-	b         []byte
-	totalByte int
-	name      []byte
-	chType    []byte
-	parent    ColumnBasic
+	r                *readerwriter.Reader
+	b                []byte
+	totalByte        int
+	name             []byte
+	chType           []byte
+	LocationInParent uint8
+	variantParent    *Variant
+	hasVariantParent bool
 }
 
 func (c *column) readColumn(readColumn bool, revision uint64) error {
-	if c.parent != nil || !readColumn {
+	if !readColumn {
 		return nil
 	}
 	strLen, err := c.r.Uvarint()
@@ -113,4 +129,28 @@ func (c *column) SetName(v []byte) {
 // SetType set clickhouse type
 func (c *column) SetType(v []byte) {
 	c.chType = v
+}
+
+func (c *column) setVariantParent(p *Variant) {
+	c.variantParent = p
+	c.hasVariantParent = true
+}
+
+func (c *column) setLocationInParent(locationInParent int) {
+	c.LocationInParent = uint8(locationInParent)
+}
+
+func (c *column) preHookAppend() {
+	if c.hasVariantParent {
+		c.variantParent.AppendDiscriminators(c.LocationInParent)
+	}
+}
+
+// todo find a more efficient way
+func (c *column) preHookAppendMulti(n int) {
+	if c.hasVariantParent {
+		for i := 0; i < n; i++ {
+			c.variantParent.AppendDiscriminators(c.LocationInParent)
+		}
+	}
 }

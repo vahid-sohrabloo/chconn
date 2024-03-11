@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // ErrNegativeTimeout when negative timeout provided
@@ -38,6 +38,13 @@ var ErrInvalidquoted = errors.New("unterminated quoted string in connection info
 
 // ErrIPNotFound when can't found ip in connecting
 var ErrIPNotFound = errors.New("ip addr wasn't found")
+
+var (
+	// ErrNoRows occurs when rows are expected but none are returned.
+	ErrNoRows = errors.New("no rows in result set")
+	// ErrTooManyRows occurs when more rows than expected are returned.
+	ErrTooManyRows = errors.New("too many rows in result set")
+)
 
 // ChError represents an error reported by the Clickhouse server
 type ChError struct {
@@ -152,7 +159,7 @@ func newContextAlreadyDoneError(ctx context.Context) (err error) {
 
 type unexpectedPacket struct {
 	expected string
-	actual   interface{}
+	actual   any
 }
 
 func (e *unexpectedPacket) Error() string {
@@ -286,7 +293,7 @@ type ColumnNumberReadError struct {
 }
 
 func (e *ColumnNumberReadError) Error() string {
-	return fmt.Sprintf("read %d column(s), but available %d column(s)", e.Read, e.Available)
+	return fmt.Sprintf("read %d column(s) but %d column(s) available", e.Read, e.Available)
 }
 
 // ColumnNumberWriteError represents an error when number of write column is not equal to number of query column

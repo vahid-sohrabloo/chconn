@@ -28,14 +28,13 @@ type Int256 struct {
 	Hi Int128  // upper 128-bit half
 }
 
-// From128 converts 128-bit value v to a Int256 value.
-// Upper 128-bit half will be zero.
 func Int256From128(v Int128) Int256 {
 	var hi Int128
 	if v.Hi < 0 {
-		hi = Int128{Lo: 0, Hi: -1}
-		v = v.Neg()
+		// If v is negative, set all bits of hi to 1 for sign extension
+		hi = Int128{Lo: ^uint64(0), Hi: -1}
 	}
+	// No need to call v.Neg() because the sign extension is now handled correctly.
 	return Int256{Lo: Uint128{
 		Lo: v.Lo,
 		Hi: uint64(v.Hi),
@@ -69,30 +68,21 @@ func Int256FromBigEx(i *big.Int) (Int256, bool) {
 		return Int256Max(), false // value overflows 256-bit!
 	}
 
-	neg := false
 	if i.Sign() == -1 {
-		i = new(big.Int).Neg(i)
-		neg = true
+		i = new(big.Int).Add(i, new(big.Int).Lsh(big.NewInt(1), 256))
 	}
 
-	t := new(big.Int)
-	lolo := i.Uint64()
-	lohi := t.Rsh(i, 64).Uint64()
-	hilo := t.Rsh(i, 128).Uint64()
-	hihi := int64(t.Rsh(i, 192).Uint64())
-	val := Int256{
-		Lo: Uint128{Lo: lolo, Hi: lohi},
-		Hi: Int128{Lo: hilo, Hi: hihi},
-	}
-	if neg {
-		val = val.Neg()
-	}
-	return val, true
+	// Extract lower and upper 128 bits
+	lo := new(big.Int).And(i, new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)))
+	hi := new(big.Int).Rsh(i, 128)
+
+	return Int256{
+		Lo: Uint128FromBig(lo),
+		Hi: Int128FromBig(hi),
+	}, true
 }
 
 // Big returns 256-bit value as a *big.Int.
-//
-//nolint:dupl
 func (u Int256) Big() *big.Int {
 	t := new(big.Int)
 	i := new(big.Int).SetInt64(u.Hi.Hi)
@@ -112,14 +102,36 @@ func (u Int256) Equals(v Int256) bool {
 	return u.Lo.Equals(v.Lo) && u.Hi.Equals(v.Hi)
 }
 
-// Neg returns the additive inverse of an Int256
-func (u Int256) Neg() (z Int256) {
-	z.Hi = u.Hi.Neg()
-	z.Lo.Lo = -u.Lo.Lo
-	z.Lo.Hi = -u.Lo.Hi
-	// TODO, I'm not sure here.
-	if z.Lo.Hi > 0 || z.Lo.Lo > 0 {
-		z.Hi.Lo--
+func (u Int256) Zero() bool {
+	return u.Hi.Zero() && u.Lo.Zero()
+}
+
+func (u Int256) Uint128() Uint128 {
+	return u.Lo
+}
+
+func (u Int256) Uint256() Uint256 {
+	return Uint256{
+		Lo: u.Lo,
+		Hi: u.Hi.Uint128(),
 	}
-	return z
+}
+
+func (u Int256) Uint64() uint64 {
+	return u.Lo.Uint64()
+}
+
+func (u Int256) String() string {
+	if u.Hi.Zero() {
+		return u.Lo.String()
+	}
+	return u.Big().String()
+}
+
+func (u Int256) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi.Zero() {
+		return u.Lo.Append(b)
+	}
+	return u.Big().Append(b, 10)
 }

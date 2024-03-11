@@ -1,5 +1,7 @@
 package types
 
+import "github.com/google/uuid"
+
 type UUID [16]byte
 
 func UUIDFromBigEndian(b [16]byte) UUID {
@@ -17,4 +19,10 @@ func UUIDFromBigEndian(b [16]byte) UUID {
 
 func (u UUID) BigEndian() [16]byte {
 	return UUIDFromBigEndian(u)
+}
+
+func (u UUID) Append(b []byte) []byte {
+	// MarshalText never returns an error
+	ub, _ := uuid.UUID(u.BigEndian()).MarshalText()
+	return append(b, ub...)
 }

@@ -15,3 +15,11 @@ func IPv4FromAddr(ipAddr netip.Addr) IPv4 {
 	ip := ipAddr.As4()
 	return IPv4{ip[3], ip[2], ip[1], ip[0]}
 }
+
+func (ip IPv4) MarshalText() ([]byte, error) {
+	return []byte(ip.NetIP().String()), nil
+}
+
+func (ip IPv4) Append(b []byte) []byte {
+	return ip.NetIP().AppendTo(b)
+}

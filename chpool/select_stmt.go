@@ -1,7 +1,7 @@
 package chpool
 
 import (
-	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v3"
 )
 
 type selectStmt struct {
@@ -15,12 +15,10 @@ func (s *selectStmt) Next() bool {
 	}
 	next := s.SelectStmt.Next()
 	if s.SelectStmt.Err() != nil && s.conn != nil {
-		s.conn.Release()
-		s.conn = nil
+		s.Close()
 	}
 	if !next && s.conn != nil {
-		s.conn.Release()
-		s.conn = nil
+		s.Close()
 	}
 	return next
 }
@@ -31,4 +29,5 @@ func (s *selectStmt) Close() {
 	}
 	s.SelectStmt.Close()
 	s.conn.Release()
+	s.conn = nil
 }

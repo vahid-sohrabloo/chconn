@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestNullableAsNormal(t *testing.T) {
@@ -47,8 +47,8 @@ func TestNullableAsNormal(t *testing.T) {
 	blockID := column.New[uint8]()
 	colNullable := column.New[int64]().Nullable()
 	colNullableArray := column.New[int64]().Nullable().Array()
-	colLCNullable := column.New[int64]().Nullable().LC()
-	colArrayLCNullable := column.New[int64]().Nullable().LC().Array()
+	colLCNullable := column.New[int64]().LC().Nullable()
+	colArrayLCNullable := column.New[int64]().LC().Nullable().Array()
 
 	var colInsert []int64
 	var colArrayInsert [][]int64
@@ -87,8 +87,8 @@ func TestNullableAsNormal(t *testing.T) {
 	// test read row
 	colNullableRead := column.New[int64]().Nullable()
 	colNullableArrayRead := column.New[int64]().Nullable().Array()
-	colLCNullableRead := column.New[int64]().Nullable().LC()
-	colArrayLCNullableRead := column.New[int64]().Nullable().LC().Array()
+	colLCNullableRead := column.New[int64]().LC().Nullable()
+	colArrayLCNullableRead := column.New[int64]().LC().Nullable().Array()
 
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 			%[1]s_nullable,
@@ -132,8 +132,8 @@ func TestNullableAsNormal(t *testing.T) {
 	// test read all
 	colNullableRead = column.New[int64]().Nullable()
 	colNullableArrayRead = column.New[int64]().Nullable().Array()
-	colLCNullableRead = column.New[int64]().Nullable().LC()
-	colArrayLCNullableRead = column.New[int64]().Nullable().LC().Array()
+	colLCNullableRead = column.New[int64]().LC().Nullable()
+	colArrayLCNullableRead = column.New[int64]().LC().Nullable().Array()
 	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
 			%[1]s_nullable,
 			%[1]s_array_nullable,

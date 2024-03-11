@@ -6,14 +6,19 @@ import (
 )
 
 type readErrorHelper struct {
-	numberValid int
-	err         error
-	r           io.Reader
-	count       int
+	numberValid     int
+	numberValidFunc func(Conn) int
+	err             error
+	r               io.Reader
+	c               Conn
+	count           int
 }
 
 func (r *readErrorHelper) Read(p []byte) (int, error) {
 	r.count++
+	if r.numberValidFunc != nil {
+		r.numberValid = r.numberValidFunc(r.c)
+	}
 	if r.count > r.numberValid {
 		return 0, r.err
 	}

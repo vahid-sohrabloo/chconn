@@ -11,11 +11,11 @@ func NewString() *String {
 }
 
 func (c *String) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
-	if nullable {
-		return c.Nullable().elem(arrayLevel, lc)
-	}
 	if lc {
-		return c.LowCardinality().elem(arrayLevel)
+		return c.LowCardinality().elem(arrayLevel, nullable)
+	}
+	if nullable {
+		return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)

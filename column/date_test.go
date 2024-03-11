@@ -1,17 +1,22 @@
 package column_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestDate(t *testing.T) {
@@ -99,6 +104,7 @@ func testDateColumn[T column.DateType[T]](
 	var sqlCreate string
 	if isLC {
 		sqlCreate = fmt.Sprintf(`CREATE TABLE test_%[1]s (
+			block_id UInt8,
 			%[1]s %[2]s,
 			%[1]s_nullable Nullable(%[2]s),
 			%[1]s_array Array(%[2]s),
@@ -110,6 +116,7 @@ func testDateColumn[T column.DateType[T]](
 		) Engine=Memory`, tableName, chType)
 	} else {
 		sqlCreate = fmt.Sprintf(`CREATE TABLE test_%[1]s (
+			block_id UInt8,
 			%[1]s %[2]s,
 			%[1]s_nullable Nullable(%[2]s),
 			%[1]s_array Array(%[2]s),
@@ -121,15 +128,15 @@ func testDateColumn[T column.DateType[T]](
 	})
 
 	require.NoError(t, err)
-
+	blockID := column.New[uint8]()
 	col := getBaseColumn()
 	colNullable := getBaseColumn().Nullable()
 	colArray := getBaseColumn().Array()
 	colNullableArray := getBaseColumn().Nullable().Array()
 	colLC := getBaseColumn().LC()
-	colLCNullable := getBaseColumn().Nullable().LC()
+	colLCNullable := getBaseColumn().LC().Nullable()
 	colArrayLC := getBaseColumn().LC().Array()
-	colArrayLCNullable := getBaseColumn().Nullable().LC().Array()
+	colArrayLCNullable := getBaseColumn().LC().Nullable().Array()
 	var colInsert []time.Time
 	var colNullableInsert []*time.Time
 	var colArrayInsert [][]time.Time
@@ -139,7 +146,7 @@ func testDateColumn[T column.DateType[T]](
 	var colLCArrayInsert [][]time.Time
 	var colLCNullableArrayInsert [][]*time.Time
 
-	// SetWriteBufferSize is not necessary. this just to show how to set write buffer
+	// SetWriteBufferSize is not necessary. this just to show how to set the write buffer
 	col.SetWriteBufferSize(10)
 	colNullable.SetWriteBufferSize(10)
 	colArray.SetWriteBufferSize(10)
@@ -149,8 +156,9 @@ func testDateColumn[T column.DateType[T]](
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
 	for insertN := 0; insertN < 2; insertN++ {
-		rows := 10
+		rows := 1
 		for i := 0; i < rows; i++ {
+			blockID.Append(uint8(insertN))
 			val := firstVal(i)
 			val2 := secondVal(i)
 			valArray := []time.Time{val, val2}
@@ -190,6 +198,7 @@ func testDateColumn[T column.DateType[T]](
 		if isLC {
 			err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
+				block_id,
 				%[1]s,
 				%[1]s_nullable,
 				%[1]s_array,
@@ -200,6 +209,7 @@ func testDateColumn[T column.DateType[T]](
 				%[1]s_array_lc_nullable
 			)
 		VALUES`, tableName),
+				blockID,
 				col,
 				colNullable,
 				colArray,
@@ -212,12 +222,14 @@ func testDateColumn[T column.DateType[T]](
 		} else {
 			err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
+				block_id,
 				%[1]s,
 				%[1]s_nullable,
 				%[1]s_array,
 				%[1]s_array_nullable
 			)
 		VALUES`, tableName),
+				blockID,
 				col,
 				colNullable,
 				colArray,
@@ -234,12 +246,12 @@ func testDateColumn[T column.DateType[T]](
 	colArrayRead := getBaseColumn().Array()
 	colNullableArrayRead := getBaseColumn().Nullable().Array()
 	colLCRead := getBaseColumn().LC()
-	colLCNullableRead := getBaseColumn().Nullable().LC()
+	colLCNullableRead := getBaseColumn().LC().Nullable()
 	colArrayLCRead := getBaseColumn().LC().Array()
-	colArrayLCNullableRead := getBaseColumn().Nullable().LC().Array()
-	var selectStmt chconn.SelectStmt
+	colArrayLCNullableRead := getBaseColumn().LC().Nullable().Array()
+	var selectQuery string
 	if isLC {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
+		selectQuery = fmt.Sprintf(`SELECT
 		%[1]s,
 		%[1]s_nullable,
 		%[1]s_array,
@@ -248,7 +260,18 @@ func testDateColumn[T column.DateType[T]](
 		%[1]s_nullable_lc,
 		%[1]s_array_lc,
 		%[1]s_array_lc_nullable
-	FROM test_%[1]s`, tableName),
+	FROM test_%[1]s order by block_id`, tableName)
+	} else {
+		selectQuery = fmt.Sprintf(`SELECT
+			%[1]s,
+			%[1]s_nullable,
+			%[1]s_array,
+			%[1]s_array_nullable
+		FROM test_%[1]s order by block_id`, tableName)
+	}
+	var selectStmt chconn.SelectStmt
+	if isLC {
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -259,12 +282,7 @@ func testDateColumn[T column.DateType[T]](
 			colArrayLCNullableRead,
 		)
 	} else {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-			%[1]s,
-			%[1]s_nullable,
-			%[1]s_array,
-			%[1]s_array_nullable
-		FROM test_%[1]s`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -316,20 +334,11 @@ func testDateColumn[T column.DateType[T]](
 	colArrayRead = getBaseColumn().Array()
 	colNullableArrayRead = getBaseColumn().Nullable().Array()
 	colLCRead = getBaseColumn().LowCardinality()
-	colLCNullableRead = getBaseColumn().Nullable().LowCardinality()
+	colLCNullableRead = getBaseColumn().LowCardinality().Nullable()
 	colArrayLCRead = getBaseColumn().LowCardinality().Array()
-	colArrayLCNullableRead = getBaseColumn().Nullable().LowCardinality().Array()
+	colArrayLCNullableRead = getBaseColumn().LowCardinality().Nullable().Array()
 	if isLC {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-			%[1]s,
-			%[1]s_nullable,
-			%[1]s_array,
-			%[1]s_array_nullable,
-			%[1]s_lc,
-			%[1]s_nullable_lc,
-			%[1]s_array_lc,
-			%[1]s_array_lc_nullable
-		FROM test_%[1]s`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -340,12 +349,7 @@ func testDateColumn[T column.DateType[T]](
 			colArrayLCNullableRead,
 		)
 	} else {
-		selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-				%[1]s,
-				%[1]s_nullable,
-				%[1]s_array,
-				%[1]s_array_nullable
-			FROM test_%[1]s`, tableName),
+		selectStmt, err = conn.Select(context.Background(), selectQuery,
 			colRead,
 			colNullableRead,
 			colArrayRead,
@@ -394,53 +398,27 @@ func testDateColumn[T column.DateType[T]](
 	}
 
 	// check dynamic column
-	if isLC {
-		selectStmt, err = conn.SelectWithOption(context.Background(), fmt.Sprintf(`SELECT
-			%[1]s,
-			%[1]s_nullable,
-			%[1]s_array,
-			%[1]s_array_nullable,
-			%[1]s_lc,
-			%[1]s_nullable_lc,
-			%[1]s_array_lc,
-			%[1]s_array_lc_nullable
-			FROM test_%[1]s`,
-			tableName),
-			&chconn.QueryOptions{
-				UseGoTime: false,
-			},
-		)
-	} else {
-		selectStmt, err = conn.SelectWithOption(context.Background(), fmt.Sprintf(`SELECT
-					%[1]s,
-					%[1]s_nullable,
-					%[1]s_array,
-					%[1]s_array_nullable
-				FROM test_%[1]s`, tableName,
-		),
-			&chconn.QueryOptions{
-				UseGoTime: false,
-			},
-		)
-	}
+
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
 	if isLC {
 		assert.Len(t, autoColumns, 8)
-		assert.Equal(t, column.New[T]().ColumnType(), autoColumns[0].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().ColumnType(), autoColumns[1].ColumnType())
-		assert.Equal(t, column.New[T]().Array().ColumnType(), autoColumns[2].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().Array().ColumnType(), autoColumns[3].ColumnType())
-		assert.Equal(t, column.New[T]().LowCardinality().ColumnType(), autoColumns[4].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().LowCardinality().ColumnType(), autoColumns[5].ColumnType())
-		assert.Equal(t, column.New[T]().LowCardinality().Array().ColumnType(), autoColumns[6].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().LowCardinality().Array().ColumnType(), autoColumns[7].ColumnType())
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+		assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+		assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+		assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+		assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 	} else {
 		assert.Len(t, autoColumns, 4)
-		assert.Equal(t, column.New[T]().ColumnType(), autoColumns[0].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().ColumnType(), autoColumns[1].ColumnType())
-		assert.Equal(t, column.New[T]().Array().ColumnType(), autoColumns[2].ColumnType())
-		assert.Equal(t, column.New[T]().Nullable().Array().ColumnType(), autoColumns[3].ColumnType())
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
 	}
 
 	for selectStmt.Next() {
@@ -461,9 +439,7 @@ func testDateColumn[T column.DateType[T]](
 				%[1]s_array_lc_nullable
 				FROM test_%[1]s`,
 			tableName),
-			&chconn.QueryOptions{
-				UseGoTime: true,
-			},
+			&chconn.QueryOptions{},
 		)
 	} else {
 		selectStmt, err = conn.SelectWithOption(context.Background(), fmt.Sprintf(`SELECT
@@ -473,35 +449,141 @@ func testDateColumn[T column.DateType[T]](
 						%[1]s_array_nullable
 					FROM test_%[1]s`, tableName,
 		),
-			&chconn.QueryOptions{
-				UseGoTime: true,
-			},
+			&chconn.QueryOptions{},
 		)
 	}
 	require.NoError(t, err)
 	autoColumns = selectStmt.Columns()
 	if isLC {
 		assert.Len(t, autoColumns, 8)
-		assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-		assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-		assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-		assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-		assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-		assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-		assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-		assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+		assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+		assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+		assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+		assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 	} else {
 		assert.Len(t, autoColumns, 4)
-		assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-		assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-		assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-		assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
 	}
 
-	for selectStmt.Next() {
+	rows := selectStmt.Rows()
+
+	colData = colData[:0]
+	colNullableData = colNullableData[:0]
+	colArrayData = colArrayData[:0]
+	colArrayNullableData = colArrayNullableData[:0]
+	colLCData = colLCData[:0]
+	colLCNullableData = colLCNullableData[:0]
+	colLCArrayData = colLCArrayData[:0]
+	colLCNullableArrayData = colLCNullableArrayData[:0]
+
+	for rows.Next() {
+		var colVal time.Time
+		var colNullableVal *time.Time
+		var colArrayVal []time.Time
+		var colArrayNullableVal []*time.Time
+		var colLCVal time.Time
+		var colLCNullableVal *time.Time
+		var colLCArrayVal []time.Time
+		var colLCNullableArrayVal []*time.Time
+		if isLC {
+			err := rows.Scan(
+				&colVal,
+				&colNullableVal,
+				&colArrayVal,
+				&colArrayNullableVal,
+				&colLCVal,
+				&colLCNullableVal,
+				&colLCArrayVal,
+				&colLCNullableArrayVal,
+			)
+			require.NoError(t, err)
+		} else {
+			err := rows.Scan(
+				&colVal,
+				&colNullableVal,
+				&colArrayVal,
+				&colArrayNullableVal,
+			)
+			require.NoError(t, err)
+		}
+
+		colData = append(colData, colVal)
+		colNullableData = append(colNullableData, colNullableVal)
+		colArrayData = append(colArrayData, colArrayVal)
+		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+		colLCData = append(colLCData, colLCVal)
+		colLCNullableData = append(colLCNullableData, colLCNullableVal)
+		colLCArrayData = append(colLCArrayData, colLCArrayVal)
+		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
 	require.NoError(t, selectStmt.Err())
+	if isLC {
+		assert.Equal(t, colInsert, colData)
+		assert.Equal(t, colNullableInsert, colNullableData)
+		assert.Equal(t, colArrayInsert, colArrayData)
+		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+		assert.Equal(t, colLCInsert, colLCData)
+		assert.Equal(t, colLCNullableInsert, colLCNullableData)
+		assert.Equal(t, colLCArrayInsert, colLCArrayData)
+		assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
+	} else {
+		assert.Equal(t, colInsert, colData)
+		assert.Equal(t, colNullableInsert, colNullableData)
+		assert.Equal(t, colArrayInsert, colArrayData)
+		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+	}
+
 	selectStmt.Close()
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(selectQuery)
+
+	d := json.NewDecoder(strings.NewReader(strings.Join(chconnJSON, "\n")))
+	var valsChconn []any
+	iff := 0
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		iff++
+		valsChconn = append(valsChconn, v)
+	}
+
+	d = json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
 }
 
 func TestInvalidNegativeTimes(t *testing.T) {
@@ -584,10 +666,11 @@ func TestInvalidNegativeTimes(t *testing.T) {
 
 	for selectStmt.Next() {
 	}
-	assert.Equal(t, colDateRead.Row(0).In(time.UTC).Format(time.RFC3339), "1970-01-01T00:00:00Z")
-	assert.Equal(t, colDate32Read.Row(0).In(time.UTC).Format(time.RFC3339), "1900-01-01T00:00:00Z")
-	assert.Equal(t, colDateTimeRead.Row(0).In(time.UTC).Format(time.RFC3339), "1970-01-01T00:00:00Z")
-	assert.Equal(t, colDateTime64Read.Row(0).In(time.UTC).Format(time.RFC3339), "1900-01-01T00:00:00Z")
+	// YYYY-MM-DD hh:mm:ss
+	assert.Equal(t, colDateRead.Row(0).In(time.UTC).Format("2006-01-02 15:04:05"), "1970-01-01 00:00:00")
+	assert.Equal(t, colDate32Read.Row(0).In(time.UTC).Format("2006-01-02 15:04:05"), "1900-01-01 00:00:00")
+	assert.Equal(t, colDateTimeRead.Row(0).In(time.UTC).Format("2006-01-02 15:04:05"), "1970-01-01 00:00:00")
+	assert.Equal(t, colDateTime64Read.Row(0).In(time.UTC).Format("2006-01-02 15:04:05"), "1900-01-01 00:00:00")
 
 	require.NoError(t, selectStmt.Err())
 }

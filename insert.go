@@ -2,16 +2,19 @@ package chconn
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // InsertStmt is a interface for insert stream statement
 type InsertStmt interface {
-	// Write write a columns (a block of data) to the clickhouse server
+	// Write writes a columns (a block of data) to the clickhouse server
 	// after each write you need to reset the columns. it will not reset automatically
 	Write(ctx context.Context, columns ...column.ColumnBasic) error
-	// Flush flush the data to the clickhouse server and close the statement
+	// Append appends values of a row to the insert statement.
+	Append(values ...any) error
+	// Flush flushes the data to the clickhouse server and close the statement
 	Flush(ctx context.Context) error
 	// Close close the statement and release the connection
 	// close will be called automatically after Flush
@@ -21,6 +24,7 @@ type InsertStmt interface {
 type insertStmt struct {
 	block        *block
 	conn         *conn
+	columns      []column.ColumnBasic
 	query        string
 	queryOptions *QueryOptions
 	clientInfo   *ClientInfo
@@ -31,6 +35,20 @@ type insertStmt struct {
 
 func (s *insertStmt) Flush(ctx context.Context) error {
 	defer s.Close()
+	if s.columns != nil {
+		err := s.Write(ctx, s.columns...)
+		if err != nil {
+			s.hasError = true
+			return err
+		}
+
+		for _, col := range s.columns {
+			col.Reset()
+		}
+
+		s.columns = nil
+	}
+
 	s.finishInsert = true
 
 	if ctx != context.Background() {
@@ -53,7 +71,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 		}
 	}
 
-	var res interface{}
+	var res any
 	for {
 		res, err = s.conn.receiveAndProcessData(emptyOnProgress)
 
@@ -129,9 +147,9 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 	}
 	for i, col := range columns {
 		col.SetType(s.block.Columns[i].ChType)
-		if errValidate := col.Validate(); errValidate != nil {
+		if errValidate := col.Validate(true); errValidate != nil {
 			s.hasError = true
-			return errValidate
+			return fmt.Errorf("column at index %d: %w", i, errValidate)
 		}
 	}
 
@@ -154,7 +172,7 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 		}
 	}
 
-	err = s.block.writeColumnsBuffer(s.conn, columns...)
+	err = s.block.writeColumnsBuffer(columns...)
 	if err != nil {
 		s.hasError = true
 		return &InsertError{
@@ -162,9 +180,35 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 			remoteAddr: s.conn.RawConn().RemoteAddr(),
 		}
 	}
-	for _, col := range columns {
-		col.Reset()
+	return nil
+}
+
+func (s *insertStmt) Append(values ...any) error {
+	if s.columns == nil {
+		columns, err := s.block.getColumnsByChType()
+		if err != nil {
+			return fmt.Errorf("could not get columns for insert statement: %w", err)
+		}
+		s.columns = columns
 	}
+
+	if len(values) != len(s.columns) {
+		return &InsertError{
+			err: &ColumnNumberWriteError{
+				WriteColumn: len(values),
+				NeedColumn:  s.block.NumColumns,
+			},
+			remoteAddr: s.conn.RawConn().RemoteAddr(),
+		}
+	}
+
+	for i, value := range values {
+		err := s.columns[i].AppendAny(value)
+		if err != nil {
+			return fmt.Errorf("could not append value at index %d: %w", i, err)
+		}
+	}
+
 	return nil
 }
 
@@ -247,8 +291,8 @@ func (ch *conn) InsertStreamWithOption(
 	}
 	var blockData *block
 	for {
-		var res interface{}
-		res, err = ch.receiveAndProcessData(emptyOnProgress)
+		var res any
+		res, err = ch.receiveAndProcessData(queryOptions.OnProgress)
 		if err != nil {
 			hasError = true
 			return nil, preferContextOverNetTimeoutError(ctx, err)
@@ -283,7 +327,7 @@ func (ch *conn) InsertStreamWithOption(
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
-	err = blockData.readColumns(ch)
+	err = blockData.readColumns()
 	if err != nil {
 		hasError = true
 		return nil, preferContextOverNetTimeoutError(ctx, err)

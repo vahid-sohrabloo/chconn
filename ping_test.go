@@ -48,11 +48,11 @@ func TestPingWriteError(t *testing.T) {
 
 	config.WriterFunc = nil
 
-	config.ReaderFunc = func(r io.Reader) io.Reader {
+	config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 		return &readErrorHelper{
 			err:         errors.New("timeout"),
 			r:           r,
-			numberValid: 13,
+			numberValid: 15,
 		}
 	}
 

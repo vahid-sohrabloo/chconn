@@ -21,7 +21,7 @@ func NewReader(input io.Reader) *Reader {
 	}
 }
 
-// SetCompress set compress statusp
+// SetCompress set compress status
 func (r *Reader) SetCompress(c bool) {
 	if c {
 		if r.compressReader == nil {

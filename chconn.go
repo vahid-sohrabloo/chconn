@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 const (
@@ -66,13 +66,14 @@ const (
 	serverReadTaskRequest = 13
 	// Packet with profile events from server
 	serverProfileEvents = 14
+	// Receive server's (session-wide) default timezone
+	serverTimezoneUpdate = 17
 )
 
 const (
-	dbmsVersionMajor    = 1
-	dbmsVersionMinor    = 0
-	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54460
+	clientVersionMajor = 1
+	clientVersionMinor = 0
+	clientVersionPatch = 0
 )
 
 type queryProcessingStage uint64
@@ -90,7 +91,7 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 type LookupFunc func(ctx context.Context, host string) (addrs []string, err error)
 
 // ReaderFunc is a function that can be used get reader for read from server
-type ReaderFunc func(io.Reader) io.Reader
+type ReaderFunc func(io.Reader, Conn) io.Reader
 
 // WriterFunc is a function that can be used to get writer to writer from server
 // Note: DO NOT use bufio.Writer, chconn doesn't support flush
@@ -158,8 +159,35 @@ type Conn interface {
 		queryOptions *QueryOptions,
 		columns ...column.ColumnBasic,
 	) (SelectStmt, error)
-}
 
+	// Query sends a select query to the server and returns a Rows to read the results. Only errors encountered sending the query
+	// and initializing Rows will be returned. Err() on the returned Rows must be checked after the Rows is closed to
+	// determine if the query executed successfully.
+	//
+	// For better performance use Select instead of Query when possible. specially when you want to read al lot of data.
+	//
+	// The returned Rows must be closed before the connection can be used again. It is safe to attempt to read from the
+	// returned Rows even if an error is returned. The error will be the available in rows.Err() after rows are closed. It
+	// is allowed to ignore the error returned from Query and handle it in Rows.
+	//
+	// It is possible for a query to return one or more rows before encountering an error. In most cases the rows should be
+	// collected before processing rather than processed while receiving each row. This avoids the possibility of the
+	// application processing rows from a query that the server rejected. The CollectRows function is useful here.
+	//
+	// NOTE: Only use this function for select queries (or any other queries that return rows).
+	Query(ctx context.Context, sql string, args ...Parameter) (Rows, error)
+
+	// QueryWithOption is the same as Query but with QueryOptions
+	QueryWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) (Rows, error)
+
+	// QueryRow is a convenience wrapper over Query. Any error that occurs while
+	// querying is deferred until calling Scan on the returned Row. That Row will
+	// error with ErrNoRows if no rows are returned.
+	QueryRow(ctx context.Context, sql string, args ...Parameter) Row
+
+	// QueryRowWithOptions is the same as QueryRow but with QueryOptions
+	QueryRowWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) Row
+}
 type writeFlusher interface {
 	io.Writer
 	Flush() error
@@ -354,7 +382,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.writer = readerwriter.NewWriter()
 	if config.ReaderFunc != nil {
-		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
+		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn, c))
 	} else {
 		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, c.config.MinReadBufferSize))
 	}
@@ -377,7 +405,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.sendAddendum()
 
-	c.block = newBlock()
+	c.block = newBlock(c)
 	c.profileEvent = newProfileEvent()
 	c.status = connStatusIdle
 
@@ -405,9 +433,9 @@ func (ch *conn) RawConn() net.Conn {
 func (ch *conn) hello() error {
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
-	ch.writer.Uvarint(dbmsVersionMajor)
-	ch.writer.Uvarint(dbmsVersionMinor)
-	ch.writer.Uvarint(dbmsVersionRevision)
+	ch.writer.Uvarint(clientVersionMajor)
+	ch.writer.Uvarint(clientVersionMinor)
+	ch.writer.Uvarint(helper.ClientTCPVersion)
 	ch.writer.String(ch.config.Database)
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
@@ -523,7 +551,7 @@ func (ch *conn) sendData(block *block, numRows int) error {
 			return &writeError{"write block info", err}
 		}
 	}
-	return block.writeHeader(ch, numRows)
+	return block.writeHeader(numRows)
 }
 
 func (ch *conn) sendEmptyBlock() error {
@@ -545,7 +573,7 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, error) {
+func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (any, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}
@@ -553,7 +581,7 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
 		ch.block.reset()
-		err = ch.block.read(ch)
+		err = ch.block.read()
 		return ch.block, err
 	case serverProfileInfo:
 		profile := newProfile()
@@ -593,7 +621,7 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 			ch.compress = oldCompress
 		}()
 		ch.compress = false
-		err = ch.block.read(ch)
+		err = ch.block.read()
 		if err != nil {
 			return nil, err
 		}
@@ -602,7 +630,12 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 			return nil, err
 		}
 		return ch.profileEvent, nil
+	case serverTimezoneUpdate:
+		// TODO: save timezone
+		ch.reader.String() //nolint:errcheck //no needed
+		return ch.receiveAndProcessData(onProgress)
 	}
+
 	return nil, &notImplementedPacket{packet: packet}
 }
 
@@ -621,7 +654,6 @@ type QueryOptions struct {
 	OnProfile      func(*Profile)
 	OnProfileEvent func(*ProfileEvent)
 	Parameters     *Parameters
-	UseGoTime      bool
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) error {
@@ -662,10 +694,15 @@ func (ch *conn) ExecWithOption(
 	if err != nil {
 		return preferContextOverNetTimeoutError(ctx, err)
 	}
+
 	if queryOptions.OnProgress == nil {
 		queryOptions.OnProgress = emptyOnProgress
 	}
 
-	_, err = ch.receiveAndProcessData(queryOptions.OnProgress)
+	res, err := ch.receiveAndProcessData(queryOptions.OnProgress)
+
+	if block, ok := res.(*block); ok {
+		return preferContextOverNetTimeoutError(ctx, block.skipBlock())
+	}
 	return preferContextOverNetTimeoutError(ctx, err)
 }

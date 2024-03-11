@@ -3,7 +3,7 @@ package chpool
 import (
 	"context"
 
-	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v3"
 )
 
 type insertStmt struct {
@@ -15,7 +15,7 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	if s.conn == nil {
 		return nil
 	}
-	defer s.conn.Release()
+	defer s.Close()
 	return s.InsertStmt.Flush(ctx)
 }
 

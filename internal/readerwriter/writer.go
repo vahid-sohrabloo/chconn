@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"reflect"
 	"unsafe"
 )
 
@@ -98,8 +97,5 @@ func (w *Writer) Output() *bytes.Buffer {
 }
 
 func str2Bytes(str string) []byte {
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&str))
-	header.Len = len(str)
-	header.Cap = header.Len
-	return *(*[]byte)(unsafe.Pointer(header))
+	return unsafe.Slice(unsafe.StringData(str), len(str))
 }

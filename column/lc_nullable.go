@@ -1,5 +1,11 @@
 package column
 
+import (
+	"fmt"
+	"reflect"
+	"unsafe"
+)
+
 // LowCardinalityNullable for LowCardinality(Nullable(T)) ClickHouse DataTypes
 type LowCardinalityNullable[T comparable] struct {
 	LowCardinality[T]
@@ -19,6 +25,7 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 			nullable:   true,
 			dict:       make(map[T]int),
 			dictColumn: dictColumn,
+			rtype:      reflect.TypeOf((*T)(nil)).Elem(),
 		},
 	}
 	return l
@@ -63,8 +70,89 @@ func (c *LowCardinalityNullable[T]) RowP(row int) *T {
 	return &val
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *LowCardinalityNullable[T]) RowAny(row int) any {
+	return c.RowP(row)
+}
+
+// RowIsNil return true if value of given row is null
+// NOTE: Row number start from zero
+func (c *LowCardinalityNullable[T]) RowIsNil(row int) bool {
+	return c.readedKeys[row] == 0
+}
+
+func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
+	if c.readedKeys[row] == 0 {
+		return nil
+	}
+	return c.dictColumn.Scan(c.readedKeys[row], dest)
+}
+
+func (c *LowCardinalityNullable[T]) ScanValue(row int, dest reflect.Value) error {
+	if c.readedKeys[row] == 0 {
+		return nil
+	}
+	return c.dictColumn.ScanValue(c.readedKeys[row], dest)
+}
+
 // Append value for insert
-func (c *LowCardinalityNullable[T]) Append(v ...T) {
+func (c *LowCardinalityNullable[T]) Append(v T) {
+	c.preHookAppend()
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.dictColumn.Append(v)
+	}
+	c.keys = append(c.keys, key+1)
+	c.numRow++
+}
+
+func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case T:
+		c.Append(v)
+
+		return nil
+	//nolint:gocritic // to ignore caseOrder
+	case *T:
+		c.AppendP(v)
+		return nil
+	//nolint:gocritic // to ignore caseOrder
+	case bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			if v {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
+			} else {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
+			}
+			return nil
+		}
+	//nolint:gocritic // to ignore caseOrder
+	case *bool:
+		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
+			if v == nil {
+				c.AppendNil()
+			} else if *v {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
+			} else {
+				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("can't convert %T to %T", value, c)
+}
+
+// AppendMulti value for insert
+func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
@@ -80,14 +168,36 @@ func (c *LowCardinalityNullable[T]) Append(v ...T) {
 
 // Append nil value for insert
 func (c *LowCardinalityNullable[T]) AppendNil() {
+	c.preHookAppend()
 	c.keys = append(c.keys, 0)
 	c.numRow++
 }
 
-// Append nullable value for insert
+// AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *LowCardinalityNullable[T]) AppendP(v ...*T) {
+func (c *LowCardinalityNullable[T]) AppendP(v *T) {
+	c.preHookAppend()
+	if v == nil {
+		c.keys = append(c.keys, 0)
+		return
+	}
+	key, ok := c.dict[*v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[*v] = key
+		c.dictColumn.Append(*v)
+	}
+	c.keys = append(c.keys, key+1)
+
+	c.numRow++
+}
+
+// AppendMultiP nullable value for insert
+//
+// as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
+func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		if v == nil {
 			c.keys = append(c.keys, 0)
@@ -127,4 +237,12 @@ func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	k := c.readedKeys[row]
+	if k == 0 {
+		return append(b, "null"...)
+	}
+	return c.dictColumn.ToJSON(k, ignoreDoubleQuotes, b)
 }

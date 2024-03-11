@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func BenchmarkTestChconnSelect100MUint64(b *testing.B) {
