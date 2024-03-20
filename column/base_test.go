@@ -18,6 +18,14 @@ import (
 )
 
 func TestBool(t *testing.T) {
+	testColumn(t, true, "Bool", "bool", func(i int) bool {
+		return true
+	}, func(i int) bool {
+		return false
+	})
+}
+
+func TestBoolUint8(t *testing.T) {
 	testColumn(t, true, "UInt8", "bool", func(i int) bool {
 		return true
 	}, func(i int) bool {

@@ -9,6 +9,7 @@ import (
 )
 
 var chColumnByteSize = map[string]int{
+	"Bool":       1,
 	"Int8":       1,
 	"Int16":      2,
 	"Int32":      4,
