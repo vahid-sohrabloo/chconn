@@ -134,6 +134,17 @@ func (c *BaseNullable[T]) Append(v T) {
 	c.dataColumn.Append(v)
 }
 
+func (c *BaseNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case nil:
+		return true
+	case T:
+		return true
+	case *T:
+		return true
+	}
+	return false
+}
 func (c *BaseNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case nil:

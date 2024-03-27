@@ -105,6 +105,13 @@ func (c *Array[T]) Append(v []T) {
 	c.dataColumn.(Column[T]).AppendMulti(v...)
 }
 
+func (c *Array[T]) canAppend(value any) bool {
+	if v, ok := value.([]T); ok {
+		return c.dataColumn.(Column[T]).canAppend(v)
+	}
+	return false
+}
+
 func (c *Array[T]) AppendAny(value any) error {
 	if v, ok := value.([]T); ok {
 		c.Append(v)

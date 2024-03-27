@@ -155,6 +155,25 @@ func (c *StringNullable[T]) Append(v T) {
 	c.dataColumn.Append(v)
 }
 
+func (c *StringNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case T:
+		return true
+	//nolint:gocritic // to ignore caseOrder
+	case string:
+		return true
+	case []byte:
+		return true
+	case *string:
+		return true
+	case *[]byte:
+		return true
+	case nil:
+		return true
+	}
+	return false
+}
+
 func (c *StringNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:

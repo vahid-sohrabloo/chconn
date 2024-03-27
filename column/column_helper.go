@@ -26,6 +26,7 @@ type ColumnBasic interface {
 	RowAny(int) any
 	Scan(row int, dest any) error
 	AppendAny(any) error
+	canAppend(any) bool
 	FullType() string
 	Remove(n int)
 	ToJSON(row int, stringQuotes bool, b []byte) []byte

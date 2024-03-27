@@ -130,6 +130,34 @@ func (c *Tuple4[T, T1, T2, T3, T4]) Append(v T) {
 	c.col4.Append(t.Col4)
 }
 
+func (c *Tuple4[T, T1, T2, T3, T4]) canAppend(value any) bool {
+	switch v := value.(type) {
+	case T:
+		return true
+	case []any:
+		if len(v) != 2 {
+			return false
+		}
+
+		if !c.col1.canAppend(v[0]) {
+			return false
+		}
+		if !c.col2.canAppend(v[1]) {
+			return false
+		}
+		if !c.col3.canAppend(v[2]) {
+			return false
+		}
+		if !c.col4.canAppend(v[3]) {
+			return false
+		}
+
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Tuple4[T, T1, T2, T3, T4]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:

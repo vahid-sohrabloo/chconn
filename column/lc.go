@@ -6,7 +6,6 @@ import (
 	"math"
 	"reflect"
 	"strings"
-	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -103,21 +102,17 @@ func (c *LowCardinality[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *LowCardinality[T]) canAppend(value any) bool {
+	if _, ok := value.(T); ok {
+		return true
+	}
+	return false
+}
+
 func (c *LowCardinality[T]) AppendAny(value any) error {
-	switch v := value.(type) {
-	case T:
+	if v, ok := value.(T); ok {
 		c.Append(v)
 		return nil
-	//nolint:gocritic // to ignore caseOrder
-	case bool:
-		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
-			if v {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
-			} else {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
-			}
-			return nil
-		}
 	}
 
 	return fmt.Errorf("could not convert %v of type %T to type %T", value, value, value)

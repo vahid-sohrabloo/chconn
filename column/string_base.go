@@ -189,6 +189,14 @@ func (c *StringBase[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *StringBase[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case string, T, []byte, *string, *[]byte:
+		return true
+	}
+	return false
+}
+
 func (c *StringBase[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:

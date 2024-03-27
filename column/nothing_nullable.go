@@ -99,6 +99,10 @@ func (c *NothingNullable) RowIsNil(row int) bool {
 func (c *NothingNullable) Append(v NothingData) {
 }
 
+func (c *NothingNullable) canAppend(value any) bool {
+	return false
+}
+
 func (c *NothingNullable) AppendAny(value any) error {
 	return nil
 }

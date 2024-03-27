@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
-	"unsafe"
 )
 
 // LowCardinalityNullable for LowCardinality(Nullable(T)) ClickHouse DataTypes
@@ -117,6 +116,14 @@ func (c *LowCardinalityNullable[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *LowCardinalityNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case *T, T, nil:
+		return true
+	}
+	return false
+}
+
 func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case nil:
@@ -131,28 +138,6 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 	case *T:
 		c.AppendP(v)
 		return nil
-	//nolint:gocritic // to ignore caseOrder
-	case bool:
-		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
-			if v {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
-			} else {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
-			}
-			return nil
-		}
-	//nolint:gocritic // to ignore caseOrder
-	case *bool:
-		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
-			if v == nil {
-				c.AppendNil()
-			} else if *v {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{1}[0])))
-			} else {
-				c.Append(*(*T)(unsafe.Pointer(&[]byte{0}[0])))
-			}
-			return nil
-		}
 	}
 
 	return fmt.Errorf("can't convert %T to %T", value, c)

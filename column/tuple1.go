@@ -58,6 +58,10 @@ func (c *Tuple1[T]) Append(v T) {
 	c.col1.Append(v)
 }
 
+func (c *Tuple1[T]) canAppend(value any) bool {
+	return c.col1.canAppend(value)
+}
+
 func (c *Tuple1[T]) AppendAny(value any) error {
 	return c.col1.AppendAny(value)
 }

@@ -134,16 +134,40 @@ func (c *Variant) AppendNil() {
 
 // Append append value to the column
 func (c *Variant) Append(v any) {
-	panic("not implemented yet")
+	panic("variant column does not support Append method. Use AppendAny instead")
 }
 
-func (c *Variant) AppendAny(v any) error {
-	panic("not implemented yet")
+func (c *Variant) canAppend(value any) bool {
+	if value == nil {
+		return true
+	}
+	for _, col := range c.columns {
+		if col.canAppend(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Variant) AppendAny(value any) error {
+	if value == nil {
+		c.AppendNil()
+		return nil
+	}
+	for i, col := range c.columns {
+		if col.canAppend(value) {
+			c.AppendDiscriminators(uint8(i))
+			return col.AppendAny(value)
+		}
+	}
+	return fmt.Errorf("cannot append value of type %T to Variant column. can't find a column that can accept this value", value)
 }
 
 // AppendMulti append multiple value to the column
 func (c *Variant) AppendMulti(v ...any) {
-	panic("not implemented yet")
+	for _, val := range v {
+		c.Append(val)
+	}
 }
 
 // Data get all the data in current block as a slice.

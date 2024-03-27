@@ -104,6 +104,28 @@ func (c *Tuple2[T, T1, T2]) Append(v T) {
 	c.col2.Append(t.Col2)
 }
 
+func (c *Tuple2[T, T1, T2]) canAppend(value any) bool {
+	switch v := value.(type) {
+	case T:
+		return true
+	case []any:
+		if len(v) != 2 {
+			return false
+		}
+
+		if !c.col1.canAppend(v[0]) {
+			return false
+		}
+		if !c.col2.canAppend(v[1]) {
+			return false
+		}
+
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Tuple2[T, T1, T2]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:

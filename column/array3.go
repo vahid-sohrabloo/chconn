@@ -94,6 +94,13 @@ func (c *Array3[T]) Append(v [][][]T) {
 	c.dataColumn.(*Array2[T]).AppendMulti(v...)
 }
 
+func (c *Array3[T]) canAppend(value any) bool {
+	if _, ok := value.([][][]T); ok {
+		return true
+	}
+	return false
+}
+
 func (c *Array3[T]) AppendAny(value any) error {
 	if v, ok := value.([][][]T); ok {
 		c.Append(v)

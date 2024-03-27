@@ -57,6 +57,10 @@ func (c *Nothing) Scan(row int, dest any) error {
 func (c *Nothing) Append(v NothingData) {
 }
 
+func (c *Nothing) canAppend(value any) bool {
+	return false
+}
+
 func (c *Nothing) AppendAny(value any) error {
 	return nil
 }

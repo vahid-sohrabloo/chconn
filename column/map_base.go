@@ -74,6 +74,27 @@ func (c *MapBase) AppendLen(v int) {
 	c.offsetColumn.Append(c.offset)
 }
 
+func (c *MapBase) canAppend(value any) bool {
+	mapVal := reflect.ValueOf(value)
+	if mapVal.Kind() != reflect.Map {
+		return false
+	}
+
+	c.AppendLen(mapVal.Len())
+	for _, key := range mapVal.MapKeys() {
+		k := key.Interface()
+		if !c.keyColumn.canAppend(k) {
+			return false
+		}
+		val := mapVal.MapIndex(key).Interface()
+		if c.valueColumn.canAppend(val) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (c *MapBase) AppendAny(value any) error {
 	mapVal := reflect.ValueOf(value)
 	if mapVal.Kind() != reflect.Map {

@@ -120,6 +120,16 @@ func (c *ArrayNullable[T]) AppendMultiP(v [][]*T) {
 	}
 }
 
+func (c *ArrayNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case []*T:
+		return true
+	case [][]*T:
+		return true
+	}
+	return false
+}
+
 func (c *ArrayNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case []T:

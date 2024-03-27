@@ -105,20 +105,48 @@ func (c *Map[K, V]) Append(v map[K]V) {
 	}
 }
 
+func (c *Map[K, V]) canAppend(value any) bool {
+	switch value.(type) {
+	case map[K]V:
+		return true
+	case map[any]any:
+		return true
+	default:
+		mapVal := reflect.ValueOf(value)
+		if mapVal.Kind() != reflect.Map {
+			return false
+		}
+
+		for _, key := range mapVal.MapKeys() {
+			k := key.Interface()
+			if !c.keyColumn.(Column[K]).canAppend(k) {
+				return false
+			}
+			val := mapVal.MapIndex(key).Interface()
+
+			if !c.valueColumn.(Column[K]).canAppend(val) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 func (c *Map[K, V]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case map[K]V:
 		c.Append(v)
+		return nil
 	case map[any]any:
 		c.AppendLen(len(v))
 		for k, val := range v {
 			err := c.keyColumn.(Column[K]).AppendAny(k)
 			if err != nil {
-				return fmt.Errorf("coult not append key %v to key column: %w", k, err)
+				return fmt.Errorf("could not append key %v to key column: %w", k, err)
 			}
 			err = c.valueColumn.(Column[V]).AppendAny(val)
 			if err != nil {
-				return fmt.Errorf("coult not append value %v to value column: %w", val, err)
+				return fmt.Errorf("could not append value %v to value column: %w", val, err)
 			}
 		}
 
@@ -133,18 +161,16 @@ func (c *Map[K, V]) AppendAny(value any) error {
 			k := key.Interface()
 			err := c.keyColumn.(Column[K]).AppendAny(k)
 			if err != nil {
-				return fmt.Errorf("coult not append key %v to key column: %w", k, err)
+				return fmt.Errorf("could not append key %v to key column: %w", k, err)
 			}
 			val := mapVal.MapIndex(key).Interface()
 			err = c.valueColumn.(Column[V]).AppendAny(val)
 			if err != nil {
-				return fmt.Errorf("coult not append value %v to value column: %w", val, err)
+				return fmt.Errorf("could not append value %v to value column: %w", val, err)
 			}
 		}
-
 		return nil
 	}
-	return nil
 }
 
 // AppendMulti value for insert

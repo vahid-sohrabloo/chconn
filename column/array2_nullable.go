@@ -112,6 +112,16 @@ func (c *Array2Nullable[T]) Append(v [][]T) {
 	c.Array2.dataColumn.(*ArrayNullable[T]).AppendMulti(v...)
 }
 
+func (c *Array2Nullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case [][]T:
+		return true
+	case [][]*T:
+		return true
+	}
+	return false
+}
+
 func (c *Array2Nullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case [][]T:

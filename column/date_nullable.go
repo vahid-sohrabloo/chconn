@@ -146,6 +146,27 @@ func (c *DateNullable[T]) Append(v time.Time) {
 	c.dataColumn.Append(v)
 }
 
+func (c *DateNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case nil:
+		return true
+	case T:
+		return true
+	case *T:
+		return true
+	case time.Time:
+		return true
+	case *time.Time:
+		return true
+	case int64:
+		return true
+	case *int64:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *DateNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:
@@ -168,6 +189,17 @@ func (c *DateNullable[T]) AppendAny(value any) error {
 		c.Append(v)
 
 		return nil
+	case *time.Time:
+		c.AppendP(v)
+
+		return nil
+	case *int64:
+		if v == nil {
+			c.AppendNil()
+
+			return nil
+		}
+		c.Append(time.Unix(*v, 0))
 	case int64:
 		c.Append(time.Unix(v, 0))
 

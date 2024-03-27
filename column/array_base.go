@@ -41,6 +41,19 @@ func (c *ArrayBase) AppendLen(v int) {
 	c.preHookAppend()
 }
 
+func (c *ArrayBase) canAppend(value any) bool {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return false
+	}
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		if !c.dataColumn.canAppend(item) {
+			return false
+		}
+	}
+	return true
+}
 func (c *ArrayBase) AppendAny(value any) error {
 	sliceVal := reflect.ValueOf(value)
 	if sliceVal.Kind() != reflect.Slice {

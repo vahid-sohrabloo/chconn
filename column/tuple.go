@@ -298,6 +298,26 @@ func (c *Tuple) chconnType() string {
 	return chConn[:len(chConn)-2] + ")"
 }
 
+func (c *Tuple) canAppend(value any) bool {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return false
+	}
+
+	if sliceVal.Len() != len(c.columns) {
+		return false
+	}
+
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		if !c.columns[i].canAppend(item) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (c *Tuple) AppendAny(value any) error {
 	sliceVal := reflect.ValueOf(value)
 	if sliceVal.Kind() != reflect.Slice {

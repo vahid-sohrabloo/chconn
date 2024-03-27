@@ -95,6 +95,13 @@ func (c *Base[T]) Append(v T) {
 	c.numRow++
 }
 
+func (c *Base[T]) canAppend(value any) bool {
+	if _, ok := value.(T); ok {
+		return true
+	}
+	return reflect.ValueOf(value).Kind() == c.kind
+}
+
 func (c *Base[T]) AppendAny(value any) error {
 	if v, ok := value.(T); ok {
 		c.Append(v)

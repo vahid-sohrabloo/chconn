@@ -161,6 +161,18 @@ func (c *Date[T]) Append(v time.Time) {
 	c.numRow++
 }
 
+func (c *Date[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case T:
+		return true
+	case time.Time:
+		return true
+	case int64:
+		return true
+	}
+	return false
+}
+
 func (c *Date[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case T:
