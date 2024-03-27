@@ -28,11 +28,11 @@ func TestArrayScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[]string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: cannot scan text into int", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[]string' into dest type '*[]int'", err.Error())
 }
 func TestArrayNullableScanError(t *testing.T) {
 	t.Parallel()
@@ -50,11 +50,11 @@ func TestArrayNullableScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type 'string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 1: cannot scan text into int", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type 'string' into dest type '*[]int'", err.Error())
 }
 
 func TestArray2ScanError(t *testing.T) {
@@ -72,11 +72,11 @@ func TestArray2ScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][]string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][]string' into dest type '*[]int'", err.Error())
 }
 
 func TestArray2NullableScanError(t *testing.T) {
@@ -94,11 +94,11 @@ func TestArray2NullableScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][]*string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][]*string' into dest type '*[]int'", err.Error())
 }
 
 func TestArray3ScanError(t *testing.T) {
@@ -116,11 +116,11 @@ func TestArray3ScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][][]string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][][]string' into dest type '*[]int'", err.Error())
 }
 
 func TestArray3NullableScanError(t *testing.T) {
@@ -138,11 +138,11 @@ func TestArray3NullableScanError(t *testing.T) {
 
 	var invalidArr int
 	err = rows.Scan(&invalidArr)
-	require.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][][]*string' into dest type '*int'", err.Error())
 
 	var invalidArrInside []int
 	err = rows.Scan(&invalidArrInside)
-	require.Equal(t, "can't scan into dest[0]: cannot scan array item 0: dest must be a pointer to slice", err.Error())
+	assert.Equal(t, "can't scan into dest[0]: cannot scan type '*[][][]*string' into dest type '*[]int'", err.Error())
 }
 
 func TestArrayData(t *testing.T) {

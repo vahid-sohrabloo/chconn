@@ -545,7 +545,7 @@ func TestTupleArrayScan(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	rows, err := conn.Query(ctx, "SELECT [tuple(1,2),tuple(3,4)] AS arr")
+	rows, err := conn.Query(ctx, "SELECT [tuple(toInt64(1),toInt64(2)),tuple(toInt64(3),toInt64(4))] AS arr")
 	require.NoError(t, err)
 	defer rows.Close()
 	assert.True(t, rows.Next())

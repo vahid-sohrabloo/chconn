@@ -3,7 +3,6 @@ package column
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"sort"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -201,18 +200,6 @@ func (c *Variant) Scan(row int, dest any) error {
 		return nil
 	}
 	return c.columns[columnIndex].Scan(columnRow, dest)
-}
-
-// ScanValue scan value from column to dest
-func (c *Variant) ScanValue(row int, dest reflect.Value) error {
-	if dest.Kind() != reflect.Ptr {
-		return fmt.Errorf("scan dest should be a pointer")
-	}
-	columnIndex, columnRow := c.RowPos(row)
-	if columnRow == -1 {
-		return nil
-	}
-	return c.columns[columnIndex].ScanValue(columnRow, dest)
 }
 
 // Column returns the all sub columns

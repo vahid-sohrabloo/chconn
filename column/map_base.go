@@ -173,12 +173,19 @@ func (c *MapBase) scanStruct(row int, dest reflect.Value) error {
 	offset := int(c.offsetColumn.Row(row))
 	rSlice := reflect.MakeSlice(dest.Elem().Type(), offset-lastOffset, offset-lastOffset)
 	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
-		// todo  find a better way to find key and value field
-		if err := c.keyColumn.Scan(i, rSlice.Index(b).Field(0).Addr().Interface()); err != nil {
-			return err
+		sFieldKey, ok := getStructFieldValue(rSlice.Index(b), "key")
+		if !ok {
+			sFieldKey = rSlice.Index(b).Field(0)
 		}
-		if err := c.valueColumn.Scan(i, rSlice.Index(b).Field(1).Addr().Interface()); err != nil {
-			return err
+		if err := c.keyColumn.Scan(i, sFieldKey.Addr().Interface()); err != nil {
+			return fmt.Errorf("scan key: %w", err)
+		}
+		sFieldValue, ok := getStructFieldValue(rSlice.Index(b), "value")
+		if !ok {
+			sFieldValue = rSlice.Index(b).Field(1)
+		}
+		if err := c.valueColumn.Scan(i, sFieldValue.Addr().Interface()); err != nil {
+			return fmt.Errorf("scan value: %w", err)
 		}
 	}
 	dest.Elem().Set(rSlice)

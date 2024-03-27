@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -90,20 +91,38 @@ func (c *StringBase[T]) RowAny(row int) any {
 	return c.Row(row)
 }
 
-func (c *StringBase[T]) Scan(row int, value any) error {
-	switch d := value.(type) {
-	case *string:
-		*d = string(c.Row(row))
+func (c *StringBase[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *T:
+		*d = c.Row(row)
+		return nil
+	case **T:
+		*d = new(T)
+		**d = c.Row(row)
+		return nil
 	case *[]byte:
 		b := c.RowBytes(row)
 		if len(*d) < len(b) {
 			*d = make([]byte, len(b))
 		}
 		copy(*d, b)
+		return nil
+	case **[]byte:
+		b := make([]byte, len(c.RowBytes(row)))
+		copy(b, c.RowBytes(row))
+		*d = &b
+		return nil
 	case *any:
 		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
 	}
-	return c.ScanValue(row, reflect.ValueOf(value))
+
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "*" + reflect.TypeOf(c.Row(row)).String(),
+	}
 }
 
 func (c *StringBase[T]) ScanValue(row int, value reflect.Value) error {

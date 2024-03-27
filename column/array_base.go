@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -95,7 +96,10 @@ func (c *ArrayBase) Scan(row int, dest any) error {
 	case *[]any:
 		*v = c.RowAny(row).([]any)
 		return nil
+	case sql.Scanner:
+		return v.Scan(c.RowAny(row))
 	}
+
 	return c.ScanValue(row, reflect.ValueOf(dest))
 }
 

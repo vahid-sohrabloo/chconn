@@ -3,7 +3,6 @@ package column
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 	"unsafe"
 
@@ -67,10 +66,6 @@ func (c *NothingNullable) RowAny(i int) any {
 }
 
 func (c *NothingNullable) Scan(row int, dest any) error {
-	return nil
-}
-
-func (c *NothingNullable) ScanValue(row int, dest reflect.Value) error {
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 )
 
 var chColumnByteSize = map[string]int{
+	"Bool":       1,
 	"Int8":       1,
 	"Int16":      2,
 	"Int32":      4,
@@ -33,7 +34,7 @@ var chColumnByteSize = map[string]int{
 }
 
 var goTypeToChType = map[string]string{
-	"bool":             "UInt8",
+	"bool":             "Bool",
 	"int8":             "Int8",
 	"int16":            "Int16",
 	"int32":            "Int32",

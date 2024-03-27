@@ -193,7 +193,7 @@ func (c *Tuple) scanStruct(row int, val reflect.Value) error {
 			continue
 		}
 
-		err := col.ScanValue(row, sField.Addr())
+		err := col.Scan(row, sField.Addr().Interface())
 		if err != nil {
 			return fmt.Errorf("tuple: scan %s: %w", colName, err)
 		}

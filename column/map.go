@@ -54,6 +54,19 @@ func (c *Map[K, V]) Data() []map[K]V {
 	return values
 }
 
+func (c *Map[K, V]) Scan(row int, dest any) error {
+	switch v := dest.(type) {
+	case *map[K]V:
+		*v = c.Row(row)
+		return nil
+	case *any:
+		*v = c.Row(row)
+		return nil
+	default:
+		return c.MapBase.Scan(row, dest)
+	}
+}
+
 // Read reads all the data in current block and append to the input.
 func (c *Map[K, V]) Read(value []map[K]V) []map[K]V {
 	return append(value, c.Data()...)

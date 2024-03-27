@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -95,6 +96,13 @@ func (c *Date[T]) SetPrecision(precision int) *Date[T] {
 
 func (c *Date[T]) Scan(row int, dest any) error {
 	switch dest := dest.(type) {
+	case *T:
+		*dest = c.Base.Row(row)
+		return nil
+	case **T:
+		*dest = new(T)
+		**dest = c.Base.Row(row)
+		return nil
 	case *time.Time:
 		*dest = c.Row(row)
 		return nil
@@ -102,23 +110,16 @@ func (c *Date[T]) Scan(row int, dest any) error {
 		*dest = new(time.Time)
 		**dest = c.Row(row)
 		return nil
-	default:
-		return c.Base.Scan(row, dest)
+	case *any:
+		*dest = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return dest.Scan(c.Row(row))
 	}
-}
 
-func (c *Date[T]) ScanValue(row int, dest reflect.Value) error {
-	val := dest.Interface()
-	switch d := val.(type) {
-	case *time.Time:
-		*d = c.Row(row)
-		return nil
-	case **time.Time:
-		*d = new(time.Time)
-		**d = c.Row(row)
-		return nil
-	default:
-		return c.Base.ScanValue(row, dest)
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "*" + c.rtype.String() + " or *time.Time",
 	}
 }
 

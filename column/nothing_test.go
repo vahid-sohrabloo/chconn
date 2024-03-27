@@ -79,7 +79,7 @@ func TestNothing(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, rows.Next())
 	require.NoError(t, rows.Err())
-	assert.Equal(t, dataArr, []int{0})
+	assert.Equal(t, dataArr, []int(nil))
 
 	nothingCol := column.NewNothing()
 	var dataCol int

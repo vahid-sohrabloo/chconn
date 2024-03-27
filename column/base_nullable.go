@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"reflect"
@@ -79,17 +80,24 @@ func (c *BaseNullable[T]) RowAny(i int) any {
 }
 
 func (c *BaseNullable[T]) Scan(row int, dest any) error {
-	if c.RowIsNil(row) {
+	switch d := dest.(type) {
+	case *T:
+		*d = c.Row(row)
 		return nil
+	case **T:
+		*d = c.RowP(row)
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
 	}
-	return c.dataColumn.Scan(row, dest)
-}
 
-func (c *BaseNullable[T]) ScanValue(row int, dest reflect.Value) error {
-	if c.RowIsNil(row) {
-		return nil
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "**" + c.dataColumn.rtype.String(),
 	}
-	return c.dataColumn.ScanValue(row, dest)
 }
 
 // RowP return the value of given row for nullable data
@@ -140,33 +148,6 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 		c.AppendP(v)
 
 		return nil
-	//nolint:gocritic // to ignore caseOrder
-	case bool:
-		if c.dataColumn.kind == reflect.Int8 || c.dataColumn.kind == reflect.Uint8 {
-			var tmp T
-			if v {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
-			} else {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
-			}
-			c.Append(tmp)
-			return nil
-		}
-	case *bool:
-		if c.dataColumn.kind == reflect.Int8 || c.dataColumn.kind == reflect.Uint8 {
-			if v == nil {
-				c.AppendNil()
-				return nil
-			}
-			var tmp T
-			if *v {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
-			} else {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
-			}
-			c.Append(tmp)
-			return nil
-		}
 	}
 
 	val := reflect.ValueOf(value)

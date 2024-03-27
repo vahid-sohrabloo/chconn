@@ -33,7 +33,7 @@ func TestRowScanner(t *testing.T) {
 	t.Parallel()
 	conn := getConnection(t)
 	var s testRowScanner
-	err := conn.QueryRow(context.Background(), "select 'Adam' as name, 72 as height").Scan(&s)
+	err := conn.QueryRow(context.Background(), "select 'Adam' as name, toInt32(72) as height").Scan(&s)
 	require.NoError(t, err)
 	require.Equal(t, "Adam", s.name)
 	require.Equal(t, int32(72), s.age)
@@ -65,7 +65,7 @@ func TestForEachRow(t *testing.T) {
 		"select number, number * 2 from system.numbers where number > 0 limit {n: UInt32}",
 		IntParameter("n", 3),
 	)
-	var a, b int
+	var a, b uint64
 	err := ForEachRow(rows, []any{&a, &b}, func() error {
 		actualResults = append(actualResults, []any{a, b})
 		return nil
@@ -73,9 +73,9 @@ func TestForEachRow(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResults := []any{
-		[]any{1, 2},
-		[]any{2, 4},
-		[]any{3, 6},
+		[]any{uint64(1), uint64(2)},
+		[]any{uint64(2), uint64(4)},
+		[]any{uint64(3), uint64(6)},
 	}
 	require.Equal(t, expectedResults, actualResults)
 }
@@ -90,12 +90,12 @@ func TestForEachRowScanError(t *testing.T) {
 		"select 'foo', 'bar' from system.numbers where number > 0 limit {n: UInt32}",
 		IntParameter("n", 3),
 	)
-	var a, b int
+	var a, b uint64
 	err := ForEachRow(rows, []any{&a, &b}, func() error {
 		actualResults = append(actualResults, []any{a, b})
 		return nil
 	})
-	require.EqualError(t, err, "can't scan into dest[0]: cannot scan text into int")
+	require.EqualError(t, err, "can't scan into dest[0]: cannot scan type '*string' into dest type '*uint64'")
 }
 
 func TestForEachRowAbort(t *testing.T) {
@@ -107,7 +107,7 @@ func TestForEachRowAbort(t *testing.T) {
 		"select number, number * 2 from system.numbers where number > 0 limit {n: UInt32}",
 		IntParameter("n", 3),
 	)
-	var a, b int
+	var a, b uint64
 	err := ForEachRow(rows, []any{&a, &b}, func() error {
 		return errors.New("abort")
 	})
@@ -126,7 +126,7 @@ func ExampleForEachRow() {
 		"select number, number * 2 from system.numbers where number > 0 limit {n: UInt32}",
 		IntParameter("n", 3),
 	)
-	var a, b int
+	var a, b uint64
 	err = ForEachRow(rows, []any{&a, &b}, func() error {
 		fmt.Printf("%v, %v\n", a, b)
 		return nil
@@ -144,7 +144,7 @@ func ExampleForEachRow() {
 
 func TestCollectRows(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers limit 100`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers limit 100`)
 	numbers, err := CollectRows(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -170,7 +170,7 @@ func ExampleCollectRows() {
 		return
 	}
 
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers where number > 0 limit 5`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers where number > 0 limit 5`)
 	numbers, err := CollectRows(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -189,7 +189,7 @@ func ExampleCollectRows() {
 
 func TestCollectOneRow(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 42`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(42)`)
 	n, err := CollectOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -201,7 +201,7 @@ func TestCollectOneRow(t *testing.T) {
 
 func TestCollectOneRowNotFound(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 42 where false`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(42) where false`)
 	n, err := CollectOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -213,7 +213,7 @@ func TestCollectOneRowNotFound(t *testing.T) {
 
 func TestCollectOneRowIgnoresExtraRows(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers where number >= 42 limit 100`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers where number >= 42 limit 100`)
 	n, err := CollectOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -227,7 +227,7 @@ func TestCollectOneRowIgnoresExtraRows(t *testing.T) {
 
 func TestCollectExactlyOneRow(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 42`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(42)`)
 	n, err := CollectExactlyOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -239,7 +239,7 @@ func TestCollectExactlyOneRow(t *testing.T) {
 
 func TestCollectExactlyOneRowNotFound(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 42 where false`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(42) where false`)
 	n, err := CollectExactlyOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -251,7 +251,7 @@ func TestCollectExactlyOneRowNotFound(t *testing.T) {
 
 func TestCollectExactlyOneRowExtraRows(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers where number > 41 limit 100`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers where number > 41 limit 100`)
 	n, err := CollectExactlyOneRow(rows, func(row CollectableRow) (int32, error) {
 		var n int32
 		err := row.Scan(&n)
@@ -263,7 +263,7 @@ func TestCollectExactlyOneRowExtraRows(t *testing.T) {
 
 func TestRowTo(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers limit 100`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers limit 100`)
 	numbers, err := CollectRows(rows, RowTo[int32])
 	require.NoError(t, err)
 
@@ -280,7 +280,7 @@ func ExampleRowTo() {
 		return
 	}
 
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers where number > 0 limit 5`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers where number > 0 limit 5`)
 	numbers, err := CollectRows(rows, RowTo[int32])
 	if err != nil {
 		fmt.Printf("CollectRows error: %v", err)
@@ -295,7 +295,7 @@ func ExampleRowTo() {
 
 func TestRowToAddrOf(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers limit 100`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers limit 100`)
 	numbers, err := CollectRows(rows, RowToAddrOf[int32])
 	require.NoError(t, err)
 
@@ -315,7 +315,7 @@ func ExampleRowToAddrOf() {
 		return
 	}
 
-	rows, _ := conn.Query(context.Background(), `select number from system.numbers where number > 0 limit 5`)
+	rows, _ := conn.Query(context.Background(), `select toInt32(number) from system.numbers where number > 0 limit 5`)
 	pNumbers, err := CollectRows(rows, RowToAddrOf[int32])
 	if err != nil {
 		fmt.Printf("CollectRows error: %v", err)
@@ -336,7 +336,7 @@ func ExampleRowToAddrOf() {
 
 func TestRowToMap(t *testing.T) {
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 'Joe' as name, number as age from system.numbers limit 10`)
+	rows, _ := conn.Query(context.Background(), `select 'Joe' as name, toInt32(number) as age from system.numbers limit 10`)
 	slice, err := CollectRows(rows, RowToMap)
 	require.NoError(t, err)
 
@@ -354,7 +354,7 @@ func TestRowToStructByPos(t *testing.T) {
 	}
 
 	conn := getConnection(t)
-	rows, _ := conn.Query(context.Background(), `select 'Joe' as name, number as age from system.numbers limit 10`)
+	rows, _ := conn.Query(context.Background(), `select 'Joe' as name, toInt32(number) as age from system.numbers limit 10`)
 	slice, err := CollectRows(rows, RowToStructByPos[person])
 	require.NoError(t, err)
 
@@ -396,7 +396,7 @@ func TestRowToStructByPosEmbeddedStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByPos[person])
 	require.NoError(t, err)
@@ -415,7 +415,7 @@ func TestRowToStructByPosMultipleEmbeddedStruct(t *testing.T) {
 		Salad string
 	}
 	type Drink struct {
-		Ml int
+		Ml int32
 	}
 
 	type meal struct {
@@ -426,7 +426,7 @@ func TestRowToStructByPosMultipleEmbeddedStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'Baguette' as bread, 'Lettuce' as salad, number as drink_ml from system.numbers  limit 10`,
+		`select 'Baguette' as bread, 'Lettuce' as salad, toInt32(number) as drink_ml from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByPos[meal])
 	require.NoError(t, err)
@@ -453,7 +453,7 @@ func TestRowToStructByPosEmbeddedUnexportedStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByPos[person])
 	require.NoError(t, err)
@@ -481,7 +481,7 @@ func TestRowToStructByPosEmbeddedPointerToStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	_, err := CollectRows(rows, RowToStructByPos[person])
 	require.EqualError(t, err, "got 3 values, but dst struct has only 2 fields")
@@ -557,7 +557,7 @@ func TestRowToAddrOfStructPos(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'Joe' as name, number as age from system.numbers  limit 10`,
+		`select 'Joe' as name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToAddrOfStructByPos[person])
 	require.NoError(t, err)
@@ -579,7 +579,7 @@ func TestRowToStructByName(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first, 'Smith' as last, number as age from system.numbers  limit 10`,
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByName[person])
 	assert.NoError(t, err)
@@ -594,7 +594,7 @@ func TestRowToStructByName(t *testing.T) {
 	// check missing fields in a returned row
 	rows, _ = conn.Query(
 		context.Background(),
-		`select 'Smith' as last, number as age from system.numbers  limit 10`,
+		`select 'Smith' as last, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToStructByName[person])
 	assert.ErrorContains(t, err, "cannot find field First in returned row")
@@ -604,7 +604,7 @@ func TestRowToStructByName(t *testing.T) {
 	// check missing field in a destination struct
 	rows, _ = conn.Query(
 		context.Background(),
-		`select 'John' as first, 'Smith' as last, number as age, null as ignore from system.numbers  limit 10`,
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age, null as ignore from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByName[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
@@ -625,7 +625,7 @@ func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByName[person])
 	assert.NoError(t, err)
@@ -639,7 +639,7 @@ func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 
 	// check missing fields in a returned row
 	rows, _ = conn.Query(context.Background(),
-		`select 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToStructByName[person])
 	assert.ErrorContains(t, err, "cannot find field first_name in returned row")
@@ -647,7 +647,7 @@ func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 	conn = getConnection(t)
 	// check missing field in a destination struct
 	rows, _ = conn.Query(context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age, null as ignore from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age, null as ignore from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByName[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
@@ -724,7 +724,7 @@ func TestRowToStructByNameLax(t *testing.T) {
 
 	conn := getConnection(t)
 	rows, _ := conn.Query(context.Background(),
-		`select 'John' as first, 'Smith' as last, number as age from system.numbers  limit 10`,
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByNameLax[person])
 	assert.NoError(t, err)
@@ -738,7 +738,7 @@ func TestRowToStructByNameLax(t *testing.T) {
 
 	// check missing fields in a returned row
 	rows, _ = conn.Query(context.Background(),
-		`select 'John' as first, number as age from system.numbers  limit 10`,
+		`select 'John' as first, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err = CollectRows(rows, RowToStructByNameLax[person])
 	assert.NoError(t, err)
@@ -751,7 +751,7 @@ func TestRowToStructByNameLax(t *testing.T) {
 
 	// check extra fields in a returned row
 	rows, _ = conn.Query(context.Background(),
-		`select 'John' as first, 'Smith' as last, number as age, null as ignore from system.numbers  limit 10`,
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age, null as ignore from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
@@ -759,7 +759,7 @@ func TestRowToStructByNameLax(t *testing.T) {
 	conn = getConnection(t)
 	// check missing fields in a destination struct
 	rows, _ = conn.Query(context.Background(),
-		`select 'Smith' as last, 'D.' as middle, number as age from system.numbers  limit 10`,
+		`select 'Smith' as last, 'D.' as middle, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field middle")
@@ -767,7 +767,7 @@ func TestRowToStructByNameLax(t *testing.T) {
 	conn = getConnection(t)
 	// check ignored fields in a destination struct
 	rows, _ = conn.Query(context.Background(),
-		`select 'Smith' as last, number as age, null as ignore from system.numbers  limit 10`,
+		`select 'Smith' as last, toInt32(number) as age, null as ignore from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
@@ -788,7 +788,7 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 	conn := getConnection(t)
 	rows, _ := conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err := CollectRows(rows, RowToStructByNameLax[person])
 	assert.NoError(t, err)
@@ -803,7 +803,7 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 	// check missing fields in a returned row
 	rows, _ = conn.Query(
 		context.Background(),
-		`select 'John' as first_name, number as age from system.numbers  limit 10`,
+		`select 'John' as first_name, toInt32(number) as age from system.numbers  limit 10`,
 	)
 	slice, err = CollectRows(rows, RowToStructByNameLax[person])
 	assert.NoError(t, err)
@@ -817,20 +817,25 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 	// check extra fields in a returned row
 	rows, _ = conn.Query(
 		context.Background(),
-		`select 'John' as first_name, 'Smith' as last_name, number as age, null as ignore from system.numbers  limit 10`,
+		`select 'John' as first_name, 'Smith' as last_name, toInt32(number) as age, null as ignore from system.numbers  limit 10`,
 	)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
 	conn = getConnection(t)
 	// check missing fields in a destination struct
-	rows, _ = conn.Query(context.Background(), `select 'Smith' as last_name, 'D.' as middle_name, number as age from system.numbers  limit 10`)
+	rows, _ = conn.Query(
+		context.Background(),
+		`select 'Smith' as last_name, 'D.' as middle_name, toInt32(number) as age from system.numbers  limit 10`,
+	)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field middle_name")
 
 	conn = getConnection(t)
 
 	// check ignored fields in a destination struct
-	rows, _ = conn.Query(context.Background(), `select 'Smith' as last_name, number as age, null as ignore from system.numbers  limit 10`)
+	rows, _ = conn.Query(
+		context.Background(),
+		`select 'Smith' as last_name, toInt32(number) as age, null as ignore from system.numbers  limit 10`)
 	_, err = CollectRows(rows, RowToAddrOfStructByNameLax[person])
 	assert.ErrorContains(t, err, "struct doesn't have corresponding row field ignore")
 }

@@ -3,7 +3,6 @@ package column
 import (
 	"fmt"
 	"io"
-	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -26,7 +25,6 @@ type ColumnBasic interface {
 	SetWriteBufferSize(int)
 	RowAny(int) any
 	Scan(row int, dest any) error
-	ScanValue(row int, dest reflect.Value) error
 	AppendAny(any) error
 	FullType() string
 	Remove(n int)

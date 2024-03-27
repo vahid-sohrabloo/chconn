@@ -24,7 +24,7 @@ import (
 )
 
 func TestBool(t *testing.T) {
-	testColumn(t, false, true, "UInt8", "bool", func(i int) bool {
+	testColumn(t, false, true, "Bool", "bool", func(i int) bool {
 		return true
 	}, func(i int) bool {
 		return false
@@ -220,7 +220,7 @@ func TestUUID(t *testing.T) {
 }
 
 func TestBoolWithDelete(t *testing.T) {
-	testColumn(t, true, true, "UInt8", "bool", func(i int) bool {
+	testColumn(t, true, true, "Bool", "bool", func(i int) bool {
 		return true
 	}, func(i int) bool {
 		return false
@@ -1020,43 +1020,19 @@ func testColumn[T column.BaseType](
 	colLCNullableArrayData = colLCNullableArrayData[:0]
 	if isLC {
 		assert.Len(t, autoColumns, 12)
-		if tableName == "bool" {
-			assert.Equal(t, fmt.Sprintf("%s ", "bool")+column.New[uint8]().FullType(), autoColumns[0].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_nullable ", "bool")+column.New[uint8]().Nullable().FullType(), autoColumns[1].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array ", "bool")+column.New[uint8]().Array().FullType(), autoColumns[2].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().FullType(), autoColumns[3].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_array ", "bool")+column.New[uint8]().Array().Array().FullType(), autoColumns[4].FullType())
-			assert.Equal(t,
-				fmt.Sprintf("%s_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().FullType(),
-				autoColumns[5].FullType())
-			assert.Equal(t,
-				fmt.Sprintf("%s_array_array_array ", "bool")+column.New[uint8]().Array().Array().Array().FullType(),
-				autoColumns[6].FullType())
-			assert.Equal(t,
-				fmt.Sprintf("%s_array_array_array_nullable ", "bool")+column.New[uint8]().Nullable().Array().Array().Array().FullType(),
-				autoColumns[7].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_lc ", "bool")+column.New[uint8]().LowCardinality().FullType(), autoColumns[8].FullType())
-			assert.Equal(t,
-				fmt.Sprintf("%s_nullable_lc ", "bool")+column.New[uint8]().LowCardinality().Nullable().FullType(),
-				autoColumns[9].FullType())
-			assert.Equal(t, fmt.Sprintf("%s_array_lc ", "bool")+column.New[uint8]().LowCardinality().Array().FullType(), autoColumns[10].FullType())
-			assert.Equal(t,
-				fmt.Sprintf("%s_array_lc_nullable ", "bool")+column.New[uint8]().LowCardinality().Nullable().Array().FullType(),
-				autoColumns[11].FullType())
-		} else {
-			assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
-			assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
-			assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
-			assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
-			assert.Equal(t, colArrayArrayRead.FullType(), autoColumns[4].FullType())
-			assert.Equal(t, colNullableArrayArrayRead.FullType(), autoColumns[5].FullType())
-			assert.Equal(t, colArrayArrayArrayRead.FullType(), autoColumns[6].FullType())
-			assert.Equal(t, colNullableArrayArrayArrayRead.FullType(), autoColumns[7].FullType())
-			assert.Equal(t, colLCRead.FullType(), autoColumns[8].FullType())
-			assert.Equal(t, colLCNullableRead.FullType(), autoColumns[9].FullType())
-			assert.Equal(t, colArrayLCRead.FullType(), autoColumns[10].FullType())
-			assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[11].FullType())
-		}
+
+		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+		assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+		assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+		assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+		assert.Equal(t, colArrayArrayRead.FullType(), autoColumns[4].FullType())
+		assert.Equal(t, colNullableArrayArrayRead.FullType(), autoColumns[5].FullType())
+		assert.Equal(t, colArrayArrayArrayRead.FullType(), autoColumns[6].FullType())
+		assert.Equal(t, colNullableArrayArrayArrayRead.FullType(), autoColumns[7].FullType())
+		assert.Equal(t, colLCRead.FullType(), autoColumns[8].FullType())
+		assert.Equal(t, colLCNullableRead.FullType(), autoColumns[9].FullType())
+		assert.Equal(t, colArrayLCRead.FullType(), autoColumns[10].FullType())
+		assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[11].FullType())
 	} else {
 		assert.Len(t, autoColumns, 8)
 		assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())

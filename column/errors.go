@@ -21,3 +21,12 @@ func isInvalidType(err error) bool {
 	_, ok := err.(*ErrInvalidType)
 	return ok
 }
+
+type ErrScanType struct {
+	destType   string
+	columnType string
+}
+
+func (e ErrScanType) Error() string {
+	return fmt.Sprintf("cannot scan type '%s' into dest type '%s'", e.columnType, e.destType)
+}

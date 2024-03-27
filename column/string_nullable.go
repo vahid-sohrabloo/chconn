@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"reflect"
@@ -73,23 +74,51 @@ func (c *StringNullable[T]) Row(i int) T {
 	return c.dataColumn.Row(i)
 }
 
+// Row return the value of given row as bytes
+func (c *StringNullable[T]) RowBytes(i int) []byte {
+	return c.dataColumn.RowBytes(i)
+}
+
 // RowAny return the value of given row
 func (c *StringNullable[T]) RowAny(i int) any {
 	return c.RowP(i)
 }
 
 func (c *StringNullable[T]) Scan(row int, dest any) error {
-	if c.RowIsNil(row) {
+	switch d := dest.(type) {
+	case *T:
+		*d = c.Row(row)
 		return nil
+	case **T:
+		*d = c.RowP(row)
+		return nil
+	case *[]byte:
+		b := c.RowBytes(row)
+		if len(*d) < len(b) {
+			*d = make([]byte, len(b))
+		}
+		copy(*d, b)
+		return nil
+	case **[]byte:
+		if c.b[row] == 1 {
+			*d = nil
+			return nil
+		}
+		b := make([]byte, len(c.RowBytes(row)))
+		copy(b, c.RowBytes(row))
+		*d = &b
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
 	}
-	return c.dataColumn.Scan(row, dest)
-}
 
-func (c *StringNullable[T]) ScanValue(row int, dest reflect.Value) error {
-	if c.RowIsNil(row) {
-		return nil
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "**" + reflect.TypeOf(c.Row(row)).String() + " or **[]byte",
 	}
-	return c.dataColumn.ScanValue(row, dest)
 }
 
 // RowP return the value of given row for nullable data

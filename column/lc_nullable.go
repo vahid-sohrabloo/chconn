@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -83,17 +84,24 @@ func (c *LowCardinalityNullable[T]) RowIsNil(row int) bool {
 }
 
 func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
-	if c.readedKeys[row] == 0 {
+	switch d := dest.(type) {
+	case *T:
+		*d = c.Row(row)
 		return nil
+	case **T:
+		*d = c.RowP(row)
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
 	}
-	return c.dictColumn.Scan(c.readedKeys[row], dest)
-}
 
-func (c *LowCardinalityNullable[T]) ScanValue(row int, dest reflect.Value) error {
-	if c.readedKeys[row] == 0 {
-		return nil
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "**" + c.rtype.String(),
 	}
-	return c.dictColumn.ScanValue(c.readedKeys[row], dest)
 }
 
 // Append value for insert

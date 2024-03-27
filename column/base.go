@@ -96,22 +96,9 @@ func (c *Base[T]) Append(v T) {
 }
 
 func (c *Base[T]) AppendAny(value any) error {
-	switch v := value.(type) {
-	case T:
+	if v, ok := value.(T); ok {
 		c.Append(v)
 		return nil
-	//nolint:gocritic // to ignore caseOrder
-	case bool:
-		if c.kind == reflect.Int8 || c.kind == reflect.Uint8 {
-			var tmp T
-			if v {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{1}[0]))
-			} else {
-				tmp = *(*T)(unsafe.Pointer(&[]byte{0}[0]))
-			}
-			c.Append(tmp)
-			return nil
-		}
 	}
 
 	val := reflect.ValueOf(value)
@@ -263,7 +250,9 @@ func (c *Base[T]) getChTypeFromKind() string {
 	}
 	kind := c.kind
 
-	if kind == reflect.Int8 {
+	if kind == reflect.Bool {
+		return "Bool"
+	} else if kind == reflect.Int8 {
 		return "Int8"
 	} else if kind == reflect.Int16 {
 		return "Int16"
@@ -343,6 +332,12 @@ type appender interface {
 func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 	val := c.Row(row)
 	switch c.kind {
+	case reflect.Bool:
+		if *(*bool)(unsafe.Pointer(&val)) {
+			return append(b, "true"...)
+		} else {
+			return append(b, "false"...)
+		}
 	case reflect.Int8:
 		return strconv.AppendInt(b, int64(*(*int8)(unsafe.Pointer(&val))), 10)
 	case reflect.Int16:

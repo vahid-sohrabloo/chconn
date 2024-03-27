@@ -1,6 +1,7 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"reflect"
@@ -80,17 +81,35 @@ func (c *DateNullable[T]) RowAny(i int) any {
 }
 
 func (c *DateNullable[T]) Scan(row int, dest any) error {
-	if c.RowIsNil(row) {
+	switch dest := dest.(type) {
+	case *T:
+		*dest = c.dataColumn.Base.Row(row)
 		return nil
+	case **T:
+		if c.b[row] == 1 {
+			*dest = nil
+			return nil
+		}
+		val := c.dataColumn.Base.Row(row)
+		*dest = &val
+		return nil
+	case *time.Time:
+		*dest = c.Row(row)
+		return nil
+	case **time.Time:
+		*dest = c.RowP(row)
+		return nil
+	case *any:
+		*dest = c.RowP(row)
+		return nil
+	case sql.Scanner:
+		return dest.Scan(c.RowP(row))
 	}
-	return c.dataColumn.Scan(row, dest)
-}
 
-func (c *DateNullable[T]) ScanValue(row int, dest reflect.Value) error {
-	if c.RowIsNil(row) {
-		return nil
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "**" + c.dataColumn.rtype.String() + " or **time.Time",
 	}
-	return c.dataColumn.ScanValue(row, dest)
 }
 
 // RowP return the value of given row for nullable data

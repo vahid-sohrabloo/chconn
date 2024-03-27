@@ -153,7 +153,7 @@ func TestPoolAcquireAndConnHijack(t *testing.T) {
 	require.Equal(t, connsBeforeHijack-1, connsAfterHijack)
 
 	var n int32
-	err = conn.QueryRow(ctx, `select 1`).Scan(&n)
+	err = conn.QueryRow(ctx, `select toInt32(1)`).Scan(&n)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), n)
 }
@@ -170,7 +170,7 @@ func TestPoolAcquireFunc(t *testing.T) {
 
 	var n int32
 	err = pool.AcquireFunc(ctx, func(c Conn) error {
-		return c.QueryRow(ctx, "select 1").Scan(&n)
+		return c.QueryRow(ctx, "select toInt32(1)").Scan(&n)
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, n)
@@ -679,14 +679,14 @@ func TestPoolRow(t *testing.T) {
 	// Test expected pool behavior
 	rows, err := pool.Query(
 		ctx,
-		"select number, number * 2 from system.numbers where number > 0 limit {n: UInt32}",
+		"select toUInt64(number), toUInt64(number) * 2 from system.numbers where number > 0 limit {n: UInt32}",
 		chconn.IntParameter("n", 3),
 	)
 	require.NoError(t, err)
 
 	var actualResults []any
 
-	var a, b int
+	var a, b uint64
 	err = chconn.ForEachRow(rows, []any{&a, &b}, func() error {
 		actualResults = append(actualResults, []any{a, b})
 		return nil
@@ -694,9 +694,9 @@ func TestPoolRow(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResults := []any{
-		[]any{1, 2},
-		[]any{2, 4},
-		[]any{3, 6},
+		[]any{uint64(1), uint64(2)},
+		[]any{uint64(2), uint64(4)},
+		[]any{uint64(3), uint64(6)},
 	}
 	require.Equal(t, expectedResults, actualResults)
 	require.NoError(t, rows.Err())
@@ -717,7 +717,7 @@ func TestQueryRow(t *testing.T) {
 	defer pool.Close()
 
 	var s testRowScanner
-	err = pool.QueryRow(context.Background(), "select 'Adam' as name, 72 as height").Scan(&s)
+	err = pool.QueryRow(context.Background(), "select 'Adam' as name, toInt32(72) as height").Scan(&s)
 	require.NoError(t, err)
 	require.Equal(t, "Adam", s.name)
 	require.Equal(t, int32(72), s.age)

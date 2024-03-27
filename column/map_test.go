@@ -86,6 +86,20 @@ func TestMapInt8(t *testing.T) {
 	})
 }
 
+func TestMapBool(t *testing.T) {
+	testMapColumn(t, false, "Bool", "bool", func(i int) []bool {
+		d := make([]bool, 2)
+		d[0] = i%2 == 0
+		d[1] = i%4 == 0
+		return d
+	}, func(i int) []bool {
+		d := make([]bool, 2)
+		d[0] = i%2 == 0
+		d[1] = i%4 == 0
+		return d
+	})
+}
+
 func TestMapInt16(t *testing.T) {
 	testMapColumn(t, false, "Int16", "int16", func(i int) []int16 {
 		d := make([]int16, 2)

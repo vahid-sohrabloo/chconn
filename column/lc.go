@@ -90,10 +90,6 @@ func (c *LowCardinality[T]) Scan(row int, dest any) error {
 	return c.dictColumn.Scan(c.readedKeys[row], dest)
 }
 
-func (c *LowCardinality[T]) ScanValue(row int, dest reflect.Value) error {
-	return c.dictColumn.ScanValue(c.readedKeys[row], dest)
-}
-
 // Append value for insert
 func (c *LowCardinality[T]) Append(v T) {
 	c.preHookAppend()

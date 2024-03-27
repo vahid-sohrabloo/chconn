@@ -278,6 +278,8 @@ func (info *blockInfo) write(w *readerwriter.Writer) {
 //nolint:funlen,gocyclo
 func (b *block) columnByType(chType []byte, arrayLevel int, nullable, lc bool) (column.ColumnBasic, error) {
 	switch {
+	case string(chType) == "Bool":
+		return column.New[bool]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "Int8" || helper.IsEnum8(chType):
 		return column.New[int8]().Elem(arrayLevel, nullable, lc), nil
 	case string(chType) == "Int16" || helper.IsEnum16(chType):

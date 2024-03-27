@@ -246,8 +246,6 @@ func (r *connRow) Scan(dest ...any) (err error) {
 	return rows.Err()
 }
 
-// helpers
-
 // ForEachRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row
 // fails to scan or fn returns an error the query will be aborted and the error will be returned. Rows will be closed
 // when ForEachRow returns.
@@ -277,11 +275,9 @@ type CollectableRow interface {
 // RowToFunc is a function that scans or otherwise converts row to a T.
 type RowToFunc[T any] func(row CollectableRow) (T, error)
 
-// CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
-func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
+// AppendRows iterates through rows, calling fn for each row, and appending the results into a slice of T.
+func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 	defer rows.Close()
-
-	slice := []T{}
 
 	for rows.Next() {
 		value, err := fn(rows)
@@ -298,9 +294,13 @@ func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 	return slice, nil
 }
 
+// CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
+func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
+	return AppendRows([]T{}, rows, fn)
+}
+
 // CollectOneRow calls fn for the first row in rows and returns the result.
 // If no rows are found returns an error where errors.Is(ErrNoRows) is true.
-//
 // CollectOneRow is to CollectRows as QueryRow is to Query.
 func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	defer rows.Close()

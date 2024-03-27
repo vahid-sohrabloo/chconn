@@ -6,10 +6,9 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
-// ColNothing represents column of nothing value.
-// Value is row count.
+// Nothing represents column of nothing value.
 //
-// https://clickhouse.com/docs/ru/sql-reference/data-types/special-data-types/nothing
+// https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/nothing
 type Nothing struct {
 	Base[int8]
 }
@@ -49,10 +48,6 @@ func (c *Nothing) Row(i int) NothingData {
 }
 
 func (c *Nothing) Scan(row int, dest any) error {
-	return nil
-}
-
-func (c *Nothing) ScanValue(row int, dest reflect.Value) error {
 	return nil
 }
 

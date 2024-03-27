@@ -1,9 +1,9 @@
 package column
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
-	"unsafe"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
@@ -84,36 +84,14 @@ func (c *Array3Nullable[T]) Scan(row int, dest any) error {
 	case *any:
 		*v = c.RowP(row)
 		return nil
-	}
-	return c.ScanValue(row, reflect.ValueOf(dest))
-}
-
-//nolint:dupl
-func (c *Array3Nullable[T]) ScanValue(row int, dest reflect.Value) error {
-	destValue := reflect.Indirect(dest)
-	if destValue.Kind() != reflect.Slice {
-		return fmt.Errorf("dest must be a pointer to slice")
+	case sql.Scanner:
+		return v.Scan(c.RowP(row))
 	}
 
-	if destValue.Type().AssignableTo(reflect.TypeOf([][][]*T{})) {
-		destValue.Set(reflect.ValueOf(c.RowP(row)))
-		return nil
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "*[][][]*" + c.rtype.String(),
 	}
-
-	var lastOffset int
-	if row != 0 {
-		lastOffset = int(c.offsetColumn.Row(row - 1))
-	}
-	offset := int(c.offsetColumn.Row(row))
-	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
-	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
-		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
-		if err != nil {
-			return fmt.Errorf("cannot scan array item %d: %w", i, err)
-		}
-	}
-	destValue.Set(rSlice)
-	return nil
 }
 
 // AppendP a nullable value for insert
@@ -138,16 +116,6 @@ func (c *Array3Nullable[T]) AppendAny(value any) error {
 	case [][][]*T:
 		c.AppendP(v)
 		return nil
-	case [][][]bool:
-		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
-			c.Append(*(*[][][]T)(unsafe.Pointer(&v)))
-			return nil
-		}
-	case [][][]*bool:
-		if c.rtype.Kind() == reflect.Int8 || c.rtype.Kind() == reflect.Uint8 {
-			c.AppendP(*(*[][][]*T)(unsafe.Pointer(&v)))
-			return nil
-		}
 	}
 	return fmt.Errorf("AppendAny error: expected *[][][]%[1]s or [][][]%[1]s, got %[2]T", c.rtype.String(), value)
 }
