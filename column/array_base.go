@@ -229,6 +229,15 @@ func (c *ArrayBase) Column() ColumnBasic {
 }
 
 func (c *ArrayBase) Validate(forInsert bool) error {
+	if forInsert {
+		var offset uint64
+		if len(c.offsetColumn.values) > 0 {
+			offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]
+		}
+		if offset != uint64(c.dataColumn.NumRow()) {
+			return fmt.Errorf("array length is not equal to data length: %d != %d", c.offsetColumn.values[len(c.offsetColumn.values)-1], c.dataColumn.NumRow())
+		}
+	}
 	chType := helper.FilterSimpleAggregate(c.chType)
 	switch {
 	case helper.IsRing(chType):

@@ -291,12 +291,12 @@ func TestSelectReadArrayError(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(number, number)\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(number, number)\": array: read data column: read data: timeout",
+			wantErr:     "read data \"n\": array: read data column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -315,7 +315,7 @@ func TestSelectReadArrayError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(number,number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(number,number) as n FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -410,12 +410,12 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(toNullable(number))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(toNullable(number))\": array: read data column: read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"n\": array: read data column: read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 3,
 		},
 	}
@@ -434,7 +434,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Nullable().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) as n FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -587,12 +587,12 @@ func TestSelectReadArray2Error(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(array(number, number))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(array(number, number))\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -611,7 +611,7 @@ func TestSelectReadArray2Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) as n FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -715,12 +715,12 @@ func TestSelectReadArray3Error(t *testing.T) {
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(array(array(number, number)))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(array(array(number, number)))\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"n\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -739,7 +739,7 @@ func TestSelectReadArray3Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) as n FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -853,7 +853,7 @@ func TestSelectReadTupleError(t *testing.T) {
 		},
 		{
 			name:        "read column index 2",
-			wantErr:     "read data \"tuple(1)\": tuple: read column index 0: read data: timeout",
+			wantErr:     "read data \"t\": tuple: read column index 0: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -871,7 +871,7 @@ func TestSelectReadTupleError(t *testing.T) {
 
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			// we can't use tupp[le(toLowCardinality('1')) so we use this tricky way
+			// we can't use tuple(toLowCardinality('1')) so we use this tricky way
 			// https://github.com/ClickHouse/ClickHouse/issues/39109
 			var col column.ColumnBasic
 			if tt.lc {
@@ -880,7 +880,7 @@ func TestSelectReadTupleError(t *testing.T) {
 				col = column.New[uint8]()
 			}
 			colTuple := column.NewTuple(col)
-			stmt, err := c.Select(context.Background(), "SELECT tuple(1);", colTuple)
+			stmt, err := c.Select(context.Background(), "SELECT tuple(1) as t;", colTuple)
 			require.NoError(t, err)
 			stmt.Next()
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
@@ -1368,7 +1368,7 @@ func TestTupleInvalidColumnNumber(t *testing.T) {
 	require.NoError(t, err)
 
 	stmt, err := c.Select(context.Background(),
-		"SELECT tuple(number) FROM  system.numbers limit 1",
+		"SELECT tuple(number) as n FROM  system.numbers limit 1",
 		column.NewTuple(column.New[uint64]().SetStrict(false), column.New[uint64]().SetStrict(false)),
 	)
 
@@ -1377,7 +1377,7 @@ func TestTupleInvalidColumnNumber(t *testing.T) {
 
 	}
 	require.EqualError(t, errors.Unwrap(stmt.Err()),
-		"columns number for tuple(number) (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
+		"columns number for n (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
 	)
 	assert.True(t, c.IsClosed())
 }

@@ -105,9 +105,9 @@ func TestVariant(t *testing.T) {
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
 
+	rowsInsert := 10
 	for insertN := 0; insertN < 2; insertN++ {
-		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := 0; i < rowsInsert; i++ {
 			blockID.Append(uint8(insertN))
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
@@ -184,23 +184,23 @@ func TestVariant(t *testing.T) {
 		}
 
 		if insertN == 0 {
-			blockID.Remove(rows / 2)
-			col.Remove(rows / 2)
-			colArray.Remove(rows / 2)
-			colNullableArray.Remove(rows / 2)
-			colLC.Remove(rows / 2)
-			colLC.Remove(rows / 2)
-			colArrayLC.Remove(rows / 2)
-			colArrayLCNullable.Remove(rows / 2)
-			colArrayArrayVariant.Remove(rows / 2)
+			blockID.Remove(rowsInsert / 2)
+			col.Remove(rowsInsert / 2)
+			colArray.Remove(rowsInsert / 2)
+			colNullableArray.Remove(rowsInsert / 2)
+			colLC.Remove(rowsInsert / 2)
+			colLC.Remove(rowsInsert / 2)
+			colArrayLC.Remove(rowsInsert / 2)
+			colArrayLCNullable.Remove(rowsInsert / 2)
+			colArrayArrayVariant.Remove(rowsInsert / 2)
 
-			colInsert = colInsert[:rows/2]
-			colArrayInsert = colArrayInsert[:rows/2]
-			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
-			colLCInsert = colLCInsert[:rows/2]
-			colLCInsert = colLCInsert[:rows/2]
-			colLCArrayInsert = colLCArrayInsert[:rows/2]
-			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
+			colInsert = colInsert[:rowsInsert/2]
+			colArrayInsert = colArrayInsert[:rowsInsert/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rowsInsert/2]
+			colLCInsert = colLCInsert[:rowsInsert/2]
+			colLCInsert = colLCInsert[:rowsInsert/2]
+			colLCArrayInsert = colLCArrayInsert[:rowsInsert/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rowsInsert/2]
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
@@ -224,6 +224,89 @@ func TestVariant(t *testing.T) {
 			colArrayLCNullable,
 			colArrayArrayVariant,
 		)
+		require.NoError(t, err)
+	}
+
+	for insertN := 0; insertN < 2; insertN++ {
+		insertStmt, err := conn.InsertStream(context.Background(), fmt.Sprintf(`INSERT INTO
+			test_%[1]s (
+				block_id,
+				%[1]s,
+				%[1]s_array,
+				%[1]s_array_nullable,
+				%[1]s_lc,
+				%[1]s_array_lc,
+				%[1]s_array_lc_nullable,
+				%[1]s_array_array_variant
+			)
+		VALUES`, tableName))
+
+		require.NoError(t, err)
+		for i := 0; i < rowsInsert; i++ {
+			blockID.Append(uint8(insertN) + 3)
+			valString := fmt.Sprintf("string %d", i)
+			valInt := int64(i)
+			val2String := fmt.Sprintf("string %d", i+1)
+			val2Int := int64(i + 1)
+			valArrayString := []string{valString, val2String}
+			valArrayInt := []int64{valInt, val2Int}
+			valArrayNilString := []*string{&valString, nil}
+			valArrayNilInt := []*int64{&valInt, nil}
+			switch i % 3 {
+			case 0:
+				err := insertStmt.Append(
+					uint8(insertN)+3,
+					valString,
+					valArrayString,
+					valArrayNilString,
+					valString,
+					valArrayString,
+					valArrayNilString,
+					[][]any{{valString, val2String}},
+				)
+				require.NoError(t, err)
+
+				colInsert = append(colInsert, valString)
+				colArrayInsert = append(colArrayInsert, valArrayString)
+				colArrayNullableInsert = append(colArrayNullableInsert, valArrayNilString)
+				colLCInsert = append(colLCInsert, valString)
+				colLCArrayInsert = append(colLCArrayInsert, valArrayString)
+				colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNilString)
+
+			case 1:
+				err := insertStmt.Append(uint8(insertN)+3,
+					valInt,
+					valArrayInt,
+					valArrayNilInt,
+					valInt,
+					valArrayInt,
+					valArrayNilInt,
+					[][]any{{
+						valInt, val2Int,
+					}},
+				)
+				require.NoError(t, err)
+
+				colInsert = append(colInsert, valInt)
+				colArrayInsert = append(colArrayInsert, valArrayInt)
+				colArrayNullableInsert = append(colArrayNullableInsert, valArrayNilInt)
+				colLCInsert = append(colLCInsert, valInt)
+				colLCArrayInsert = append(colLCArrayInsert, valArrayInt)
+				colLCNullableArrayInsert = append(colLCNullableArrayInsert, valArrayNilInt)
+
+			case 2:
+				err := insertStmt.Append(uint8(insertN)+3, nil, nil, nil, nil, nil, nil, [][]any{{nil}, {nil}})
+				require.NoError(t, err)
+
+				colInsert = append(colInsert, nil)
+				colArrayInsert = append(colArrayInsert, nil)
+				colArrayNullableInsert = append(colArrayNullableInsert, nil)
+				colLCInsert = append(colLCInsert, nil)
+				colLCArrayInsert = append(colLCArrayInsert, nil)
+				colLCNullableArrayInsert = append(colLCNullableArrayInsert, nil)
+			}
+		}
+		err = insertStmt.Flush(context.Background())
 		require.NoError(t, err)
 	}
 

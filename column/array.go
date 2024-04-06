@@ -107,16 +107,31 @@ func (c *Array[T]) Append(v []T) {
 
 func (c *Array[T]) canAppend(value any) bool {
 	if v, ok := value.([]T); ok {
-		return c.dataColumn.(Column[T]).canAppend(v)
+		if len(v) == 0 {
+			return true
+		}
+		return c.dataColumn.(Column[T]).canAppend(v[0])
+	}
+	if v, ok := value.([]any); ok {
+		for _, val := range v {
+			if !c.dataColumn.(Column[T]).canAppend(val) {
+				return false
+			}
+		}
 	}
 	return false
 }
 
 func (c *Array[T]) AppendAny(value any) error {
-	if v, ok := value.([]T); ok {
+	switch v := value.(type) {
+	case []T:
 		c.Append(v)
 		return nil
+	case []any:
+		c.AppendLen(len(v))
+		return c.dataColumn.AppendAny(v)
 	}
+
 	return fmt.Errorf("AppendAny error: expected []%s, got %T", c.rtype.String(), value)
 }
 

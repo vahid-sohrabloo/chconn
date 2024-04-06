@@ -62,6 +62,7 @@ type column struct {
 	LocationInParent uint8
 	variantParent    *Variant
 	hasVariantParent bool
+	appendErr        error
 }
 
 func (c *column) readColumn(readColumn bool, revision uint64) error {
@@ -152,4 +153,8 @@ func (c *column) preHookAppendMulti(n int) {
 			c.variantParent.AppendDiscriminators(c.LocationInParent)
 		}
 	}
+}
+
+func (c *column) AppendErr() error {
+	return c.appendErr
 }

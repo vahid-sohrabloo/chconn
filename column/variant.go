@@ -134,7 +134,10 @@ func (c *Variant) AppendNil() {
 
 // Append append value to the column
 func (c *Variant) Append(v any) {
-	panic("variant column does not support Append method. Use AppendAny instead")
+	err := c.AppendAny(v)
+	if err != nil {
+		c.appendErr = err
+	}
 }
 
 func (c *Variant) canAppend(value any) bool {
@@ -154,9 +157,8 @@ func (c *Variant) AppendAny(value any) error {
 		c.AppendNil()
 		return nil
 	}
-	for i, col := range c.columns {
+	for _, col := range c.columns {
 		if col.canAppend(value) {
-			c.AppendDiscriminators(uint8(i))
 			return col.AppendAny(value)
 		}
 	}
@@ -241,8 +243,8 @@ func (c *Variant) Validate(forInsert bool) error {
 			goToChType: c.structType(),
 		}
 	}
-	var columnsRowNumber int
 	if forInsert {
+		var columnsRowNumber int
 		for _, col := range c.columns {
 			columnsRowNumber += col.NumRow()
 		}
