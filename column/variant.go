@@ -162,6 +162,7 @@ func (c *Variant) AppendAny(value any) error {
 			return col.AppendAny(value)
 		}
 	}
+
 	return fmt.Errorf("cannot append value of type %T to Variant column. can't find a column that can accept this value", value)
 }
 

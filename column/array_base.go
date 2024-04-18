@@ -54,6 +54,7 @@ func (c *ArrayBase) canAppend(value any) bool {
 	}
 	return true
 }
+
 func (c *ArrayBase) AppendAny(value any) error {
 	sliceVal := reflect.ValueOf(value)
 	if sliceVal.Kind() != reflect.Slice {
@@ -235,7 +236,9 @@ func (c *ArrayBase) Validate(forInsert bool) error {
 			offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]
 		}
 		if offset != uint64(c.dataColumn.NumRow()) {
-			return fmt.Errorf("array length is not equal to data length: %d != %d", c.offsetColumn.values[len(c.offsetColumn.values)-1], c.dataColumn.NumRow())
+			return fmt.Errorf("array length is not equal to data length: %d != %d %s",
+				c.offsetColumn.values[len(c.offsetColumn.values)-1],
+				c.dataColumn.NumRow(), c.FullType())
 		}
 	}
 	chType := helper.FilterSimpleAggregate(c.chType)
