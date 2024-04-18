@@ -40,14 +40,16 @@ const (
 // Column use for most (fixed size) ClickHouse Columns type
 type Base[T BaseType] struct {
 	column
-	size      int
-	strict    bool
-	numRow    int
-	kind      reflect.Kind
-	rtype     reflect.Type
-	values    []T
-	params    []any
-	isDecimal decimalType
+	size          int
+	strict        bool
+	numRow        int
+	kind          reflect.Kind
+	rtype         reflect.Type
+	values        []T
+	params        []any
+	decimalType   decimalType
+	isEnum        bool
+	enumStringMap map[int16]string
 }
 
 // New create a new column
@@ -292,12 +294,12 @@ func (c *Base[T]) String(row int) string {
 	case reflect.Int16:
 		return strconv.FormatInt(int64(*(*int16)(unsafe.Pointer(&val))), 10)
 	case reflect.Int32:
-		if c.isDecimal == decimal32Type {
+		if c.decimalType == decimal32Type {
 			return (*types.Decimal32)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		return strconv.FormatInt(int64(*(*int32)(unsafe.Pointer(&val))), 10)
 	case reflect.Int64:
-		if c.isDecimal == decimal64Type {
+		if c.decimalType == decimal64Type {
 			return (*types.Decimal64)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		return strconv.FormatInt(*(*int64)(unsafe.Pointer(&val)), 10)
@@ -318,10 +320,10 @@ func (c *Base[T]) String(row int) string {
 		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
 			return string(*(*[]byte)(unsafe.Pointer(&val)))
 		}
-		if c.isDecimal == decimal128Type {
+		if c.decimalType == decimal128Type {
 			return (*types.Decimal128)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
-		if c.isDecimal == decimal256Type {
+		if c.decimalType == decimal256Type {
 			return (*types.Decimal256)(unsafe.Pointer(&val)).String(c.getDecimalScale())
 		}
 		if val, ok := any(val).(fmt.Stringer); ok {
@@ -346,11 +348,23 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			return append(b, "false"...)
 		}
 	case reflect.Int8:
+		if c.isEnum {
+			if c.enumStringMap == nil {
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum8StrLen : len(c.chType)-1])
+			}
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[int16(*(*int8)(unsafe.Pointer(&val)))]))
+		}
 		return strconv.AppendInt(b, int64(*(*int8)(unsafe.Pointer(&val))), 10)
 	case reflect.Int16:
+		if c.isEnum {
+			if c.enumStringMap == nil {
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum16StrLen : len(c.chType)-1])
+			}
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[*(*int16)(unsafe.Pointer(&val))]))
+		}
 		return strconv.AppendInt(b, int64(*(*int16)(unsafe.Pointer(&val))), 10)
 	case reflect.Int32:
-		if c.isDecimal == decimal32Type {
+		if c.decimalType == decimal32Type {
 			if !ignoreDoubleQuotes {
 				b = append(b, '"')
 			}
@@ -365,7 +379,7 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		if !ignoreDoubleQuotes {
 			b = append(b, '"')
 		}
-		if c.isDecimal == decimal64Type {
+		if c.decimalType == decimal64Type {
 			b = (*types.Decimal64)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
 		} else {
 			b = strconv.AppendInt(b, *(*int64)(unsafe.Pointer(&val)), 10)
@@ -422,7 +436,7 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			// Marshal the byte slice to JSON.
 			return helper.AppendJSONSting(b, ignoreDoubleQuotes, byteSlice)
 		}
-		if c.isDecimal == decimal128Type {
+		if c.decimalType == decimal128Type {
 			if !ignoreDoubleQuotes {
 				b = append(b, '"')
 			}
@@ -432,7 +446,7 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			}
 			return b
 		}
-		if c.isDecimal == decimal256Type {
+		if c.decimalType == decimal256Type {
 			if !ignoreDoubleQuotes {
 				b = append(b, '"')
 			}

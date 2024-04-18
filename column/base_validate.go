@@ -124,6 +124,7 @@ func (c *Base[T]) Validate(forInsert bool) error {
 
 func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 	if helper.IsEnum8(chType) {
+		c.isEnum = true
 		if c.strict {
 			if c.kind.String() != "int8" {
 				return true, &ErrInvalidType{
@@ -148,6 +149,7 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 	if helper.IsEnum16(chType) {
+		c.isEnum = true
 		if c.strict {
 			if c.kind.String() != "int16" {
 				return true, &ErrInvalidType{
@@ -267,16 +269,16 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 		var size int
 		switch {
 		case precision >= 1 && precision <= 9:
-			c.isDecimal = decimal32Type
+			c.decimalType = decimal32Type
 			size = 4
 		case precision >= 10 && precision <= 18:
-			c.isDecimal = decimal64Type
+			c.decimalType = decimal64Type
 			size = 8
 		case precision >= 19 && precision <= 38:
-			c.isDecimal = decimal128Type
+			c.decimalType = decimal128Type
 			size = 16
 		case precision >= 39 && precision <= 76:
-			c.isDecimal = decimal256Type
+			c.decimalType = decimal256Type
 			size = 32
 		default:
 			return true, fmt.Errorf("invalid precision: %d. it should be between 1 and 76", precision)

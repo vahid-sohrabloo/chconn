@@ -19,13 +19,13 @@ func (c *Base[T]) Scan(row int, dest any) error {
 		**dest = c.Row(row)
 		return nil
 	case *float32:
-		if c.kind == reflect.Int32 && c.isDecimal == decimal32Type {
+		if c.kind == reflect.Int32 && c.decimalType == decimal32Type {
 			v := c.Row(row)
 			*dest = float32((*types.Decimal32)(unsafe.Pointer(&v)).Float64(c.getDecimalScale()))
 			return nil
 		}
 	case **float32:
-		if c.kind == reflect.Int32 && c.isDecimal == decimal32Type {
+		if c.kind == reflect.Int32 && c.decimalType == decimal32Type {
 			if *dest == nil {
 				*dest = new(float32)
 			}
@@ -34,13 +34,13 @@ func (c *Base[T]) Scan(row int, dest any) error {
 			return nil
 		}
 	case *float64:
-		if c.kind == reflect.Int64 && c.isDecimal == decimal64Type {
+		if c.kind == reflect.Int64 && c.decimalType == decimal64Type {
 			v := c.Row(row)
 			*dest = (*types.Decimal64)(unsafe.Pointer(&v)).Float64(c.getDecimalScale())
 			return nil
 		}
 	case **float64:
-		if c.kind == reflect.Int64 && c.isDecimal == decimal64Type {
+		if c.kind == reflect.Int64 && c.decimalType == decimal64Type {
 			if *dest == nil {
 				*dest = new(float64)
 			}
@@ -50,11 +50,11 @@ func (c *Base[T]) Scan(row int, dest any) error {
 		}
 	case *any:
 		val := c.Row(row)
-		if c.isDecimal == decimal32Type {
+		if c.decimalType == decimal32Type {
 			*dest = (*types.Decimal32)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())
 			return nil
 		}
-		if c.isDecimal == decimal64Type {
+		if c.decimalType == decimal64Type {
 			*dest = (*types.Decimal64)(unsafe.Pointer(&val)).Float64(c.getDecimalScale())
 			return nil
 		}

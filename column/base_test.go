@@ -92,11 +92,27 @@ func TestInt8(t *testing.T) {
 	})
 }
 
+func TestEnum8(t *testing.T) {
+	testColumn(t, false, false, "Enum8('v1'=1, 'v2'=2, 'v3'=3)", "enum8", func(i int) int8 {
+		return int8(i%3) + 1
+	}, func(i int) int8 {
+		return int8(i%3) + 1
+	})
+}
+
 func TestInt16(t *testing.T) {
 	testColumn(t, false, true, "Int16", "int16", func(i int) int16 {
 		return int16(i)
 	}, func(i int) int16 {
 		return int16(i * -1)
+	})
+}
+
+func TestEnum16(t *testing.T) {
+	testColumn(t, false, false, "Enum16('v1'=1, 'v2'=2, 'v3'=3)", "enum16", func(i int) int16 {
+		return int16(i%3) + 1
+	}, func(i int) int16 {
+		return int16(i%3) + 1
 	})
 }
 
