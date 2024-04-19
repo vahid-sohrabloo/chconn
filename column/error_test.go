@@ -1074,6 +1074,8 @@ func TestInvalidType(t *testing.T) {
 		goToChType     string
 		goType         string
 		column         column.ColumnBasic
+		skip           func(chconn.Conn) bool
+		fullErr        string
 	}{
 		{
 			name:           "1 byte invalid",
@@ -1332,13 +1334,55 @@ func TestInvalidType(t *testing.T) {
 			goType:         "column.Base[uint64]",
 			column:         column.New[uint64]().SetStrict(false),
 		},
+		{
+			name:           "Variant",
+			columnSelector: "number",
+			chType:         "UInt64",
+			goToChType:     "Variant(Int64|UInt64|Float64|Decimal64|DateTime64, String)",
+			goType:         "column.Variant(column.Base[int64], column.StringBase[string])",
+			column:         column.NewVariant(column.NewString(), column.New[int64]().SetStrict(false)),
+		}, {
+			name:           "Variant number column",
+			columnSelector: "number::Variant(UInt64, String, Array(UInt64)) as a",
+			fullErr:        "columns number for a (Variant(Array(UInt64), String, UInt64)) is not equal to Variant columns number: 3 != 1",
+			column:         column.NewVariant(column.NewString()),
+			skip: func(c chconn.Conn) bool {
+				return c.ServerInfo().MajorVersion < 24
+			},
+		}, {
+			name:           "Variant inside",
+			columnSelector: "number::Variant(UInt64, String) as a",
+			chType:         "Variant(String, UInt64)",
+			goToChType:     "Variant(Int32, String)",
+			goType:         "column.Variant(column.Base[int32], column.StringBase[string])",
+			column:         column.NewVariant(column.NewString(), column.New[int32]()),
+			skip: func(c chconn.Conn) bool {
+				return c.ServerInfo().MajorVersion < 24
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skip != nil && tt.skip(c) {
+				t.Skip("ClickHouse version does not support this test")
+			}
 			c, err = chconn.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			stmt, err := c.Select(context.Background(),
+			set := chconn.Settings{
+				{
+					Name:  "allow_suspicious_low_cardinality_types",
+					Value: "true",
+				},
+				{
+					Name:  "allow_experimental_variant_type",
+					Value: "1",
+				},
+			}
+			stmt, err := c.SelectWithOption(context.Background(),
 				fmt.Sprintf("SELECT %s FROM  system.numbers limit 1", tt.columnSelector),
+				&chconn.QueryOptions{
+					Settings: set,
+				},
 				tt.column,
 			)
 
@@ -1346,13 +1390,17 @@ func TestInvalidType(t *testing.T) {
 			for stmt.Next() {
 
 			}
-			require.EqualError(t, errors.Unwrap(stmt.Err()),
-				fmt.Sprintf("the chconn type '%s' is mapped to ClickHouse type '%s', which does not match the expected ClickHouse type '%s'",
-					tt.goType,
-					tt.goToChType,
-					tt.chType,
-				),
-			)
+			if tt.fullErr != "" {
+				require.EqualError(t, errors.Unwrap(stmt.Err()), tt.fullErr)
+			} else {
+				require.EqualError(t, errors.Unwrap(stmt.Err()),
+					fmt.Sprintf("the chconn type '%s' is mapped to ClickHouse type '%s', which does not match the expected ClickHouse type '%s'",
+						tt.goType,
+						tt.goToChType,
+						tt.chType,
+					),
+				)
+			}
 			assert.True(t, c.IsClosed())
 		})
 	}

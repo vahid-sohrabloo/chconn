@@ -193,17 +193,17 @@ func (c *Variant) Read(value []any) []any {
 
 // Row return the value of given row
 func (c *Variant) Row(row int) any {
+	return c.RowAny(row)
+}
+
+// RowAny return the value of given row as any.
+func (c *Variant) RowAny(row int) any {
 	index := c.discriminators.Row(row)
 	if index == 255 {
 		return nil
 	}
 
 	return c.columns[index].RowAny(c.discriminatorsIndexPos[row])
-}
-
-// RowAny return the value of given row as any.
-func (c *Variant) RowAny(row int) any {
-	return c.Row(row)
 }
 
 // RowIsNil returns true if the row is nil

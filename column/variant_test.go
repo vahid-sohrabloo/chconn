@@ -114,7 +114,7 @@ func TestVariant(t *testing.T) {
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
 
-	rowsInsert := 2
+	rowsInsert := 10
 	for insertN := 0; insertN < 2; insertN++ {
 		for i := 0; i < rowsInsert; i++ {
 			blockID.Append(uint8(insertN))
@@ -204,26 +204,27 @@ func TestVariant(t *testing.T) {
 			}
 		}
 
-		// if insertN == 0 {
-		// 	blockID.Remove(rowsInsert / 2)
-		// 	col.Remove(rowsInsert / 2)
-		// 	colArray.Remove(rowsInsert / 2)
-		// 	colArrayVariant.Remove(rowsInsert / 2)
-		// 	colNullableArray.Remove(rowsInsert / 2)
-		// 	colLC.Remove(rowsInsert / 2)
-		// 	colLC.Remove(rowsInsert / 2)
-		// 	colArrayLC.Remove(rowsInsert / 2)
-		// 	colArrayLCNullable.Remove(rowsInsert / 2)
-		// 	colArrayArrayVariant.Remove(rowsInsert / 2)
+		if insertN == 0 {
+			blockID.Remove(rowsInsert / 2)
+			col.Remove(rowsInsert / 2)
+			colArray.Remove(rowsInsert / 2)
+			colArrayVariant.Remove(rowsInsert / 2)
+			colNullableArray.Remove(rowsInsert / 2)
+			colLC.Remove(rowsInsert / 2)
+			colLC.Remove(rowsInsert / 2)
+			colArrayLC.Remove(rowsInsert / 2)
+			colArrayLCNullable.Remove(rowsInsert / 2)
+			colArrayArrayVariant.Remove(rowsInsert / 2)
 
-		// 	colInsert = colInsert[:rowsInsert/2]
-		// 	colArrayInsert = colArrayInsert[:rowsInsert/2]
-		// 	colArrayNullableInsert = colArrayNullableInsert[:rowsInsert/2]
-		// 	colLCInsert = colLCInsert[:rowsInsert/2]
-		// 	colLCInsert = colLCInsert[:rowsInsert/2]
-		// 	colLCArrayInsert = colLCArrayInsert[:rowsInsert/2]
-		// 	colLCNullableArrayInsert = colLCNullableArrayInsert[:rowsInsert/2]
-		// }
+			colInsert = colInsert[:rowsInsert/2]
+			colArrayInsert = colArrayInsert[:rowsInsert/2]
+			colArrayVariantInsert = colArrayVariantInsert[:rowsInsert/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rowsInsert/2]
+			colLCInsert = colLCInsert[:rowsInsert/2]
+			colLCInsert = colLCInsert[:rowsInsert/2]
+			colLCArrayInsert = colLCArrayInsert[:rowsInsert/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rowsInsert/2]
+		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
