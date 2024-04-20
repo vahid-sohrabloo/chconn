@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
@@ -168,7 +169,6 @@ func (r *baseRows) Scan(dest ...any) error {
 			return err
 		}
 	}
-
 	if len(columns) != len(dest) {
 		err := fmt.Errorf("number of columns must equal number of destinations, got %d and %d", len(columns), len(dest))
 		r.fatal(err)
@@ -270,6 +270,7 @@ func ForEachRow(rows Rows, scans []any, fn func() error) error {
 // CollectableRow is the subset of Rows methods that a RowToFunc is allowed to call.
 type CollectableRow interface {
 	Scan(dest ...any) error
+	Columns() []column.ColumnBasic
 }
 
 // RowToFunc is a function that scans or otherwise converts row to a T.
@@ -398,7 +399,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 // ignored.
 func RowToStructByPos[T any](row CollectableRow) (T, error) {
 	var value T
-	err := row.Scan(&positionalStructRowScanner{ptrToStruct: &value})
+	err := (&positionalStructRowScanner{ptrToStruct: &value}).ScanRow(row)
 	return value, err
 }
 
@@ -407,7 +408,7 @@ func RowToStructByPos[T any](row CollectableRow) (T, error) {
 // the field will be ignored.
 func RowToAddrOfStructByPos[T any](row CollectableRow) (*T, error) {
 	var value T
-	err := row.Scan(&positionalStructRowScanner{ptrToStruct: &value})
+	err := (&positionalStructRowScanner{ptrToStruct: &value}).ScanRow(row)
 	return &value, err
 }
 
@@ -415,46 +416,60 @@ type positionalStructRowScanner struct {
 	ptrToStruct any
 }
 
-func (rs *positionalStructRowScanner) ScanRow(rows Rows) error {
-	dst := rs.ptrToStruct
-	dstValue := reflect.ValueOf(dst)
-	if dstValue.Kind() != reflect.Ptr {
-		return fmt.Errorf("dst not a pointer")
+func (rs *positionalStructRowScanner) ScanRow(rows CollectableRow) error {
+	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
+	fields := lookupStructFields(typ)
+	if len(rows.Columns()) > len(fields) {
+		return fmt.Errorf(
+			"got %d values, but dst struct has only %d fields",
+			len(rows.Columns()),
+			len(fields),
+		)
 	}
-
-	dstElemValue := dstValue.Elem()
-	scanTargets := rs.appendScanTargets(dstElemValue, nil)
-
-	if len(rows.Columns()) > len(scanTargets) {
-		return fmt.Errorf("got %d values, but dst struct has only %d fields", len(rows.Columns()), len(scanTargets))
-	}
-
+	scanTargets := setupStructScanTargets(rs.ptrToStruct, fields)
 	return rows.Scan(scanTargets...)
 }
 
-func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Value, scanTargets []any) []any {
-	dstElemType := dstElemValue.Type()
+// Map from reflect.Type -> []structRowField
+var positionalStructFieldMap sync.Map
 
-	if scanTargets == nil {
-		scanTargets = make([]any, 0, dstElemType.NumField())
+func lookupStructFields(t reflect.Type) []structRowField {
+	if cached, ok := positionalStructFieldMap.Load(t); ok {
+		return cached.([]structRowField)
 	}
 
-	for i := 0; i < dstElemType.NumField(); i++ {
-		sf := dstElemType.Field(i)
+	fieldStack := make([]int, 0, 1)
+	fields := computeStructFields(t, make([]structRowField, 0, t.NumField()), &fieldStack)
+	fieldsIface, _ := positionalStructFieldMap.LoadOrStore(t, fields)
+	return fieldsIface.([]structRowField)
+}
+
+func computeStructFields(
+	t reflect.Type,
+	fields []structRowField,
+	fieldStack *[]int,
+) []structRowField {
+	tail := len(*fieldStack)
+	*fieldStack = append(*fieldStack, 0)
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+		(*fieldStack)[tail] = i
 		// Handle anonymous struct embedding, but do not try to handle embedded pointers.
 		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
-			scanTargets = rs.appendScanTargets(dstElemValue.Field(i), scanTargets)
+			fields = computeStructFields(sf.Type, fields, fieldStack)
 		} else if sf.PkgPath == "" {
 			dbTag, _ := sf.Tag.Lookup(structTagKey)
 			if dbTag == "-" {
 				// Field is ignored, skip it.
 				continue
 			}
-			scanTargets = append(scanTargets, dstElemValue.Field(i).Addr().Interface())
+			fields = append(fields, structRowField{
+				path: append([]int(nil), *fieldStack...),
+			})
 		}
 	}
-
-	return scanTargets
+	*fieldStack = (*fieldStack)[:tail]
+	return fields
 }
 
 // RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number of named public
@@ -462,7 +477,7 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByName[T any](row CollectableRow) (T, error) {
 	var value T
-	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value})
+	err := (&namedStructRowScanner{ptrToStruct: &value}).ScanRow(row)
 	return value, err
 }
 
@@ -472,7 +487,7 @@ func RowToStructByName[T any](row CollectableRow) (T, error) {
 // then the field will be ignored.
 func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
 	var value T
-	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value})
+	err := (&namedStructRowScanner{ptrToStruct: &value}).ScanRow(row)
 	return &value, err
 }
 
@@ -481,7 +496,7 @@ func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 	var value T
-	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value, lax: true})
+	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
 	return value, err
 }
 
@@ -491,7 +506,7 @@ func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 // then the field will be ignored.
 func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
 	var value T
-	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value, lax: true})
+	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
 	return &value, err
 }
 
@@ -500,63 +515,124 @@ type namedStructRowScanner struct {
 	lax         bool
 }
 
-func (rs *namedStructRowScanner) ScanRow(rows Rows) error {
-	dst := rs.ptrToStruct
-	dstValue := reflect.ValueOf(dst)
-	if dstValue.Kind() != reflect.Ptr {
-		return fmt.Errorf("dst not a pointer")
-	}
+func (rs *namedStructRowScanner) ScanRow(rows CollectableRow) error {
+	typ := reflect.TypeOf(rs.ptrToStruct).Elem()
 	columns := rows.Columns()
-	dstElemValue := dstValue.Elem()
-	scanTargets, err := rs.appendScanTargets(dstElemValue, nil, columns)
+	namedStructFields, err := lookupNamedStructFields(typ, columns)
 	if err != nil {
 		return err
 	}
-
-	for i, t := range scanTargets {
-		if t == nil {
-			return fmt.Errorf("struct doesn't have corresponding row field %s", string(columns[i].Name()))
-		}
+	if !rs.lax && namedStructFields.missingField != "" {
+		return fmt.Errorf("cannot find field %s in returned row", namedStructFields.missingField)
 	}
-
+	fields := namedStructFields.fields
+	scanTargets := setupStructScanTargets(rs.ptrToStruct, fields)
 	return rows.Scan(scanTargets...)
 }
 
-const structTagKey = "db"
+// Map from namedStructFieldMap -> *namedStructFields
+var namedStructFieldMap sync.Map
 
-func fieldPosByName(columns []column.ColumnBasic, field string) (i int) {
-	i = -1
-	for i, c := range columns {
-		if strings.EqualFold(string(c.Name()), field) {
-			return i
-		}
-	}
-	return
+type namedStructFieldsKey struct {
+	t        reflect.Type
+	colNames string
 }
 
-func (rs *namedStructRowScanner) appendScanTargets(
-	dstElemValue reflect.Value,
-	scanTargets []any,
-	columns []column.ColumnBasic,
-) ([]any, error) {
-	var err error
-	dstElemType := dstElemValue.Type()
+type namedStructFields struct {
+	fields []structRowField
+	// missingField is the first field from the struct without a corresponding row field.
+	// This is used to construct the correct error message for non-lax queries.
+	missingField string
+}
 
-	if scanTargets == nil {
-		scanTargets = make([]any, len(columns))
+func lookupNamedStructFields(
+	t reflect.Type,
+	columns []column.ColumnBasic,
+) (*namedStructFields, error) {
+	key := namedStructFieldsKey{
+		t:        t,
+		colNames: joinFieldNames(columns),
+	}
+	if cached, ok := namedStructFieldMap.Load(key); ok {
+		return cached.(*namedStructFields), nil
 	}
 
-	for i := 0; i < dstElemType.NumField(); i++ {
-		sf := dstElemType.Field(i)
+	// We could probably do two-levels of caching, where we compute the key -> fields mapping
+	// for a type only once, cache it by type, then use that to compute the column -> fields
+	// mapping for a given set of columns.
+	fieldStack := make([]int, 0, 1)
+	fields, missingField := computeNamedStructFields(
+		columns,
+		t,
+		make([]structRowField, len(columns)),
+		&fieldStack,
+	)
+	for i, f := range fields {
+		if f.path == nil {
+			return nil, fmt.Errorf(
+				"struct doesn't have corresponding row field %s",
+				string(columns[i].Name()),
+			)
+		}
+	}
+
+	fieldsIface, _ := namedStructFieldMap.LoadOrStore(
+		key,
+		&namedStructFields{fields: fields, missingField: missingField},
+	)
+	return fieldsIface.(*namedStructFields), nil
+}
+
+func joinFieldNames(columns []column.ColumnBasic) string {
+	switch len(columns) {
+	case 0:
+		return ""
+	case 1:
+		return string(columns[0].Name())
+	}
+
+	totalSize := len(columns) - 1 // Space for separator bytes.
+	for _, d := range columns {
+		totalSize += len(d.Name())
+	}
+	var b strings.Builder
+	b.Grow(totalSize)
+	b.Write(columns[0].Name())
+	for _, d := range columns[1:] {
+		b.WriteByte(0) // Join with NUL byte as it's (presumably) not a valid column character.
+		b.Write(d.Name())
+	}
+	return b.String()
+}
+
+//nolint:gocritic
+func computeNamedStructFields(
+	columns []column.ColumnBasic,
+	t reflect.Type,
+	fields []structRowField,
+	fieldStack *[]int,
+) ([]structRowField, string) {
+	var missingField string
+	tail := len(*fieldStack)
+	*fieldStack = append(*fieldStack, 0)
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+		(*fieldStack)[tail] = i
 		if sf.PkgPath != "" && !sf.Anonymous {
 			// Field is unexported, skip it.
 			continue
 		}
 		// Handle anonymous struct embedding, but do not try to handle embedded pointers.
 		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
-			scanTargets, err = rs.appendScanTargets(dstElemValue.Field(i), scanTargets, columns)
-			if err != nil {
-				return nil, err
+			var missingSubField string
+			fields, missingSubField = computeNamedStructFields(
+				columns,
+				sf.Type,
+				fields,
+				fieldStack,
+			)
+			if missingField == "" {
+				missingField = missingSubField
 			}
 		} else {
 			dbTag, dbTagPresent := sf.Tag.Lookup(structTagKey)
@@ -573,17 +649,52 @@ func (rs *namedStructRowScanner) appendScanTargets(
 			}
 			fpos := fieldPosByName(columns, colName)
 			if fpos == -1 {
-				if rs.lax {
-					continue
+				if missingField == "" {
+					missingField = colName
 				}
-				return nil, fmt.Errorf("cannot find field %s in returned row", colName)
+				continue
 			}
-			if fpos >= len(scanTargets) && !rs.lax {
-				return nil, fmt.Errorf("cannot find field %s in returned row", colName)
+			fields[fpos] = structRowField{
+				path: append([]int(nil), *fieldStack...),
 			}
-			scanTargets[fpos] = dstElemValue.Field(i).Addr().Interface()
 		}
 	}
+	*fieldStack = (*fieldStack)[:tail]
 
-	return scanTargets, err
+	return fields, missingField
+}
+
+const structTagKey = "db"
+
+func fieldPosByName(columns []column.ColumnBasic, field string) (i int) {
+	i = -1
+	for i, desc := range columns {
+		// Snake case support.
+		field = strings.ReplaceAll(field, "_", "")
+		descName := strings.ReplaceAll(string(desc.Name()), "_", "")
+
+		if strings.EqualFold(descName, field) {
+			return i
+		}
+	}
+	return
+}
+
+// structRowField describes a field of a struct.
+//
+// TODO: It would be a bit more efficient to track the path using the pointer
+// offset within the (outermost) struct and use unsafe.Pointer arithmetic to
+// construct references when scanning rows. However, it's not clear it's worth
+// using unsafe for this.
+type structRowField struct {
+	path []int
+}
+
+func setupStructScanTargets(receiver any, fields []structRowField) []any {
+	scanTargets := make([]any, len(fields))
+	v := reflect.ValueOf(receiver).Elem()
+	for i, f := range fields {
+		scanTargets[i] = v.FieldByIndex(f.path).Addr().Interface()
+	}
+	return scanTargets
 }
