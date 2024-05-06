@@ -5,30 +5,16 @@ package column
 
 import (
 	"io"
-	"unsafe"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
-func (c *Base[T]) readyBufferHook() {
-}
-
-// slice is the runtime representation of a slice.
-// It cannot be used safely or portably and its representation may
-// change in a later release.
-// Moreover, the Data field is not sufficient to guarantee the data
-// it references will not be garbage collected, so programs must keep
-// a separate, correctly typed pointer to the underlying data.
-type slice struct {
-	Data uintptr
-	Len  int
-	Cap  int
+func (c *Base[T]) readBufferHook() {
 }
 
 func (c *Base[T]) WriteTo(w io.Writer) (int64, error) {
-	s := *(*slice)(unsafe.Pointer(&c.values))
-	s.Len *= c.size
-	s.Cap *= c.size
+	s := helper.ConvertToByte(c.values, c.size)
 	var n int64
-	src := *(*[]byte)(unsafe.Pointer(&s))
-	nw, err := w.Write(src)
+	nw, err := w.Write(s)
 	return int64(nw) + n, err
 }

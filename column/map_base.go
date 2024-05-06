@@ -290,11 +290,11 @@ func (c *MapBase) ValueColumn() ColumnBasic {
 // it uses internally
 func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
 	err := c.offsetColumn.HeaderReader(r, readColumn, revision)
+	c.name = c.offsetColumn.name
+	c.chType = c.offsetColumn.chType
 	if err != nil {
 		return err
 	}
-	c.name = c.offsetColumn.name
-	c.chType = c.offsetColumn.chType
 	c.keyColumn.SetName(c.name)
 	c.valueColumn.SetName(c.name)
 

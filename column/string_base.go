@@ -19,10 +19,11 @@ type stringPos struct {
 // StringBase is a column of String ClickHouse data type with generic type
 type StringBase[T ~string] struct {
 	column
-	numRow     int
-	writerData []byte
-	vals       []byte
-	pos        []stringPos
+	numRow        int
+	writerData    []byte
+	vals          []byte
+	pos           []stringPos
+	sparseDataPos []stringPos
 }
 
 // NewString is a column of String ClickHouse data type with generic type
@@ -32,6 +33,9 @@ func NewStringBase[T ~string]() *StringBase[T] {
 
 // Data get all the data in current block as a slice.
 func (c *StringBase[T]) Data() []T {
+	if len(c.pos) == 0 {
+		return nil
+	}
 	val := make([]T, len(c.pos))
 	for i, v := range c.pos {
 		val[i] = T(c.vals[v.start:v.end])
@@ -46,12 +50,16 @@ func (c *StringBase[T]) DataBytes() [][]byte {
 
 // Read reads all the data in current block and append to the input.
 func (c *StringBase[T]) Read(value []T) []T {
-	if cap(value)-len(value) >= len(c.pos) {
-		value = (value)[:len(value)+len(c.pos)]
+	if len(c.pos) == 0 {
+		return value
+	}
+	valueLen := len(value)
+	if cap(value)-valueLen >= len(c.pos) {
+		value = (value)[:valueLen+len(c.pos)]
 	} else {
 		value = append(value, make([]T, len(c.pos))...)
 	}
-	val := (value)[len(value)-len(c.pos):]
+	val := value[valueLen:]
 	for i, v := range c.pos {
 		val[i] = T(c.vals[v.start:v.end])
 	}
@@ -64,6 +72,9 @@ func (c *StringBase[T]) Read(value []T) []T {
 //
 //nolint:dupl
 func (c *StringBase[T]) ReadBytes(value [][]byte) [][]byte {
+	if len(c.pos) == 0 {
+		return value
+	}
 	if cap(value)-len(value) >= len(c.pos) {
 		value = (value)[:len(value)+len(c.pos)]
 	} else {
@@ -309,8 +320,16 @@ func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.r = r
 	c.numRow = num
 
+	if c.isSparse {
+		totalRowsRead, err := c.readSparse()
+		if err != nil {
+			return fmt.Errorf("read sparse: %w", err)
+		}
+		c.numRow = totalRowsRead
+	}
+
 	var p stringPos
-	for i := 0; i < num; i++ {
+	for i := 0; i < c.numRow; i++ {
 		l, err := c.r.Uvarint()
 		if err != nil {
 			return fmt.Errorf("error read string len: %w", err)
@@ -325,6 +344,31 @@ func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 			}
 		}
 		c.pos = append(c.pos, p)
+	}
+
+	if c.isSparse {
+		c.itemsTotalSparse -= 1
+		items := c.pos
+		if cap(c.sparseDataPos) < int(c.itemsTotalSparse) {
+			c.sparseDataPos = make([]stringPos, c.itemsTotalSparse)
+		} else {
+			c.sparseDataPos = c.sparseDataPos[:c.itemsTotalSparse]
+			clear(c.sparseDataPos)
+		}
+
+		for i, itemNumber := range c.sparseIndexes {
+			c.sparseDataPos[itemNumber-1] = items[i]
+		}
+
+		c.numRow = int(c.itemsTotalSparse)
+
+		bSize := len(c.sparseDataPos)
+		if cap(c.pos) < bSize {
+			c.pos = make([]stringPos, bSize)
+		} else {
+			c.pos = c.pos[:bSize]
+		}
+		copy(c.pos, c.sparseDataPos)
 	}
 	return nil
 }

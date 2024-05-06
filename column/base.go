@@ -13,7 +13,7 @@ import (
 )
 
 type BaseType interface {
-	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64 | ~string | ~bool |
+	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64 | ~bool |
 		types.Int128 | types.Int256 | types.Uint128 | types.Uint256 | types.Decimal128 | types.Decimal256 |
 		// repeated types [...]byte. go not support array size  in generic type
 		// https://github.com/golang/go/issues/44253
@@ -50,6 +50,7 @@ type Base[T BaseType] struct {
 	decimalType   decimalType
 	isEnum        bool
 	enumStringMap map[int16]string
+	sparseData    []T
 }
 
 // New create a new column
@@ -193,12 +194,45 @@ func (c *Base[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	c.r = r
 	c.numRow = num
-	c.totalByte = num * c.size
+	c.totalByte = c.numRow * c.size
+
+	if c.isSparse {
+		totalRowsRead, err := c.readSparse()
+		if err != nil {
+			return fmt.Errorf("read sparse: %w", err)
+		}
+		c.numRow = totalRowsRead
+		c.totalByte = totalRowsRead * c.size
+	}
 	err := c.readBuffer()
 	if err != nil {
 		err = fmt.Errorf("read data: %w", err)
 	}
-	c.readyBufferHook()
+	c.readBufferHook()
+
+	if c.isSparse {
+		c.itemsTotalSparse -= 1
+		items := c.Data()
+		if cap(c.sparseData) < int(c.itemsTotalSparse) {
+			c.sparseData = make([]T, c.itemsTotalSparse)
+		} else {
+			c.sparseData = c.sparseData[:c.itemsTotalSparse]
+			clear(c.sparseData)
+		}
+
+		for i, itemNumber := range c.sparseIndexes {
+			c.sparseData[itemNumber-1] = items[i]
+		}
+
+		c.numRow = int(c.itemsTotalSparse)
+		bSize := c.size * len(c.sparseData)
+		if cap(c.b) < bSize {
+			c.b = make([]byte, bSize)
+		} else {
+			c.b = c.b[:bSize]
+		}
+		copy(c.b, helper.ConvertToByte(c.sparseData, c.size))
+	}
 	return err
 }
 
@@ -283,53 +317,6 @@ func (c *Base[T]) getChTypeFromKind() string {
 		return "Float64"
 	} else {
 		panic(fmt.Sprintf("unsupported type: %s", c.kind))
-	}
-}
-
-func (c *Base[T]) String(row int) string {
-	val := c.Row(row)
-	switch c.kind {
-	case reflect.Int8:
-		return strconv.FormatInt(int64(*(*int8)(unsafe.Pointer(&val))), 10)
-	case reflect.Int16:
-		return strconv.FormatInt(int64(*(*int16)(unsafe.Pointer(&val))), 10)
-	case reflect.Int32:
-		if c.decimalType == decimal32Type {
-			return (*types.Decimal32)(unsafe.Pointer(&val)).String(c.getDecimalScale())
-		}
-		return strconv.FormatInt(int64(*(*int32)(unsafe.Pointer(&val))), 10)
-	case reflect.Int64:
-		if c.decimalType == decimal64Type {
-			return (*types.Decimal64)(unsafe.Pointer(&val)).String(c.getDecimalScale())
-		}
-		return strconv.FormatInt(*(*int64)(unsafe.Pointer(&val)), 10)
-	case reflect.Uint8:
-		return strconv.FormatUint(uint64(*(*uint8)(unsafe.Pointer(&val))), 10)
-	case reflect.Uint16:
-		return strconv.FormatUint(uint64(*(*uint16)(unsafe.Pointer(&val))), 10)
-	case reflect.Uint32:
-		return strconv.FormatUint(uint64(*(*uint32)(unsafe.Pointer(&val))), 10)
-	case reflect.Uint64:
-		return strconv.FormatUint(*(*uint64)(unsafe.Pointer(&val)), 10)
-	case reflect.Float32:
-		return strconv.FormatFloat(float64(*(*float32)(unsafe.Pointer(&val))), 'f', -1, 32)
-	case reflect.Float64:
-		return strconv.FormatFloat(*(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
-		// todo more types
-	default:
-		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
-			return string(*(*[]byte)(unsafe.Pointer(&val)))
-		}
-		if c.decimalType == decimal128Type {
-			return (*types.Decimal128)(unsafe.Pointer(&val)).String(c.getDecimalScale())
-		}
-		if c.decimalType == decimal256Type {
-			return (*types.Decimal256)(unsafe.Pointer(&val)).String(c.getDecimalScale())
-		}
-		if val, ok := any(val).(fmt.Stringer); ok {
-			return val.String()
-		}
-		return fmt.Sprintf("%v", val)
 	}
 }
 

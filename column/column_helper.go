@@ -63,6 +63,9 @@ type column struct {
 	variantParent    *Variant
 	hasVariantParent bool
 	appendErr        error
+	isSparse         bool
+	itemsTotalSparse uint64
+	sparseIndexes    []uint64
 }
 
 func (c *column) readColumn(readColumn bool, revision uint64) error {
@@ -102,9 +105,14 @@ func (c *column) readColumn(readColumn bool, revision uint64) error {
 		if err != nil {
 			return fmt.Errorf("read custom serialization: %w", err)
 		}
-		// todo check with json object
 		if hasCustomSerialization == 1 {
-			return fmt.Errorf("custom serialization not supported")
+			useCustomSerialization, err := c.r.ReadByte()
+			if err != nil {
+				return fmt.Errorf("read  has custom serialization: %w", err)
+			}
+			if useCustomSerialization == 1 {
+				c.isSparse = true
+			}
 		}
 	}
 
@@ -157,4 +165,29 @@ func (c *column) preHookAppendMulti(n int) {
 
 func (c *column) AppendErr() error {
 	return c.appendErr
+}
+
+func (c *column) readSparse() (int, error) {
+	const EndOfGranuleFlag uint64 = 1 << 62
+
+	c.sparseIndexes = c.sparseIndexes[:0]
+	c.itemsTotalSparse = 0
+	nonDefaultItems := 0
+	endOfGranule := false
+
+	for !endOfGranule {
+		groupSize, err := c.r.Uvarint()
+		if err != nil {
+			return 0, err
+		}
+		endOfGranule = (groupSize & EndOfGranuleFlag) != 0
+		groupSize &= ^EndOfGranuleFlag
+
+		c.itemsTotalSparse += groupSize + 1
+		if !endOfGranule {
+			nonDefaultItems++
+			c.sparseIndexes = append(c.sparseIndexes, c.itemsTotalSparse)
+		}
+	}
+	return nonDefaultItems, nil
 }

@@ -1206,9 +1206,6 @@ func httpJSON(query string) []byte {
 		panic(err)
 	}
 
-	// Set appropriate headers (if needed, e.g., for authentication)
-	// req.Header.Set("X-Custom-Header", "my-value")
-
 	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(req)

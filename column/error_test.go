@@ -107,67 +107,67 @@ func TestSelectReadLCError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "error reading keys serialization version",
-			wantErr:     "read column header: error reading keys serialization version: timeout",
+			wantErr:     "read column header \"t\": error reading keys serialization version: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "error reading serialization type",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading serialization type: timeout",
+			wantErr:     "read data \"t\": error reading serialization type: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "error reading dictionary size",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary size: timeout",
+			wantErr:     "read data \"t\": error reading dictionary size: timeout",
 			numberValid: startValidReader + 7,
 		},
 		{
 			name:        "error reading dictionary",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 8,
 		},
 		{
 			name:        "error reading string len",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 9,
 		},
 		{
 			name:        "error reading string",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string: timeout",
 			numberValid: startValidReader + 10,
 		},
 		{
 			name:        "error reading indices size",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices size: timeout",
+			wantErr:     "read data \"t\": error reading indices size: timeout",
 			numberValid: startValidReader + 11,
 		},
 		{
 			name:        "error reading indices",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices: read data: timeout",
+			wantErr:     "read data \"t\": error reading indices: read data: timeout",
 			numberValid: startValidReader + 12,
 		},
 	}
@@ -186,7 +186,7 @@ func TestSelectReadLCError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.NewString().LC()
-			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(toString(number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(toString(number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -266,37 +266,37 @@ func TestSelectReadArrayError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"n\": array: read data column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -315,7 +315,7 @@ func TestSelectReadArrayError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(number,number) as n FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(number,number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -400,22 +400,22 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"n\": array: read data column: read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"t\": array: read data column: read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 3,
 		},
 	}
@@ -434,7 +434,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Nullable().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) as n FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -453,17 +453,17 @@ func TestSelectReadNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read nullable data",
-			wantErr:     "read data \"toNullable(number)\": read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"t\": read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -482,7 +482,7 @@ func TestSelectReadNullableError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Nullable()
-			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -562,37 +562,37 @@ func TestSelectReadArray2Error(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"n\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -611,7 +611,7 @@ func TestSelectReadArray2Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) as n FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -689,38 +689,38 @@ func TestSelectReadArray3Error(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "read column header: read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			name:        "read column header \"\": read column name length",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
-			name:        "read column header: read column name",
-			wantErr:     "read column header: read column name: timeout",
+			name:        "read column header \"\": read column name",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
-			name:        "read column header: read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			name:        "read column header \"t\": read column type length",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
-			name:        "read column header: read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			name:        "read column header \"t\": read column type error",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"n\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"n\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -739,7 +739,7 @@ func TestSelectReadArray3Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) as n FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -821,33 +821,33 @@ func TestSelectReadTupleError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 			lc:          true,
 		},
 		{
 			name:        "read sub column header",
-			wantErr:     "read column header: tuple: read column header index 0: error reading keys serialization version: timeout",
+			wantErr:     "read column header \"t\": tuple: read column header index 0: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 5,
 			lc:          true,
 		},
@@ -971,55 +971,55 @@ func TestSelectReadMapError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\x00\": read column name: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 			lc:          true,
 		},
 		{
 			name:        "read value header",
-			wantErr:     "read column header: map: read key header: error reading keys serialization version: timeout",
+			wantErr:     "read column header \"t\": map: read key header: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 5,
 			lc:          true,
 		},
 		{
 			name:        "read value header",
-			wantErr:     "read column header: map: read value header: error reading keys serialization version: timeout",
+			wantErr:     "read column header \"t\": map: read value header: error reading keys serialization version: timeout",
 			numberValid: startValidReader + 6,
 			lc:          true,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"map(number, number)\": map: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": map: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read key column",
-			wantErr:     "read data \"map(number, number)\": map: read key column: read data: timeout",
+			wantErr:     "read data \"t\": map: read key column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "read value column",
-			wantErr:     "read data \"map(number, number)\": map: read value column: read data: timeout",
+			wantErr:     "read data \"t\": map: read value column: read data: timeout",
 			numberValid: startValidReader + 7,
 		},
 	}
@@ -1047,7 +1047,7 @@ func TestSelectReadMapError(t *testing.T) {
 				colValue = column.New[uint64]()
 			}
 			col := column.NewMap(colKey, colValue)
-			stmt, err := c.Select(context.Background(), "SELECT map(number,number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT map(number,number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -1416,7 +1416,7 @@ func TestTupleInvalidColumnNumber(t *testing.T) {
 	require.NoError(t, err)
 
 	stmt, err := c.Select(context.Background(),
-		"SELECT tuple(number) as n FROM  system.numbers limit 1",
+		"SELECT tuple(number) as t FROM  system.numbers limit 1",
 		column.NewTuple(column.New[uint64]().SetStrict(false), column.New[uint64]().SetStrict(false)),
 	)
 
@@ -1425,7 +1425,7 @@ func TestTupleInvalidColumnNumber(t *testing.T) {
 
 	}
 	require.EqualError(t, errors.Unwrap(stmt.Err()),
-		"columns number for n (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
+		"columns number for t (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
 	)
 	assert.True(t, c.IsClosed())
 }

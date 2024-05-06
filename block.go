@@ -87,7 +87,7 @@ func (b *block) readColumnsData(needValidateData bool, columns ...column.ColumnB
 	for _, col := range columns {
 		err := col.HeaderReader(b.c.reader, true, b.c.serverInfo.Revision)
 		if err != nil {
-			return fmt.Errorf("read column header: %w", err)
+			return fmt.Errorf("read column header \"%s\": %w", string(col.Name()), err)
 		}
 		if needValidateData {
 			if errValidate := col.Validate(false); errValidate != nil {
@@ -147,7 +147,7 @@ func (b *block) nextColumn() (chColumn, error) {
 			return col, &readError{"block: read custom serialization", err}
 		}
 		if customSerialization == 1 {
-			return col, &readError{"block: custom serialization not supported", nil}
+			return col, &readError{"block: custom serialization not supported for column" + string(col.Name), nil}
 		}
 	}
 	return col, nil
