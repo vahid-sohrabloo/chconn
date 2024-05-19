@@ -81,11 +81,11 @@ func (b *block) readColumns() error {
 	return nil
 }
 
-func (b *block) readColumnsData(needValidateData bool, columns ...column.ColumnBasic) error {
+func (b *block) readColumnsData(needValidateData, readColumn bool, columns ...column.ColumnBasic) error {
 	b.c.reader.SetCompress(b.c.compress)
 	defer b.c.reader.SetCompress(false)
 	for _, col := range columns {
-		err := col.HeaderReader(b.c.reader, true, b.c.serverInfo.Revision)
+		err := col.HeaderReader(b.c.reader, readColumn, b.c.serverInfo.Revision)
 		if err != nil {
 			return fmt.Errorf("read column header \"%s\": %w", string(col.Name()), err)
 		}
@@ -232,7 +232,7 @@ func (b *block) skipBlock() error {
 	if err != nil {
 		return err
 	}
-	return b.readColumnsData(false, columnsForRead...)
+	return b.readColumnsData(false, false, columnsForRead...)
 }
 
 type blockInfo struct {

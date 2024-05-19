@@ -177,7 +177,7 @@ func (s *selectStmt) Next() bool {
 			}
 		}
 
-		err = block.readColumnsData(needValidateData, s.columnsForRead...)
+		err = block.readColumnsData(needValidateData, true, s.columnsForRead...)
 		if err != nil {
 			s.lastErr = preferContextOverNetTimeoutError(s.ctx, err)
 			s.Close()
