@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/v2/chpool"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/chpool"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func Example() {

@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -69,11 +70,7 @@ func NewNested3[T ~struct {
 func (c *Tuple3[T, T1, T2, T3]) Data() []T {
 	val := make([]T, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
-		val[i] = T(tuple3Value[T1, T2, T3]{
-			Col1: c.col1.Row(i),
-			Col2: c.col2.Row(i),
-			Col3: c.col3.Row(i),
-		})
+		val[i] = c.Row(i)
 	}
 	return val
 }
@@ -106,8 +103,78 @@ func (c *Tuple3[T, T1, T2, T3]) Row(row int) T {
 	})
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple3[T, T1, T2, T3]) RowAny(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
-func (c *Tuple3[T, T1, T2, T3]) Append(v ...T) {
+func (c *Tuple3[T, T1, T2, T3]) Append(v T) {
+	t := tuple3Value[T1, T2, T3](v)
+	c.col1.Append(t.Col1)
+	c.col2.Append(t.Col2)
+	c.col3.Append(t.Col3)
+}
+
+func (c *Tuple3[T, T1, T2, T3]) canAppend(value any) bool {
+	switch v := value.(type) {
+	case T:
+		return true
+	case []any:
+		if len(v) != 2 {
+			return false
+		}
+
+		if !c.col1.canAppend(v[0]) {
+			return false
+		}
+		if !c.col2.canAppend(v[1]) {
+			return false
+		}
+		if !c.col3.canAppend(v[2]) {
+			return false
+		}
+
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Tuple3[T, T1, T2, T3]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case T:
+		c.Append(v)
+
+		return nil
+	case []any:
+		if len(v) != 3 {
+			return fmt.Errorf("length of the value slice must be 3")
+		}
+
+		err := c.col1.AppendAny(v[0])
+		if err != nil {
+			return fmt.Errorf("could not append col1: %w", err)
+		}
+		err = c.col2.AppendAny(v[1])
+		if err != nil {
+			return fmt.Errorf("could not append col2: %w", err)
+		}
+
+		err = c.col3.AppendAny(v[2])
+		if err != nil {
+			return fmt.Errorf("could not append col3: %w", err)
+		}
+
+		return nil
+	default:
+		return fmt.Errorf("could not append value of type %T", value)
+	}
+}
+
+// AppendMulti value for insert
+func (c *Tuple3[T, T1, T2, T3]) AppendMulti(v ...T) {
 	for _, v := range v {
 		t := tuple3Value[T1, T2, T3](v)
 		c.col1.Append(t.Col1)

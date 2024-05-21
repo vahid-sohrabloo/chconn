@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // Conn.Release is an asynchronous process that returns immediately. There is no signal when the actual work is
@@ -22,8 +22,8 @@ type execer interface {
 	Exec(ctx context.Context, sql string) error
 }
 
-func testExec(t *testing.T, db execer) {
-	err := db.Exec(context.Background(), "SET enable_http_compression=1")
+func testExec(t *testing.T, ctx context.Context, db execer) {
+	err := db.Exec(ctx, "SET enable_http_compression=1")
 	require.NoError(t, err)
 }
 

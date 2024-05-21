@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 const (
@@ -35,6 +36,7 @@ type LowCardinality[T comparable] struct {
 	dict           map[T]int
 	keys           []int
 	nullable       bool
+	rtype          reflect.Type
 }
 
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
@@ -47,6 +49,7 @@ func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 	l := &LowCardinality[T]{
 		dict:       make(map[T]int),
 		dictColumn: dictColumn,
+		rtype:      reflect.TypeOf((*T)(nil)).Elem(),
 	}
 	return l
 }
@@ -76,8 +79,48 @@ func (c *LowCardinality[T]) Row(row int) T {
 	return c.readedDict[c.readedKeys[row]]
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *LowCardinality[T]) RowAny(row int) any {
+	return c.Row(row)
+}
+
+func (c *LowCardinality[T]) Scan(row int, dest any) error {
+	return c.dictColumn.Scan(c.readedKeys[row], dest)
+}
+
 // Append value for insert
-func (c *LowCardinality[T]) Append(v ...T) {
+func (c *LowCardinality[T]) Append(v T) {
+	c.preHookAppend()
+	key, ok := c.dict[v]
+	if !ok {
+		key = len(c.dict)
+		c.dict[v] = key
+		c.dictColumn.Append(v)
+	}
+	c.keys = append(c.keys, key)
+	c.numRow++
+}
+
+func (c *LowCardinality[T]) canAppend(value any) bool {
+	if _, ok := value.(T); ok {
+		return true
+	}
+	return false
+}
+
+func (c *LowCardinality[T]) AppendAny(value any) error {
+	if v, ok := value.(T); ok {
+		c.Append(v)
+		return nil
+	}
+
+	return fmt.Errorf("could not convert %v of type %T to type %T", value, value, value)
+}
+
+// AppendMulti value for insert
+func (c *LowCardinality[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
@@ -88,6 +131,17 @@ func (c *LowCardinality[T]) Append(v ...T) {
 		c.keys = append(c.keys, key)
 	}
 	c.numRow += len(v)
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *LowCardinality[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.keys = c.keys[:n]
+	c.numRow = len(c.keys)
 }
 
 // Dicts get dictionary data
@@ -110,6 +164,11 @@ func (c *LowCardinality[T]) NumRow() int {
 // Array return a Array type for this column
 func (c *LowCardinality[T]) Array() *Array[T] {
 	return NewArray[T](c)
+}
+
+// Nullable return a Nullable type for this column
+func (c *LowCardinality[T]) Nullable() *LowCardinalityNullable[T] {
+	return NewLowCardinalityNullable(c.dictColumn)
 }
 
 // Reset all statuses and buffered data
@@ -207,33 +266,49 @@ func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool
 	return c.dictColumn.HeaderReader(r, false, revision)
 }
 
-func (c *LowCardinality[T]) ColumnType() string {
-	if !c.nullable {
-		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.ColumnType())
+func (c *LowCardinality[T]) chconnType() string {
+	if c.nullable {
+		return "column.LowCardinalityNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 	}
-	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.ColumnType())
+	return "column.LowCardinality[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
 }
 
-func (c *LowCardinality[T]) Validate() error {
+func (c *LowCardinality[T]) structType() string {
+	if !c.nullable {
+		return strings.ReplaceAll(helper.LowCardinalityTypeStr, "<type>", c.dictColumn.structType())
+	}
+	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.structType())
+}
+
+func (c *LowCardinality[T]) Validate(forInsert bool) error {
 	chType := helper.FilterSimpleAggregate(c.chType)
 	if !c.nullable {
 		if !helper.IsLowCardinality(chType) {
 			return &ErrInvalidType{
-				column: c,
+				chType:     string(c.chType),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
 	} else {
 		if !helper.IsNullableLowCardinality(chType) {
 			return &ErrInvalidType{
-				column: c,
+				chType:     string(c.chType),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
 			}
 		}
 		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
 	}
-	if err := c.dictColumn.Validate(); err != nil {
+	if err := c.dictColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
 		return &ErrInvalidType{
-			column: c,
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
@@ -324,9 +399,23 @@ func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LowCardinality[T]) elem(arrayLevel int) ColumnBasic {
+func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnBasic {
+	if nullable {
+		return c.Nullable().elem(arrayLevel)
+	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *LowCardinality[T]) FullType() string {
+	if len(c.name) == 0 {
+		return "LowCardinality(" + c.dictColumn.FullType() + ")"
+	}
+	return string(c.name) + " LowCardinality(" + c.dictColumn.FullType() + ")"
+}
+
+func (c *LowCardinality[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	return c.dictColumn.ToJSON(c.readedKeys[row], ignoreDoubleQuotes, b)
 }

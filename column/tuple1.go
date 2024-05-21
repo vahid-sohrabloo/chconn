@@ -47,9 +47,28 @@ func (c *Tuple1[T]) Row(row int) T {
 	return c.col1.Row(row)
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Tuple1[T]) RowAny(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
-func (c *Tuple1[T]) Append(v ...T) {
-	c.col1.Append(v...)
+func (c *Tuple1[T]) Append(v T) {
+	c.col1.Append(v)
+}
+
+func (c *Tuple1[T]) canAppend(value any) bool {
+	return c.col1.canAppend(value)
+}
+
+func (c *Tuple1[T]) AppendAny(value any) error {
+	return c.col1.AppendAny(value)
+}
+
+// AppendMulti value for insert
+func (c *Tuple1[T]) AppendMulti(v ...T) {
+	c.col1.AppendMulti(v...)
 }
 
 // Array return a Array type for this column

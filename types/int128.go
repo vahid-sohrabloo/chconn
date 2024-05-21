@@ -3,6 +3,7 @@ package types
 import (
 	"math"
 	"math/big"
+	"strconv"
 )
 
 // Note, Zero and Max are functions just to make read-only values.
@@ -22,7 +23,7 @@ func Int128Max() Int128 {
 	}
 }
 
-// Int128 is an unsigned 128-bit number.
+// Int128 is an signed 128-bit number.
 // All methods are immutable, works just like standard uint64.
 type Int128 struct {
 	Lo uint64 // lower 64-bit half
@@ -101,6 +102,11 @@ func (u Int128) Equals(v Int128) bool {
 	return (u.Lo == v.Lo) && (u.Hi == v.Hi)
 }
 
+// Zero returns true if this is a zero value.
+func (u Int128) Zero() bool {
+	return u.Hi == 0 && u.Lo == 0
+}
+
 // Neg returns the additive inverse of an Int128
 func (u Int128) Neg() (z Int128) {
 	z.Hi = -u.Hi
@@ -109,4 +115,28 @@ func (u Int128) Neg() (z Int128) {
 		z.Hi--
 	}
 	return z
+}
+
+func (u Int128) Uint128() Uint128 {
+	return Uint128{Lo: u.Lo, Hi: uint64(u.Hi)}
+}
+
+func (u Int128) Uint64() uint64 {
+	return u.Lo
+}
+
+func (u Int128) String() string {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.FormatUint(u.Lo, 10)
+	}
+	return u.Big().String()
+}
+
+func (u Int128) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.AppendUint(b, u.Lo, 10)
+	}
+	return u.Big().Append(b, 10)
 }

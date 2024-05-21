@@ -33,10 +33,10 @@ const (
 	DateSize = 2
 	// Date32Size data Size of Date32 Column
 	Date32Size = 4
-	// DatetimeSize data Size of Datetime Column
-	DatetimeSize = 4
-	// Datetime64Size data Size of Datetime64 Column
-	Datetime64Size = 8
+	// DatetimeSize data Size of DateTime Column
+	DateTimeSize = 4
+	// Datetime64Size data Size of DateTime64 Column
+	DateTime64Size = 8
 	// IPv4Size data Size of IPv4 Column
 	IPv4Size = 4
 	// IPv6Size data Size of IPv6 Column

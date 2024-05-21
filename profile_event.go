@@ -1,7 +1,7 @@
 package chconn
 
 import (
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // Profile detail of profile select query
@@ -17,14 +17,14 @@ type ProfileEvent struct {
 func newProfileEvent() *ProfileEvent {
 	return &ProfileEvent{
 		Host:     column.NewString(),
-		Time:     column.New[uint32](),
-		ThreadID: column.New[uint64](),
-		Type:     column.New[int8](),
+		Time:     column.New[uint32]().SetStrict(false),
+		ThreadID: column.New[uint64]().SetStrict(false),
+		Type:     column.New[int8]().SetStrict(false),
 		Name:     column.NewString(),
-		Value:    column.New[int64](),
+		Value:    column.New[int64]().SetStrict(false),
 	}
 }
 
-func (p ProfileEvent) read(c *conn) error {
-	return c.block.readColumnsData(c, true, p.Host, p.Time, p.ThreadID, p.Type, p.Name, p.Value)
+func (p ProfileEvent) read(ch *conn) error {
+	return ch.block.readColumnsData(true, true, p.Host, p.Time, p.ThreadID, p.Type, p.Name, p.Value)
 }

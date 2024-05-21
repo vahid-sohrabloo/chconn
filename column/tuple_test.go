@@ -1,16 +1,22 @@
 package column_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/format"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestTuple(t *testing.T) {
@@ -70,16 +76,16 @@ func TestTuple(t *testing.T) {
 	colLCInt := column.New[int64]().LowCardinality()
 	colLC := column.NewTuple(colLCString, colLCInt)
 
-	colLCNullableString := column.NewString().Nullable().LowCardinality()
-	colLCNullableInt := column.New[int64]().Nullable().LowCardinality()
+	colLCNullableString := column.NewString().LowCardinality().Nullable()
+	colLCNullableInt := column.New[int64]().LowCardinality().Nullable()
 	colLCNullable := column.NewTuple(colLCNullableString, colLCNullableInt)
 
 	colArrayLCString := column.NewString().LowCardinality().Array()
 	colArrayLCInt := column.New[int64]().LowCardinality().Array()
 	colArrayLC := column.NewTuple(colArrayLCString, colArrayLCInt)
 
-	colArrayLCNullableString := column.NewString().Nullable().LowCardinality().Array()
-	colArrayLCNullableInt := column.New[int64]().Nullable().LowCardinality().Array()
+	colArrayLCNullableString := column.NewString().LowCardinality().Nullable().Array()
+	colArrayLCNullableInt := column.New[int64]().LowCardinality().Nullable().Array()
 	colArrayLCNullable := column.NewTuple(colArrayLCNullableString, colArrayLCNullableInt)
 
 	colArrayArrayTupleString := column.NewString()
@@ -169,8 +175,8 @@ func TestTuple(t *testing.T) {
 
 			colArrayArrayTuple.AppendLen(1)
 			colArrayArrayTuple.Column().(*column.ArrayBase).AppendLen(2)
-			colArrayArrayTupleString.Append(valString, val2String)
-			colArrayArrayTupleInt.Append(valInt, val2Int)
+			colArrayArrayTupleString.AppendMulti(valString, val2String)
+			colArrayArrayTupleInt.AppendMulti(valInt, val2Int)
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
@@ -221,18 +227,19 @@ func TestTuple(t *testing.T) {
 	colLCIntRead := column.New[int64]().LowCardinality()
 	colLCRead := column.NewTuple(colLCStringRead, colLCIntRead)
 
-	colLCNullableStringRead := column.NewString().Nullable().LowCardinality()
-	colLCNullableIntRead := column.New[int64]().Nullable().LowCardinality()
+	colLCNullableStringRead := column.NewString().LowCardinality().Nullable()
+	colLCNullableIntRead := column.New[int64]().LowCardinality().Nullable()
 	colLCNullableRead := column.NewTuple(colLCNullableStringRead, colLCNullableIntRead)
 
 	colArrayLCStringRead := column.NewString().LowCardinality().Array()
 	colArrayLCIntRead := column.New[int64]().LowCardinality().Array()
 	colArrayLCRead := column.NewTuple(colArrayLCStringRead, colArrayLCIntRead)
 
-	colArrayLCNullableStringRead := column.NewString().Nullable().LowCardinality().Array()
-	colArrayLCNullableIntRead := column.New[int64]().Nullable().LowCardinality().Array()
+	colArrayLCNullableStringRead := column.NewString().LowCardinality().Nullable().Array()
+	colArrayLCNullableIntRead := column.New[int64]().LowCardinality().Nullable().Array()
 	colArrayLCNullableRead := column.NewTuple(colArrayLCNullableStringRead, colArrayLCNullableIntRead)
-	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
+
+	selectQuery := fmt.Sprintf(`SELECT
 	%[1]s,
 	%[1]s_nullable,
 	%[1]s_array,
@@ -241,7 +248,8 @@ func TestTuple(t *testing.T) {
 	%[1]s_nullable_lc,
 	%[1]s_array_lc,
 	%[1]s_array_lc_nullable
-	FROM test_%[1]s`, tableName),
+	FROM test_%[1]s`, tableName)
+	selectStmt, err := conn.Select(context.Background(), selectQuery,
 		colRead,
 		colNullableRead,
 		colArrayRead,
@@ -311,40 +319,258 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colLCNullableArrayIntInsert, colLCNullableArrayIntData)
 
 	// check dynamic column
-	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
-		%[1]s,
-		%[1]s_nullable,
-		%[1]s_array,
-		%[1]s_array_nullable,
-		%[1]s_lc,
-		%[1]s_nullable_lc,
-		%[1]s_array_lc,
-		%[1]s_array_lc_nullable
-		FROM test_%[1]s`, tableName),
-	)
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
 
 	require.NoError(t, err)
 	autoColumns := selectStmt.Columns()
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+	assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+	assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+	assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+	assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+	assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+	assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+	assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+	assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
+	rows := selectStmt.Rows()
+	var colData []any
+	var colNullableData []any
+	var colArrayData []any
+	var colArrayNullableData []any
+	var colLCData []any
+	var colLCNullableData []any
+	var colLCArrayData []any
+	var colLCNullableArrayData []any
 
-	for selectStmt.Next() {
+	for rows.Next() {
+		var colVal []any
+		var colNullableVal []any
+		var colArrayVal []any
+		var colArrayNullableVal []any
+		var colLCVal []any
+		var colLCNullableVal []any
+		var colLCArrayVal []any
+		var colLCNullableArrayVal []any
+		err := rows.Scan(
+			&colVal,
+			&colNullableVal,
+			&colArrayVal,
+			&colArrayNullableVal,
+			&colLCVal,
+			&colLCNullableVal,
+			&colLCArrayVal,
+			&colLCNullableArrayVal,
+		)
+		require.NoError(t, err)
+		colData = append(colData, colVal)
+		colNullableData = append(colNullableData, colNullableVal)
+		colArrayData = append(colArrayData, colArrayVal)
+		colArrayNullableData = append(colArrayNullableData, colArrayNullableVal)
+		colLCData = append(colLCData, colLCVal)
+		colLCNullableData = append(colLCNullableData, colLCNullableVal)
+		colLCArrayData = append(colLCArrayData, colLCArrayVal)
+		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
-	require.NoError(t, selectStmt.Err())
-	selectStmt.Close()
+	require.NoError(t, rows.Err())
+	rows.Close()
+	var colStringDataI []any
+	var colNullableStringDataI []any
+	var colArrayStringDataI []any
+	var colArrayNullableStringDataI []any
+	var colLCStringDataI []any
+	var colLCNullableStringDataI []any
+	var colLCArrayStringDataI []any
+	var colLCNullableArrayStringDataI []any
+	for i, v := range colStringData {
+		colStringDataI = append(colStringDataI, []any{
+			v,
+			colIntData[i],
+		})
+	}
+	for i, v := range colNullableStringData {
+		colNullableStringDataI = append(colNullableStringDataI, []any{
+			v,
+			colNullableIntData[i],
+		})
+	}
+	for i, v := range colArrayStringData {
+		colArrayStringDataI = append(colArrayStringDataI, []any{
+			v,
+			colArrayIntData[i],
+		})
+	}
+	for i, v := range colArrayNullableStringData {
+		colArrayNullableStringDataI = append(colArrayNullableStringDataI, []any{
+			v,
+			colArrayNullableIntData[i],
+		})
+	}
+	for i, v := range colLCStringData {
+		colLCStringDataI = append(colLCStringDataI, []any{
+			v,
+			colLCIntData[i],
+		})
+	}
+	for i, v := range colLCNullableStringData {
+		colLCNullableStringDataI = append(colLCNullableStringDataI, []any{
+			v,
+			colLCNullableIntData[i],
+		})
+	}
+	for i, v := range colLCArrayStringData {
+		colLCArrayStringDataI = append(colLCArrayStringDataI, []any{
+			v,
+			colLCArrayIntData[i],
+		})
+	}
+	for i, v := range colLCNullableArrayStringData {
+		colLCNullableArrayStringDataI = append(colLCNullableArrayStringDataI, []any{
+			v,
+			colLCNullableArrayIntData[i],
+		})
+	}
+
+	assert.Equal(t, colStringDataI, colData)
+	assert.Equal(t, colNullableStringDataI, colNullableData)
+	assert.Equal(t, colArrayStringDataI, colArrayData)
+	assert.Equal(t, colArrayNullableStringDataI, colArrayNullableData)
+	assert.Equal(t, colLCStringDataI, colLCData)
+	assert.Equal(t, colLCNullableStringDataI, colLCNullableData)
+	assert.Equal(t, colLCArrayStringDataI, colLCArrayData)
+	assert.Equal(t, colLCNullableArrayStringDataI, colLCNullableArrayData)
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	// check JSON
+	selectStmt, err = conn.Select(context.Background(), selectQuery)
+
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(selectQuery)
+
+	d := json.NewDecoder(strings.NewReader(strings.Join(chconnJSON, "\n")))
+	var valsChconn []any
+	iff := 0
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		iff++
+		valsChconn = append(valsChconn, v)
+	}
+
+	d = json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
 }
 
 func TestTupleNoColumn(t *testing.T) {
 	assert.Panics(t, func() { column.NewTuple() })
+}
+
+func TestTupleScan(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	tupleColString := column.NewString()
+	tupleColVal1 := column.New[int64]()
+	tupleColVal2 := column.New[int64]()
+	tupleColInside := column.NewTuple(tupleColVal1, tupleColVal2)
+	tupleCol := column.NewTuple(tupleColString, tupleColInside)
+
+	stmt, err := conn.Select(context.Background(), `SELECT tuple('test',tuple(toInt64(1),toInt64(2)))`, tupleCol)
+	require.NoError(t, err)
+	require.True(t, conn.IsBusy())
+	type tupleData struct {
+		Col1 string           `db:"0"`
+		Col2 map[string]int64 `db:"1"`
+	}
+	mapData := make(map[string]any)
+	structData := tupleData{}
+	for stmt.Next() {
+		for i := 0; i < stmt.RowsInBlock(); i++ {
+			require.NoError(t, tupleCol.Scan(i, &mapData))
+			require.NoError(t, tupleCol.Scan(i, &structData))
+		}
+	}
+
+	assert.Equal(t, map[string]any{
+		"0": "test",
+		"1": []any{
+			int64(1),
+			int64(2),
+		},
+	}, mapData)
+
+	assert.Equal(t, tupleData{
+		Col1: "test",
+		Col2: map[string]int64{
+			"0": int64(1),
+			"1": int64(2),
+		},
+	}, structData)
+}
+
+func TestTupleArrayScan(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	rows, err := conn.Query(ctx, "SELECT [tuple(toInt64(1),toInt64(2)),tuple(toInt64(3),toInt64(4))] AS arr")
+	require.NoError(t, err)
+	defer rows.Close()
+	assert.True(t, rows.Next())
+	require.NoError(t, rows.Err())
+	var arr []map[string]int64
+	err = rows.Scan(&arr)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]int64{
+		{
+			"0": int64(1),
+			"1": int64(2),
+		},
+		{
+			"0": int64(3),
+			"1": int64(4),
+		},
+	}, arr)
+
+	var invalidArr int64
+	err = rows.Scan(&invalidArr)
+	assert.Equal(t, "can't scan into dest[0]: dest must be a pointer to slice", err.Error())
+
+	var invalidArrInside []int64
+	err = rows.Scan(&invalidArrInside)
+	assert.Equal(t, "can't scan into dest[0]: cannot scan array item 0: tuple: scan: unsupported type int64", err.Error())
 }
 
 func TestGeo(t *testing.T) {

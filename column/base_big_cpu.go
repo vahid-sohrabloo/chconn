@@ -3,8 +3,14 @@
 
 package column
 
+import (
+	"io"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+)
+
 // ReadAll read all value in this block and append to the input slice
-func (c *Base[T]) readyBufferHook() {
+func (c *Base[T]) readBufferHook() {
 	for i := 0; i < c.totalByte; i += c.size {
 		reverseBuffer(c.b[i : i+c.size])
 	}
@@ -16,27 +22,12 @@ func reverseBuffer(s []byte) {
 	}
 }
 
-// slice is the runtime representation of a slice.
-// It cannot be used safely or portably and its representation may
-// change in a later release.
-// Moreover, the Data field is not sufficient to guarantee the data
-// it references will not be garbage collected, so programs must keep
-// a separate, correctly typed pointer to the underlying data.
-type slice struct {
-	Data uintptr
-	Len  int
-	Cap  int
-}
-
 func (c *Base[T]) WriteTo(w io.Writer) (int64, error) {
-	s := *(*slice)(unsafe.Pointer(&c.values))
-	s.Len *= c.size
-	s.Cap *= c.size
-	b := *(*[]byte)(unsafe.Pointer(&s))
-	for i := 0; i < len(b); i += c.size {
-		reverseBuffer(b[i : i+c.size])
+	s := helper.ConvertToByte(c.values, c.size)
+	for i := 0; i < len(s); i += c.size {
+		reverseBuffer(s[i : i+c.size])
 	}
 	var n int64
-	nw, err := w.Write(*(*[]byte)(unsafe.Pointer(&s)))
+	nw, err := w.Write(s)
 	return int64(nw) + n, err
 }

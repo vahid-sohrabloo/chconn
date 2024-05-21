@@ -2,26 +2,66 @@ package column
 
 import (
 	"fmt"
+	"math"
+	"reflect"
+	"strconv"
 	"unsafe"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
+)
+
+type BaseType interface {
+	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64 | ~bool |
+		types.Int128 | types.Int256 | types.Uint128 | types.Uint256 | types.Decimal128 | types.Decimal256 |
+		// repeated types [...]byte. go not support array size  in generic type
+		// https://github.com/golang/go/issues/44253
+		~[1]byte | ~[2]byte | ~[3]byte | ~[4]byte | ~[5]byte | ~[6]byte | ~[7]byte | ~[8]byte | ~[9]byte | ~[10]byte | ~[11]byte |
+		~[12]byte | ~[13]byte | ~[14]byte | ~[15]byte | ~[16]byte | ~[17]byte | ~[18]byte | ~[19]byte | ~[20]byte |
+		~[21]byte | ~[22]byte | ~[23]byte | ~[24]byte | ~[25]byte | ~[26]byte | ~[27]byte | ~[28]byte | ~[29]byte |
+		~[30]byte | ~[31]byte | ~[32]byte | ~[33]byte | ~[34]byte | ~[35]byte | ~[36]byte | ~[37]byte | ~[38]byte |
+		~[39]byte | ~[40]byte | ~[41]byte | ~[42]byte | ~[43]byte | ~[44]byte | ~[45]byte | ~[46]byte | ~[47]byte |
+		~[48]byte | ~[49]byte | ~[50]byte | ~[51]byte | ~[52]byte | ~[53]byte | ~[54]byte | ~[55]byte | ~[56]byte |
+		~[57]byte | ~[58]byte | ~[59]byte | ~[60]byte | ~[61]byte | ~[62]byte | ~[63]byte | ~[64]byte | ~[65]byte |
+		~[66]byte | ~[67]byte | ~[68]byte | ~[69]byte | ~[70]byte | ~[71]byte | ~[72]byte | ~[73]byte | ~[74]byte
+}
+
+type decimalType int
+
+const (
+	decimalTypeNone decimalType = iota
+	decimal32Type
+	decimal64Type
+	decimal128Type
+	decimal256Type
 )
 
 // Column use for most (fixed size) ClickHouse Columns type
-type Base[T comparable] struct {
+type Base[T BaseType] struct {
 	column
-	size   int
-	numRow int
-	values []T
-	params []interface{}
+	size          int
+	strict        bool
+	numRow        int
+	kind          reflect.Kind
+	rtype         reflect.Type
+	values        []T
+	params        []any
+	decimalType   decimalType
+	isEnum        bool
+	enumStringMap map[int16]string
+	sparseData    []T
 }
 
 // New create a new column
-func New[T comparable]() *Base[T] {
+func New[T BaseType]() *Base[T] {
 	var tmpValue T
 	size := int(unsafe.Sizeof(tmpValue))
 	return &Base[T]{
-		size: size,
+		size:   size,
+		strict: true,
+		kind:   reflect.TypeOf(tmpValue).Kind(),
+		rtype:  reflect.TypeOf(tmpValue),
 	}
 }
 
@@ -45,10 +85,57 @@ func (c *Base[T]) Row(row int) T {
 	return *(*T)(unsafe.Pointer(&c.b[i]))
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Base[T]) RowAny(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
-func (c *Base[T]) Append(v ...T) {
+func (c *Base[T]) Append(v T) {
+	c.preHookAppend()
+	c.values = append(c.values, v)
+	c.numRow++
+}
+
+func (c *Base[T]) canAppend(value any) bool {
+	if _, ok := value.(T); ok {
+		return true
+	}
+	return reflect.ValueOf(value).Kind() == c.kind
+}
+
+func (c *Base[T]) AppendAny(value any) error {
+	if v, ok := value.(T); ok {
+		c.Append(v)
+		return nil
+	}
+
+	val := reflect.ValueOf(value)
+	if val.Kind() == c.kind {
+		c.Append(val.Convert(c.rtype).Interface().(T))
+		return nil
+	}
+
+	return fmt.Errorf("invalid type: %T, expected type: %s", value, c.rtype)
+}
+
+// AppendMulti value for insert
+func (c *Base[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	c.values = append(c.values, v...)
 	c.numRow += len(v)
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *Base[T]) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	c.values = c.values[:n]
+	c.numRow = len(c.values)
 }
 
 // NumRow return number of row for this block
@@ -62,8 +149,8 @@ func (c *Base[T]) Array() *Array[T] {
 }
 
 // Nullable return a nullable type for this column
-func (c *Base[T]) Nullable() *Nullable[T] {
-	return NewNullable[T](c)
+func (c *Base[T]) Nullable() *BaseNullable[T] {
+	return NewBaseNullable(c)
 }
 
 // LC return a low cardinality type for this column
@@ -77,7 +164,6 @@ func (c *Base[T]) LowCardinality() *LowCardinality[T] {
 }
 
 // appendEmpty append empty value for insert
-// this use internally for nullable and low cardinality nullable column
 func (c *Base[T]) appendEmpty() {
 	var emptyValue T
 	c.Append(emptyValue)
@@ -108,12 +194,45 @@ func (c *Base[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	c.Reset()
 	c.r = r
 	c.numRow = num
-	c.totalByte = num * c.size
+	c.totalByte = c.numRow * c.size
+
+	if c.isSparse {
+		totalRowsRead, err := c.readSparse()
+		if err != nil {
+			return fmt.Errorf("read sparse: %w", err)
+		}
+		c.numRow = totalRowsRead
+		c.totalByte = totalRowsRead * c.size
+	}
 	err := c.readBuffer()
 	if err != nil {
 		err = fmt.Errorf("read data: %w", err)
 	}
-	c.readyBufferHook()
+	c.readBufferHook()
+
+	if c.isSparse {
+		c.itemsTotalSparse -= 1
+		items := c.Data()
+		if cap(c.sparseData) < int(c.itemsTotalSparse) {
+			c.sparseData = make([]T, c.itemsTotalSparse)
+		} else {
+			c.sparseData = c.sparseData[:c.itemsTotalSparse]
+			clear(c.sparseData)
+		}
+
+		for i, itemNumber := range c.sparseIndexes {
+			c.sparseData[itemNumber-1] = items[i]
+		}
+
+		c.numRow = int(c.itemsTotalSparse)
+		bSize := c.size * len(c.sparseData)
+		if cap(c.b) < bSize {
+			c.b = make([]byte, bSize)
+		} else {
+			c.b = c.b[:bSize]
+		}
+		copy(c.b, helper.ConvertToByte(c.sparseData, c.size))
+	}
 	return err
 }
 
@@ -140,14 +259,192 @@ func (c *Base[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
 func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
-	if nullable {
-		return c.Nullable().elem(arrayLevel, lc)
-	}
 	if lc {
-		return c.LowCardinality().elem(arrayLevel)
+		return c.LowCardinality().elem(arrayLevel, nullable)
+	}
+	if nullable {
+		return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Base[T]) FullType() string {
+	chType := string(c.chType)
+	if chType == "" {
+		chType = c.getChTypeFromKind()
+	}
+	if len(c.name) == 0 {
+		return chType
+	}
+	return string(c.name) + " " + chType
+}
+
+type getCHType interface {
+	GetCHType() string
+}
+
+func (c *Base[T]) getChTypeFromKind() string {
+	var tmpT T
+	if v, ok := any(tmpT).(getCHType); ok {
+		return v.GetCHType()
+	}
+	kind := c.kind
+
+	if kind == reflect.Bool {
+		return "Bool"
+	} else if kind == reflect.Int8 {
+		return "Int8"
+	} else if kind == reflect.Int16 {
+		return "Int16"
+	} else if kind == reflect.Int32 {
+		return "Int32"
+	} else if kind == reflect.Int64 {
+		return "Int64"
+	} else if kind == reflect.Uint8 {
+		return "UInt8"
+	} else if kind == reflect.Uint16 {
+		return "UInt16"
+	} else if kind == reflect.Uint32 {
+		return "UInt32"
+	} else if kind == reflect.Uint64 {
+		return "UInt64"
+	} else if kind == reflect.Float32 {
+		return "Float32"
+	} else if kind == reflect.Float64 {
+		return "Float64"
+	} else {
+		panic(fmt.Sprintf("unsupported type: %s", c.kind))
+	}
+}
+
+type appender interface {
+	Append([]byte) []byte
+}
+
+//nolint:funlen,gocyclo
+func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	val := c.Row(row)
+	switch c.kind {
+	case reflect.Bool:
+		if *(*bool)(unsafe.Pointer(&val)) {
+			return append(b, "true"...)
+		} else {
+			return append(b, "false"...)
+		}
+	case reflect.Int8:
+		if c.isEnum {
+			if c.enumStringMap == nil {
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum8StrLen : len(c.chType)-1])
+			}
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[int16(*(*int8)(unsafe.Pointer(&val)))]))
+		}
+		return strconv.AppendInt(b, int64(*(*int8)(unsafe.Pointer(&val))), 10)
+	case reflect.Int16:
+		if c.isEnum {
+			if c.enumStringMap == nil {
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum16StrLen : len(c.chType)-1])
+			}
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[*(*int16)(unsafe.Pointer(&val))]))
+		}
+		return strconv.AppendInt(b, int64(*(*int16)(unsafe.Pointer(&val))), 10)
+	case reflect.Int32:
+		if c.decimalType == decimal32Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal32)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		return strconv.AppendInt(b, int64(*(*int32)(unsafe.Pointer(&val))), 10)
+	case reflect.Int64:
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		if c.decimalType == decimal64Type {
+			b = (*types.Decimal64)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+		} else {
+			b = strconv.AppendInt(b, *(*int64)(unsafe.Pointer(&val)), 10)
+		}
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		return b
+	case reflect.Uint8:
+		return strconv.AppendUint(b, uint64(*(*uint8)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint16:
+		return strconv.AppendUint(b, uint64(*(*uint16)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint32:
+		return strconv.AppendUint(b, uint64(*(*uint32)(unsafe.Pointer(&val))), 10)
+	case reflect.Uint64:
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		b = strconv.AppendUint(b, *(*uint64)(unsafe.Pointer(&val)), 10)
+		if !ignoreDoubleQuotes {
+			b = append(b, '"')
+		}
+		return b
+	case reflect.Float32:
+		v := float64(*(*float32)(unsafe.Pointer(&val)))
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return append(b, "null"...)
+		}
+		return strconv.AppendFloat(b, v, 'f', -1, 32)
+	case reflect.Float64:
+		v := *(*float64)(unsafe.Pointer(&val))
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return append(b, "null"...)
+		}
+		return strconv.AppendFloat(b, *(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
+		// todo more types
+	default:
+		if val, ok := any(val).(appender); ok {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = val.Append(b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		if val, ok := any(val).(fmt.Stringer); ok {
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(val.String()))
+		}
+		if c.kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
+			arrayLength := c.rtype.Len()
+			byteSlice := unsafe.Slice((*byte)(unsafe.Pointer(&val)), arrayLength)
+			// Marshal the byte slice to JSON.
+			return helper.AppendJSONSting(b, ignoreDoubleQuotes, byteSlice)
+		}
+		if c.decimalType == decimal128Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal128)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+		if c.decimalType == decimal256Type {
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			b = (*types.Decimal256)(unsafe.Pointer(&val)).Append(c.getDecimalScale(), b)
+			if !ignoreDoubleQuotes {
+				b = append(b, '"')
+			}
+			return b
+		}
+
+		// todo
+		panic("not support")
+	}
 }

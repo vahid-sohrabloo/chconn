@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestString(t *testing.T) {
@@ -54,9 +54,9 @@ func TestString(t *testing.T) {
 	colArray := column.NewString().Array()
 	colNullableArray := column.NewString().Nullable().Array()
 	colLC := column.NewString().LC()
-	colLCNullable := column.NewString().Nullable().LC()
+	colLCNullable := column.NewString().LC().Nullable()
 	colArrayLC := column.NewString().LC().Array()
-	colArrayLCNullable := column.NewString().Nullable().LC().Array()
+	colArrayLCNullable := column.NewString().LC().Nullable().Array()
 	var colInsert []string
 	var colInsertByte [][]byte
 	var colNullableInsert []*string
@@ -109,6 +109,28 @@ func TestString(t *testing.T) {
 			colArrayLCNullable.AppendP(valArrayNil)
 		}
 
+		if insertN == 0 {
+			blockID.Remove(rows / 2)
+			col.Remove(rows / 2)
+			colNullable.Remove(rows / 2)
+			colArray.Remove(rows / 2)
+			colNullableArray.Remove(rows / 2)
+			colLC.Remove(rows / 2)
+			colLCNullable.Remove(rows / 2)
+			colArrayLC.Remove(rows / 2)
+			colArrayLCNullable.Remove(rows / 2)
+
+			colInsert = colInsert[:rows/2]
+			colInsertByte = colInsertByte[:rows/2]
+			colNullableInsert = colNullableInsert[:rows/2]
+			colArrayInsert = colArrayInsert[:rows/2]
+			colArrayNullableInsert = colArrayNullableInsert[:rows/2]
+			colLCInsert = colLCInsert[:rows/2]
+			colLCNullableInsert = colLCNullableInsert[:rows/2]
+			colLCArrayInsert = colLCArrayInsert[:rows/2]
+			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
+		}
+
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
 				block_id,
@@ -142,9 +164,9 @@ func TestString(t *testing.T) {
 	colArrayRead := column.NewString().Array()
 	colNullableArrayRead := column.NewString().Nullable().Array()
 	colLCRead := column.NewString().LC()
-	colLCNullableRead := column.NewString().Nullable().LC()
+	colLCNullableRead := column.NewString().LC().Nullable()
 	colArrayLCRead := column.NewString().LC().Array()
-	colArrayLCNullableRead := column.NewString().Nullable().LC().Array()
+	colArrayLCNullableRead := column.NewString().LC().Nullable().Array()
 	selectStmt, err := conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s,
 		%[1]s_nullable,
@@ -228,14 +250,14 @@ func TestString(t *testing.T) {
 
 	assert.Len(t, autoColumns, 8)
 
-	assert.Equal(t, colRead.ColumnType(), autoColumns[0].ColumnType())
-	assert.Equal(t, colNullableRead.ColumnType(), autoColumns[1].ColumnType())
-	assert.Equal(t, colArrayRead.ColumnType(), autoColumns[2].ColumnType())
-	assert.Equal(t, colNullableArrayRead.ColumnType(), autoColumns[3].ColumnType())
-	assert.Equal(t, colLCRead.ColumnType(), autoColumns[4].ColumnType())
-	assert.Equal(t, colLCNullableRead.ColumnType(), autoColumns[5].ColumnType())
-	assert.Equal(t, colArrayLCRead.ColumnType(), autoColumns[6].ColumnType())
-	assert.Equal(t, colArrayLCNullableRead.ColumnType(), autoColumns[7].ColumnType())
+	assert.Equal(t, colRead.FullType(), autoColumns[0].FullType())
+	assert.Equal(t, colNullableRead.FullType(), autoColumns[1].FullType())
+	assert.Equal(t, colArrayRead.FullType(), autoColumns[2].FullType())
+	assert.Equal(t, colNullableArrayRead.FullType(), autoColumns[3].FullType())
+	assert.Equal(t, colLCRead.FullType(), autoColumns[4].FullType())
+	assert.Equal(t, colLCNullableRead.FullType(), autoColumns[5].FullType())
+	assert.Equal(t, colArrayLCRead.FullType(), autoColumns[6].FullType())
+	assert.Equal(t, colArrayLCNullableRead.FullType(), autoColumns[7].FullType())
 
 	for selectStmt.Next() {
 	}

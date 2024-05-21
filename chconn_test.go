@@ -43,11 +43,8 @@ func TestConnectError(t *testing.T) {
 	config.User = "invalid username"
 	conn, err := ConnectConfig(context.Background(), config)
 	assert.Contains(t,
-		err.Error(),
-		"server error ( DB::Exception (516)")
-	assert.Contains(t,
 		errors.Unwrap(err).Error(),
-		" DB::Exception (516):")
+		"DB::Exception (516): invalid username: Authentication failed")
 	assert.Nil(t, conn)
 
 	conn, err = Connect(context.Background(), "host>0")
@@ -193,7 +190,7 @@ func TestLockError(t *testing.T) {
 
 	resSelect, err := c.Select(context.Background(), "SET enable_http_compression=1")
 	require.EqualError(t, err, "conn uninitialized")
-	require.Nil(t, resSelect)
+	require.NotNil(t, resSelect)
 	require.EqualError(t, c.(*conn).lock(), "conn uninitialized")
 }
 
@@ -282,11 +279,11 @@ func TestReceivePackError(t *testing.T) {
 	config, err := ParseConfig(connString)
 	require.NoError(t, err)
 
-	config.ReaderFunc = func(r io.Reader) io.Reader {
+	config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 		return &readErrorHelper{
 			err:         errors.New("timeout"),
 			r:           r,
-			numberValid: 13,
+			numberValid: 15,
 		}
 	}
 	c, err := ConnectConfig(context.Background(), config)

@@ -1,22 +1,38 @@
 package column
 
-import "github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+import (
+	"database/sql"
+	"fmt"
+	"reflect"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+)
+
+type arrayAlias[T any] struct {
+	Array[T]
+}
 
 // Array is a column of Array(Nullable(T)) ClickHouse data type
-type ArrayNullable[T comparable] struct {
-	Array[T]
+type ArrayNullable[T any] struct {
+	arrayAlias[T]
 	dataColumn NullableColumn[T]
 	columnData []*T
 }
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
-func NewArrayNullable[T comparable](dataColumn NullableColumn[T]) *ArrayNullable[T] {
+func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
+	rtype := reflect.TypeOf((*T)(nil)).Elem()
+
 	a := &ArrayNullable[T]{
 		dataColumn: dataColumn,
-		Array: Array[T]{
-			ArrayBase: ArrayBase{
-				dataColumn:   dataColumn,
-				offsetColumn: New[uint64](),
+		arrayAlias: arrayAlias[T]{
+			Array: Array[T]{
+				rtype: rtype,
+				ArrayBase: ArrayBase{
+					dataColumn:      dataColumn,
+					offsetColumn:    New[uint64](),
+					arrayChconnType: "column.ArrayNullable[" + rtype.String() + "]",
+				},
 			},
 		},
 	}
@@ -61,12 +77,69 @@ func (c *ArrayNullable[T]) RowP(row int) []*T {
 	return val
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *ArrayNullable[T]) RowAny(row int) any {
+	return c.RowP(row)
+}
+
+//nolint:dupl
+func (c *ArrayNullable[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *[]*T:
+		*d = c.RowP(row)
+		return nil
+	case *any:
+		*d = c.RowP(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.RowP(row))
+	}
+
+	if c.rtype.String() == "column.NothingData" {
+		return nil
+	}
+
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: c.rtype.String(),
+	}
+}
+
 // AppendP a nullable value for insert
-func (c *ArrayNullable[T]) AppendP(v ...[]*T) {
+func (c *ArrayNullable[T]) AppendP(v []*T) {
+	c.AppendLen(len(v))
+	c.dataColumn.AppendMultiP(v...)
+}
+
+// AppendMultiP a nullable value for insert
+func (c *ArrayNullable[T]) AppendMultiP(v [][]*T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.AppendP(v...)
+		c.dataColumn.AppendMultiP(v...)
 	}
+}
+
+func (c *ArrayNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case []T:
+		return true
+	case []*T:
+		return true
+	}
+	return false
+}
+
+func (c *ArrayNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case []T:
+		c.Append(v)
+		return nil
+	case []*T:
+		c.AppendP(v)
+		return nil
+	}
+	return fmt.Errorf("AppendAny error: expected *[]%[1]s or []%[1]s, got %[2]T", c.rtype.String(), value)
 }
 
 //	AppendItemP Append nullable item value for insert
@@ -76,19 +149,20 @@ func (c *ArrayNullable[T]) AppendP(v ...[]*T) {
 // Example:
 //
 //	c.AppendLen(2) // insert 2 items
-//	c.AppendItemP(val1, val2) // insert item 1
-func (c *ArrayNullable[T]) AppendItemP(v ...*T) {
-	c.dataColumn.AppendP(v...)
+//	c.AppendItemP(val1) // insert item 1
+//	c.AppendItemP(val2) // insert item 2
+func (c *ArrayNullable[T]) AppendItemP(v *T) {
+	c.dataColumn.AppendP(v)
 }
 
 // ArrayOf return a Array type for this column
-func (c *ArrayNullable[T]) ArrayOf() *Array2Nullable[T] {
+func (c *ArrayNullable[T]) Array() *Array2Nullable[T] {
 	return NewArray2Nullable(c)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
 func (c *ArrayNullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.Array.ReadRaw(num, r)
+	err := c.arrayAlias.Array.ReadRaw(num, r)
 	if err != nil {
 		return err
 	}
@@ -105,7 +179,28 @@ func (c *ArrayNullable[T]) getColumnData() []*T {
 
 func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnBasic {
 	if arrayLevel > 0 {
-		return c.ArrayOf().elem(arrayLevel - 1)
+		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *ArrayNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		if c.dataColumn.RowIsNil(int(i)) {
+			b = append(b, "null"...)
+		} else {
+			b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+		}
+	}
+	return append(b, ']')
 }

@@ -4,7 +4,7 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type indicesColumnI interface {
@@ -12,6 +12,7 @@ type indicesColumnI interface {
 	WriteTo(io.Writer) (int64, error)
 	appendInts([]int)
 	readInt(value *[]int)
+	Remove(int)
 	Reset()
 }
 
@@ -28,7 +29,8 @@ func newIndicesColumn[T indicatedTypes]() *indicesColumn[T] {
 	size := int(unsafe.Sizeof(tmpValue))
 	return &indicesColumn[T]{
 		Base: Base[T]{
-			size: size,
+			strict: true,
+			size:   size,
 		},
 	}
 }

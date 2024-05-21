@@ -1,5 +1,10 @@
 package column
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Map is a column of Map(K,V) ClickHouse data type
 // Map in clickhouse actually is a array of pair(K,V)
 type Map[K comparable, V any] struct {
@@ -15,9 +20,10 @@ func NewMap[K comparable, V any](
 ) *Map[K, V] {
 	a := &Map[K, V]{
 		MapBase: MapBase{
-			keyColumn:    keyColumn,
-			valueColumn:  valueColumn,
-			offsetColumn: New[uint64](),
+			keyColumn:     keyColumn,
+			valueColumn:   valueColumn,
+			offsetColumn:  New[uint64](),
+			mapChconnType: "column.Map[" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
 		},
 	}
 	a.resetHook = func() {
@@ -48,6 +54,19 @@ func (c *Map[K, V]) Data() []map[K]V {
 	return values
 }
 
+func (c *Map[K, V]) Scan(row int, dest any) error {
+	switch v := dest.(type) {
+	case *map[K]V:
+		*v = c.Row(row)
+		return nil
+	case *any:
+		*v = c.Row(row)
+		return nil
+	default:
+		return c.MapBase.Scan(row, dest)
+	}
+}
+
 // Read reads all the data in current block and append to the input.
 func (c *Map[K, V]) Read(value []map[K]V) []map[K]V {
 	return append(value, c.Data()...)
@@ -71,12 +90,97 @@ func (c *Map[K, V]) Row(row int) map[K]V {
 	return val
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Map[K, V]) RowAny(row int) any {
+	return c.Row(row)
+}
+
 // Append value for insert
 func (c *Map[K, V]) Append(v map[K]V) {
 	c.AppendLen(len(v))
 	for k, d := range v {
 		c.keyColumn.(Column[K]).Append(k)
 		c.valueColumn.(Column[V]).Append(d)
+	}
+}
+
+func (c *Map[K, V]) canAppend(value any) bool {
+	switch value.(type) {
+	case map[K]V:
+		return true
+	case map[any]any:
+		return true
+	default:
+		mapVal := reflect.ValueOf(value)
+		if mapVal.Kind() != reflect.Map {
+			return false
+		}
+
+		for _, key := range mapVal.MapKeys() {
+			k := key.Interface()
+			if !c.keyColumn.(Column[K]).canAppend(k) {
+				return false
+			}
+			val := mapVal.MapIndex(key).Interface()
+
+			if !c.valueColumn.(Column[K]).canAppend(val) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func (c *Map[K, V]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case map[K]V:
+		c.Append(v)
+		return nil
+	case map[any]any:
+		c.AppendLen(len(v))
+		for k, val := range v {
+			err := c.keyColumn.(Column[K]).AppendAny(k)
+			if err != nil {
+				return fmt.Errorf("could not append key %v to key column: %w", k, err)
+			}
+			err = c.valueColumn.(Column[V]).AppendAny(val)
+			if err != nil {
+				return fmt.Errorf("could not append value %v to value column: %w", val, err)
+			}
+		}
+
+		return nil
+	default:
+		mapVal := reflect.ValueOf(value)
+		if mapVal.Kind() != reflect.Map {
+			return fmt.Errorf("value is not a map")
+		}
+
+		for _, key := range mapVal.MapKeys() {
+			k := key.Interface()
+			err := c.keyColumn.(Column[K]).AppendAny(k)
+			if err != nil {
+				return fmt.Errorf("could not append key %v to key column: %w", k, err)
+			}
+			val := mapVal.MapIndex(key).Interface()
+			err = c.valueColumn.(Column[V]).AppendAny(val)
+			if err != nil {
+				return fmt.Errorf("could not append value %v to value column: %w", val, err)
+			}
+		}
+		return nil
+	}
+}
+
+// AppendMulti value for insert
+func (c *Map[K, V]) AppendMulti(val ...map[K]V) {
+	for _, v := range val {
+		c.AppendLen(len(v))
+		for k, d := range v {
+			c.keyColumn.(Column[K]).Append(k)
+			c.valueColumn.(Column[V]).Append(d)
+		}
 	}
 }
 
@@ -101,4 +205,9 @@ func (c *Map[K, V]) KeyColumn() Column[K] {
 // ValueColumn return the value column
 func (c *Map[K, V]) ValueColumn() Column[V] {
 	return c.valueColumn.(Column[V])
+}
+
+// Array return a Array type for this column
+func (c *Map[K, V]) Array() *Array[map[K]V] {
+	return NewArray[map[K]V](c)
 }

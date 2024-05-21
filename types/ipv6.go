@@ -11,3 +11,11 @@ func (ip IPv6) NetIP() netip.Addr {
 func IPv6FromAddr(ipAddr netip.Addr) IPv6 {
 	return IPv6(ipAddr.As16())
 }
+
+func (ip IPv6) MarshalText() ([]byte, error) {
+	return []byte(ip.NetIP().String()), nil
+}
+
+func (ip IPv6) Append(b []byte) []byte {
+	return ip.NetIP().AppendTo(b)
+}

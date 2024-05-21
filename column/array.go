@@ -1,17 +1,27 @@
 package column
 
+import (
+	"database/sql"
+	"fmt"
+	"reflect"
+)
+
 // Array is a column of Array(T) ClickHouse data type
 type Array[T any] struct {
 	ArrayBase
 	columnData []T
+	rtype      reflect.Type
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
 func NewArray[T any](dataColumn Column[T]) *Array[T] {
+	rtype := reflect.TypeOf((*T)(nil)).Elem()
 	a := &Array[T]{
+		rtype: rtype,
 		ArrayBase: ArrayBase{
-			dataColumn:   dataColumn,
-			offsetColumn: New[uint64](),
+			dataColumn:      dataColumn,
+			offsetColumn:    New[uint64](),
+			arrayChconnType: "column.Array[" + rtype.String() + "]",
 		},
 	}
 	a.resetHook = func() {
@@ -61,11 +71,75 @@ func (c *Array[T]) Row(row int) []T {
 	return val
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Array[T]) RowAny(row int) any {
+	return c.Row(row)
+}
+
+func (c *Array[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *[]T:
+		*d = c.Row(row)
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
+	}
+
+	if c.rtype.String() == "column.NothingData" {
+		return nil
+	}
+
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "*[]" + c.rtype.String(),
+	}
+}
+
 // Append value for insert
-func (c *Array[T]) Append(v ...[]T) {
+func (c *Array[T]) Append(v []T) {
+	c.AppendLen(len(v))
+	c.dataColumn.(Column[T]).AppendMulti(v...)
+}
+
+func (c *Array[T]) canAppend(value any) bool {
+	if v, ok := value.([]T); ok {
+		if len(v) == 0 {
+			return true
+		}
+		return c.dataColumn.(Column[T]).canAppend(v[0])
+	}
+	if v, ok := value.([]any); ok {
+		for _, val := range v {
+			if !c.dataColumn.(Column[T]).canAppend(val) {
+				return false
+			}
+		}
+	}
+	return false
+}
+
+func (c *Array[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case []T:
+		c.Append(v)
+		return nil
+	case []any:
+		c.AppendLen(len(v))
+		return c.dataColumn.AppendAny(v)
+	}
+
+	return fmt.Errorf("AppendAny error: expected []%s, got %T", c.rtype.String(), value)
+}
+
+// AppendMulti value for insert
+func (c *Array[T]) AppendMulti(v ...[]T) {
 	for _, v := range v {
 		c.AppendLen(len(v))
-		c.dataColumn.(Column[T]).Append(v...)
+		c.dataColumn.(Column[T]).AppendMulti(v...)
 	}
 }
 
@@ -76,9 +150,10 @@ func (c *Array[T]) Append(v ...[]T) {
 // Example:
 //
 //	c.AppendLen(2) // insert 2 items
-//	c.AppendItem(1, 2)
-func (c *Array[T]) AppendItem(v ...T) {
-	c.dataColumn.(Column[T]).Append(v...)
+//	c.AppendItem(1)
+//	c.AppendItem(2)
+func (c *Array[T]) AppendItem(v T) {
+	c.dataColumn.(Column[T]).Append(v)
 }
 
 // Array return a Array type for this column
@@ -98,4 +173,21 @@ func (c *Array[T]) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *Array[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+	}
+	return append(b, ']')
 }

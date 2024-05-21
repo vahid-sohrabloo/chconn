@@ -12,7 +12,7 @@ import (
 )
 
 func TestBlockReadError(t *testing.T) {
-	startValidReader := 15
+	startValidReader := 17
 
 	tests := []struct {
 		name        string
@@ -65,7 +65,7 @@ func TestBlockReadError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -77,13 +77,87 @@ func TestBlockReadError(t *testing.T) {
 			assert.NoError(t, err)
 			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 			require.Error(t, err)
-			require.Nil(t, stmt)
+			require.NotNil(t, stmt)
 
 			readErr, ok := err.(*readError)
 			require.True(t, ok)
 			require.Equal(t, readErr.msg, tt.wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
 			assert.True(t, c.IsClosed())
+		})
+	}
+}
+
+func TestBlockColumnByTypeError(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantErr    string
+		chType     string
+		arrayLevel int
+	}{
+		{
+			name:    "FixedString",
+			chType:  "FixedString(Invalid)",
+			wantErr: "invalid fixed string length: FixedString(Invalid): strconv.Atoi: parsing \"Invalid\": invalid syntax",
+		},
+		{
+			name:    "DateTime64 invalid param",
+			chType:  "DateTime64()",
+			wantErr: "DateTime64 invalid params: precision is required: DateTime64()",
+		},
+		{
+			name:    "DateTime64 invalid precision",
+			chType:  "DateTime64(invalid)",
+			wantErr: "DateTime64 invalid precision (DateTime64(invalid)): strconv.Atoi: parsing \"invalid\": invalid syntax",
+		},
+		{
+			name:    "Decimal",
+			chType:  "Decimal(80)",
+			wantErr: "max precision is 76 but got 80: Decimal(80)",
+		},
+		{
+			name:    "Array max level",
+			chType:  "Array(Array(Array(Array(string))))",
+			wantErr: "max array level is 3",
+		},
+		{
+			name:    "Array nullable",
+			chType:  "Nullable(Array(string))",
+			wantErr: "array is not allowed in nullable",
+		},
+		{
+			name:    "Array LowCardinality",
+			chType:  "LowCardinality(Array(string))",
+			wantErr: "LowCardinality is not allowed in nullable",
+		},
+		{
+			name:    "Tuple",
+			chType:  "Tuple(`date f Array(String))",
+			wantErr: "tuple invalid types: cannot find closing backtick in date f Array(String)",
+		},
+		{
+			name:    "Map",
+			chType:  "Map(`date f Array(String))",
+			wantErr: "map invalid types: cannot find closing backtick in date f Array(String)",
+		},
+		{
+			name:    "Map one column",
+			chType:  "Map(String)",
+			wantErr: "map must have 2 columns",
+		},
+		{
+			name:    "Unknown",
+			chType:  "Unknown",
+			wantErr: "unknown type: Unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := newBlock(nil)
+			c, err := b.columnByType([]byte(tt.chType), 0, false, false)
+			assert.Nil(t, c)
+			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
 }

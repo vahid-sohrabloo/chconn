@@ -18,33 +18,36 @@ jobs:
     steps:
     - uses: vahid-sohrabloo/clickhouse-action@v1
       with:
-        version: '22.9'
+        version: '24.1'
 
         
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: 1.19
+        go-version: 1.22
 
     - name: Checkout code
-      uses: actions/checkout@v3.3.0
+      uses: actions/checkout@v4.1.1
 
     - name: Test
       run: make test-cover
     - name: Send coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: coverage.out
+        token: ${{ secrets.CODECOV_TOKEN }}
+
   test:
     name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        golang-version: [1.18.5, 1.19]
-        clickhouse-version: ['22.11', '22.10', '22.9', '22.8', '22.7', '22.6', '22.5', '22.4']
+        golang-version: [1.21, 1.22]
+        clickhouse-version: ['24.1', '23.10', '23.9', '23.8', '23.7']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
+      CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
 
     steps:
     - uses: vahid-sohrabloo/clickhouse-action@v1
@@ -52,12 +55,12 @@ jobs:
         version: '${{ matrix.clickhouse-version }}'
         
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.18.5
+        go-version: 1.22
 
     - name: Checkout code
-      uses: actions/checkout@v3.3.0
+      uses: actions/checkout@v4
 
     - name: Test
       run: make test

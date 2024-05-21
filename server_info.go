@@ -3,8 +3,8 @@ package chconn
 import (
 	"fmt"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // ServerInfo detail of server info
@@ -16,6 +16,11 @@ type ServerInfo struct {
 	ServerDisplayName  string
 	ServerVersionPatch uint64
 	Timezone           string
+	PasswordPatterns   []ServerInfoPasswordRules
+}
+type ServerInfoPasswordRules struct {
+	Pattern string
+	Message string
 }
 
 func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
@@ -44,6 +49,32 @@ func (srv *ServerInfo) read(r *readerwriter.Reader) (err error) {
 	if srv.Revision >= helper.DbmsMinRevisionWithVersionPatch {
 		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
 			return &readError{"ServerInfo: could not read server version patch", err}
+		}
+	}
+	if srv.Revision >= helper.DbmsMinProtocolVersionWithPasswordComplexityRules {
+		lenRules, err := r.Uvarint()
+		if err != nil {
+			return &readError{"ServerInfo: could not read server password complexity rules: len", err}
+		}
+		srv.PasswordPatterns = make([]ServerInfoPasswordRules, lenRules)
+		for i := uint64(0); i < lenRules; i++ {
+			var rule ServerInfoPasswordRules
+			if rule.Pattern, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			if rule.Message, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			srv.PasswordPatterns[i] = rule
+		}
+	}
+
+	if srv.Revision >= helper.DbmsMinRevisionWithInterserverSecretV2 {
+		// read secret nonce
+		// we don't need it for now
+		_, err := r.Uint64()
+		if err != nil {
+			return &readError{"ServerInfo: could not read server interserver secret nonce", err}
 		}
 	}
 	return nil

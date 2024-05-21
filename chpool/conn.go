@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 
 	puddle "github.com/jackc/puddle/v2"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 // Conn is an acquired *chconn.Conn from a Pool.
@@ -19,6 +19,11 @@ type Conn interface {
 		query string,
 		queryOptions *chconn.QueryOptions,
 	) error
+	Query(ctx context.Context, sql string, args ...chconn.Parameter) (chconn.Rows, error)
+	QueryWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) (chconn.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...chconn.Parameter) chconn.Row
+	QueryRowWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) chconn.Row
+
 	// Select executes a query with the the query options and return select stmt.
 	// NOTE: only use for select query
 	SelectWithOption(
@@ -39,6 +44,9 @@ type Conn interface {
 	// will panic if called on an already released or hijacked connection.
 	Hijack() chconn.Conn
 	Ping(ctx context.Context) error
+
+	getPoolRow(r chconn.Row) *poolRow
+	getPoolRows(r chconn.Rows) *poolRows
 }
 type conn struct {
 	res *puddle.Resource[*connResource]
@@ -47,114 +55,158 @@ type conn struct {
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
-func (c *conn) Release() {
-	if c.res == nil {
+func (ch *conn) Release() {
+	if ch.res == nil {
 		return
 	}
 
-	conn := c.Conn()
-	res := c.res
-	c.res = nil
+	conn := ch.Conn()
+	res := ch.res
+	ch.res = nil
 
 	if conn.IsClosed() || conn.IsBusy() {
 		res.Destroy()
 		// Signal to the health check to run since we just destroyed a connections
 		// and we might be below minConns now
-		c.p.triggerHealthCheck()
+		ch.p.triggerHealthCheck()
 		return
 	}
 
 	// If the pool is consistently being used, we might never get to check the
 	// lifetime of a connection since we only check idle connections in checkConnsHealth
 	// so we also check the lifetime here and force a health check
-	if c.p.isExpired(res) {
-		atomic.AddInt64(&c.p.lifetimeDestroyCount, 1)
+	if ch.p.isExpired(res) {
+		atomic.AddInt64(&ch.p.lifetimeDestroyCount, 1)
 		res.Destroy()
 		// Signal to the health check to run since we just destroyed a connections
 		// and we might be below minConns now
-		c.p.triggerHealthCheck()
+		ch.p.triggerHealthCheck()
 		return
 	}
 
-	if c.p.afterRelease == nil {
+	if ch.p.afterRelease == nil {
 		res.Release()
 		return
 	}
 
 	go func() {
-		if c.p.afterRelease(conn) {
+		if ch.p.afterRelease(conn) {
 			res.Release()
 		} else {
 			res.Destroy()
 			// Signal to the health check to run since we just destroyed a connections
 			// and we might be below minConns now
-			c.p.triggerHealthCheck()
+			ch.p.triggerHealthCheck()
 		}
 	}()
 }
 
 // Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
 // will panic if called on an already released or hijacked connection.
-func (c *conn) Hijack() chconn.Conn {
-	if c.res == nil {
+func (ch *conn) Hijack() chconn.Conn {
+	if ch.res == nil {
 		panic("cannot hijack already released or hijacked connection")
 	}
 
-	conn := c.Conn()
-	res := c.res
-	c.res = nil
+	conn := ch.Conn()
+	res := ch.res
+	ch.res = nil
 
 	res.Hijack()
 
 	return conn
 }
 
-func (c *conn) ExecWithOption(
+func (ch *conn) ExecWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
 ) error {
-	return c.Conn().ExecWithOption(ctx, query, queryOptions)
+	return ch.Conn().ExecWithOption(ctx, query, queryOptions)
 }
 
-func (c *conn) Ping(ctx context.Context) error {
-	return c.Conn().Ping(ctx)
+func (ch *conn) Query(ctx context.Context, sql string, args ...chconn.Parameter) (chconn.Rows, error) {
+	return ch.Conn().Query(ctx, sql, args...)
 }
 
-func (c *conn) SelectWithOption(
+func (ch *conn) QueryWithOption(
+	ctx context.Context,
+	sql string,
+	queryOptions *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) (chconn.Rows, error) {
+	return ch.Conn().QueryWithOption(ctx, sql, queryOptions, args...)
+}
+
+func (ch *conn) QueryRow(ctx context.Context, sql string, args ...chconn.Parameter) chconn.Row {
+	return ch.Conn().QueryRow(ctx, sql, args...)
+}
+
+func (ch *conn) QueryRowWithOption(
+	ctx context.Context,
+	sql string,
+	queryOptions *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) chconn.Row {
+	return ch.Conn().QueryRowWithOption(ctx, sql, queryOptions, args...)
+}
+
+func (ch *conn) Ping(ctx context.Context) error {
+	return ch.Conn().Ping(ctx)
+}
+
+func (ch *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
 	columns ...column.ColumnBasic,
 ) (chconn.SelectStmt, error) {
-	s, err := c.Conn().SelectWithOption(ctx, query, queryOptions, columns...)
+	s, err := ch.Conn().SelectWithOption(ctx, query, queryOptions, columns...)
 	if err != nil {
 		return nil, err
 	}
 	return &selectStmt{
 		SelectStmt: s,
-		conn:       c,
+		conn:       ch,
 	}, nil
 }
 
-func (c *conn) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
-	return c.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
+func (ch *conn) InsertWithOption(
+	ctx context.Context,
+	query string,
+	queryOptions *chconn.QueryOptions,
+	columns ...column.ColumnBasic,
+) error {
+	return ch.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
 }
-func (c *conn) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
-	s, err := c.Conn().InsertStreamWithOption(ctx, query, queryOptions)
+
+func (ch *conn) InsertStreamWithOption(
+	ctx context.Context,
+	query string,
+	queryOptions *chconn.QueryOptions,
+) (chconn.InsertStmt, error) {
+	s, err := ch.Conn().InsertStreamWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &insertStmt{
 		InsertStmt: s,
-		conn:       c,
+		conn:       ch,
 	}, nil
 }
 
-func (c *conn) Conn() chconn.Conn {
-	return c.connResource().conn
+func (ch *conn) Conn() chconn.Conn {
+	return ch.connResource().conn
 }
 
-func (c *conn) connResource() *connResource {
-	return c.res.Value()
+func (ch *conn) connResource() *connResource {
+	return ch.res.Value()
+}
+
+func (ch *conn) getPoolRow(r chconn.Row) *poolRow {
+	return ch.connResource().getPoolRow(ch, r)
+}
+
+func (ch *conn) getPoolRows(r chconn.Rows) *poolRows {
+	return ch.connResource().getPoolRows(ch, r)
 }

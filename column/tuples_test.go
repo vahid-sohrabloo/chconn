@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestTuples(t *testing.T) {
@@ -326,7 +326,6 @@ func TestTuples(t *testing.T) {
 	assert.Equal(t, col5ArrayInsert, col5ArrayReadData)
 
 	// example read row
-
 	selectStmt, err = conn.Select(context.Background(), fmt.Sprintf(`SELECT
 		%[1]s1,
 		%[1]s1_array,

@@ -62,33 +62,38 @@ func Uint256FromBigEx(i *big.Int) (Uint256, bool) {
 		return Uint256Max(), false // value overflows 256-bit!
 	}
 
-	// Note, actually result of big.Int.Uint64 is undefined
-	// if stored value is greater than 2^64
-	// but we assume that it just gets lower 64 bits.
-	t := new(big.Int)
-	lolo := i.Uint64()
-	lohi := t.Rsh(i, 64).Uint64()
-	hilo := t.Rsh(i, 128).Uint64()
-	hihi := t.Rsh(i, 192).Uint64()
-	return Uint256{
-		Lo: Uint128{Lo: lolo, Hi: lohi},
-		Hi: Uint128{Lo: hilo, Hi: hihi},
-	}, true
+	bits := i.Bits()
+
+	var u Uint256
+
+	for idx, b := range bits {
+		switch idx {
+		case 0:
+			u.Lo.Lo = uint64(b)
+		case 1:
+			u.Lo.Hi = uint64(b)
+		case 2:
+			u.Hi.Lo = uint64(b)
+		case 3:
+			u.Hi.Hi = uint64(b)
+		}
+	}
+
+	return u, true
 }
 
 // Big returns 256-bit value as a *big.Int.
-//
-//nolint:dupl
 func (u Uint256) Big() *big.Int {
-	t := new(big.Int)
-	i := new(big.Int).SetUint64(u.Hi.Hi)
-	i = i.Lsh(i, 64)
-	i = i.Or(i, t.SetUint64(u.Hi.Lo))
-	i = i.Lsh(i, 64)
-	i = i.Or(i, t.SetUint64(u.Lo.Hi))
-	i = i.Lsh(i, 64)
-	i = i.Or(i, t.SetUint64(u.Lo.Lo))
-	return i
+	bigU := new(big.Int)
+	bigU = bigU.SetUint64(u.Hi.Hi)
+	bigU = bigU.Lsh(bigU, 64)
+	bigU = bigU.Add(bigU, new(big.Int).SetUint64(u.Hi.Lo))
+	bigU = bigU.Lsh(bigU, 64)
+	bigU = bigU.Add(bigU, new(big.Int).SetUint64(u.Lo.Hi))
+	bigU = bigU.Lsh(bigU, 64)
+	bigU = bigU.Add(bigU, new(big.Int).SetUint64(u.Lo.Lo))
+
+	return bigU
 }
 
 // Equals returns true if two 256-bit values are equal.
@@ -96,4 +101,31 @@ func (u Uint256) Big() *big.Int {
 // but use of the Equals method is preferred for consistency.
 func (u Uint256) Equals(v Uint256) bool {
 	return u.Lo.Equals(v.Lo) && u.Hi.Equals(v.Hi)
+}
+
+func (u Uint256) Uint128() Uint128 {
+	return u.Lo
+}
+
+func (u Uint256) Int256() Int256 {
+	return Int256{Lo: u.Lo, Hi: u.Hi.Int128()}
+}
+
+func (u Uint256) Uint64() uint64 {
+	return u.Lo.Uint64()
+}
+
+func (u Uint256) String() string {
+	if u.Hi.Zero() {
+		return u.Lo.String()
+	}
+	return u.Big().String()
+}
+
+func (u Uint256) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi.Zero() {
+		return u.Lo.Append(b)
+	}
+	return u.Big().Append(b, 10)
 }

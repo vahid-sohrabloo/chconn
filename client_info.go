@@ -3,7 +3,7 @@ package chconn
 import (
 	"os/user"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 // ClientInfo Information about client for query.
@@ -80,8 +80,8 @@ func (c *ClientInfo) fillOSUserHostNameAndVersionInfo() {
 		c.OSUser = u.Username
 	}
 
-	c.ClientVersionMajor = dbmsVersionMajor
-	c.ClientVersionMinor = dbmsVersionMinor
-	c.ClientVersionPatch = dbmsVersionPatch
-	c.ClientRevision = dbmsVersionRevision
+	c.ClientVersionMajor = clientVersionMajor
+	c.ClientVersionMinor = clientVersionMinor
+	c.ClientVersionPatch = clientVersionPatch
+	c.ClientRevision = helper.ClientTCPVersion
 }

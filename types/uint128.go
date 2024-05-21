@@ -3,6 +3,7 @@ package types
 import (
 	"math"
 	"math/big"
+	"strconv"
 )
 
 // Note, Zero and Max are functions just to make read-only values.
@@ -86,4 +87,40 @@ func (u Uint128) Big() *big.Int {
 // but use of the Equals method is preferred for consistency.
 func (u Uint128) Equals(v Uint128) bool {
 	return (u.Lo == v.Lo) && (u.Hi == v.Hi)
+}
+
+// Equals returns true if two 128-bit values are equal.
+// Uint128 values can be compared directly with == operator
+// but use of the Equals method is preferred for consistency.
+func (u Uint128) Int128() Int128 {
+	return Int128{
+		Lo: u.Lo,
+		Hi: int64(u.Hi),
+	}
+}
+
+// Zero returns true if Uint128 value is zero.
+func (u Uint128) Zero() bool {
+	return u.Lo == 0 && u.Hi == 0
+}
+
+func (u Uint128) Uint64() uint64 {
+	return u.Lo
+}
+
+func (u Uint128) String() string {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.FormatUint(u.Lo, 10)
+	}
+
+	return u.Big().String()
+}
+
+func (u Uint128) Append(b []byte) []byte {
+	// Check if the high part is 0, which simplifies the conversion
+	if u.Hi == 0 {
+		return strconv.AppendUint(b, u.Lo, 10)
+	}
+	return u.Big().Append(b, 10)
 }

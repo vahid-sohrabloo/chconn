@@ -13,538 +13,497 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var parseConfigTests = []struct {
-	name       string
-	connString string
-	config     *Config
-}{
-	// Test all sslmodes
-	{
-		name:       "sslmode not set (disable)",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			Database:      "mydb",
-			ClientName:    defaultClientName,
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
+func TestParseConfig(t *testing.T) {
+	t.Parallel()
+
+	config, err := ParseConfig("")
+	require.NoError(t, err)
+	defaultHost := config.Host
+
+	test := []struct {
+		name       string
+		connString string
+		config     *Config
+	}{
+		// Test all sslmodes
+		{
+			name:       "sslmode not set (disable)",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          9000,
+				Database:      "mydb",
+				ClientName:    defaultClientName,
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
 		},
-	},
-	{
-		name:       "sslmode disable",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			ClientName:    defaultClientName,
-			Port:          9000,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
+		{
+			name:       "sslmode disable",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "localhost",
+				ClientName:    defaultClientName,
+				Port:          9000,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
 		},
-	},
-	{
-		name:       "sslmode allow",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=allow",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host: "localhost",
-					Port: 9000,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
+		{
+			name:       "sslmode insecure",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=insecure",
+			config: &Config{
+				User:       "vahid",
+				Password:   "secret",
+				Host:       "localhost",
+				Port:       9000,
+				ClientName: defaultClientName,
+				Database:   "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "localhost",
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "sslmode require",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=require",
+			config: &Config{
+				User:       "vahid",
+				Password:   "secret",
+				Host:       "localhost",
+				Port:       9000,
+				Database:   "mydb",
+				ClientName: defaultClientName,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "localhost",
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "sslmode verify-ca",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=verify-ca",
+			config: &Config{
+				User:       "vahid",
+				Password:   "secret",
+				Host:       "localhost",
+				Port:       9000,
+				ClientName: defaultClientName,
+				Database:   "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "localhost",
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "sslmode verify-full",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=verify-full",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     &tls.Config{ServerName: "localhost"},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url everything",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable&client_name=chxtest&extradata=test&connect_timeout=5",
+			config: &Config{
+				User:           "vahid",
+				Password:       "secret",
+				Host:           "localhost",
+				Port:           9000,
+				Database:       "mydb",
+				TLSConfig:      nil,
+				ConnectTimeout: 5 * time.Second,
+				ClientName:     "chxtest",
+				RuntimeParams: map[string]string{
+					"extradata": "test",
+				},
+			},
+		},
+		{
+			name:       "database url missing password",
+			connString: "clickhouse://vahid@localhost:9000/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url missing user and password",
+			connString: "clickhouse://localhost:9000/mydb?sslmode=disable",
+			config: &Config{
+				User:          defaultUsername,
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url missing port",
+			connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url clickhouse protocol",
+			connString: "clickhouse://vahid@localhost:9000/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url IPv4 with port",
+			connString: "clickhouse://vahid@127.0.0.1:5433/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Host:          "127.0.0.1",
+				ClientName:    defaultClientName,
+				Port:          5433,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url IPv6 with port",
+			connString: "clickhouse://vahid@[2001:db8::1]:5433/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Host:          "2001:db8::1",
+				Port:          5433,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "database url IPv6 no port",
+			connString: "clickhouse://vahid@[2001:db8::1]/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Host:          "2001:db8::1",
+				Port:          9000,
+				Database:      "mydb",
+				ClientName:    defaultClientName,
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN everything",
+			connString: "user=vahid password=secret host=localhost port=9000 dbname=mydb sslmode=disable client_name=chxtest connect_timeout=5",
+			config: &Config{
+				User:           "vahid",
+				Password:       "secret",
+				Host:           "localhost",
+				Port:           9000,
+				Database:       "mydb",
+				TLSConfig:      nil,
+				ClientName:     "chxtest",
+				ConnectTimeout: 5 * time.Second,
+				RuntimeParams:  map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with escaped single quote",
+			connString: "user=vahid\\'s password=secret host=localhost port=9000 dbname=mydb sslmode=disable",
+			config: &Config{
+				User:          "vahid's",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with escaped backslash",
+			connString: "user=vahid password=sooper\\\\secret host=localhost port=9000 dbname=mydb sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "sooper\\secret",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with single quoted values",
+			connString: "user='vahid' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &Config{
+				User:          "vahid",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with single quoted value with escaped single quote",
+			connString: "user='vahid\\'s' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &Config{
+				User:          "vahid's",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with empty single quoted value",
+			connString: "user='vahid' password='' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &Config{
+				User:          "vahid",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with space between key and value",
+			connString: "user = 'vahid' password = '' host = 'localhost' dbname = 'mydb' sslmode='disable'",
+			config: &Config{
+				User:          "vahid",
+				Host:          "localhost",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "URL multiple hosts",
+			connString: "clickhouse://vahid:secret@foo,bar,baz/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      9000,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      9000,
+						TLSConfig: nil,
 					},
 				},
 			},
 		},
-	},
-	{
-		name:       "sslmode prefer",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=prefer",
-		config: &Config{
+		{
+			name:       "URL multiple hosts and ports",
+			connString: "clickhouse://vahid:secret@foo:1,bar:2,baz:3/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          1,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      2,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "URL without host but with port still uses default host",
+			connString: "clickhouse://vahid:secret@:1/mydb?sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          defaultHost,
+				Port:          1,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN multiple hosts one port",
+			connString: "user=vahid password=secret host=foo,bar,baz port=9000 dbname=mydb sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          9000,
+				ClientName:    defaultClientName,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      9000,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      9000,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "DSN multiple hosts multiple ports",
+			connString: "user=vahid password=secret host=foo,bar,baz port=1,2,3 dbname=mydb sslmode=disable",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          1,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				ClientName:    defaultClientName,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      2,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "SNI is set by default",
+			connString: "clickhouse://vahid:secret@sni.test:9000/mydb?sslmode=require",
+			config: &Config{
+				User:       "vahid",
+				Password:   "secret",
+				Host:       "sni.test",
+				Port:       9000,
+				Database:   "mydb",
+				ClientName: defaultClientName,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "sni.test",
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is not set for IPv4",
+			connString: "clickhouse://vahid:secret@1.1.1.1:9000/mydb?sslmode=require",
+			config: &Config{
+				User:       "vahid",
+				Password:   "secret",
+				Host:       "1.1.1.1",
+				Port:       9000,
+				Database:   "mydb",
+				ClientName: defaultClientName,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "enable compress",
+			connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=disable compress=checksum",
+			config: &Config{
+				User:          "vahid",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          9000,
+				Database:      "mydb",
+				Compress:      CompressChecksum,
+				ClientName:    defaultClientName,
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*FallbackConfig{
+					{
+						Host:      "bar",
+						Port:      9000,
+						TLSConfig: nil,
+					},
+					{
+						Host:      "baz",
+						Port:      9000,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+	}
 
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "localhost",
-			Port:       9000,
-			Database:   "mydb",
-			ClientName: defaultClientName,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "localhost",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "sslmode require",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=require",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			Database:      "mydb",
-			ClientName:    defaultClientName,
-			RuntimeParams: map[string]string{},
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	},
-	{
-		name:       "sslmode verify-ca",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=verify-ca",
-		config: &Config{
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "localhost",
-			Port:       9000,
-			ClientName: defaultClientName,
-			Database:   "mydb",
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "sslmode verify-full",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=verify-full",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     &tls.Config{ServerName: "localhost"},
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url everything",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable&client_name=chxtest&extradata=test&connect_timeout=5",
-		config: &Config{
-			User:           "vahid",
-			Password:       "secret",
-			Host:           "localhost",
-			Port:           9000,
-			Database:       "mydb",
-			TLSConfig:      nil,
-			ConnectTimeout: 5 * time.Second,
-			ClientName:     "chxtest",
-			RuntimeParams: map[string]string{
-				"extradata": "test",
-			},
-		},
-	},
-	{
-		name:       "database url missing password",
-		connString: "clickhouse://vahid@localhost:9000/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url missing user and password",
-		connString: "clickhouse://localhost:9000/mydb?sslmode=disable",
-		config: &Config{
-			User:          defaultUsername,
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url missing port",
-		connString: "clickhouse://vahid:secret@localhost:9000/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url clickhouse protocol",
-		connString: "clickhouse://vahid@localhost:9000/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url IPv4 with port",
-		connString: "clickhouse://vahid@127.0.0.1:5433/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Host:          "127.0.0.1",
-			ClientName:    defaultClientName,
-			Port:          5433,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url IPv6 with port",
-		connString: "clickhouse://vahid@[2001:db8::1]:5433/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Host:          "2001:db8::1",
-			Port:          5433,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "database url IPv6 no port",
-		connString: "clickhouse://vahid@[2001:db8::1]/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Host:          "2001:db8::1",
-			Port:          9000,
-			Database:      "mydb",
-			ClientName:    defaultClientName,
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN everything",
-		connString: "user=vahid password=secret host=localhost port=9000 dbname=mydb sslmode=disable client_name=chxtest connect_timeout=5",
-		config: &Config{
-			User:           "vahid",
-			Password:       "secret",
-			Host:           "localhost",
-			Port:           9000,
-			Database:       "mydb",
-			TLSConfig:      nil,
-			ClientName:     "chxtest",
-			ConnectTimeout: 5 * time.Second,
-			RuntimeParams:  map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with escaped single quote",
-		connString: "user=vahid\\'s password=secret host=localhost port=9000 dbname=mydb sslmode=disable",
-		config: &Config{
-			User:          "vahid's",
-			Password:      "secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with escaped backslash",
-		connString: "user=vahid password=sooper\\\\secret host=localhost port=9000 dbname=mydb sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "sooper\\secret",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with single quoted values",
-		connString: "user='vahid' host='localhost' dbname='mydb' sslmode='disable'",
-		config: &Config{
-			User:          "vahid",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with single quoted value with escaped single quote",
-		connString: "user='vahid\\'s' host='localhost' dbname='mydb' sslmode='disable'",
-		config: &Config{
-			User:          "vahid's",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with empty single quoted value",
-		connString: "user='vahid' password='' host='localhost' dbname='mydb' sslmode='disable'",
-		config: &Config{
-			User:          "vahid",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "DSN with space between key and value",
-		connString: "user = 'vahid' password = '' host = 'localhost' dbname = 'mydb' sslmode='disable'",
-		config: &Config{
-			User:          "vahid",
-			Host:          "localhost",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-		},
-	},
-	{
-		name:       "URL multiple hosts",
-		connString: "clickhouse://vahid:secret@foo,bar,baz/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "foo",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "bar",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host:      "baz",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "URL multiple hosts and ports",
-		connString: "clickhouse://vahid:secret@foo:1,bar:2,baz:3/mydb?sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "foo",
-			Port:          1,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "bar",
-					Port:      2,
-					TLSConfig: nil,
-				},
-				{
-					Host:      "baz",
-					Port:      3,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "DSN multiple hosts one port",
-		connString: "user=vahid password=secret host=foo,bar,baz port=9000 dbname=mydb sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "foo",
-			Port:          9000,
-			ClientName:    defaultClientName,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "bar",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host:      "baz",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "DSN multiple hosts multiple ports",
-		connString: "user=vahid password=secret host=foo,bar,baz port=1,2,3 dbname=mydb sslmode=disable",
-		config: &Config{
-			User:          "vahid",
-			Password:      "secret",
-			Host:          "foo",
-			Port:          1,
-			Database:      "mydb",
-			TLSConfig:     nil,
-			ClientName:    defaultClientName,
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "bar",
-					Port:      2,
-					TLSConfig: nil,
-				},
-				{
-					Host:      "baz",
-					Port:      3,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "multiple hosts and fallback tsl",
-		connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=prefer",
-		config: &Config{
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "foo",
-			Port:       9000,
-			Database:   "mydb",
-			ClientName: defaultClientName,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "foo",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host: "bar",
-					Port: 9000,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					}},
-				{
-					Host:      "bar",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host: "baz",
-					Port: 9000,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					}},
-				{
-					Host:      "baz",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-	{
-		name:       "enable compress",
-		connString: "user=vahid password=secret host=foo,bar,baz dbname=mydb sslmode=prefer compress=checksum",
-		config: &Config{
-			User:       "vahid",
-			Password:   "secret",
-			Host:       "foo",
-			Port:       9000,
-			Database:   "mydb",
-			Compress:   CompressChecksum,
-			ClientName: defaultClientName,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			RuntimeParams: map[string]string{},
-			Fallbacks: []*FallbackConfig{
-				{
-					Host:      "foo",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host: "bar",
-					Port: 9000,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					}},
-				{
-					Host:      "bar",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-				{
-					Host: "baz",
-					Port: 9000,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					}},
-				{
-					Host:      "baz",
-					Port:      9000,
-					TLSConfig: nil,
-				},
-			},
-		},
-	},
-}
-
-func TestParseConfig(t *testing.T) {
-	t.Parallel()
-
-	for i, tt := range parseConfigTests {
+	for i, tt := range test {
 		config, err := ParseConfig(tt.connString)
 		if !assert.Nilf(t, err, "Test %d (%s)", i, tt.name) {
 			continue
@@ -589,9 +548,11 @@ func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
 
 	copied.Port = uint16(5433)
 	copied.RuntimeParams["foo"] = "bar"
+	copied.Fallbacks[0].Port = uint16(9000)
 
 	assert.Equal(t, uint16(9000), original.Port)
 	assert.Equal(t, "", original.RuntimeParams["foo"])
+	assert.Equal(t, uint16(9000), original.Fallbacks[0].Port)
 }
 
 func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
@@ -675,6 +636,34 @@ func assertConfigsEqual(t *testing.T, expected, actual *Config, testName string)
 }
 
 func TestParseConfigEnv(t *testing.T) {
+	chEnvvars := []string{
+		"CHHOST",
+		"CHPORT",
+		"CHDATABASE",
+		"CHUSER",
+		"CHPASSWORD",
+		"CHCLIENTNAME",
+		"CHCONNECT_TIMEOUT",
+		"CHSSLMODE",
+		"CHSSLCERT",
+		"CHSSLKEY",
+		"CHSSLSNI",
+		"CHSSLROOTCERT",
+		"CHSSLPASSWORD",
+	}
+	savedEnv := make(map[string]string)
+	for _, n := range chEnvvars {
+		savedEnv[n] = os.Getenv(n)
+	}
+	defer func() {
+		for k, v := range savedEnv {
+			err := os.Setenv(k, v)
+			if err != nil {
+				t.Fatalf("Unable to restore environment: %v", err)
+			}
+		}
+	}()
+
 	tests := []struct {
 		name    string
 		envvars map[string]string
@@ -718,22 +707,26 @@ func TestParseConfigEnv(t *testing.T) {
 				RuntimeParams:  map[string]string{},
 			},
 		},
+		{
+			name: "SNI can be disabled via environment variable",
+			envvars: map[string]string{
+				"CHHOST":    "test.foo",
+				"CHSSLMODE": "require",
+				"CHSSLSNI":  "0",
+			},
+			config: &Config{
+				User:       defaultUsername,
+				Host:       "test.foo",
+				Port:       9000,
+				ClientName: defaultClientName,
+				Database:   defaultDatabase,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
 	}
-	chEnvvars := []string{"CHHOST", "CHPORT", "CHDATABASE", "CHUSER", "CHPASSWORD", "CHCLIENTNAME", "CHSSLMODE", "CHCONNECT_TIMEOUT"}
-
-	savedEnv := make(map[string]string)
-	for _, n := range chEnvvars {
-		savedEnv[n] = os.Getenv(n)
-	}
-
-	defer func() {
-		for k, v := range savedEnv {
-			err := os.Setenv(k, v)
-			if err != nil {
-				t.Fatalf("Unable to restore environment: %v", err)
-			}
-		}
-	}()
 
 	for i, tt := range tests {
 		for _, n := range chEnvvars {
@@ -782,7 +775,7 @@ func TestParseConfigError(t *testing.T) {
 		{
 			name:       "invalid url",
 			connString: "clickhouse://invalid\t",
-			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)", //nolint:lll //can't change line lengh
+			err:        "cannot parse `clickhouse://invalid\t`: failed to parse as URL (parse \"clickhouse://invalid\\t\": net/url: invalid control character in URL)", //nolint:lll //can't change line length
 		}, {
 			name:       "invalid port",
 			connString: "port=invalid",
@@ -805,20 +798,20 @@ func TestParseConfigError(t *testing.T) {
 			err:        "cannot parse `sslmode=invalid`: failed to configure TLS (sslmode is invalid)",
 		}, {
 			name:       "fail load sslrootcert",
-			connString: "sslrootcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslrootcert=invalid_address sslmode=prefer`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)", //nolint:lll //can't change line lengh
+			connString: "sslrootcert=invalid_address sslmode=require",
+			err:        "cannot parse `sslrootcert=invalid_address sslmode=require`: failed to configure TLS (unable to read CA file: open invalid_address: no such file or directory)", //nolint:lll //can't change line length
 		}, {
 			name:       "invalid sslrootcert",
-			connString: "sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer",
-			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=prefer`: failed to configure TLS (unable to add CA to cert pool)", //nolint:lll //can't change line lengh
+			connString: "sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=require",
+			err:        "cannot parse `sslrootcert=" + tmpInvalidTLS.Name() + " sslmode=require`: failed to configure TLS (unable to add CA to cert pool)", //nolint:lll //can't change line length
 		}, {
 			name:       "not provide both sslcert and sskkey",
-			connString: "sslcert=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslmode=prefer`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)", //nolint:lll //can't change line lengh
+			connString: "sslcert=invalid_address sslmode=require",
+			err:        "cannot parse `sslcert=invalid_address sslmode=require`: failed to configure TLS (both \"sslcert\" and \"sslkey\" are required)", //nolint:lll //can't change line length
 		}, {
 			name:       "invalid sslcert",
-			connString: "sslcert=invalid_address sslkey=invalid_address sslmode=prefer",
-			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=prefer`: failed to configure TLS (unable to read cert: open invalid_address: no such file or directory)", //nolint:lll //can't change line lengh
+			connString: "sslcert=invalid_address sslkey=invalid_address sslmode=require",
+			err:        "cannot parse `sslcert=invalid_address sslkey=invalid_address sslmode=require`: failed to configure TLS (unable to read sslkey: open invalid_address: no such file or directory)", //nolint:lll //can't change line length
 		},
 	}
 

@@ -1,13 +1,15 @@
 package column
 
 import (
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // ArrayBase is a column of Array(T) ClickHouse data type
@@ -15,17 +17,19 @@ import (
 // ArrayBase is a base class for other arrays or use for none generic use
 type ArrayBase struct {
 	column
-	offsetColumn *Base[uint64]
-	dataColumn   ColumnBasic
-	offset       uint64
-	resetHook    func()
+	offsetColumn    *Base[uint64]
+	dataColumn      ColumnBasic
+	offset          uint64
+	arrayChconnType string
+	resetHook       func()
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
 func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 	a := &ArrayBase{
-		dataColumn:   dataColumn,
-		offsetColumn: New[uint64](),
+		dataColumn:      dataColumn,
+		offsetColumn:    New[uint64](),
+		arrayChconnType: "column.ArrayBase",
 	}
 	return a
 }
@@ -34,6 +38,112 @@ func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
 func (c *ArrayBase) AppendLen(v int) {
 	c.offset += uint64(v)
 	c.offsetColumn.Append(c.offset)
+	c.preHookAppend()
+}
+
+func (c *ArrayBase) canAppend(value any) bool {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return false
+	}
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		if !c.dataColumn.canAppend(item) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *ArrayBase) AppendAny(value any) error {
+	sliceVal := reflect.ValueOf(value)
+	if sliceVal.Kind() != reflect.Slice {
+		return fmt.Errorf("value is not a slice")
+	}
+
+	for i := 0; i < sliceVal.Len(); i++ {
+		item := sliceVal.Index(i).Interface()
+		err := c.dataColumn.AppendAny(item)
+		if err != nil {
+			return fmt.Errorf("cannot append array item %v: %w", item, err)
+		}
+	}
+
+	c.AppendLen(sliceVal.Len())
+
+	return nil
+}
+
+// Remove inserted value from index
+//
+// its equal to data = data[:n]
+func (c *ArrayBase) Remove(n int) {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	var offset uint64
+	if n != 0 {
+		offset = c.offsetColumn.values[n-1]
+	}
+	c.offsetColumn.Remove(n)
+	c.dataColumn.Remove(int(offset))
+}
+
+func (c *ArrayBase) RowAny(row int) any {
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+	var val []any
+	endOffset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < endOffset; i++ {
+		val = append(val, c.dataColumn.RowAny(int(i)))
+	}
+	return val
+}
+
+func (c *ArrayBase) Scan(row int, dest any) error {
+	switch v := dest.(type) {
+	case *any:
+		*v = c.RowAny(row)
+		return nil
+	case *[]any:
+		*v = c.RowAny(row).([]any)
+		return nil
+	case sql.Scanner:
+		return v.Scan(c.RowAny(row))
+	}
+
+	return c.ScanValue(row, reflect.ValueOf(dest))
+}
+
+func (c *ArrayBase) ScanValue(row int, dest reflect.Value) error {
+	destValue := reflect.Indirect(dest)
+	if destValue.Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be a pointer to slice")
+	}
+	rowVal := reflect.ValueOf(c.RowAny(row))
+	if destValue.Type().AssignableTo(rowVal.Type()) {
+		destValue.Set(rowVal)
+		return nil
+	}
+
+	var lastOffset int
+	if row != 0 {
+		lastOffset = int(c.offsetColumn.Row(row - 1))
+	}
+	offset := int(c.offsetColumn.Row(row))
+
+	rSlice := reflect.MakeSlice(destValue.Type(), offset-lastOffset, offset-lastOffset)
+	for i, b := lastOffset, 0; i < offset; i, b = i+1, b+1 {
+		err := c.dataColumn.Scan(i, rSlice.Index(b).Addr().Interface())
+		if err != nil {
+			return fmt.Errorf("cannot scan array item %d: %w", i, err)
+		}
+	}
+	destValue.Set(rSlice)
+
+	return nil
 }
 
 // NumRow return number of row for this block
@@ -119,7 +229,18 @@ func (c *ArrayBase) Column() ColumnBasic {
 	return c.dataColumn
 }
 
-func (c *ArrayBase) Validate() error {
+func (c *ArrayBase) Validate(forInsert bool) error {
+	if forInsert {
+		var offset uint64
+		if len(c.offsetColumn.values) > 0 {
+			offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]
+		}
+		if offset != uint64(c.dataColumn.NumRow()) {
+			return fmt.Errorf("array length is not equal to data length: %d != %d %s",
+				c.offsetColumn.values[len(c.offsetColumn.values)-1],
+				c.dataColumn.NumRow(), c.FullType())
+		}
+	}
 	chType := helper.FilterSimpleAggregate(c.chType)
 	switch {
 	case helper.IsRing(chType):
@@ -133,21 +254,32 @@ func (c *ArrayBase) Validate() error {
 	chType = helper.NestedToArrayType(chType)
 
 	if !helper.IsArray(chType) {
-		return ErrInvalidType{
-			column: c,
+		return &ErrInvalidType{
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	c.dataColumn.SetType(chType[helper.LenArrayStr : len(chType)-1])
-	if c.dataColumn.Validate() != nil {
-		return ErrInvalidType{
-			column: c,
+	if err := c.dataColumn.Validate(forInsert); err != nil {
+		if !isInvalidType(err) {
+			return err
+		}
+		return &ErrInvalidType{
+			chType:     string(c.chType),
+			chconnType: c.chconnType(),
+			goToChType: c.structType(),
 		}
 	}
 	return nil
 }
 
-func (c *ArrayBase) ColumnType() string {
-	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.ColumnType())
+func (c *ArrayBase) chconnType() string {
+	return c.arrayChconnType
+}
+
+func (c *ArrayBase) structType() string {
+	return strings.ReplaceAll(helper.ArrayTypeStr, "<type>", c.dataColumn.structType())
 }
 
 // WriteTo write data to ClickHouse.
@@ -173,4 +305,29 @@ func (c *ArrayBase) elem(arrayLevel int) ColumnBasic {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *ArrayBase) FullType() string {
+	if len(c.name) == 0 {
+		return "Array(" + c.dataColumn.FullType() + ")"
+	}
+	return string(c.name) + " Array(" + c.dataColumn.FullType() + ")"
+}
+
+func (c *ArrayBase) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	b = append(b, '[')
+
+	var lastOffset uint64
+	if row != 0 {
+		lastOffset = c.offsetColumn.Row(row - 1)
+	}
+
+	offset := c.offsetColumn.Row(row)
+	for i := lastOffset; i < offset; i++ {
+		if i != lastOffset {
+			b = append(b, ',')
+		}
+		b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
+	}
+	return append(b, ']')
 }

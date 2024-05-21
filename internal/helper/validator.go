@@ -60,6 +60,10 @@ func IsMultiPolygon(chType []byte) bool {
 	return string(chType) == MultiPolygonStr
 }
 
+func IsNothing(chType []byte) bool {
+	return string(chType) == NothingStr
+}
+
 func IsNested(chType []byte) bool {
 	return len(chType) > LenNestedStr && string(chType[:LenNestedStr]) == NestedStr
 }
@@ -110,6 +114,10 @@ func IsPoint(chType []byte) bool {
 
 func IsTuple(chType []byte) bool {
 	return len(chType) > LenTupleStr && string(chType[:LenTupleStr]) == TupleStr
+}
+
+func IsVariant(chType []byte) bool {
+	return len(chType) > LenVariantStr && string(chType[:LenVariantStr]) == VariantStr
 }
 
 type ColumnData struct {

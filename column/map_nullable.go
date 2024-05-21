@@ -1,6 +1,10 @@
 package column
 
-import "github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+import (
+	"reflect"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+)
 
 // MapNullable is a column of Map(K,V) ClickHouse data type where V is nullable.
 // Map in clickhouse actually is a array of pair(K,V)
@@ -20,9 +24,10 @@ func NewMapNullable[K comparable, V any](
 		valueColumn: valueColumn,
 		Map: Map[K, V]{
 			MapBase: MapBase{
-				keyColumn:    keyColumn,
-				valueColumn:  valueColumn,
-				offsetColumn: New[uint64](),
+				keyColumn:     keyColumn,
+				valueColumn:   valueColumn,
+				offsetColumn:  New[uint64](),
+				mapChconnType: "MapNullable[]" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
 			},
 		},
 	}
