@@ -444,7 +444,7 @@ func (ch *conn) hello() error {
 		return fmt.Errorf("write hello: %w", err)
 	}
 
-	res, err := ch.receiveAndProcessData(emptyOnProgress)
+	res, err := ch.receiveAndProcessData(emptyQueryOptions)
 	if err != nil {
 		return err
 	}
@@ -573,7 +573,7 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (any, error) {
+func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}
@@ -587,15 +587,24 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (any, error) {
 		profile := newProfile()
 
 		err = profile.read(ch)
-		return profile, err
+		if err != nil {
+			return nil, err
+		}
+		if queryOption.OnProfile != nil {
+			queryOption.OnProfile(profile)
+		}
+		return ch.receiveAndProcessData(queryOption)
 	case serverProgress:
 		progress := newProgress()
 		err = progress.read(ch)
-		if err == nil && onProgress != nil {
-			onProgress(progress)
-			return ch.receiveAndProcessData(onProgress)
+		if err != nil {
+			return nil, err
 		}
-		return progress, err
+		if queryOption.OnProgress != nil {
+			queryOption.OnProgress(progress)
+		}
+		return ch.receiveAndProcessData(queryOption)
+
 	case serverHello:
 		err = ch.serverInfo.read(ch.reader)
 		return nil, err
@@ -613,39 +622,35 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (any, error) {
 
 	case serverTableColumns:
 		ch.readTableColumn()
-		return ch.receiveAndProcessData(onProgress)
+		return ch.receiveAndProcessData(queryOption)
 	case serverProfileEvents:
 		ch.block.reset()
 		oldCompress := ch.compress
-		defer func() {
-			ch.compress = oldCompress
-		}()
 		ch.compress = false
 		err = ch.block.read()
 		if err != nil {
+			ch.compress = oldCompress
 			return nil, err
 		}
 		err := ch.profileEvent.read(ch)
+		ch.compress = oldCompress
 		if err != nil {
 			return nil, err
 		}
-		return ch.profileEvent, nil
+		if queryOption.OnProfileEvent != nil {
+			queryOption.OnProfileEvent(ch.profileEvent)
+		}
+		return ch.receiveAndProcessData(queryOption)
 	case serverTimezoneUpdate:
 		// TODO: save timezone
 		ch.reader.String() //nolint:errcheck //no needed
-		return ch.receiveAndProcessData(onProgress)
+		return ch.receiveAndProcessData(queryOption)
 	}
 
 	return nil, &notImplementedPacket{packet: packet}
 }
 
-var emptyOnProgress = func(*Progress) {
-
-}
-
-var emptyQueryOptions = &QueryOptions{
-	OnProgress: emptyOnProgress,
-}
+var emptyQueryOptions = &QueryOptions{}
 
 type QueryOptions struct {
 	QueryID        string
@@ -665,44 +670,14 @@ func (ch *conn) ExecWithOption(
 	query string,
 	queryOptions *QueryOptions,
 ) error {
-	err := ch.lock()
+	stmt, err := ch.SelectWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		ch.unlock()
-		if err != nil {
-			ch.Close()
+	if stmt != nil {
+		for stmt.Next() {
 		}
-	}()
-
-	if ctx != context.Background() {
-		select {
-		case <-ctx.Done():
-			return newContextAlreadyDoneError(ctx)
-		default:
-		}
-		ch.contextWatcher.Watch(ctx)
-		defer ch.contextWatcher.Unwatch()
+		return stmt.Err()
 	}
-
-	if queryOptions == nil {
-		queryOptions = emptyQueryOptions
-	}
-
-	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
-	if err != nil {
-		return preferContextOverNetTimeoutError(ctx, err)
-	}
-
-	if queryOptions.OnProgress == nil {
-		queryOptions.OnProgress = emptyOnProgress
-	}
-
-	res, err := ch.receiveAndProcessData(queryOptions.OnProgress)
-
-	if block, ok := res.(*block); ok {
-		return preferContextOverNetTimeoutError(ctx, block.skipBlock())
-	}
-	return preferContextOverNetTimeoutError(ctx, err)
+	return nil
 }

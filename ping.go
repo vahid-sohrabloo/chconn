@@ -29,7 +29,7 @@ func (ch *conn) Ping(ctx context.Context) error {
 		return &writeError{"ping: write packet type", preferContextOverNetTimeoutError(ctx, err)}
 	}
 
-	res, err := ch.receiveAndProcessData(emptyOnProgress)
+	res, err := ch.receiveAndProcessData(emptyQueryOptions)
 	if err != nil {
 		hasError = true
 		return preferContextOverNetTimeoutError(ctx, err)

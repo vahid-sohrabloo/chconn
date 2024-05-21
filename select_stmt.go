@@ -7,13 +7,19 @@ import (
 )
 
 // Select executes a query and return select stmt.
+//
 // NOTE: only use for select query
+//
+// it can return nil for query that doesn't return block.
 func (ch *conn) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error) {
 	return ch.SelectWithOption(ctx, query, nil, columns...)
 }
 
 // Select executes a query with the the query options and return select stmt.
+//
 // NOTE: only use for select query
+//
+// it can return nil for query that doesn't return block.
 func (ch *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
@@ -61,12 +67,17 @@ func (ch *conn) SelectWithOption(
 		s.lastErr = preferContextOverNetTimeoutError(ctx, err)
 		return s, s.lastErr
 	}
-
-	res, err := s.conn.receiveAndProcessData(nil)
+	res, err := s.conn.receiveAndProcessData(s.queryOptions)
 	if err != nil {
 		s.lastErr = err
 		s.Close()
 		return s, s.lastErr
+	}
+	if res == nil {
+		s.finishSelect = true
+		s.columnsForRead = nil
+		s.Close()
+		return nil, nil
 	}
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {
@@ -150,7 +161,7 @@ func (s *selectStmt) Next() bool {
 		return false
 	}
 	s.conn.reader.SetCompress(false)
-	res, err := s.conn.receiveAndProcessData(nil)
+	res, err := s.conn.receiveAndProcessData(s.queryOptions)
 	if err != nil {
 		s.lastErr = err
 		s.Close()
@@ -184,26 +195,6 @@ func (s *selectStmt) Next() bool {
 			return false
 		}
 		return true
-	}
-
-	if profile, ok := res.(*Profile); ok {
-		if s.queryOptions.OnProfile != nil {
-			s.queryOptions.OnProfile(profile)
-		}
-		return s.Next()
-	}
-	if progress, ok := res.(*Progress); ok {
-		if s.queryOptions.OnProgress != nil {
-			s.queryOptions.OnProgress(progress)
-		}
-		return s.Next()
-	}
-
-	if profileEvent, ok := res.(*ProfileEvent); ok {
-		if s.queryOptions.OnProfileEvent != nil {
-			s.queryOptions.OnProfileEvent(profileEvent)
-		}
-		return s.Next()
 	}
 
 	if res == nil {

@@ -72,39 +72,19 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 	}
 
 	var res any
-	for {
-		res, err = s.conn.receiveAndProcessData(emptyOnProgress)
+	res, err = s.conn.receiveAndProcessData(s.queryOptions)
 
-		if err != nil {
-			s.hasError = true
-			return err
-		}
-
-		if res == nil {
-			return nil
-		}
-
-		if profile, ok := res.(*Profile); ok {
-			if s.queryOptions.OnProfile != nil {
-				s.queryOptions.OnProfile(profile)
-			}
-			continue
-		}
-		if progress, ok := res.(*Progress); ok {
-			if s.queryOptions.OnProgress != nil {
-				s.queryOptions.OnProgress(progress)
-			}
-			continue
-		}
-		if profileEvent, ok := res.(*ProfileEvent); ok {
-			if s.queryOptions.OnProfileEvent != nil {
-				s.queryOptions.OnProfileEvent(profileEvent)
-			}
-			continue
-		}
+	if err != nil {
 		s.hasError = true
-		return &unexpectedPacket{expected: "serverData", actual: res}
+		return err
 	}
+
+	if res == nil {
+		return nil
+	}
+
+	s.hasError = true
+	return &unexpectedPacket{expected: "serverData", actual: res}
 }
 
 // Close close the statement and release the connection
@@ -290,39 +270,20 @@ func (ch *conn) InsertStreamWithOption(
 		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 	var blockData *block
-	for {
-		var res any
-		res, err = ch.receiveAndProcessData(queryOptions.OnProgress)
-		if err != nil {
-			hasError = true
-			return nil, preferContextOverNetTimeoutError(ctx, err)
-		}
-		if b, ok := res.(*block); ok {
-			blockData = b
-			break
-		}
+	var res any
+	res, err = ch.receiveAndProcessData(queryOptions)
+	if err != nil {
+		hasError = true
+		return nil, preferContextOverNetTimeoutError(ctx, err)
+	}
 
-		if profile, ok := res.(*Profile); ok {
-			if queryOptions.OnProfile != nil {
-				queryOptions.OnProfile(profile)
-			}
-			continue
-		}
-		if progress, ok := res.(*Progress); ok {
-			if queryOptions.OnProgress != nil {
-				queryOptions.OnProgress(progress)
-			}
-			continue
-		}
-		if profileEvent, ok := res.(*ProfileEvent); ok {
-			if queryOptions.OnProfileEvent != nil {
-				queryOptions.OnProfileEvent(profileEvent)
-			}
-			continue
-		}
-		if res == nil {
-			return nil, nil
-		}
+	if res == nil {
+		return nil, nil
+	}
+
+	if b, ok := res.(*block); ok {
+		blockData = b
+	} else {
 		hasError = true
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
