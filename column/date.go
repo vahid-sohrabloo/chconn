@@ -8,6 +8,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
@@ -222,7 +224,7 @@ func (c *Date[T]) LowCardinality() *LowCardinality[time.Time] {
 	return NewLC[time.Time](c)
 }
 
-func (c *Date[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
+func (c *Date[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
 		return c.LowCardinality().elem(arrayLevel, nullable)
 	}
@@ -236,14 +238,11 @@ func (c *Date[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
 }
 
 func (c *Date[T]) FullType() string {
-	chType := string(c.chType)
-	if chType == "" {
-		chType = "DateTime"
-	}
-	if len(c.name) == 0 {
+	chType := string(c.columnHeader.ChType)
+	if len(c.columnHeader.Name) == 0 {
 		return chType
 	}
-	return string(c.name) + " " + chType
+	return string(c.columnHeader.Name) + " " + chType
 }
 
 func (c Date[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
@@ -256,4 +255,21 @@ func (c Date[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		b = append(b, '"')
 	}
 	return b
+}
+
+func (c *Date[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	var t T
+	switch any(t).(type) {
+	case types.Date:
+		w.Uint8(uint8(helper.BinaryTypeIndexDate))
+	case types.Date32:
+		w.Uint8(uint8(helper.BinaryTypeIndexDate32))
+	case types.DateTime:
+		w.Uint8(uint8(helper.BinaryTypeIndexDateTimeUTC))
+	case types.DateTime64:
+		w.Uint8(uint8(helper.BinaryTypeIndexDateTime64UTC))
+		w.Uint8(uint8(c.precision))
+	default:
+		panic(fmt.Sprintf("invalid type %s", c.rtype))
+	}
 }

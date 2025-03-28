@@ -553,6 +553,7 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	defer db.Close()
 
 	stats := db.Stat()
+	//nolint:staticcheck
 	for !(stats.IdleConns() == 2 && stats.MaxLifetimeDestroyCount() == 0 && stats.NewConnsCount() == 2) && ctx.Err() == nil {
 		time.Sleep(50 * time.Millisecond)
 		stats = db.Stat()
@@ -574,6 +575,7 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	c.Release()
 
 	stats = db.Stat()
+	//nolint:staticcheck
 	for !(stats.IdleConns() == 2 && stats.MaxIdleDestroyCount() == 0 && stats.NewConnsCount() == 3) && ctx.Err() == nil {
 		time.Sleep(50 * time.Millisecond)
 		stats = db.Stat()

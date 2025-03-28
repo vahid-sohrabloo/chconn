@@ -11,6 +11,16 @@ const (
 	LenVariantStr = len(VariantStr)
 )
 
+const (
+	DynamicStr    = "Dynamic"
+	LenDynamicStr = len(DynamicStr)
+)
+
+const (
+	SharedVariantStr    = "SharedVariant"
+	LenSharedVariantStr = len(SharedVariantStr)
+)
+
 var PointMainTypeStr = []byte("Tuple(Float64, Float64)")
 
 const PolygonStr = "Polygon"

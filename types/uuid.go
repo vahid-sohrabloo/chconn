@@ -26,3 +26,7 @@ func (u UUID) Append(b []byte) []byte {
 	ub, _ := uuid.UUID(u.BigEndian()).MarshalText()
 	return append(b, ub...)
 }
+
+func (d UUID) GetCHType() string {
+	return "UUID"
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 // Map is a column of Map(K,V) ClickHouse data type
@@ -18,8 +19,8 @@ import (
 type MapBase struct {
 	column
 	offsetColumn  *Base[uint64]
-	keyColumn     ColumnBasic
-	valueColumn   ColumnBasic
+	keyColumn     ColumnCore
+	valueColumn   ColumnCore
 	offset        uint64
 	mapChconnType string
 	resetHook     func()
@@ -27,7 +28,7 @@ type MapBase struct {
 
 // NewMapBase create a new map column of Map(K,V) ClickHouse data type
 func NewMapBase(
-	keyColumn, valueColumn ColumnBasic,
+	keyColumn, valueColumn ColumnCore,
 ) *MapBase {
 	a := &MapBase{
 		keyColumn:    keyColumn,
@@ -254,19 +255,19 @@ func (c *MapBase) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *MapBase) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *MapBase) ReadRaw(num int) error {
 	c.offsetColumn.Reset()
-	err := c.offsetColumn.ReadRaw(num, r)
+	err := c.offsetColumn.ReadRaw(num)
 	if err != nil {
 		return fmt.Errorf("map: read offset column: %w", err)
 	}
 
-	err = c.keyColumn.ReadRaw(c.TotalRows(), r)
+	err = c.keyColumn.ReadRaw(c.TotalRows())
 	if err != nil {
 		return fmt.Errorf("map: read key column: %w", err)
 	}
 
-	err = c.valueColumn.ReadRaw(c.TotalRows(), r)
+	err = c.valueColumn.ReadRaw(c.TotalRows())
 	if err != nil {
 		return fmt.Errorf("map: read value column: %w", err)
 	}
@@ -277,44 +278,42 @@ func (c *MapBase) ReadRaw(num int, r *readerwriter.Reader) error {
 }
 
 // KeyColumn return the key column
-func (c *MapBase) KeyColumn() ColumnBasic {
+func (c *MapBase) KeyColumn() ColumnCore {
 	return c.keyColumn
 }
 
 // ValueColumn return the value column
-func (c *MapBase) ValueColumn() ColumnBasic {
+func (c *MapBase) ValueColumn() ColumnCore {
 	return c.valueColumn
 }
 
-// HeaderReader reads header data from reader
+// ReadHeader reads header data from reader
 // it uses internally
-func (c *MapBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	err := c.offsetColumn.HeaderReader(r, readColumn, revision)
-	c.name = c.offsetColumn.name
-	c.chType = c.offsetColumn.chType
+func (c *MapBase) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
-	c.keyColumn.SetName(c.name)
-	c.valueColumn.SetName(c.name)
+	c.offsetColumn.r = r
 
-	err = c.keyColumn.HeaderReader(r, false, revision)
+	err = c.keyColumn.ReadHeader(r, serverInfo)
 	if err != nil {
 		return fmt.Errorf("map: read key header: %w", err)
 	}
-	err = c.valueColumn.HeaderReader(r, false, revision)
+	err = c.valueColumn.ReadHeader(r, serverInfo)
 	if err != nil {
 		return fmt.Errorf("map: read value header: %w", err)
 	}
 	return nil
 }
 
-func (c *MapBase) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *MapBase) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 
 	if !helper.IsMap(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
@@ -329,32 +328,40 @@ func (c *MapBase) Validate(forInsert bool) error {
 		return fmt.Errorf("columns number is not equal to map columns number: %d != %d", len(columnsMap), 2)
 	}
 
-	c.keyColumn.SetType(columnsMap[0].ChType)
-	c.keyColumn.SetName(columnsMap[0].Name)
-	c.valueColumn.SetType(columnsMap[1].ChType)
-	c.valueColumn.SetName(columnsMap[1].Name)
-
-	if err := c.keyColumn.Validate(forInsert); err != nil {
+	if err := c.keyColumn.SetColumnHeader(ColumnHeader{
+		ChType: columnsMap[0].ChType,
+		Name:   columnsMap[0].Name,
+	}); err != nil {
 		if !isInvalidType(err) {
-			return err
+			return fmt.Errorf("set key column header: %w", err)
 		}
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
-	if err := c.valueColumn.Validate(forInsert); err != nil {
+
+	if err := c.valueColumn.SetColumnHeader(ColumnHeader{
+		ChType: columnsMap[1].ChType,
+		Name:   columnsMap[1].Name,
+	}); err != nil {
 		if !isInvalidType(err) {
-			return err
+			return fmt.Errorf("set value column header: %w", err)
 		}
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+func (c *MapBase) ValidateInsert() error {
+	if err := c.keyColumn.ValidateInsert(); err != nil {
+		return err
+	}
+	return c.valueColumn.ValidateInsert()
 }
 
 func (c *MapBase) chconnType() string {
@@ -400,10 +407,10 @@ func (c *MapBase) HeaderWriter(w *readerwriter.Writer) {
 }
 
 func (c *MapBase) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return "Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
 	}
-	return string(c.name) + " Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
+	return string(c.columnHeader.Name) + " Map(" + c.keyColumn.FullType() + ", " + c.valueColumn.FullType() + ")"
 }
 
 // ToJSON
@@ -424,4 +431,10 @@ func (c *MapBase) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		b = c.valueColumn.ToJSON(int(i), false, b)
 	}
 	return append(b, '}')
+}
+
+func (c *MapBase) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexMap))
+	c.keyColumn.writeBinaryDataTo(w)
+	c.valueColumn.writeBinaryDataTo(w)
 }

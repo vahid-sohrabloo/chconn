@@ -7,6 +7,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 // Variant is a column of Variant(T1,T2,.....,Tn) ClickHouse data type
@@ -14,27 +15,30 @@ type Variant struct {
 	column
 	discriminators         *Base[uint8]
 	discriminatorsIndexPos []int
-	columns                []ColumnBasic
+	columns                []ColumnCore
 	totalNils              int
 }
 
 // NewVariant create a new Variant of Variant(T1,T2,.....,Tn) ClickHouse data type
-func NewVariant(columns ...ColumnBasic) *Variant {
+func NewVariant(columns ...ColumnCore) *Variant {
 	if len(columns) < 1 {
 		panic("Variant must have at least one column")
-	}
-	sort.Slice(columns, func(i, j int) bool { return columns[i].FullType() < columns[j].FullType() })
-	for i, col := range columns {
-		col.setLocationInParent(i)
 	}
 	v := &Variant{
 		columns:        columns,
 		discriminators: New[uint8](),
 	}
-	for _, col := range columns {
-		col.setVariantParent(v)
-	}
+	v.reorderColumn()
+
 	return v
+}
+
+func (c *Variant) reorderColumn() {
+	sort.Slice(c.columns, func(i, j int) bool { return c.columns[i].FullType() < c.columns[j].FullType() })
+	for i, col := range c.columns {
+		col.setLocationInParent(i)
+		col.setVariantParent(c)
+	}
 }
 
 // NumRow return number of row for this block
@@ -72,8 +76,8 @@ func (c *Variant) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *Variant) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.discriminators.ReadRaw(num, r)
+func (c *Variant) ReadRaw(num int) error {
+	err := c.discriminators.ReadRaw(num)
 	if err != nil {
 		return fmt.Errorf("Variant: read discriminators column: %w", err)
 	}
@@ -88,7 +92,7 @@ func (c *Variant) ReadRaw(num int, r *readerwriter.Reader) error {
 		dataLen[n]++
 	}
 	for i, col := range c.columns {
-		err := col.ReadRaw(dataLen[i], r)
+		err := col.ReadRaw(dataLen[i])
 		if err != nil {
 			return fmt.Errorf("Variant: read column index %d: %w", i, err)
 		}
@@ -96,17 +100,21 @@ func (c *Variant) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
-// HeaderReader reads header data from reader.
-// it uses internally
-func (c *Variant) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	err := c.readColumn(readColumn, revision)
+func (c *Variant) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
+	c.discriminators.r = r
+
+	// ready SerializationVersion.
+	_, err = c.r.Uint64()
+	if err != nil {
+		return fmt.Errorf("Variant: read version: %w", err)
+	}
 
 	for i, col := range c.columns {
-		err = col.HeaderReader(r, false, revision)
+		err := col.ReadHeader(r, serverInfo)
 		if err != nil {
 			return fmt.Errorf("Variant: read column header index %d: %w", i, err)
 		}
@@ -230,34 +238,20 @@ func (c *Variant) Scan(row int, dest any) error {
 }
 
 // Column returns the all sub columns
-func (c *Variant) Columns() []ColumnBasic {
+func (c *Variant) Columns() []ColumnCore {
 	return c.columns
 }
 
-// Validate is validate the column  for insert and select.
-// it uses internally
-func (c *Variant) Validate(forInsert bool) error {
-	if !helper.IsVariant(c.chType) {
+func (c *Variant) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
+	if !helper.IsVariant(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
-	if forInsert {
-		var columnsRowNumber int
-		for _, col := range c.columns {
-			columnsRowNumber += col.NumRow()
-		}
-		expectedRows := c.NumRow() - c.totalNils
-
-		if expectedRows != columnsRowNumber {
-			return fmt.Errorf("Variant: The total number of rows (excluding nils) does not match the sum of rows across all columns."+
-				" Expected %d rows (total rows: %d, nils: %d), but found %d rows in columns",
-				expectedRows, c.NumRow(), c.totalNils, columnsRowNumber)
-		}
-	}
-	chType := helper.FilterSimpleAggregate(c.chType)
 	columnsVariant, err := helper.TypesInParentheses(chType[helper.LenVariantStr : len(chType)-1])
 	if err != nil {
 		return fmt.Errorf("Variant invalid types %w", err)
@@ -265,7 +259,7 @@ func (c *Variant) Validate(forInsert bool) error {
 	if len(columnsVariant) != len(c.columns) {
 		//nolint:goerr113
 		return fmt.Errorf("columns number for %s (%s) is not equal to Variant columns number: %d != %d",
-			string(c.name),
+			string(c.columnHeader.Name),
 			string(c.Type()),
 			len(columnsVariant),
 			len(c.columns),
@@ -273,14 +267,38 @@ func (c *Variant) Validate(forInsert bool) error {
 	}
 
 	for i, col := range c.columns {
-		col.SetType(columnsVariant[i].ChType)
-		col.SetName(columnsVariant[i].Name)
-		if err := col.Validate(forInsert); err != nil {
+		if err := col.SetColumnHeader(ColumnHeader{
+			ChType: columnsVariant[i].ChType,
+			Name:   columnsVariant[i].Name,
+		}); err != nil {
+			return fmt.Errorf("Variant: set column header index %d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// Validate is validate the column  for insert and select.
+// it uses internally
+func (c *Variant) ValidateInsert() error {
+	var columnsRowNumber int
+	for _, col := range c.columns {
+		columnsRowNumber += col.NumRow()
+	}
+	expectedRows := c.NumRow() - c.totalNils
+
+	if expectedRows != columnsRowNumber {
+		return fmt.Errorf("Variant: The total number of rows (excluding nils) does not match the sum of rows across all columns."+
+			" Expected %d rows (total rows: %d, nils: %d), but found %d rows in columns",
+			expectedRows, c.NumRow(), c.totalNils, columnsRowNumber)
+	}
+
+	for _, col := range c.columns {
+		if err := col.ValidateInsert(); err != nil {
 			if !isInvalidType(err) {
 				return err
 			}
 			return &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				chconnType: c.chconnType(),
 				goToChType: c.structType(),
 			}
@@ -325,12 +343,13 @@ func (c *Variant) WriteTo(w io.Writer) (int64, error) {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *Variant) HeaderWriter(w *readerwriter.Writer) {
+	w.Uint64(0)
 	for _, col := range c.columns {
 		col.HeaderWriter(w)
 	}
 }
 
-func (c *Variant) Elem(arrayLevel int) ColumnBasic {
+func (c *Variant) Elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
@@ -367,10 +386,10 @@ func (c *Variant) Remove(n int) {
 
 func (c *Variant) FullType() string {
 	var chType string
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		chType = "Variant("
 	} else {
-		chType = string(c.name) + " Variant("
+		chType = string(c.columnHeader.Name) + " Variant("
 	}
 	for _, col := range c.columns {
 		chType += col.FullType() + ", "
@@ -384,4 +403,12 @@ func (c *Variant) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		return append(b, "null"...)
 	}
 	return c.columns[columnIndex].ToJSON(columnRow, ignoreDoubleQuotes, b)
+}
+
+func (c *Variant) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexVariant))
+	w.Uvarint(uint64(len(c.columns)))
+	for _, col := range c.columns {
+		col.writeBinaryDataTo(w)
+	}
 }

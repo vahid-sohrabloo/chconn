@@ -100,13 +100,13 @@ type Pool interface {
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
+	Insert(ctx context.Context, query string, columns ...column.ColumnCore) error
 	// InsertWithOption executes a insert query with a query options and commit all columns data.
 	//
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnCore) error
 	// Insert executes a insert query and return a InsertStmt.
 	//
 	// NOTE: only use for insert query
@@ -123,7 +123,7 @@ type Pool interface {
 	// Select executes a query and return select stmt.
 	//
 	// NOTE: only use for select query
-	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error)
+	Select(ctx context.Context, query string, columns ...column.ColumnCore) (chconn.SelectStmt, error)
 	// Select executes a query with a query options and return select stmt.
 	//
 	// NOTE: only use for select query
@@ -131,7 +131,7 @@ type Pool interface {
 		ctx context.Context,
 		query string,
 		queryOptions *chconn.QueryOptions,
-		columns ...column.ColumnBasic,
+		columns ...column.ColumnCore,
 	) (chconn.SelectStmt, error)
 	// Query acquires a connection and executes a (select) query that returns chconn.Rows.
 	// See chconn.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
@@ -756,7 +756,7 @@ func (p *pool) QueryRowWithOption(ctx context.Context, sql string, queryOption *
 	return c.getPoolRow(row)
 }
 
-func (p *pool) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error) {
+func (p *pool) Select(ctx context.Context, query string, columns ...column.ColumnCore) (chconn.SelectStmt, error) {
 	return p.SelectWithOption(ctx, query, nil, columns...)
 }
 
@@ -764,7 +764,7 @@ func (p *pool) SelectWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
-	columns ...column.ColumnBasic,
+	columns ...column.ColumnCore,
 ) (chconn.SelectStmt, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
@@ -779,11 +779,11 @@ func (p *pool) SelectWithOption(
 	return s, nil
 }
 
-func (p *pool) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
+func (p *pool) Insert(ctx context.Context, query string, columns ...column.ColumnCore) error {
 	return p.InsertWithOption(ctx, query, nil, columns...)
 }
 
-func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
+func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnCore) error {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return err

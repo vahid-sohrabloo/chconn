@@ -120,6 +120,10 @@ func IsVariant(chType []byte) bool {
 	return len(chType) > LenVariantStr && string(chType[:LenVariantStr]) == VariantStr
 }
 
+func IsDynamic(chType []byte) bool {
+	return string(chType) == DynamicStr
+}
+
 type ColumnData struct {
 	ChType, Name []byte
 }

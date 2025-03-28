@@ -79,7 +79,7 @@ func TestInsertError(t *testing.T) {
 	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error (
 				int8
 			) VALUES`)
-	require.EqualError(t, err, "block: read column name (timeout)")
+	require.EqualError(t, err, "read column name: read string length: timeout")
 	assert.True(t, c.IsClosed())
 
 	config, err = ParseConfig(connString)

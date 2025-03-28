@@ -19,3 +19,7 @@ func (ip IPv6) MarshalText() ([]byte, error) {
 func (ip IPv6) Append(b []byte) []byte {
 	return ip.NetIP().AppendTo(b)
 }
+
+func (d IPv6) GetCHType() string {
+	return "IPv6"
+}

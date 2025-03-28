@@ -72,21 +72,22 @@ func (c *Base[T]) SetStrict(strict bool) *Base[T] {
 	return c
 }
 
-func (c *Base[T]) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *Base[T]) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 
 	if byteSize, ok := chColumnByteSize[string(chType)]; ok {
 		if c.strict {
 			if goTypeToChType[c.kind.String()] != string(chType) && goTypeToChType[c.rtype.String()] != string(chType) {
 				return &ErrInvalidType{
-					chType:     string(c.chType),
+					chType:     string(c.columnHeader.ChType),
 					goToChType: c.structType(),
 					chconnType: c.chconnType(),
 				}
 			}
 		} else if byteSize != c.size {
 			return &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -116,19 +117,23 @@ func (c *Base[T]) Validate(forInsert bool) error {
 	}
 
 	return &ErrInvalidType{
-		chType:     string(c.chType),
+		chType:     string(c.columnHeader.ChType),
 		goToChType: c.structType(),
 		chconnType: c.chconnType(),
 	}
 }
 
+func (c *Base[T]) ValidateInsert() error {
+	return nil
+}
+
 func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 	if helper.IsEnum8(chType) {
-		c.isEnum = true
+		c.isEnum8 = true
 		if c.strict {
 			if c.kind.String() != "int8" {
 				return true, &ErrInvalidType{
-					chType:     string(c.chType),
+					chType:     string(c.columnHeader.ChType),
 					goToChType: c.structType(),
 					chconnType: c.chconnType(),
 				}
@@ -137,7 +142,7 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 		}
 		if c.size != Int8Size {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -149,11 +154,11 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 	if helper.IsEnum16(chType) {
-		c.isEnum = true
+		c.isEnum16 = true
 		if c.strict {
 			if c.kind.String() != "int16" {
 				return true, &ErrInvalidType{
-					chType:     string(c.chType),
+					chType:     string(c.columnHeader.ChType),
 					goToChType: c.structType(),
 					chconnType: c.chconnType(),
 				}
@@ -162,7 +167,7 @@ func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 		}
 		if c.size != Int16Size {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -177,14 +182,14 @@ func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 		if c.strict {
 			if c.kind.String() != "uint32" {
 				return true, &ErrInvalidType{
-					chType:     string(c.chType),
+					chType:     string(c.columnHeader.ChType),
 					goToChType: "UInt32|DateTime",
 					chconnType: c.chconnType(),
 				}
 			}
 		} else if c.size != DateTimeSize {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -205,14 +210,14 @@ func (c *Base[T]) checkDateTime64(chType []byte) (bool, error) {
 		if c.strict {
 			if c.kind.String() != "int64" {
 				return true, &ErrInvalidType{
-					chType:     string(c.chType),
+					chType:     string(c.columnHeader.ChType),
 					goToChType: "Int64|DateTime64",
 					chconnType: c.chconnType(),
 				}
 			}
 		} else if c.size != DateTime64Size {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -239,7 +244,7 @@ func (c *Base[T]) checkFixedString(chType []byte) (bool, error) {
 		// todo check strict mode
 		if c.size != size {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -254,7 +259,7 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 	if helper.IsDecimal(chType) {
 		parts := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
 		if len(parts) != 2 {
-			return true, fmt.Errorf("invalid decimal type (should have precision and scale): %s", c.chType)
+			return true, fmt.Errorf("invalid decimal type (should have precision and scale): %s", c.columnHeader.ChType)
 		}
 
 		precision, err := strconv.Atoi(string(parts[0]))
@@ -285,7 +290,7 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 		}
 		if c.size != size {
 			return true, &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				goToChType: c.structType(),
 				chconnType: c.chconnType(),
 			}
@@ -307,7 +312,7 @@ func (c *Base[T]) structType() string {
 		}
 		return structType
 	}
-	if !helper.IsFixedString(c.chType) {
+	if !helper.IsFixedString(c.columnHeader.ChType) {
 		if str, ok := byteChstructType[c.size]; ok {
 			return str
 		}

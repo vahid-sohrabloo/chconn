@@ -403,8 +403,8 @@ func TestRowToStructByPosEmbeddedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "John", slice[i].Name.First)
-		assert.Equal(t, "Smith", slice[i].Name.Last)
+		assert.Equal(t, "John", slice[i].First)
+		assert.Equal(t, "Smith", slice[i].Last)
 		assert.EqualValues(t, i, slice[i].Age)
 	}
 }
@@ -433,9 +433,9 @@ func TestRowToStructByPosMultipleEmbeddedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "Baguette", slice[i].Sandwich.Bread)
-		assert.Equal(t, "Lettuce", slice[i].Sandwich.Salad)
-		assert.EqualValues(t, i, slice[i].Drink.Ml)
+		assert.Equal(t, "Baguette", slice[i].Bread)
+		assert.Equal(t, "Lettuce", slice[i].Salad)
+		assert.EqualValues(t, i, slice[i].Ml)
 	}
 }
 
@@ -460,8 +460,8 @@ func TestRowToStructByPosEmbeddedUnexportedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "John", slice[i].name.First)
-		assert.Equal(t, "Smith", slice[i].name.Last)
+		assert.Equal(t, "John", slice[i].First)
+		assert.Equal(t, "Smith", slice[i].Last)
 		assert.EqualValues(t, i, slice[i].Age)
 	}
 }
@@ -632,8 +632,8 @@ func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "Smith", slice[i].Name.Last)
-		assert.Equal(t, "John", slice[i].Name.First)
+		assert.Equal(t, "Smith", slice[i].Last)
+		assert.Equal(t, "John", slice[i].First)
 		assert.EqualValues(t, i, slice[i].Age)
 	}
 
@@ -795,8 +795,8 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "Smith", slice[i].Name.Last)
-		assert.Equal(t, "John", slice[i].Name.First)
+		assert.Equal(t, "Smith", slice[i].Last)
+		assert.Equal(t, "John", slice[i].First)
 		assert.EqualValues(t, i, slice[i].Age)
 	}
 
@@ -810,7 +810,7 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 
 	assert.Len(t, slice, 10)
 	for i := range slice {
-		assert.Equal(t, "John", slice[i].Name.First)
+		assert.Equal(t, "John", slice[i].First)
 		assert.EqualValues(t, i, slice[i].Age)
 	}
 

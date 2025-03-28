@@ -2,6 +2,7 @@ package readerwriter
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -73,27 +74,51 @@ func (r *Reader) FixedString(strlen int) ([]byte, error) {
 
 // String read String value
 func (r *Reader) String() (string, error) {
-	strlen, err := r.Uvarint()
-	if err != nil {
-		return "", err
-	}
-	str, err := r.FixedString(int(strlen))
+	str, err := r.ByteString()
 	if err != nil {
 		return "", err
 	}
 	return string(str), nil
 }
 
-// ByteString read string  value as []byte
+// ByteString read string value as []byte
 func (r *Reader) ByteString() ([]byte, error) {
-	strlen, err := r.Uvarint()
+	strLen, err := r.Uvarint()
 	if err != nil {
 		return nil, err
 	}
-	if strlen == 0 {
+	if strLen == 0 {
 		return []byte{}, nil
 	}
-	return r.FixedString(int(strlen))
+	buf := make([]byte, strLen)
+
+	_, err = r.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+// ReadBytes read bytes and append to the input
+func (r *Reader) ReadBytes(input []byte) ([]byte, error) {
+	strLen, err := r.Uvarint()
+	if err != nil {
+		return input, fmt.Errorf("read string length: %w", err)
+	}
+	if strLen == 0 {
+		return input, nil
+	}
+	if cap(input) < int(strLen) {
+		input = make([]byte, strLen)
+	} else {
+		input = input[:strLen]
+	}
+
+	_, err = r.Read(input)
+	if err != nil {
+		return nil, fmt.Errorf("read string: %w", err)
+	}
+	return input, nil
 }
 
 // ReadByte read a single byte

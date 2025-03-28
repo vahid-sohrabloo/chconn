@@ -10,7 +10,7 @@ func NewString() *String {
 	return &String{}
 }
 
-func (c *String) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
+func (c *String) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
 		return c.LowCardinality().elem(arrayLevel, nullable)
 	}

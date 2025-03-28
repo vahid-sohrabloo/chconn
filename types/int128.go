@@ -140,3 +140,7 @@ func (u Int128) Append(b []byte) []byte {
 	}
 	return u.Big().Append(b, 10)
 }
+
+func (d Int128) GetCHType() string {
+	return "Int128"
+}

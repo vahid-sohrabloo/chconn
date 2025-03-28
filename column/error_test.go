@@ -107,22 +107,22 @@ func TestSelectReadLCError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
@@ -266,22 +266,22 @@ func TestSelectReadArrayError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
@@ -400,7 +400,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader,
 		},
 		{
@@ -453,7 +453,7 @@ func TestSelectReadNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader,
 		},
 		{
@@ -562,22 +562,22 @@ func TestSelectReadArray2Error(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
@@ -690,22 +690,22 @@ func TestSelectReadArray3Error(t *testing.T) {
 	}{
 		{
 			name:        "read column header \"\": read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column header \"\": read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column header \"t\": read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column header \"t\": read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
@@ -817,39 +817,26 @@ func TestSelectReadTupleError(t *testing.T) {
 		name        string
 		wantErr     string
 		numberValid int
-		lc          bool
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
-		},
-		{
-			name:        "read custom serialization",
-			wantErr:     "read column header \"t\": read custom serialization: timeout",
-			numberValid: startValidReader + 4,
-			lc:          true,
-		},
-		{
-			name:        "read sub column header",
-			wantErr:     "read column header \"t\": tuple: read column header index 0: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 5,
-			lc:          true,
 		},
 		{
 			name:        "read column index 2",
@@ -871,14 +858,8 @@ func TestSelectReadTupleError(t *testing.T) {
 
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			// we can't use tuple(toLowCardinality('1')) so we use this tricky way
-			// https://github.com/ClickHouse/ClickHouse/issues/39109
-			var col column.ColumnBasic
-			if tt.lc {
-				col = column.New[uint64]().LC()
-			} else {
-				col = column.New[uint8]()
-			}
+			col := column.New[uint8]()
+
 			colTuple := column.NewTuple(col)
 			stmt, err := c.Select(context.Background(), "SELECT tuple(1) as t;", colTuple)
 			require.NoError(t, err)
@@ -967,45 +948,26 @@ func TestSelectReadMapError(t *testing.T) {
 		name        string
 		wantErr     string
 		numberValid int
-		lc          bool
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header \"\": read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header \"\x00\": read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header \"t\": read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header \"t\": read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
-		},
-		{
-			name:        "read custom serialization",
-			wantErr:     "read column header \"t\": read custom serialization: timeout",
-			numberValid: startValidReader + 4,
-			lc:          true,
-		},
-		{
-			name:        "read value header",
-			wantErr:     "read column header \"t\": map: read key header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 5,
-			lc:          true,
-		},
-		{
-			name:        "read value header",
-			wantErr:     "read column header \"t\": map: read value header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 6,
-			lc:          true,
 		},
 		{
 			name:        "read offset error",
@@ -1039,13 +1001,10 @@ func TestSelectReadMapError(t *testing.T) {
 			assert.NoError(t, err)
 			var colKey column.Column[uint64]
 			var colValue column.Column[uint64]
-			if tt.lc {
-				colKey = column.New[uint64]().LC()
-				colValue = column.New[uint64]().LC()
-			} else {
-				colKey = column.New[uint64]()
-				colValue = column.New[uint64]()
-			}
+
+			colKey = column.New[uint64]()
+			colValue = column.New[uint64]()
+
 			col := column.NewMap(colKey, colValue)
 			stmt, err := c.Select(context.Background(), "SELECT map(number,number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
@@ -1073,7 +1032,7 @@ func TestInvalidType(t *testing.T) {
 		chType         string
 		goToChType     string
 		goType         string
-		column         column.ColumnBasic
+		column         column.ColumnCore
 		skip           func(chconn.Conn) bool
 		fullErr        string
 	}{
@@ -1355,10 +1314,20 @@ func TestInvalidType(t *testing.T) {
 			chType:         "Variant(String, UInt64)",
 			goToChType:     "Variant(Int32, String)",
 			goType:         "column.Variant(column.Base[int32], column.StringBase[string])",
-			column:         column.NewVariant(column.NewString(), column.New[int32]()),
+			fullErr: "Variant: set column header index 0: the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32', " +
+				"which does not match the expected ClickHouse type 'String'",
+			column: column.NewVariant(column.NewString(), column.New[int32]()),
 			skip: func(c chconn.Conn) bool {
 				return c.ServerInfo().MajorVersion < 24
 			},
+		},
+		{
+			name:           "Dynamic",
+			columnSelector: "number",
+			chType:         "UInt64",
+			goToChType:     "Dynamic",
+			goType:         "column.Dynamic()",
+			column:         column.NewDynamic(),
 		},
 	}
 	for _, tt := range tests {
@@ -1432,70 +1401,83 @@ func TestTupleInvalidColumnNumber(t *testing.T) {
 
 func TestMapInvalidColumnNumber(t *testing.T) {
 	m := column.NewMap[uint8, uint8](column.New[uint8](), column.New[uint8]())
-	m.SetType([]byte("Map(UInt8,UInt8,UInt8)"))
-	err := m.Validate(false)
-	assert.Equal(t, err.Error(), "columns number is not equal to map columns number: 3 != 2")
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Map(UInt8,UInt8,UInt8)"),
+	})
+	assert.Error(t, err, "columns number is not equal to map columns number: 3 != 2")
 }
 
 func TestFixedStringInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
-	m.SetType([]byte("FixedString(a)"))
-	err := m.Validate(false)
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("FixedString(a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid size: strconv.Atoi: parsing \"a\": invalid syntax")
 }
 
 func TestEnum8InvalidType(t *testing.T) {
 	m := column.New[int16]()
-	m.SetType([]byte("Enum8()"))
-	err := m.Validate(false)
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Enum8()"),
+	})
 	assert.Equal(t,
 		err.Error(),
 		"the chconn type 'column.Base[int16]' is mapped to ClickHouse type 'Int16', which does not match the expected ClickHouse type 'Enum8()'")
 }
 func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
-	m.SetType([]byte("Enum16()"))
+
 	assert.Equal(t,
-		m.SetStrict(false).Validate(false).Error(),
+		m.SetStrict(false).SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("Enum16()"),
+		}).Error(),
 		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4', "+
 			"which does not match the expected ClickHouse type 'Enum16()'")
 
 	assert.Equal(t,
-		m.SetStrict(true).Validate(false).Error(),
+		m.SetStrict(true).SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("Enum16()"),
+		}).Error(),
 		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32', which does not match the expected ClickHouse type 'Enum16()'")
 }
 
 func TestDecimalInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
-	m.SetType([]byte("Decimal()"))
-	err := m.Validate(false)
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal()"),
+	})
 	assert.Equal(t, err.Error(), "invalid decimal type (should have precision and scale): Decimal()")
 
-	m.SetType([]byte("Decimal(a, a)"))
-	err = m.Validate(false)
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(a, a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid precision: strconv.Atoi: parsing \"a\": invalid syntax")
 
-	m.SetType([]byte("Decimal(3, a)"))
-	err = m.Validate(false)
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(3, a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid scale: strconv.Atoi: parsing \"a\": invalid syntax")
 
-	m.SetType([]byte("Decimal(200, 3)"))
-	err = m.Validate(false)
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(200, 3)"),
+	})
 	assert.Equal(t, err.Error(), "invalid precision: 200. it should be between 1 and 76")
 }
 
 func TestInvalidDate(t *testing.T) {
 	m := column.NewDate[types.DateTime]()
-	m.SetType([]byte("DateTime('InvalidTimeZone')"))
-	err := m.Validate(false)
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("DateTime('InvalidTimeZone')"),
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, m.Location(), time.Local)
 }
 
 func TestInvalidSimpleAggregateFunction(t *testing.T) {
 	m := column.New[int32]()
-	m.SetType([]byte("SimpleAggregateFunction(sum))"))
 	assert.Panics(t, func() {
-		m.Validate(false)
+		m.SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("SimpleAggregateFunction(sum))"),
+		})
 	})
 }

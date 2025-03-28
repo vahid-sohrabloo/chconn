@@ -23,3 +23,7 @@ func (ip IPv4) MarshalText() ([]byte, error) {
 func (ip IPv4) Append(b []byte) []byte {
 	return ip.NetIP().AppendTo(b)
 }
+
+func (d IPv4) GetCHType() string {
+	return "IPv4"
+}

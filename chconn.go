@@ -15,6 +15,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/internal/ctxwatch"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 const (
@@ -108,7 +109,7 @@ type Conn interface {
 	// IsBusy reports if the connection is busy.
 	IsBusy() bool
 	// ServerInfo get Server info
-	ServerInfo() *ServerInfo
+	ServerInfo() *shared.ServerInfo
 	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
 	// Exec executes a query without returning any rows.
@@ -126,13 +127,13 @@ type Conn interface {
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
+	Insert(ctx context.Context, query string, columns ...column.ColumnCore) error
 	// InsertWithOption executes a insert query with the query options and commit all columns data.
 	//
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	InsertWithOption(ctx context.Context, query string, queryOptions *QueryOptions, columns ...column.ColumnBasic) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *QueryOptions, columns ...column.ColumnCore) error
 	// Insert executes a insert query and return a InsertStmt.
 	//
 	// NOTE: only use for insert query
@@ -149,7 +150,7 @@ type Conn interface {
 	// Select executes a query and return select stmt.
 	//
 	// NOTE: only use for select query
-	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error)
+	Select(ctx context.Context, query string, columns ...column.ColumnCore) (SelectStmt, error)
 	// Select executes a query with the the query options and return select stmt.
 	//
 	// NOTE: only use for select query
@@ -157,7 +158,7 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		queryOptions *QueryOptions,
-		columns ...column.ColumnBasic,
+		columns ...column.ColumnCore,
 	) (SelectStmt, error)
 
 	// Query sends a select query to the server and returns a Rows to read the results. Only errors encountered sending the query
@@ -196,7 +197,7 @@ type writeFlusher interface {
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
-	serverInfo        *ServerInfo
+	serverInfo        *shared.ServerInfo
 	clientInfo        *ClientInfo
 
 	config *Config
@@ -397,7 +398,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.writerToCompress = c.writerTo
 	}
 
-	c.serverInfo = &ServerInfo{}
+	c.serverInfo = &shared.ServerInfo{}
 	err = c.hello()
 	if err != nil {
 		return nil, preferContextOverNetTimeoutError(ctx, err)
@@ -606,7 +607,7 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		return ch.receiveAndProcessData(queryOption)
 
 	case serverHello:
-		err = ch.serverInfo.read(ch.reader)
+		err = readServerInfo(ch.serverInfo, ch.reader)
 		return nil, err
 	case serverPong:
 		return &pong{}, err
@@ -680,4 +681,66 @@ func (ch *conn) ExecWithOption(
 		return stmt.Err()
 	}
 	return nil
+}
+
+func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) (err error) {
+	if srv.Name, err = r.String(); err != nil {
+		return &readError{"ServerInfo: could not read server name", err}
+	}
+	if srv.MajorVersion, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server major version", err}
+	}
+	if srv.MinorVersion, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server minor version", err}
+	}
+	if srv.Revision, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server revision", err}
+	}
+	if srv.Revision >= helper.DbmsMinRevisionWithServerTimezone {
+		if srv.Timezone, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read server timezone", err}
+		}
+	}
+	if srv.Revision >= helper.DbmsMinRevisionWithServerDisplayName {
+		if srv.ServerDisplayName, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read server display name", err}
+		}
+	}
+	if srv.Revision >= helper.DbmsMinRevisionWithVersionPatch {
+		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read server version patch", err}
+		}
+	}
+	if srv.Revision >= helper.DbmsMinProtocolVersionWithPasswordComplexityRules {
+		lenRules, err := r.Uvarint()
+		if err != nil {
+			return &readError{"ServerInfo: could not read server password complexity rules: len", err}
+		}
+		srv.PasswordPatterns = make([]shared.ServerInfoPasswordRules, lenRules)
+		for i := uint64(0); i < lenRules; i++ {
+			var rule shared.ServerInfoPasswordRules
+			if rule.Pattern, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			if rule.Message, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			srv.PasswordPatterns[i] = rule
+		}
+	}
+
+	if srv.Revision >= helper.DbmsMinRevisionWithInterserverSecretV2 {
+		// read secret nonce
+		// we don't need it for now
+		_, err := r.Uint64()
+		if err != nil {
+			return &readError{"ServerInfo: could not read server interserver secret nonce", err}
+		}
+	}
+	return nil
+}
+
+// ServerInfo get server info
+func (ch *conn) ServerInfo() *shared.ServerInfo {
+	return ch.serverInfo
 }

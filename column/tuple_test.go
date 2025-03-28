@@ -442,7 +442,7 @@ func TestTuple(t *testing.T) {
 	assert.Equal(t, colLCNullableArrayStringDataI, colLCNullableArrayData)
 
 	var chconnJSON []string
-	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnCore) {
 		chconnJSON = append(chconnJSON, string(b))
 	})
 

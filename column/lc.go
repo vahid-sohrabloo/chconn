@@ -9,6 +9,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 const (
@@ -196,15 +197,14 @@ func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
-	c.r = r
+func (c *LowCardinality[T]) ReadRaw(num int) error {
 	c.numRow = num
 	if c.numRow == 0 {
-		c.indices = newIndicesColumn[uint8]()
+		c.indices = newIndicesColumn[uint8](c.r)
 		c.readedDict = c.readedDict[:0]
 		c.readedKeys = c.readedKeys[:0]
 		// to reset nullable dictionary
-		return c.dictColumn.ReadRaw(0, r)
+		return c.dictColumn.ReadRaw(0)
 	}
 
 	serializationType, err := c.r.Uint64()
@@ -217,23 +217,21 @@ func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	if err != nil {
 		return fmt.Errorf("error reading dictionary size: %w", err)
 	}
-
-	err = c.dictColumn.ReadRaw(int(dictionarySize), r)
+	err = c.dictColumn.ReadRaw(int(dictionarySize))
 	if err != nil {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	indicesSize, err := r.Uint64()
+	indicesSize, err := c.r.Uint64()
 	c.numRow = int(indicesSize)
 	if err != nil {
 		return fmt.Errorf("error reading indices size: %w", err)
 	}
 	if c.indices == nil || c.oldIndicesType != intType {
-		c.indices = getLCIndicate(intType)
+		c.indices = getLCIndicate(intType, c.r)
 		c.oldIndicesType = intType
 	}
-
-	err = c.indices.ReadRaw(c.numRow, c.r)
+	err = c.indices.ReadRaw(c.numRow)
 	if err != nil {
 		return fmt.Errorf("error reading indices: %w", err)
 	}
@@ -244,26 +242,21 @@ func (c *LowCardinality[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
-// HeaderReader writes header data to writer
+// ReadHeader writes header data to writer
 // it uses internally
-func (c *LowCardinality[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	err := c.readColumn(readColumn, revision)
+func (c *LowCardinality[T]) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
 
 	// ready KeysSerializationVersion.
-	_, err = r.Uint64()
+	_, err = c.r.Uint64()
 	if err != nil {
 		return fmt.Errorf("error reading keys serialization version: %w", err)
 	}
 
-	if !c.nullable {
-		return c.dictColumn.HeaderReader(r, false, revision)
-	}
-
-	return c.dictColumn.HeaderReader(r, false, revision)
+	return c.dictColumn.ReadHeader(r, serverInfo)
 }
 
 func (c *LowCardinality[T]) chconnType() string {
@@ -280,38 +273,55 @@ func (c *LowCardinality[T]) structType() string {
 	return strings.ReplaceAll(helper.LowCardinalityNullableTypeStr, "<type>", c.dictColumn.structType())
 }
 
-func (c *LowCardinality[T]) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *LowCardinality[T]) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	if !c.nullable {
 		if !helper.IsLowCardinality(chType) {
 			return &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				chconnType: c.chconnType(),
 				goToChType: c.structType(),
 			}
 		}
-		c.dictColumn.SetType(chType[helper.LenLowCardinalityStr : len(chType)-1])
+		if err := c.dictColumn.SetColumnHeader(ColumnHeader{
+			ChType: chType[helper.LenLowCardinalityStr : len(chType)-1],
+		}); err != nil {
+			if !isInvalidType(err) {
+				return err
+			}
+			return &ErrInvalidType{
+				chType:     string(c.columnHeader.ChType),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
+			}
+		}
 	} else {
 		if !helper.IsNullableLowCardinality(chType) {
 			return &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				chconnType: c.chconnType(),
 				goToChType: c.structType(),
 			}
 		}
-		c.dictColumn.SetType(chType[helper.LenLowCardinalityNullableStr : len(chType)-2])
-	}
-	if err := c.dictColumn.Validate(forInsert); err != nil {
-		if !isInvalidType(err) {
-			return err
-		}
-		return &ErrInvalidType{
-			chType:     string(c.chType),
-			chconnType: c.chconnType(),
-			goToChType: c.structType(),
+		if err := c.dictColumn.SetColumnHeader(ColumnHeader{
+			ChType: chType[helper.LenLowCardinalityNullableStr : len(chType)-2],
+		}); err != nil {
+			if !isInvalidType(err) {
+				return err
+			}
+			return &ErrInvalidType{
+				chType:     string(c.columnHeader.ChType),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
+			}
 		}
 	}
 	return nil
+}
+
+func (c *LowCardinality[T]) ValidateInsert() error {
+	return c.dictColumn.ValidateInsert()
 }
 
 // WriteTo write data to ClickHouse.
@@ -351,12 +361,11 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 		return n, fmt.Errorf("error writing keys len: %w", err)
 	}
 	if c.indices == nil || c.oldIndicesType != intType {
-		c.indices = getLCIndicate(intType)
+		c.indices = getLCIndicate(intType, nil)
 		c.oldIndicesType = intType
 	} else {
 		c.indices.Reset()
 	}
-	c.indices = getLCIndicate(intType)
 	c.indices.appendInts(c.keys)
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
@@ -369,17 +378,17 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 // it uses internally
 func (c *LowCardinality[T]) HeaderWriter(w *readerwriter.Writer) {
 	// write KeysSerializationVersion. for more information see clickhouse docs
-	w.Int64(1)
+	w.Uint64(1)
 }
 
-func getLCIndicate(intType int) indicesColumnI {
+func getLCIndicate(intType int, r *readerwriter.Reader) indicesColumnI {
 	switch intType {
 	case 0:
-		return newIndicesColumn[uint8]()
+		return newIndicesColumn[uint8](r)
 	case 1:
-		return newIndicesColumn[uint16]()
+		return newIndicesColumn[uint16](r)
 	case 2:
-		return newIndicesColumn[uint32]()
+		return newIndicesColumn[uint32](r)
 	case 3:
 		panic("cannot handle this amount of data for lc")
 	}
@@ -399,7 +408,7 @@ func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnBasic {
+func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnCore {
 	if nullable {
 		return c.Nullable().elem(arrayLevel)
 	}
@@ -410,12 +419,17 @@ func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnBasic {
 }
 
 func (c *LowCardinality[T]) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return "LowCardinality(" + c.dictColumn.FullType() + ")"
 	}
-	return string(c.name) + " LowCardinality(" + c.dictColumn.FullType() + ")"
+	return string(c.columnHeader.Name) + " LowCardinality(" + c.dictColumn.FullType() + ")"
 }
 
 func (c *LowCardinality[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 	return c.dictColumn.ToJSON(c.readedKeys[row], ignoreDoubleQuotes, b)
+}
+
+func (c *LowCardinality[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexLowCardinality))
+	c.dictColumn.writeBinaryDataTo(w)
 }

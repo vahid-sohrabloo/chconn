@@ -312,7 +312,7 @@ func testMapColumn[V column.BaseType](
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
 	for insertN := 0; insertN < 2; insertN++ {
-		rows := 2
+		rows := 10
 		for i := 0; i < rows; i++ {
 			blockID.Append(uint8(insertN))
 			valData := firstVal(i)
@@ -983,7 +983,7 @@ func testMapColumn[V column.BaseType](
 	selectStmt.Close()
 
 	var chconnJSON []string
-	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnCore) {
 		chconnJSON = append(chconnJSON, string(b))
 	})
 

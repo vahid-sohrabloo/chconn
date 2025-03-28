@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // Nothing represents column of nothing value.
@@ -72,10 +73,10 @@ func (c *Nothing) AppendMulti(v ...NothingData) {
 }
 
 func (c *Nothing) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return helper.NothingStr
 	}
-	return string(c.name) + " " + helper.NothingStr
+	return string(c.columnHeader.Name) + " " + helper.NothingStr
 }
 
 func (c *Nothing) String(row int) string {
@@ -92,7 +93,7 @@ func (c *Nothing) Nullable() *NothingNullable {
 	return NewNothingNullable(c)
 }
 
-func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnBasic {
+func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnCore {
 	if nullable {
 		return c.Nullable().elem(arrayLevel)
 	}
@@ -106,11 +107,12 @@ func (c *Nothing) chconnType() string {
 	return "column.Nothing"
 }
 
-func (c *Nothing) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *Nothing) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	if !helper.IsNothing(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			goToChType: "Nothing",
 			chconnType: c.chconnType(),
 		}
@@ -118,6 +120,14 @@ func (c *Nothing) Validate(forInsert bool) error {
 	return nil
 }
 
+func (c *Nothing) ValidateInsert() error {
+	return nil
+}
+
 func (c *Nothing) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 	return b
+}
+
+func (c *Nothing) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexNothing))
 }

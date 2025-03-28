@@ -11,7 +11,7 @@ import (
 // NOTE: only use for select query
 //
 // it can return nil for query that doesn't return block.
-func (ch *conn) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error) {
+func (ch *conn) Select(ctx context.Context, query string, columns ...column.ColumnCore) (SelectStmt, error) {
 	return ch.SelectWithOption(ctx, query, nil, columns...)
 }
 
@@ -24,7 +24,7 @@ func (ch *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *QueryOptions,
-	columns ...column.ColumnBasic,
+	columns ...column.ColumnCore,
 ) (SelectStmt, error) {
 	if queryOptions == nil {
 		queryOptions = emptyQueryOptions
@@ -106,7 +106,7 @@ type SelectStmt interface {
 	// RowsInBlock return number of rows in this current block
 	RowsInBlock() int
 	// Columns return the columns of this select statement.
-	Columns() []column.ColumnBasic
+	Columns() []column.ColumnCore
 	// Close close the statement and release the connection
 	// If Next is called and returns false and there are no further blocks,
 	// the Rows are closed automatically and it will suffice to check the result of Err.
@@ -124,7 +124,7 @@ type selectStmt struct {
 	clientInfo     *ClientInfo
 	lastErr        error
 	closed         bool
-	columnsForRead []column.ColumnBasic
+	columnsForRead []column.ColumnCore
 	ctx            context.Context
 	finishSelect   bool
 	validateData   bool
@@ -133,12 +133,13 @@ type selectStmt struct {
 var _ SelectStmt = &selectStmt{}
 
 func (s *selectStmt) skipBlock(b *block) error {
-	err := b.readColumns()
+	err := b.readColumnsHeader()
 	if err != nil {
 		s.lastErr = err
 		s.Close()
 		return err
 	}
+	// TODO check for dynamic columns
 	if len(s.columnsForRead) == 0 {
 		s.columnsForRead, err = b.getColumnsByChType()
 		if err != nil {
@@ -187,8 +188,7 @@ func (s *selectStmt) Next() bool {
 				return false
 			}
 		}
-
-		err = block.readColumnsData(needValidateData, true, s.columnsForRead...)
+		err = block.readColumnsData(needValidateData, s.columnsForRead...)
 		if err != nil {
 			s.lastErr = preferContextOverNetTimeoutError(s.ctx, err)
 			s.Close()
@@ -246,7 +246,7 @@ func (s *selectStmt) Close() {
 	}
 }
 
-func (s *selectStmt) Columns() []column.ColumnBasic {
+func (s *selectStmt) Columns() []column.ColumnCore {
 	return s.columnsForRead
 }
 

@@ -45,7 +45,7 @@ func NewTuple5[T ~struct {
 ) *Tuple5[T, T1, T2, T3, T4, T5] {
 	return &Tuple5[T, T1, T2, T3, T4, T5]{
 		Tuple: Tuple{
-			columns: []ColumnBasic{
+			columns: []ColumnCore{
 				column1,
 				column2,
 				column3,

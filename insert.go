@@ -11,8 +11,8 @@ import (
 type InsertStmt interface {
 	// Write writes a columns (a block of data) to the clickhouse server
 	// after each write you need to reset the columns. it will not reset automatically
-	Write(ctx context.Context, columns ...column.ColumnBasic) error
-	// Append appends values of a row to the insert statement.
+	Write(ctx context.Context, columns ...column.ColumnCore) error
+	// Append values of a row to the insert statement.
 	Append(values ...any) error
 	// Flush flushes the data to the clickhouse server and close the statement
 	Flush(ctx context.Context) error
@@ -24,7 +24,7 @@ type InsertStmt interface {
 type insertStmt struct {
 	block        *block
 	conn         *conn
-	columns      []column.ColumnBasic
+	columns      []column.ColumnCore
 	query        string
 	queryOptions *QueryOptions
 	clientInfo   *ClientInfo
@@ -103,7 +103,7 @@ func (s *insertStmt) Close() {
 	}
 }
 
-func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) error {
+func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnCore) error {
 	if int(s.block.NumColumns) != len(columns) {
 		return &InsertError{
 			err: &ColumnNumberWriteError{
@@ -126,8 +126,11 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnBasic) e
 		}
 	}
 	for i, col := range columns {
-		col.SetType(s.block.Columns[i].ChType)
-		if errValidate := col.Validate(true); errValidate != nil {
+		if err := col.SetColumnHeader(s.block.ColumnsHeader[i]); err != nil {
+			s.hasError = true
+			return fmt.Errorf("column at index %d: %w", i, err)
+		}
+		if errValidate := col.ValidateInsert(); errValidate != nil {
 			s.hasError = true
 			return fmt.Errorf("column at index %d: %w", i, errValidate)
 		}
@@ -193,7 +196,7 @@ func (s *insertStmt) Append(values ...any) error {
 }
 
 // Insert send query for insert and commit columns
-func (ch *conn) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
+func (ch *conn) Insert(ctx context.Context, query string, columns ...column.ColumnCore) error {
 	return ch.InsertWithOption(ctx, query, nil, columns...)
 }
 
@@ -202,7 +205,7 @@ func (ch *conn) InsertWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *QueryOptions,
-	columns ...column.ColumnBasic) error {
+	columns ...column.ColumnCore) error {
 	stmt, err := ch.InsertStreamWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return err
@@ -288,7 +291,7 @@ func (ch *conn) InsertStreamWithOption(
 		return nil, &unexpectedPacket{expected: "serverData", actual: res}
 	}
 
-	err = blockData.readColumns()
+	err = blockData.readColumnsHeader()
 	if err != nil {
 		hasError = true
 		return nil, preferContextOverNetTimeoutError(ctx, err)

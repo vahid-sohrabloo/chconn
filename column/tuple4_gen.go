@@ -40,7 +40,7 @@ func NewTuple4[T ~struct {
 ) *Tuple4[T, T1, T2, T3, T4] {
 	return &Tuple4[T, T1, T2, T3, T4]{
 		Tuple: Tuple{
-			columns: []ColumnBasic{
+			columns: []ColumnCore{
 				column1,
 				column2,
 				column3,

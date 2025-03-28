@@ -235,3 +235,19 @@ func (d Decimal256) Append(scale int, b []byte) []byte {
 	// Append the integer part of d to b
 	return fixDecimalPoint(b, initialLen, scale, bigInt.Sign() == -1)
 }
+
+func (d Decimal32) GetCHType() string {
+	return "Decimal(9, 3)"
+}
+
+func (d Decimal64) GetCHType() string {
+	return "Decimal(18, 3)"
+}
+
+func (d Decimal128) GetCHType() string {
+	return "Decimal(38, 3)"
+}
+
+func (d Decimal256) GetCHType() string {
+	return "Decimal(76, 3)"
+}

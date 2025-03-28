@@ -31,11 +31,6 @@ func (w *Writer) Int32(v int32) {
 	w.Uint32(uint32(v))
 }
 
-// Int64 write Int64 value
-func (w *Writer) Int64(v int64) {
-	w.Uint64(uint64(v))
-}
-
 // Uint8 write Uint8 value
 func (w *Writer) Uint8(v uint8) {
 	w.output.WriteByte(v)

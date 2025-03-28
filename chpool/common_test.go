@@ -28,7 +28,7 @@ func testExec(t *testing.T, ctx context.Context, db execer) {
 }
 
 type selecter interface {
-	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error)
+	Select(ctx context.Context, query string, columns ...column.ColumnCore) (chconn.SelectStmt, error)
 }
 
 func testSelect(t *testing.T, db selecter) {

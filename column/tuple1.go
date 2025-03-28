@@ -12,7 +12,7 @@ func NewTuple1[T1 any](
 ) *Tuple1[T1] {
 	return &Tuple1[T1]{
 		Tuple: Tuple{
-			columns: []ColumnBasic{
+			columns: []ColumnCore{
 				column1,
 			},
 		},

@@ -122,7 +122,7 @@ func (c *Array2[T]) Array() *Array3[T] {
 	return NewArray3(c)
 }
 
-func (c *Array3[T]) elem(arrayLevel int) ColumnBasic {
+func (c *Array3[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		panic("array level is too deep")
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
@@ -48,7 +49,8 @@ type Base[T BaseType] struct {
 	values        []T
 	params        []any
 	decimalType   decimalType
-	isEnum        bool
+	isEnum8       bool
+	isEnum16      bool
 	enumStringMap map[int16]string
 	sparseData    []T
 }
@@ -190,13 +192,12 @@ func (c *Base[T]) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *Base[T]) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *Base[T]) ReadRaw(num int) error {
 	c.Reset()
-	c.r = r
 	c.numRow = num
 	c.totalByte = c.numRow * c.size
 
-	if c.isSparse {
+	if c.columnHeader.IsSparse {
 		totalRowsRead, err := c.readSparse()
 		if err != nil {
 			return fmt.Errorf("read sparse: %w", err)
@@ -210,15 +211,10 @@ func (c *Base[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 	}
 	c.readBufferHook()
 
-	if c.isSparse {
+	if c.columnHeader.IsSparse {
 		c.itemsTotalSparse -= 1
 		items := c.Data()
-		if cap(c.sparseData) < int(c.itemsTotalSparse) {
-			c.sparseData = make([]T, c.itemsTotalSparse)
-		} else {
-			c.sparseData = c.sparseData[:c.itemsTotalSparse]
-			clear(c.sparseData)
-		}
+		c.sparseData = helper.ResetSlice(c.sparseData, int(c.itemsTotalSparse), true)
 
 		for i, itemNumber := range c.sparseIndexes {
 			c.sparseData[itemNumber-1] = items[i]
@@ -226,31 +222,22 @@ func (c *Base[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 
 		c.numRow = int(c.itemsTotalSparse)
 		bSize := c.size * len(c.sparseData)
-		if cap(c.b) < bSize {
-			c.b = make([]byte, bSize)
-		} else {
-			c.b = c.b[:bSize]
-		}
+		c.b = helper.ResetSlice(c.b, bSize, false)
 		copy(c.b, helper.ConvertToByte(c.sparseData, c.size))
 	}
 	return err
 }
 
 func (c *Base[T]) readBuffer() error {
-	if cap(c.b) < c.totalByte {
-		c.b = make([]byte, c.totalByte)
-	} else {
-		c.b = c.b[:c.totalByte]
-	}
+	c.b = helper.ResetSlice(c.b, c.totalByte, false)
 	_, err := c.r.Read(c.b)
 	return err
 }
 
-// HeaderReader reads header data from reader
+// ReadHeader reads header data from reader
 // it uses internally
-func (c *Base[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	return c.readColumn(readColumn, revision)
+func (c *Base[T]) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	return c.column.ReadHeader(r, serverInfo)
 }
 
 // HeaderWriter writes header data to writer
@@ -258,7 +245,7 @@ func (c *Base[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision
 func (c *Base[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
+func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
 		return c.LowCardinality().elem(arrayLevel, nullable)
 	}
@@ -272,14 +259,14 @@ func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
 }
 
 func (c *Base[T]) FullType() string {
-	chType := string(c.chType)
+	chType := string(c.columnHeader.ChType)
 	if chType == "" {
 		chType = c.getChTypeFromKind()
 	}
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return chType
 	}
-	return string(c.name) + " " + chType
+	return string(c.columnHeader.Name) + " " + chType
 }
 
 type getCHType interface {
@@ -296,8 +283,14 @@ func (c *Base[T]) getChTypeFromKind() string {
 	if kind == reflect.Bool {
 		return "Bool"
 	} else if kind == reflect.Int8 {
+		if c.isEnum8 {
+			return "Enum8"
+		}
 		return "Int8"
 	} else if kind == reflect.Int16 {
+		if c.isEnum16 {
+			return "Enum16"
+		}
 		return "Int16"
 	} else if kind == reflect.Int32 {
 		return "Int32"
@@ -315,7 +308,55 @@ func (c *Base[T]) getChTypeFromKind() string {
 		return "Float32"
 	} else if kind == reflect.Float64 {
 		return "Float64"
+	} else if kind == reflect.Array && c.rtype.Elem().Kind() == reflect.Uint8 {
+		return "FixedString(" + strconv.Itoa(c.rtype.Len()) + ")"
 	} else {
+		panic(fmt.Sprintf("unsupported type: %s (%s)", c.kind, string(c.Type())))
+	}
+}
+
+type writeBinaryDataTo interface {
+	WriteBinaryDataTo(w *readerwriter.Writer) string
+}
+
+func (c *Base[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	var tmpT T
+	if v, ok := any(tmpT).(writeBinaryDataTo); ok {
+		v.WriteBinaryDataTo(w)
+		return
+	}
+	switch c.kind {
+	case reflect.Bool:
+		w.Uint8(uint8(helper.BinaryTypeIndexBool))
+	case reflect.Int8:
+		if c.isEnum8 {
+			w.Uint8(uint8(helper.BinaryTypeIndexEnum8))
+		} else {
+			w.Uint8(uint8(helper.BinaryTypeIndexInt8))
+		}
+	case reflect.Int16:
+		if c.isEnum16 {
+			w.Uint8(uint8(helper.BinaryTypeIndexEnum16))
+		} else {
+			w.Uint8(uint8(helper.BinaryTypeIndexInt16))
+		}
+	case reflect.Int32:
+		w.Uint8(uint8(helper.BinaryTypeIndexInt32))
+	case reflect.Int64:
+		w.Uint8(uint8(helper.BinaryTypeIndexInt64))
+	case reflect.Uint8:
+		w.Uint8(uint8(helper.BinaryTypeIndexUInt8))
+	case reflect.Uint16:
+		w.Uint8(uint8(helper.BinaryTypeIndexUInt16))
+	case reflect.Uint32:
+		w.Uint8(uint8(helper.BinaryTypeIndexUInt32))
+	case reflect.Uint64:
+		w.Uint8(uint8(helper.BinaryTypeIndexUInt64))
+	case reflect.Float32:
+		w.Uint8(uint8(helper.BinaryTypeIndexFloat32))
+	case reflect.Float64:
+		w.Uint8(uint8(helper.BinaryTypeIndexFloat64))
+	default:
 		panic(fmt.Sprintf("unsupported type: %s", c.kind))
 	}
 }
@@ -335,17 +376,17 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			return append(b, "false"...)
 		}
 	case reflect.Int8:
-		if c.isEnum {
+		if c.isEnum8 {
 			if c.enumStringMap == nil {
-				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum8StrLen : len(c.chType)-1])
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.columnHeader.ChType[helper.Enum8StrLen : len(c.columnHeader.ChType)-1])
 			}
 			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[int16(*(*int8)(unsafe.Pointer(&val)))]))
 		}
 		return strconv.AppendInt(b, int64(*(*int8)(unsafe.Pointer(&val))), 10)
 	case reflect.Int16:
-		if c.isEnum {
+		if c.isEnum16 {
 			if c.enumStringMap == nil {
-				c.enumStringMap, _, _ = helper.ExtractEnum(c.chType[helper.Enum16StrLen : len(c.chType)-1])
+				c.enumStringMap, _, _ = helper.ExtractEnum(c.columnHeader.ChType[helper.Enum16StrLen : len(c.columnHeader.ChType)-1])
 			}
 			return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(c.enumStringMap[*(*int16)(unsafe.Pointer(&val))]))
 		}

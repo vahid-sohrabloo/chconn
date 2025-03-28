@@ -8,7 +8,7 @@ import (
 )
 
 type indicesColumnI interface {
-	ReadRaw(num int, r *readerwriter.Reader) error
+	ReadRaw(num int) error
 	WriteTo(io.Writer) (int64, error)
 	appendInts([]int)
 	readInt(value *[]int)
@@ -24,13 +24,16 @@ type indicesColumn[T indicatedTypes] struct {
 	Base[T]
 }
 
-func newIndicesColumn[T indicatedTypes]() *indicesColumn[T] {
+func newIndicesColumn[T indicatedTypes](r *readerwriter.Reader) *indicesColumn[T] {
 	var tmpValue T
 	size := int(unsafe.Sizeof(tmpValue))
 	return &indicesColumn[T]{
 		Base: Base[T]{
 			strict: true,
 			size:   size,
+			column: column{
+				r: r,
+			},
 		},
 	}
 }

@@ -16,7 +16,7 @@ import (
 
 func nothingJSON(t *testing.T, conn chconn.Conn, selectQuery string) []string {
 	var chconnJSON []string
-	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnBasic) {
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnCore) {
 		chconnJSON = append(chconnJSON, string(b))
 	})
 

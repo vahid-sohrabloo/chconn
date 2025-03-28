@@ -314,13 +314,14 @@ func (c *StringBase[T]) SetWriteBufferSize(b int) {
 	}
 }
 
-// ReadRaw read raw data from the reader. it runs automatically when you call `ReadColumns()`
-func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
+// ReadRaw read raw data from the reader.
+//
+// NOTE: its for internal use only
+func (c *StringBase[T]) ReadRaw(num int) error {
 	c.Reset()
-	c.r = r
 	c.numRow = num
 
-	if c.isSparse {
+	if c.columnHeader.IsSparse {
 		totalRowsRead, err := c.readSparse()
 		if err != nil {
 			return fmt.Errorf("read sparse: %w", err)
@@ -346,16 +347,10 @@ func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 		c.pos = append(c.pos, p)
 	}
 
-	if c.isSparse {
+	if c.columnHeader.IsSparse {
 		c.itemsTotalSparse -= 1
 		items := c.pos
-		if cap(c.sparseDataPos) < int(c.itemsTotalSparse) {
-			c.sparseDataPos = make([]stringPos, c.itemsTotalSparse)
-		} else {
-			c.sparseDataPos = c.sparseDataPos[:c.itemsTotalSparse]
-			clear(c.sparseDataPos)
-		}
-
+		c.sparseDataPos = helper.ResetSlice(c.sparseDataPos, int(c.itemsTotalSparse), true)
 		for i, itemNumber := range c.sparseIndexes {
 			c.sparseDataPos[itemNumber-1] = items[i]
 		}
@@ -363,32 +358,26 @@ func (c *StringBase[T]) ReadRaw(num int, r *readerwriter.Reader) error {
 		c.numRow = int(c.itemsTotalSparse)
 
 		bSize := len(c.sparseDataPos)
-		if cap(c.pos) < bSize {
-			c.pos = make([]stringPos, bSize)
-		} else {
-			c.pos = c.pos[:bSize]
-		}
+		c.pos = helper.ResetSlice(c.pos, bSize, false)
 		copy(c.pos, c.sparseDataPos)
 	}
 	return nil
 }
 
-// HeaderReader reads header data from read
-// it uses internally
-func (c *StringBase[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	return c.readColumn(readColumn, revision)
-}
-
-func (c *StringBase[T]) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *StringBase[T]) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	if !helper.IsString(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
+	return nil
+}
+
+func (c *StringBase[T]) ValidateInsert() error {
 	return nil
 }
 
@@ -417,7 +406,7 @@ func (c *StringBase[T]) appendEmpty() {
 	c.numRow++
 }
 
-func (c *StringBase[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
+func (c *StringBase[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
 		return c.LowCardinality().elem(arrayLevel, nullable)
 	}
@@ -431,13 +420,17 @@ func (c *StringBase[T]) Elem(arrayLevel int, nullable, lc bool) ColumnBasic {
 }
 
 func (c *StringBase[T]) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return "String"
 	}
-	return string(c.name) + " String"
+	return string(c.columnHeader.Name) + " String"
 }
 
 // ToJSON
 func (c *StringBase[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 	return helper.AppendJSONSting(b, ignoreDoubleQuotes, c.RowBytes(row))
+}
+
+func (c *StringBase[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexString))
 }

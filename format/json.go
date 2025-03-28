@@ -8,14 +8,14 @@ import (
 type JSON struct {
 	out        []byte
 	FlushEvery int
-	onData     func([]byte, []column.ColumnBasic)
+	onData     func([]byte, []column.ColumnCore)
 }
 
 const doubleQuoteJSON = '"'
 const semiColonJSON = ','
 
 // NewJSON returns a new JSON exporter.
-func NewJSON(flushEvery int, onData func([]byte, []column.ColumnBasic)) *JSON {
+func NewJSON(flushEvery int, onData func([]byte, []column.ColumnCore)) *JSON {
 	return &JSON{
 		FlushEvery: flushEvery,
 		onData:     onData,

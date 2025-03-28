@@ -30,11 +30,11 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		queryOptions *chconn.QueryOptions,
-		columns ...column.ColumnBasic,
+		columns ...column.ColumnCore,
 	) (chconn.SelectStmt, error)
 	// InsertWithSetting executes a query with the query options and commit all columns data.
 	// NOTE: only use for insert query
-	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnCore) error
 	// InsertWithSetting executes a query with the query options and commit all columns data.
 	// NOTE: only use for insert query
 	InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error)
@@ -159,7 +159,7 @@ func (ch *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
-	columns ...column.ColumnBasic,
+	columns ...column.ColumnCore,
 ) (chconn.SelectStmt, error) {
 	s, err := ch.Conn().SelectWithOption(ctx, query, queryOptions, columns...)
 	if err != nil {
@@ -175,7 +175,7 @@ func (ch *conn) InsertWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
-	columns ...column.ColumnBasic,
+	columns ...column.ColumnCore,
 ) error {
 	return ch.Conn().InsertWithOption(ctx, query, queryOptions, columns...)
 }

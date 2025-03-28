@@ -2,8 +2,6 @@ package column
 
 import (
 	"reflect"
-
-	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // MapNullable is a column of Map(K,V) ClickHouse data type where V is nullable.
@@ -27,7 +25,7 @@ func NewMapNullable[K comparable, V any](
 				keyColumn:     keyColumn,
 				valueColumn:   valueColumn,
 				offsetColumn:  New[uint64](),
-				mapChconnType: "MapNullable[]" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
+				mapChconnType: "MapNullable[" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
 			},
 		},
 	}
@@ -81,8 +79,8 @@ func (c *MapNullable[K, V]) AppendP(v map[K]*V) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *MapNullable[K, V]) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.Map.ReadRaw(num, r)
+func (c *MapNullable[K, V]) ReadRaw(num int) error {
+	err := c.Map.ReadRaw(num)
 	if err != nil {
 		return err
 	}

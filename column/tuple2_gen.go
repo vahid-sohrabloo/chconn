@@ -30,7 +30,7 @@ func NewTuple2[T ~struct {
 ) *Tuple2[T, T1, T2] {
 	return &Tuple2[T, T1, T2]{
 		Tuple: Tuple{
-			columns: []ColumnBasic{
+			columns: []ColumnCore{
 				column1,
 				column2,
 			},

@@ -10,6 +10,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 // ArrayBase is a column of Array(T) ClickHouse data type
@@ -18,14 +19,14 @@ import (
 type ArrayBase struct {
 	column
 	offsetColumn    *Base[uint64]
-	dataColumn      ColumnBasic
+	dataColumn      ColumnCore
 	offset          uint64
 	arrayChconnType string
 	resetHook       func()
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
-func NewArrayBase(dataColumn ColumnBasic) *ArrayBase {
+func NewArrayBase(dataColumn ColumnCore) *ArrayBase {
 	a := &ArrayBase{
 		dataColumn:      dataColumn,
 		offsetColumn:    New[uint64](),
@@ -191,13 +192,13 @@ func (c *ArrayBase) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *ArrayBase) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *ArrayBase) ReadRaw(num int) error {
 	c.offsetColumn.Reset()
-	err := c.offsetColumn.ReadRaw(num, r)
+	err := c.offsetColumn.ReadRaw(num)
 	if err != nil {
 		return fmt.Errorf("array: read offset column: %w", err)
 	}
-	err = c.dataColumn.ReadRaw(c.TotalRows(), r)
+	err = c.dataColumn.ReadRaw(c.TotalRows())
 	if err != nil {
 		return fmt.Errorf("array: read data column: %w", err)
 	}
@@ -208,40 +209,27 @@ func (c *ArrayBase) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
-// HeaderReader reads header data from reader
+// ReadHeader reads header data from reader
 // it uses internally
-func (c *ArrayBase) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	err := c.readColumn(readColumn, revision)
+func (c *ArrayBase) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
 
-	// never return error
-	//nolint:errcheck
-	c.offsetColumn.HeaderReader(r, false, revision)
+	c.offsetColumn.r = r
 
-	return c.dataColumn.HeaderReader(r, false, revision)
+	return c.dataColumn.ReadHeader(r, serverInfo)
 }
 
 // Column returns the sub column
-func (c *ArrayBase) Column() ColumnBasic {
+func (c *ArrayBase) Column() ColumnCore {
 	return c.dataColumn
 }
 
-func (c *ArrayBase) Validate(forInsert bool) error {
-	if forInsert {
-		var offset uint64
-		if len(c.offsetColumn.values) > 0 {
-			offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]
-		}
-		if offset != uint64(c.dataColumn.NumRow()) {
-			return fmt.Errorf("array length is not equal to data length: %d != %d %s",
-				c.offsetColumn.values[len(c.offsetColumn.values)-1],
-				c.dataColumn.NumRow(), c.FullType())
-		}
-	}
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *ArrayBase) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	switch {
 	case helper.IsRing(chType):
 		chType = helper.RingMainTypeStr
@@ -255,21 +243,36 @@ func (c *ArrayBase) Validate(forInsert bool) error {
 
 	if !helper.IsArray(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(chType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
-	c.dataColumn.SetType(chType[helper.LenArrayStr : len(chType)-1])
-	if err := c.dataColumn.Validate(forInsert); err != nil {
+
+	if err := c.dataColumn.SetColumnHeader(ColumnHeader{
+		ChType: chType[helper.LenArrayStr : len(chType)-1],
+	}); err != nil {
 		if !isInvalidType(err) {
 			return err
 		}
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
+	}
+	return nil
+}
+
+func (c *ArrayBase) ValidateInsert() error {
+	var offset uint64
+	if len(c.offsetColumn.values) > 0 {
+		offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]
+	}
+	if offset != uint64(c.dataColumn.NumRow()) {
+		return fmt.Errorf("array length is not equal to data length: %d != %d %s",
+			offset,
+			c.dataColumn.NumRow(), c.FullType())
 	}
 	return nil
 }
@@ -300,7 +303,7 @@ func (c *ArrayBase) HeaderWriter(w *readerwriter.Writer) {
 	c.dataColumn.HeaderWriter(w)
 }
 
-func (c *ArrayBase) elem(arrayLevel int) ColumnBasic {
+func (c *ArrayBase) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
@@ -308,10 +311,10 @@ func (c *ArrayBase) elem(arrayLevel int) ColumnBasic {
 }
 
 func (c *ArrayBase) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return "Array(" + c.dataColumn.FullType() + ")"
 	}
-	return string(c.name) + " Array(" + c.dataColumn.FullType() + ")"
+	return string(c.columnHeader.Name) + " Array(" + c.dataColumn.FullType() + ")"
 }
 
 func (c *ArrayBase) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
@@ -330,4 +333,9 @@ func (c *ArrayBase) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		b = c.dataColumn.ToJSON(int(i), ignoreDoubleQuotes, b)
 	}
 	return append(b, ']')
+}
+
+func (c *ArrayBase) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexArray))
+	c.dataColumn.writeBinaryDataTo(w)
 }

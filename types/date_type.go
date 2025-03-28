@@ -2,6 +2,9 @@ package types
 
 import (
 	"time"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // two bytes as the number of days since 1970-01-01 (unsigned).
@@ -9,6 +12,10 @@ type Date uint16
 
 func (d Date) GetCHType() string {
 	return "Date"
+}
+
+func (d Date) WriteBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexDate))
 }
 
 const minDate32 = int32(-25567) // 1900-01-01 00:00:00 +0000 UTC
@@ -19,10 +26,19 @@ func (d Date32) GetCHType() string {
 	return "Date32"
 }
 
+func (d Date32) WriteBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexDate32))
+}
+
 type DateTime uint32
 
 func (d DateTime) GetCHType() string {
 	return "DateTime"
+}
+
+func (d DateTime) WriteBinaryDataTo(w *readerwriter.Writer) {
+	// todo need precision
+	w.Uint8(uint8(helper.BinaryTypeIndexDateTimeUTC))
 }
 
 const minDateTime64 = int64(-2208988800) // 1900-01-01 00:00:00 +0000 UTC
@@ -31,6 +47,11 @@ type DateTime64 int64
 
 func (d DateTime64) GetCHType() string {
 	return "DateTime64"
+}
+
+func (d DateTime64) WriteBinaryDataTo(w *readerwriter.Writer) {
+	// todo need precision
+	w.Uint8(uint8(helper.BinaryTypeIndexDateTime64UTC))
 }
 
 const daySeconds = 24 * 60 * 60

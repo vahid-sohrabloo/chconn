@@ -100,7 +100,7 @@ type Rows interface {
 	Values() []any
 
 	// Columns returns the columns
-	Columns() []column.ColumnBasic
+	Columns() []column.ColumnCore
 
 	// CurrentRow returns the current row number (start from 0)
 	CurrentRow() int
@@ -184,7 +184,7 @@ func (r *baseRows) Scan(dest ...any) error {
 	return nil
 }
 
-func (r *baseRows) Columns() []column.ColumnBasic {
+func (r *baseRows) Columns() []column.ColumnCore {
 	return r.selectStmt.Columns()
 }
 
@@ -270,7 +270,7 @@ func ForEachRow(rows Rows, scans []any, fn func() error) error {
 // CollectableRow is the subset of Rows methods that a RowToFunc is allowed to call.
 type CollectableRow interface {
 	Scan(dest ...any) error
-	Columns() []column.ColumnBasic
+	Columns() []column.ColumnCore
 }
 
 // RowToFunc is a function that scans or otherwise converts row to a T.
@@ -547,7 +547,7 @@ type namedStructFields struct {
 
 func lookupNamedStructFields(
 	t reflect.Type,
-	columns []column.ColumnBasic,
+	columns []column.ColumnCore,
 ) (*namedStructFields, error) {
 	key := namedStructFieldsKey{
 		t:        t,
@@ -583,7 +583,7 @@ func lookupNamedStructFields(
 	return fieldsIface.(*namedStructFields), nil
 }
 
-func joinFieldNames(columns []column.ColumnBasic) string {
+func joinFieldNames(columns []column.ColumnCore) string {
 	switch len(columns) {
 	case 0:
 		return ""
@@ -607,7 +607,7 @@ func joinFieldNames(columns []column.ColumnBasic) string {
 
 //nolint:gocritic
 func computeNamedStructFields(
-	columns []column.ColumnBasic,
+	columns []column.ColumnCore,
 	t reflect.Type,
 	fields []structRowField,
 	fieldStack *[]int,
@@ -666,7 +666,7 @@ func computeNamedStructFields(
 
 const structTagKey = "db"
 
-func fieldPosByName(columns []column.ColumnBasic, field string) (i int) {
+func fieldPosByName(columns []column.ColumnCore, field string) (i int) {
 	i = -1
 	for i, desc := range columns {
 		// Snake case support.

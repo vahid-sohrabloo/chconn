@@ -14,7 +14,7 @@ func (s *selectStmt) Next() bool {
 		return false
 	}
 	next := s.SelectStmt.Next()
-	if s.SelectStmt.Err() != nil && s.conn != nil {
+	if s.Err() != nil && s.conn != nil {
 		s.Close()
 	}
 	if !next && s.conn != nil {

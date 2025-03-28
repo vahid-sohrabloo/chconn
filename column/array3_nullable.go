@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
-
-	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // Array is a column of Array(Array(Nullable(T))) ClickHouse data type
@@ -131,8 +129,8 @@ func (c *Array3Nullable[T]) AppendAny(value any) error {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *Array3Nullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.Array3.ReadRaw(num, r)
+func (c *Array3Nullable[T]) ReadRaw(num int) error {
+	err := c.Array3.ReadRaw(num)
 	if err != nil {
 		return err
 	}
@@ -147,7 +145,7 @@ func (c *Array3Nullable[T]) getColumnData() [][][]*T {
 	return c.columnData
 }
 
-func (c *Array3Nullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *Array3Nullable[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		panic("array level is too deep")
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 type TupleStruct[T any] interface {
@@ -20,15 +21,14 @@ type TupleStruct[T any] interface {
 // this is actually a group of columns. it doesn't have any method for read or write data
 type Tuple struct {
 	column
-	isJSON  bool
 	isNamed bool
-	columns []ColumnBasic
+	columns []ColumnCore
 }
 
 // NewTuple create a new tuple of Tuple(T1,T2,.....,Tn) ClickHouse data type
 //
 // this is actually a group of columns. it doesn't have any method for read or write data
-func NewTuple(columns ...ColumnBasic) *Tuple {
+func NewTuple(columns ...ColumnCore) *Tuple {
 	if len(columns) < 1 {
 		panic("tuple must have at least one column")
 	}
@@ -69,9 +69,9 @@ func (c *Tuple) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *Tuple) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *Tuple) ReadRaw(num int) error {
 	for i, col := range c.columns {
-		err := col.ReadRaw(num, r)
+		err := col.ReadRaw(num)
 		if err != nil {
 			return fmt.Errorf("tuple: read column index %d: %w", i, err)
 		}
@@ -79,17 +79,16 @@ func (c *Tuple) ReadRaw(num int, r *readerwriter.Reader) error {
 	return nil
 }
 
-// HeaderReader reads header data from reader.
+// ReadHeader reads header data from reader.
 // it uses internally
-func (c *Tuple) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	err := c.readColumn(readColumn, revision)
+func (c *Tuple) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
 
 	for i, col := range c.columns {
-		err = col.HeaderReader(r, false, revision)
+		err := col.ReadHeader(r, serverInfo)
 		if err != nil {
 			return fmt.Errorf("tuple: read column header index %d: %w", i, err)
 		}
@@ -223,23 +222,20 @@ func getStructFieldValue(field reflect.Value, name string) (reflect.Value, bool)
 }
 
 // Column returns the all sub columns
-func (c *Tuple) Columns() []ColumnBasic {
+func (c *Tuple) Columns() []ColumnCore {
 	return c.columns
 }
 
-func (c *Tuple) Validate(forInsert bool) error {
-	if string(c.chType) == "Object('json')" {
-		c.isJSON = true
-		return nil
-	}
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *Tuple) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	if helper.IsPoint(chType) {
 		chType = helper.PointMainTypeStr
 	}
 
 	if !helper.IsTuple(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
@@ -252,7 +248,7 @@ func (c *Tuple) Validate(forInsert bool) error {
 	if len(columnsTuple) != len(c.columns) {
 		//nolint:goerr113
 		return fmt.Errorf("columns number for %s (%s) is not equal to tuple columns number: %d != %d",
-			string(c.name),
+			string(c.columnHeader.Name),
 			string(c.Type()),
 			len(columnsTuple),
 			len(c.columns),
@@ -263,14 +259,31 @@ func (c *Tuple) Validate(forInsert bool) error {
 		if len(columnsTuple[i].Name) != 0 {
 			c.isNamed = true
 		}
-		col.SetType(columnsTuple[i].ChType)
-		col.SetName(columnsTuple[i].Name)
-		if err := col.Validate(forInsert); err != nil {
+		if err := col.SetColumnHeader(ColumnHeader{
+			ChType: columnsTuple[i].ChType,
+			Name:   columnsTuple[i].Name,
+		}); err != nil {
+			if !isInvalidType(err) {
+				return fmt.Errorf("tuple: set column header index %d: %w", i, err)
+			}
+			return &ErrInvalidType{
+				chType:     string(c.columnHeader.ChType),
+				chconnType: c.chconnType(),
+				goToChType: c.structType(),
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Tuple) ValidateInsert() error {
+	for _, col := range c.columns {
+		if err := col.ValidateInsert(); err != nil {
 			if !isInvalidType(err) {
 				return err
 			}
 			return &ErrInvalidType{
-				chType:     string(c.chType),
+				chType:     string(c.columnHeader.ChType),
 				chconnType: c.chconnType(),
 				goToChType: c.structType(),
 			}
@@ -288,9 +301,6 @@ func (c *Tuple) structType() string {
 }
 
 func (c *Tuple) chconnType() string {
-	if c.isJSON {
-		return "Object('json')"
-	}
 	chConn := "column.Tuple("
 	for _, col := range c.columns {
 		chConn += col.chconnType() + ", "
@@ -343,17 +353,6 @@ func (c *Tuple) AppendAny(value any) error {
 // it uses internally
 func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 	var n int64
-	if c.isJSON {
-		// todo find a more efficient way
-		wf := readerwriter.NewWriter()
-		wf.String(c.FullType())
-		nw, err := wf.WriteTo(w)
-		if err != nil {
-			return n, fmt.Errorf("tuple: write type: %w", err)
-		}
-		n += nw
-	}
-
 	for i, col := range c.columns {
 		nw, err := col.WriteTo(w)
 		if err != nil {
@@ -367,15 +366,12 @@ func (c *Tuple) WriteTo(w io.Writer) (int64, error) {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *Tuple) HeaderWriter(w *readerwriter.Writer) {
-	if c.isJSON {
-		w.Uint8(0)
-	}
 	for _, col := range c.columns {
 		col.HeaderWriter(w)
 	}
 }
 
-func (c *Tuple) Elem(arrayLevel int) ColumnBasic {
+func (c *Tuple) Elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
@@ -393,10 +389,10 @@ func (c *Tuple) Remove(n int) {
 
 func (c *Tuple) FullType() string {
 	var chType string
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		chType = "Tuple("
 	} else {
-		chType = string(c.name) + " Tuple("
+		chType = string(c.columnHeader.Name) + " Tuple("
 	}
 	for _, col := range c.columns {
 		chType += col.FullType() + ", "
@@ -434,4 +430,19 @@ func (c *Tuple) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		b = append(b, ']')
 	}
 	return b
+}
+
+func (c *Tuple) writeBinaryDataTo(w *readerwriter.Writer) {
+	if c.isNamed {
+		w.Uint8(uint8(helper.BinaryTypeIndexNamedTuple))
+	} else {
+		w.Uint8(uint8(helper.BinaryTypeIndexUnnamedTuple))
+	}
+	w.Uvarint(uint64(len(c.columns)))
+	for _, col := range c.columns {
+		if c.isNamed {
+			w.ByteString(col.Name())
+		}
+		col.writeBinaryDataTo(w)
+	}
 }

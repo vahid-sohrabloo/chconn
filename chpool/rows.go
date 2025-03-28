@@ -9,14 +9,14 @@ type errRows struct {
 	err error
 }
 
-func (errRows) Close()                          {}
-func (e errRows) Err() error                    { return e.err }
-func (errRows) Next() bool                      { return false }
-func (e errRows) Scan(dest ...any) error        { return e.err }
-func (e errRows) Values() []any                 { return nil }
-func (e errRows) Conn() chconn.Conn             { return nil }
-func (e errRows) Columns() []column.ColumnBasic { return nil }
-func (e errRows) CurrentRow() int               { return 0 }
+func (errRows) Close()                         {}
+func (e errRows) Err() error                   { return e.err }
+func (errRows) Next() bool                     { return false }
+func (e errRows) Scan(dest ...any) error       { return e.err }
+func (e errRows) Values() []any                { return nil }
+func (e errRows) Conn() chconn.Conn            { return nil }
+func (e errRows) Columns() []column.ColumnCore { return nil }
+func (e errRows) CurrentRow() int              { return 0 }
 
 type errRow struct {
 	err error
@@ -77,7 +77,7 @@ func (rows *poolRows) CurrentRow() int {
 	return rows.r.CurrentRow()
 }
 
-func (rows *poolRows) Columns() []column.ColumnBasic {
+func (rows *poolRows) Columns() []column.ColumnCore {
 	return rows.r.Columns()
 }
 

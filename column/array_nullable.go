@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
-
-	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 type arrayAlias[T any] struct {
@@ -161,8 +159,8 @@ func (c *ArrayNullable[T]) Array() *Array2Nullable[T] {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *ArrayNullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
-	err := c.arrayAlias.Array.ReadRaw(num, r)
+func (c *ArrayNullable[T]) ReadRaw(num int) error {
+	err := c.arrayAlias.ReadRaw(num)
 	if err != nil {
 		return err
 	}
@@ -177,7 +175,7 @@ func (c *ArrayNullable[T]) getColumnData() []*T {
 	return c.columnData
 }
 
-func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}

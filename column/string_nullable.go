@@ -10,6 +10,7 @@ import (
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 // StringNullable is a column of Nullable(T) ClickHouse data type
@@ -293,24 +294,19 @@ func (c *StringNullable[T]) SetWriteBufferSize(row int) {
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
-func (c *StringNullable[T]) ReadRaw(num int, r *readerwriter.Reader) error {
+func (c *StringNullable[T]) ReadRaw(num int) error {
 	c.Reset()
-	c.r = r
 	c.numRow = num
 
 	err := c.readBuffer()
 	if err != nil {
 		return fmt.Errorf("read nullable data: %w", err)
 	}
-	return c.dataColumn.ReadRaw(num, r)
+	return c.dataColumn.ReadRaw(num)
 }
 
 func (c *StringNullable[T]) readBuffer() error {
-	if cap(c.b) < c.numRow {
-		c.b = make([]byte, c.numRow)
-	} else {
-		c.b = c.b[:c.numRow]
-	}
+	c.b = helper.ResetSlice(c.b, c.numRow, false)
 	_, err := c.r.Read(c.b)
 	if err != nil {
 		return fmt.Errorf("read nullable data: %w", err)
@@ -318,38 +314,43 @@ func (c *StringNullable[T]) readBuffer() error {
 	return nil
 }
 
-// HeaderReader reads header data from reader
+// ReadHeader reads header data from reader
 // it uses internally
-func (c *StringNullable[T]) HeaderReader(r *readerwriter.Reader, readColumn bool, revision uint64) error {
-	c.r = r
-	err := c.readColumn(readColumn, revision)
+func (c *StringNullable[T]) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
 	}
-	return c.dataColumn.HeaderReader(r, false, revision)
+	return c.dataColumn.ReadHeader(r, serverInfo)
 }
 
-func (c *StringNullable[T]) Validate(forInsert bool) error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+func (c *StringNullable[T]) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
 	if !helper.IsNullable(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
-	c.dataColumn.SetType(chType[helper.LenNullableStr : len(chType)-1])
-	if err := c.dataColumn.Validate(forInsert); err != nil {
+	if err := c.dataColumn.SetColumnHeader(ColumnHeader{
+		ChType: chType[helper.LenNullableStr : len(chType)-1],
+	}); err != nil {
 		if !isInvalidType(err) {
 			return err
 		}
 		return &ErrInvalidType{
-			chType:     string(c.chType),
+			chType:     string(c.columnHeader.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
 	return nil
+}
+
+func (c *StringNullable[T]) ValidateInsert() error {
+	return c.dataColumn.ValidateInsert()
 }
 
 func (c *StringNullable[T]) chconnType() string {
@@ -377,7 +378,7 @@ func (c *StringNullable[T]) WriteTo(w io.Writer) (int64, error) {
 func (c *StringNullable[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *StringNullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *StringNullable[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
@@ -385,10 +386,10 @@ func (c *StringNullable[T]) elem(arrayLevel int) ColumnBasic {
 }
 
 func (c *StringNullable[T]) FullType() string {
-	if len(c.name) == 0 {
+	if len(c.columnHeader.Name) == 0 {
 		return "Nullable(" + c.dataColumn.FullType() + ")"
 	}
-	return string(c.name) + " Nullable(" + c.dataColumn.FullType() + ")"
+	return string(c.columnHeader.Name) + " Nullable(" + c.dataColumn.FullType() + ")"
 }
 
 func (c *StringNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
@@ -396,4 +397,9 @@ func (c *StringNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) [
 		return append(b, "null"...)
 	}
 	return c.dataColumn.ToJSON(row, ignoreDoubleQuotes, b)
+}
+
+func (c *StringNullable[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexNullable))
+	c.dataColumn.writeBinaryDataTo(w)
 }

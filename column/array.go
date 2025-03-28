@@ -168,7 +168,7 @@ func (c *Array[T]) getColumnData() []T {
 	return c.columnData
 }
 
-func (c *Array[T]) elem(arrayLevel int) ColumnBasic {
+func (c *Array[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}

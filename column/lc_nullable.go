@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // LowCardinalityNullable for LowCardinality(Nullable(T)) ClickHouse DataTypes
@@ -225,7 +228,7 @@ func (c *LowCardinalityNullable[T]) Reset() {
 	c.dictColumn.Append(empty)
 }
 
-func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
@@ -238,4 +241,10 @@ func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b [
 		return append(b, "null"...)
 	}
 	return c.dictColumn.ToJSON(k, ignoreDoubleQuotes, b)
+}
+
+func (c *LowCardinalityNullable[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexLowCardinality))
+	w.Uint8(uint8(helper.BinaryTypeIndexNullable))
+	c.dictColumn.writeBinaryDataTo(w)
 }
