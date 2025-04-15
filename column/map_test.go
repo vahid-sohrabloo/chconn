@@ -15,10 +15,11 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 	"github.com/vahid-sohrabloo/chconn/v3/format"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 func TestMapUint8(t *testing.T) {
-	testMapColumn(t, false, "UInt8", "uint8", func(i int) []uint8 {
+	testMapColumn(t, false, false, "UInt8", "uint8", func(i int) []uint8 {
 		d := make([]uint8, 2)
 		d[0] = uint8(i)
 		d[1] = uint8(i + 1)
@@ -32,7 +33,7 @@ func TestMapUint8(t *testing.T) {
 }
 
 func TestMapUint16(t *testing.T) {
-	testMapColumn(t, false, "UInt16", "uint16", func(i int) []uint16 {
+	testMapColumn(t, false, false, "UInt16", "uint16", func(i int) []uint16 {
 		d := make([]uint16, 2)
 		d[0] = uint16(i)
 		d[1] = uint16(i + 1)
@@ -46,7 +47,7 @@ func TestMapUint16(t *testing.T) {
 }
 
 func TestMapUint32(t *testing.T) {
-	testMapColumn(t, false, "UInt32", "uint32", func(i int) []uint32 {
+	testMapColumn(t, false, false, "UInt32", "uint32", func(i int) []uint32 {
 		d := make([]uint32, 2)
 		d[0] = uint32(i)
 		d[1] = uint32(i + 1)
@@ -60,7 +61,7 @@ func TestMapUint32(t *testing.T) {
 }
 
 func TestMapUint64(t *testing.T) {
-	testMapColumn(t, false, "UInt64", "uint64", func(i int) []uint64 {
+	testMapColumn(t, false, false, "UInt64", "uint64", func(i int) []uint64 {
 		d := make([]uint64, 2)
 		d[0] = uint64(i)
 		d[1] = uint64(i + 1)
@@ -73,7 +74,7 @@ func TestMapUint64(t *testing.T) {
 	})
 }
 func TestMapInt8(t *testing.T) {
-	testMapColumn(t, false, "Int8", "int8", func(i int) []int8 {
+	testMapColumn(t, false, false, "Int8", "int8", func(i int) []int8 {
 		d := make([]int8, 2)
 		d[0] = int8(i)
 		d[1] = int8(i + 1)
@@ -87,7 +88,7 @@ func TestMapInt8(t *testing.T) {
 }
 
 func TestMapBool(t *testing.T) {
-	testMapColumn(t, false, "Bool", "bool", func(i int) []bool {
+	testMapColumn(t, false, false, "Bool", "bool", func(i int) []bool {
 		d := make([]bool, 2)
 		d[0] = i%2 == 0
 		d[1] = i%4 == 0
@@ -101,7 +102,7 @@ func TestMapBool(t *testing.T) {
 }
 
 func TestMapInt16(t *testing.T) {
-	testMapColumn(t, false, "Int16", "int16", func(i int) []int16 {
+	testMapColumn(t, false, false, "Int16", "int16", func(i int) []int16 {
 		d := make([]int16, 2)
 		d[0] = int16(i)
 		d[1] = int16(i + 1)
@@ -115,7 +116,7 @@ func TestMapInt16(t *testing.T) {
 }
 
 func TestMapInt32(t *testing.T) {
-	testMapColumn(t, false, "Int32", "int32", func(i int) []int32 {
+	testMapColumn(t, false, false, "Int32", "int32", func(i int) []int32 {
 		d := make([]int32, 2)
 		d[0] = int32(i)
 		d[1] = int32(i + 1)
@@ -129,7 +130,7 @@ func TestMapInt32(t *testing.T) {
 }
 
 func TestMapInt64(t *testing.T) {
-	testMapColumn(t, false, "Int64", "int64", func(i int) []int64 {
+	testMapColumn(t, false, false, "Int64", "int64", func(i int) []int64 {
 		d := make([]int64, 2)
 		d[0] = int64(i)
 		d[1] = int64(i + 1)
@@ -143,7 +144,7 @@ func TestMapInt64(t *testing.T) {
 }
 
 func TestMapFloat32(t *testing.T) {
-	testMapColumn(t, false, "Float32", "float32", func(i int) []float32 {
+	testMapColumn(t, false, false, "Float32", "float32", func(i int) []float32 {
 		d := make([]float32, 2)
 		d[0] = float32(i)
 		d[1] = float32(i + 1)
@@ -157,7 +158,7 @@ func TestMapFloat32(t *testing.T) {
 }
 
 func TestMapFloat64(t *testing.T) {
-	testMapColumn(t, false, "Float64", "float64", func(i int) []float64 {
+	testMapColumn(t, false, false, "Float64", "float64", func(i int) []float64 {
 		d := make([]float64, 2)
 		d[0] = float64(i)
 		d[1] = float64(i + 1)
@@ -171,7 +172,22 @@ func TestMapFloat64(t *testing.T) {
 }
 
 func TestMapWihDeleteFloat64(t *testing.T) {
-	testMapColumn(t, true, "Float64", "float64", func(i int) []float64 {
+	testMapColumn(t, false, true, "Float64", "float64", func(i int) []float64 {
+		d := make([]float64, 2)
+		d[0] = float64(i)
+		d[1] = float64(i + 1)
+		return d
+	}, func(i int) []float64 {
+		d := make([]float64, 2)
+		d[0] = float64(i)
+		d[1] = float64(i + 1)
+		return d
+	})
+}
+
+
+func TestMapWihDeleteFuncFloat64(t *testing.T) {
+	testMapColumn(t, true, false, "Float64", "float64", func(i int) []float64 {
 		d := make([]float64, 2)
 		d[0] = float64(i)
 		d[1] = float64(i + 1)
@@ -186,6 +202,7 @@ func TestMapWihDeleteFloat64(t *testing.T) {
 
 func testMapColumn[V column.BaseType](
 	t *testing.T,
+	withDeleteFunc,
 	withDelete bool,
 	chType, tableName string,
 	firstVal func(i int) []V,
@@ -200,6 +217,10 @@ func testMapColumn[V column.BaseType](
 
 	if withDelete {
 		tableName += "_with_delete"
+	}
+
+	if withDeleteFunc {
+		tableName += "_with_delete_func"
 	}
 
 	err = conn.Exec(context.Background(),
@@ -513,6 +534,85 @@ func testMapColumn[V column.BaseType](
 			colLCArrayInsertStruct = colLCArrayInsertStruct[:rows/2]
 			colLCNullableArrayInsert = colLCNullableArrayInsert[:rows/2]
 			colLCNullableArrayInsertStruct = colLCNullableArrayInsertStruct[:rows/2]
+		}
+
+		if withDeleteFunc && insertN == 0 {
+			blockID.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			col.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colNullable.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colArray.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colNullableArray.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colLC.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colLCNullable.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayLC.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayLCNullable.DeleteFunc(func(i int) bool {
+				return i%2 == 0
+			})
+
+			colInsert = helper.DeleteIndexFunc(colInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colInsertStruct = helper.DeleteIndexFunc(colInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colNullableInsert = helper.DeleteIndexFunc(colNullableInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colNullableInsertStruct = helper.DeleteIndexFunc(colNullableInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayInsert = helper.DeleteIndexFunc(colArrayInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayInsertStruct = helper.DeleteIndexFunc(colArrayInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayNullableInsert = helper.DeleteIndexFunc(colArrayNullableInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colArrayNullableInsertStruct = helper.DeleteIndexFunc(colArrayNullableInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCInsert = helper.DeleteIndexFunc(colLCInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCInsertStruct = helper.DeleteIndexFunc(colLCInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCNullableInsert = helper.DeleteIndexFunc(colLCNullableInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCNullableInsertStruct = helper.DeleteIndexFunc(colLCNullableInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCArrayInsert = helper.DeleteIndexFunc(colLCArrayInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCArrayInsertStruct = helper.DeleteIndexFunc(colLCArrayInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCNullableArrayInsert = helper.DeleteIndexFunc(colLCNullableArrayInsert, func(i int) bool {
+				return i%2 == 0
+			})
+			colLCNullableArrayInsertStruct = helper.DeleteIndexFunc(colLCNullableArrayInsertStruct, func(i int) bool {
+				return i%2 == 0
+			})
 		}
 
 		err = conn.Insert(context.Background(), fmt.Sprintf(`INSERT INTO

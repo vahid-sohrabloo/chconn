@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"unsafe"
 
@@ -71,8 +72,7 @@ func New[T BaseType]() *Base[T] {
 //
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
 func (c *Base[T]) Data() []T {
-	value := *(*[]T)(unsafe.Pointer(&c.b))
-	return value[:c.numRow]
+	return c.values
 }
 
 // Read reads all the data in current block and append to the input.
@@ -83,8 +83,7 @@ func (c *Base[T]) Read(value []T) []T {
 // Row return the value of given row.
 // NOTE: Row number start from zero
 func (c *Base[T]) Row(row int) T {
-	i := row * c.size
-	return *(*T)(unsafe.Pointer(&c.b[i]))
+	return c.values[row]
 }
 
 // RowAny return the value of given row.
@@ -98,6 +97,11 @@ func (c *Base[T]) Append(v T) {
 	c.preHookAppend()
 	c.values = append(c.values, v)
 	c.numRow++
+}
+
+// Append value for insert
+func (c *Base[T]) SetAt(row int, v T) {
+	c.values[row] = v
 }
 
 func (c *Base[T]) canAppend(value any) bool {
@@ -137,6 +141,36 @@ func (c *Base[T]) Remove(n int) {
 		return
 	}
 	c.values = c.values[:n]
+	c.numRow = len(c.values)
+}
+
+func (c *Base[T]) Delete(start int, end int) {
+	if c.NumRow() == 0 || c.NumRow() <= start {
+		return
+	}
+
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+
+	c.values = slices.Delete(c.values, start, end)
+	c.numRow = len(c.values)
+}
+
+// Remove inserted values
+func (c *Base[T]) DeleteFunc(del func(row int) bool) {
+	if c.NumRow() == 0 {
+		return
+	}
+	i := 0
+	for j := range c.values {
+		if !del(j) {
+			c.values[i] = c.values[j]
+			i++
+		}
+	}
+	clear(c.values[i:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:i]
 	c.numRow = len(c.values)
 }
 
@@ -195,7 +229,6 @@ func (c *Base[T]) SetWriteBufferSize(row int) {
 func (c *Base[T]) ReadRaw(num int) error {
 	c.Reset()
 	c.numRow = num
-	c.totalByte = c.numRow * c.size
 
 	if c.columnHeader.IsSparse {
 		totalRowsRead, err := c.readSparse()
@@ -203,7 +236,6 @@ func (c *Base[T]) ReadRaw(num int) error {
 			return fmt.Errorf("read sparse: %w", err)
 		}
 		c.numRow = totalRowsRead
-		c.totalByte = totalRowsRead * c.size
 	}
 	err := c.readBuffer()
 	if err != nil {
@@ -221,17 +253,23 @@ func (c *Base[T]) ReadRaw(num int) error {
 		}
 
 		c.numRow = int(c.itemsTotalSparse)
-		bSize := c.size * len(c.sparseData)
-		c.b = helper.ResetSlice(c.b, bSize, false)
-		copy(c.b, helper.ConvertToByte(c.sparseData, c.size))
+		c.values = c.sparseData[:c.numRow]
 	}
 	return err
 }
 
 func (c *Base[T]) readBuffer() error {
-	c.b = helper.ResetSlice(c.b, c.totalByte, false)
-	_, err := c.r.Read(c.b)
-	return err
+	// Reset the values slice to the correct length
+	c.values = helper.ResetSlice(c.values, c.numRow, true)
+	if c.numRow > 0 {
+		// Read directly into our typed slice through the byte view
+		_, err := c.r.Read(helper.ConvertToByte(c.values, c.size))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ReadHeader reads header data from reader

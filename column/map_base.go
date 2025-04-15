@@ -1,7 +1,6 @@
 package column
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"reflect"
@@ -88,7 +87,7 @@ func (c *MapBase) canAppend(value any) bool {
 			return false
 		}
 		val := mapVal.MapIndex(key).Interface()
-		if c.valueColumn.canAppend(val) {
+		if !c.valueColumn.canAppend(val) {
 			return false
 		}
 	}
@@ -133,6 +132,76 @@ func (c *MapBase) Remove(n int) {
 	c.offsetColumn.Remove(n)
 	c.keyColumn.Remove(int(offset))
 	c.valueColumn.Remove(int(offset))
+}
+
+// Delete removes rows in the range [start, end)
+func (c *MapBase) Delete(start int, end int) {
+	if c.NumRow() == 0 || c.NumRow() <= start || start >= end {
+		return
+	}
+
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+
+	// Calculate offsets for the data elements
+	startOffset := uint64(0)
+	if start > 0 {
+		startOffset = c.offsetColumn.values[start-1]
+	}
+	endOffset := c.offsetColumn.values[end-1]
+
+	// Calculate how many data elements we're removing
+	elementsToRemove := endOffset - startOffset
+
+	// Remove the data elements
+	c.keyColumn.Delete(int(startOffset), int(endOffset))
+	c.valueColumn.Delete(int(startOffset), int(endOffset))
+
+	// Remove the offsets for the deleted rows
+	c.offsetColumn.Delete(start, end)
+
+	// Adjust all remaining offsets after the deleted range
+	for i := start; i < c.offsetColumn.NumRow(); i++ {
+		c.offsetColumn.values[i] -= elementsToRemove
+	}
+}
+
+func (c *MapBase) DeleteFunc(del func(row int) bool) {
+	offsets := c.offsetColumn.values
+	if len(offsets) == 0 {
+		return
+	}
+
+	// Keep track of which rows to preserve
+	newOffsetIdx := 0
+	totalDeleted := uint64(0)
+
+	for i := 0; i < len(offsets); i++ {
+		// Calculate this row's data range
+		startOffset := uint64(0)
+		if i > 0 {
+			startOffset = offsets[i-1]
+		}
+		endOffset := offsets[i]
+		rowSize := endOffset - startOffset
+
+		if del(i) {
+			// Row should be deleted
+			// Mark these data elements for deletion
+			c.keyColumn.Delete(int(startOffset-totalDeleted), int(endOffset-totalDeleted))
+			c.valueColumn.Delete(int(startOffset-totalDeleted), int(endOffset-totalDeleted))
+			totalDeleted += rowSize
+		} else {
+			// Row should be kept
+			// Update its offset (accounting for previously deleted elements)
+			c.offsetColumn.values[newOffsetIdx] = endOffset - totalDeleted
+			newOffsetIdx++
+		}
+	}
+
+	// Resize the offset array to remove deleted rows
+	c.offsetColumn.Remove(newOffsetIdx)
 }
 
 func (c *MapBase) RowAny(row int) any {
@@ -239,10 +308,10 @@ func (c *MapBase) Offsets() []uint64 {
 
 // TotalRows return total rows on this block of array data
 func (c *MapBase) TotalRows() int {
-	if c.offsetColumn.totalByte == 0 {
+	if len(c.offsetColumn.values) == 0 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint64(c.offsetColumn.b[c.offsetColumn.totalByte-8 : c.offsetColumn.totalByte]))
+	return int(c.offsetColumn.values[len(c.offsetColumn.values)-1])
 }
 
 // SetWriteBufferSize set write buffer (number of rows)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -20,7 +21,6 @@ type stringPos struct {
 type StringBase[T ~string] struct {
 	column
 	numRow        int
-	writerData    []byte
 	vals          []byte
 	pos           []stringPos
 	sparseDataPos []stringPos
@@ -75,15 +75,18 @@ func (c *StringBase[T]) ReadBytes(value [][]byte) [][]byte {
 	if len(c.pos) == 0 {
 		return value
 	}
-	if cap(value)-len(value) >= len(c.pos) {
-		value = (value)[:len(value)+len(c.pos)]
+	valueLen := len(value)
+
+	if cap(value)-valueLen >= len(c.pos) {
+		value = (value)[:valueLen+len(c.pos)]
 	} else {
 		value = append(value, make([][]byte, len(c.pos))...)
 	}
 
-	val := (value)[len(value)-len(c.pos):]
+	val := (value)[valueLen:]
 	for i, v := range c.pos {
-		val[i] = c.vals[v.start:v.end]
+		val[i] = make([]byte, v.end-v.start)
+		copy(val[i], c.vals[v.start:v.end])
 	}
 
 	return value
@@ -93,7 +96,7 @@ func (c *StringBase[T]) ReadBytes(value [][]byte) [][]byte {
 //
 // NOTE: Row number start from zero
 func (c *StringBase[T]) Row(row int) T {
-	return T(c.RowBytes(row))
+	return T(c.rowBytes(row))
 }
 
 // RowAny return the value of given row.
@@ -112,15 +115,16 @@ func (c *StringBase[T]) Scan(row int, dest any) error {
 		**d = c.Row(row)
 		return nil
 	case *[]byte:
-		b := c.RowBytes(row)
+		b := c.rowBytes(row)
 		if len(*d) < len(b) {
 			*d = make([]byte, len(b))
 		}
 		copy(*d, b)
 		return nil
 	case **[]byte:
-		b := make([]byte, len(c.RowBytes(row)))
-		copy(b, c.RowBytes(row))
+		rowBytes := c.rowBytes(row)
+		b := make([]byte, len(rowBytes))
+		copy(b, rowBytes)
 		*d = &b
 		return nil
 	case *any:
@@ -154,7 +158,7 @@ func (c *StringBase[T]) ScanValue(row int, value reflect.Value) error {
 		return nil
 	case reflect.Slice:
 		if val.Type().Elem().Kind() == reflect.Uint8 {
-			val.SetBytes(c.RowBytes(row))
+			val.SetBytes(c.rowBytes(row))
 			return nil
 		}
 	case reflect.Interface:
@@ -170,6 +174,16 @@ func (c *StringBase[T]) ScanValue(row int, value reflect.Value) error {
 //
 // Data is valid only in the current block.
 func (c *StringBase[T]) RowBytes(row int) []byte {
+	r := c.rowBytes(row)
+	if len(r) == 0 {
+		return nil
+	}
+	val := make([]byte, len(r))
+	copy(val, r)
+	return val
+}
+
+func (c *StringBase[T]) rowBytes(row int) []byte {
 	pos := c.pos[row]
 	return c.vals[pos.start:pos.end]
 }
@@ -184,19 +198,14 @@ func (c *StringBase[T]) Each(f func(i int, b []byte) bool) {
 
 func (c *StringBase[T]) appendLen(x int) {
 	c.preHookAppend()
-	i := 0
-	for x >= 0x80 {
-		c.writerData = append(c.writerData, byte(x)|0x80)
-		x >>= 7
-		i++
-	}
-	c.writerData = append(c.writerData, byte(x))
+	c.vals = binary.AppendUvarint(c.vals, uint64(x))
+	c.pos = append(c.pos, stringPos{start: len(c.vals), end: len(c.vals) + x})
 }
 
 // Append value for insert
 func (c *StringBase[T]) Append(v T) {
 	c.appendLen(len(v))
-	c.writerData = append(c.writerData, v...)
+	c.vals = append(c.vals, v...)
 	c.numRow++
 }
 
@@ -231,7 +240,7 @@ func (c *StringBase[T]) AppendAny(value any) error {
 func (c *StringBase[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		c.appendLen(len(v))
-		c.writerData = append(c.writerData, v...)
+		c.vals = append(c.vals, v...)
 	}
 	c.numRow += len(v)
 }
@@ -245,17 +254,83 @@ func (c *StringBase[T]) Remove(n int) {
 	}
 	skip := 0
 	for i := 0; i < n; i++ {
-		strLen, l := binary.Uvarint(c.writerData[skip:])
+		strLen, l := binary.Uvarint(c.vals[skip:])
 		skip += l + int(strLen)
 	}
 	c.numRow = n
-	c.writerData = c.writerData[:skip]
+	c.vals = c.vals[:skip]
+}
+
+func (c *StringBase[T]) Delete(start int, end int) {
+	// Current validation checks...
+
+	// Calculate byte range to remove
+	startByteRemove := c.pos[start].start
+	endByteRemove := c.pos[end-1].end
+
+	// Adjust for the length prefix at start position
+	startByteRemove -= helper.NumberByteForUvarint(uint64(c.pos[start].end - c.pos[start].start))
+
+	// Calculate bytes being removed
+	bytesRemoved := endByteRemove - startByteRemove
+
+	// Delete from position slice and byte slice
+	c.pos = slices.Delete(c.pos, start, end)
+	c.vals = slices.Delete(c.vals, startByteRemove, endByteRemove)
+
+	// Adjust remaining positions
+	for i := start; i < len(c.pos); i++ {
+		c.pos[i].start -= bytesRemoved
+		c.pos[i].end -= bytesRemoved
+	}
+
+	c.numRow = len(c.pos)
+}
+
+func (c *StringBase[T]) DeleteFunc(del func(row int) bool) {
+	if c.NumRow() == 0 {
+		return
+	}
+
+	newPos := c.pos[:0]
+	newVals := c.vals[:0]
+
+	for i := 0; i < c.numRow; i++ {
+		if del(i) {
+			continue // Skip this row
+		}
+
+		// Get current position
+		oldPos := c.pos[i]
+
+		// Calculate string length
+		strLen := oldPos.end - oldPos.start
+
+		// Add the length prefix to new values
+		newVals = binary.AppendUvarint(newVals, uint64(strLen))
+
+		// Set new position start (after the length prefix)
+		var newPos0 stringPos
+		newPos0.start = len(newVals)
+
+		// Copy string data
+		newVals = append(newVals, c.vals[oldPos.start:oldPos.end]...)
+		newPos0.end = len(newVals)
+
+		// Add to position list
+		newPos = append(newPos, newPos0)
+	}
+
+	// Update the column with the new data
+	c.vals = newVals
+	c.pos = newPos
+	c.numRow = len(newPos)
 }
 
 // AppendBytes value of bytes for insert
 func (c *StringBase[T]) AppendBytes(v []byte) {
 	c.appendLen(len(v))
-	c.writerData = append(c.writerData, v...)
+	c.vals = append(c.vals, v...)
 	c.numRow++
 }
 
@@ -263,7 +338,7 @@ func (c *StringBase[T]) AppendBytes(v []byte) {
 func (c *StringBase[T]) AppendBytesMulti(v ...[]byte) {
 	for _, v := range v {
 		c.appendLen(len(v))
-		c.writerData = append(c.writerData, v...)
+		c.vals = append(c.vals, v...)
 	}
 	c.numRow += len(v)
 }
@@ -302,15 +377,15 @@ func (c *StringBase[T]) Reset() {
 	c.numRow = 0
 	c.vals = c.vals[:0]
 	c.pos = c.pos[:0]
-	c.writerData = c.writerData[:0]
+	c.vals = c.vals[:0]
 }
 
 // SetWriteBufferSize set write buffer (number of bytes)
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
 func (c *StringBase[T]) SetWriteBufferSize(b int) {
-	if cap(c.writerData) < b {
-		c.writerData = make([]byte, 0, b)
+	if cap(c.vals) < b {
+		c.vals = make([]byte, 0, b)
 	}
 }
 
@@ -335,9 +410,10 @@ func (c *StringBase[T]) ReadRaw(num int) error {
 		if err != nil {
 			return fmt.Errorf("error read string len: %w", err)
 		}
-
-		p.start = p.end
-		p.end += int(l)
+		// append length of string to make sure has the same data for write
+		c.vals = binary.AppendUvarint(c.vals, uint64(l))
+		p.start = len(c.vals)
+		p.end = len(c.vals) + int(l)
 		if l > 0 {
 			c.vals = append(c.vals, make([]byte, l)...)
 			if _, err := c.r.Read(c.vals[p.start:p.end]); err != nil {
@@ -392,7 +468,7 @@ func (c *StringBase[T]) structType() string {
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *StringBase[T]) WriteTo(w io.Writer) (int64, error) {
-	nw, err := w.Write(c.writerData)
+	nw, err := w.Write(c.vals)
 	return int64(nw), err
 }
 
@@ -402,7 +478,8 @@ func (c *StringBase[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
 func (c *StringBase[T]) appendEmpty() {
-	c.writerData = append(c.writerData, 0)
+	c.vals = append(c.vals, 0)
+	c.pos = append(c.pos, stringPos{start: len(c.vals), end: len(c.vals)})
 	c.numRow++
 }
 
@@ -428,7 +505,7 @@ func (c *StringBase[T]) FullType() string {
 
 // ToJSON
 func (c *StringBase[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	return helper.AppendJSONSting(b, ignoreDoubleQuotes, c.RowBytes(row))
+	return helper.AppendJSONSting(b, ignoreDoubleQuotes, c.rowBytes(row))
 }
 
 func (c *StringBase[T]) writeBinaryDataTo(w *readerwriter.Writer) {

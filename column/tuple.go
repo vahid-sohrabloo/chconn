@@ -386,6 +386,17 @@ func (c *Tuple) Remove(n int) {
 		col.Remove(n)
 	}
 }
+func (c *Tuple) Delete(start int, end int) {
+	for _, col := range c.columns {
+		col.Delete(start, end)
+	}
+}
+
+func (c *Tuple) DeleteFunc(del func(row int) bool) {
+	for _, col := range c.columns {
+		col.DeleteFunc(del)
+	}
+}
 
 func (c *Tuple) FullType() string {
 	var chType string

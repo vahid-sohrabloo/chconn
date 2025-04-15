@@ -39,11 +39,11 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
 func (c *LowCardinalityNullable[T]) DataP() []*T {
 	result := make([]*T, c.NumRow())
-	for i, k := range c.readedKeys {
+	for i, k := range c.readKeys {
 		if k == 0 {
 			result[i] = nil
 		} else {
-			val := c.readedDict[k]
+			val := c.readDict[k]
 			result[i] = &val
 		}
 	}
@@ -52,11 +52,11 @@ func (c *LowCardinalityNullable[T]) DataP() []*T {
 
 // Read reads all nullable data in current block and append to the input.
 func (c *LowCardinalityNullable[T]) ReadP(value []*T) []*T {
-	for _, k := range c.readedKeys {
+	for _, k := range c.readKeys {
 		if k == 0 {
 			value = append(value, nil)
 		} else {
-			val := c.readedDict[k]
+			val := c.readDict[k]
 			value = append(value, &val)
 		}
 	}
@@ -66,10 +66,10 @@ func (c *LowCardinalityNullable[T]) ReadP(value []*T) []*T {
 // Row return nullable value of given row
 // NOTE: Row number start from zero
 func (c *LowCardinalityNullable[T]) RowP(row int) *T {
-	if c.readedKeys[row] == 0 {
+	if c.readKeys[row] == 0 {
 		return nil
 	}
-	val := c.readedDict[c.readedKeys[row]]
+	val := c.readDict[c.readKeys[row]]
 	return &val
 }
 
@@ -82,7 +82,7 @@ func (c *LowCardinalityNullable[T]) RowAny(row int) any {
 // RowIsNil return true if value of given row is null
 // NOTE: Row number start from zero
 func (c *LowCardinalityNullable[T]) RowIsNil(row int) bool {
-	return c.readedKeys[row] == 0
+	return c.readKeys[row] == 0
 }
 
 func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
@@ -236,7 +236,7 @@ func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnCore {
 }
 
 func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	k := c.readedKeys[row]
+	k := c.readKeys[row]
 	if k == 0 {
 		return append(b, "null"...)
 	}

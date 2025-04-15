@@ -87,7 +87,7 @@ func (c *Variant) ReadRaw(num int) error {
 		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:num]
 	}
 	var dataLen [256]int
-	for i, n := range c.discriminators.b {
+	for i, n := range c.discriminators.values {
 		c.discriminatorsIndexPos[i] = dataLen[n]
 		dataLen[n]++
 	}
@@ -382,6 +382,21 @@ func (c *Variant) Remove(n int) {
 		dd += removes[i]
 	}
 	c.discriminators.Remove(n)
+}
+
+func (c *Variant) Delete(start int, end int) {
+	if start < 0 || end < 0 || start >= c.NumRow() || end >= c.NumRow() {
+		return
+	}
+	if start > end {
+		return
+	}
+
+	// todo needs to be complete
+}
+
+func (c *Variant) DeleteFunc(del func(row int) bool) {
+	// todo needs to be complete
 }
 
 func (c *Variant) FullType() string {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -32,8 +33,8 @@ type LowCardinality[T comparable] struct {
 	indices        indicesColumnI
 	oldIndicesType int
 	scratch        [8]byte
-	readedKeys     []int
-	readedDict     []T
+	readKeys       []int
+	readDict       []T
 	dict           map[T]int
 	keys           []int
 	nullable       bool
@@ -60,16 +61,16 @@ func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
 func (c *LowCardinality[T]) Data() []T {
 	result := make([]T, c.NumRow())
-	for i, k := range c.readedKeys {
-		result[i] = c.readedDict[k]
+	for i, k := range c.readKeys {
+		result[i] = c.readDict[k]
 	}
 	return result
 }
 
 // Read reads all the data in current block and append to the input.
 func (c *LowCardinality[T]) Read(value []T) []T {
-	for _, k := range c.readedKeys {
-		value = append(value, c.readedDict[k])
+	for _, k := range c.readKeys {
+		value = append(value, c.readDict[k])
 	}
 	return value
 }
@@ -77,7 +78,7 @@ func (c *LowCardinality[T]) Read(value []T) []T {
 // Row return the value of given row.
 // NOTE: Row number start from zero
 func (c *LowCardinality[T]) Row(row int) T {
-	return c.readedDict[c.readedKeys[row]]
+	return c.readDict[c.readKeys[row]]
 }
 
 // RowAny return the value of given row.
@@ -87,7 +88,7 @@ func (c *LowCardinality[T]) RowAny(row int) any {
 }
 
 func (c *LowCardinality[T]) Scan(row int, dest any) error {
-	return c.dictColumn.Scan(c.readedKeys[row], dest)
+	return c.dictColumn.Scan(c.readKeys[row], dest)
 }
 
 // Append value for insert
@@ -145,16 +146,46 @@ func (c *LowCardinality[T]) Remove(n int) {
 	c.numRow = len(c.keys)
 }
 
+func (c *LowCardinality[T]) Delete(start int, end int) {
+	if c.NumRow() == 0 || c.NumRow() <= start {
+		return
+	}
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+	if start >= end {
+		return
+	}
+	c.keys = slices.Delete(c.keys, start, end)
+	c.numRow = len(c.keys)
+}
+
+func (c *LowCardinality[T]) DeleteFunc(del func(row int) bool) {
+	if c.NumRow() == 0 {
+		return
+	}
+	i := 0
+	for j := 0; j < len(c.keys); j++ {
+		if !del(j) {
+			c.keys[i] = c.keys[j]
+			i++
+		}
+	}
+	clear(c.keys[i:]) // zero/nil out the obsolete elements, for GC
+	c.keys = c.keys[:i]
+	c.numRow = len(c.keys)
+}
+
 // Dicts get dictionary data
 // each key is an index of the dictionary
 func (c *LowCardinality[T]) Dicts() []T {
-	return c.readedDict
+	return c.readDict
 }
 
 // Keys get keys of data
 // each key is an index of the dictionary
 func (c *LowCardinality[T]) Keys() []int {
-	return c.readedKeys
+	return c.readKeys
 }
 
 // NumRow return number of row for this block
@@ -180,10 +211,10 @@ func (c *LowCardinality[T]) Nullable() *LowCardinalityNullable[T] {
 // If an error occurs, you can safely call insert again.
 func (c *LowCardinality[T]) Reset() {
 	c.dictColumn.Reset()
-	c.dict = make(map[T]int)
+	clear(c.dict)
 	c.keys = c.keys[:0]
-	c.readedDict = c.readedDict[:0]
-	c.readedKeys = c.readedKeys[:0]
+	c.readDict = c.readDict[:0]
+	c.readKeys = c.readKeys[:0]
 	c.numRow = 0
 }
 
@@ -201,8 +232,8 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 	c.numRow = num
 	if c.numRow == 0 {
 		c.indices = newIndicesColumn[uint8](c.r)
-		c.readedDict = c.readedDict[:0]
-		c.readedKeys = c.readedKeys[:0]
+		c.readDict = c.readDict[:0]
+		c.readKeys = c.readKeys[:0]
 		// to reset nullable dictionary
 		return c.dictColumn.ReadRaw(0)
 	}
@@ -235,10 +266,10 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 	if err != nil {
 		return fmt.Errorf("error reading indices: %w", err)
 	}
-	c.readedDict = c.readedDict[:0]
-	c.readedKeys = c.readedKeys[:0]
-	c.readedDict = c.dictColumn.Read(c.readedDict)
-	c.indices.readInt(&c.readedKeys)
+	c.readDict = c.readDict[:0]
+	c.readKeys = c.readKeys[:0]
+	c.readDict = c.dictColumn.Read(c.readDict)
+	c.indices.readInt(&c.readKeys)
 	return nil
 }
 
@@ -426,7 +457,7 @@ func (c *LowCardinality[T]) FullType() string {
 }
 
 func (c *LowCardinality[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	return c.dictColumn.ToJSON(c.readedKeys[row], ignoreDoubleQuotes, b)
+	return c.dictColumn.ToJSON(c.readKeys[row], ignoreDoubleQuotes, b)
 }
 
 func (c *LowCardinality[T]) writeBinaryDataTo(w *readerwriter.Writer) {

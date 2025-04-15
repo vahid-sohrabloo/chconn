@@ -744,3 +744,11 @@ func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) (err error) 
 func (ch *conn) ServerInfo() *shared.ServerInfo {
 	return ch.serverInfo
 }
+
+func NewWriter() *readerwriter.Writer {
+	return readerwriter.NewWriter()
+}
+
+func NewReader(r io.Reader) *readerwriter.Reader {
+	return readerwriter.NewReader(r)
+}

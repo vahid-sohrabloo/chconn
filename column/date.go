@@ -151,8 +151,7 @@ func (c *Date[T]) Read(value []time.Time) []time.Time {
 // Row return the value of given row
 // NOTE: Row number start from zero
 func (c *Date[T]) Row(row int) time.Time {
-	i := row * c.size
-	return (*(*T)(unsafe.Pointer(&c.b[i]))).ToTime(c.Location(), c.precision)
+	return c.values[row].ToTime(c.Location(), c.precision)
 }
 
 // Append value for insert
@@ -246,11 +245,10 @@ func (c *Date[T]) FullType() string {
 }
 
 func (c Date[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	i := row * c.size
 	if !ignoreDoubleQuotes {
 		b = append(b, '"')
 	}
-	b = (*(*T)(unsafe.Pointer(&c.b[i]))).Append(b, c.Location(), c.precision)
+	b = c.values[row].Append(b, c.Location(), c.precision)
 	if !ignoreDoubleQuotes {
 		b = append(b, '"')
 	}

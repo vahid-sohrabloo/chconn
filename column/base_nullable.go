@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 	"unsafe"
 
@@ -18,8 +19,7 @@ type BaseNullable[T BaseType] struct {
 	column
 	numRow     int
 	dataColumn *Base[T]
-	writerData []byte
-	b          []byte
+	values     []byte
 }
 
 // NewBaseNullable return new BaseNullable for BaseNullable(T) ClickHouse DataType
@@ -106,7 +106,7 @@ func (c *BaseNullable[T]) Scan(row int, dest any) error {
 //
 // As an alternative (for better performance), you can use `Row()` to get a value and `RowIsNil()` to check if it is null.
 func (c *BaseNullable[T]) RowP(row int) *T {
-	if c.b[row] == 1 {
+	if c.values[row] == 1 {
 		return nil
 	}
 	val := c.dataColumn.Row(row)
@@ -115,23 +115,23 @@ func (c *BaseNullable[T]) RowP(row int) *T {
 
 // ReadAll read all nils state in this block and append to the input
 func (c *BaseNullable[T]) ReadNil(value []bool) []bool {
-	return append(value, *(*[]bool)(unsafe.Pointer(&c.b))...)
+	return append(value, *(*[]bool)(unsafe.Pointer(&c.values))...)
 }
 
 // DataNil get all nil state in this block
 func (c *BaseNullable[T]) DataNil() []bool {
-	return *(*[]bool)(unsafe.Pointer(&c.b))
+	return *(*[]bool)(unsafe.Pointer(&c.values))
 }
 
 // RowIsNil return true if the row is null
 func (c *BaseNullable[T]) RowIsNil(row int) bool {
-	return c.b[row] == 1
+	return c.values[row] == 1
 }
 
 // Append value for insert
 func (c *BaseNullable[T]) Append(v T) {
 	c.preHookAppend()
-	c.writerData = append(c.writerData, 0)
+	c.values = append(c.values, 0)
 	c.dataColumn.Append(v)
 }
 
@@ -180,7 +180,7 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 // AppendMulti value for insert
 func (c *BaseNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))
-	c.writerData = append(c.writerData, make([]uint8, len(v))...)
+	c.values = append(c.values, make([]uint8, len(v))...)
 	c.dataColumn.AppendMulti(v...)
 }
 
@@ -191,8 +191,36 @@ func (c *BaseNullable[T]) Remove(n int) {
 	if c.NumRow() == 0 || c.NumRow() <= n {
 		return
 	}
-	c.writerData = c.writerData[:n]
+	c.values = c.values[:n]
 	c.dataColumn.Remove(n)
+}
+
+func (c *BaseNullable[T]) Delete(start int, end int) {
+	if c.NumRow() == 0 || c.NumRow() <= start {
+		return
+	}
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+	c.values = slices.Delete(c.values, start, end)
+	c.dataColumn.Delete(start, end)
+}
+
+func (c *BaseNullable[T]) DeleteFunc(del func(row int) bool) {
+	if c.NumRow() == 0 {
+		return
+	}
+	i := 0
+	for j := 0; j < len(c.values); j++ {
+		if !del(j) {
+			c.values[i] = c.values[j]
+			i++
+		}
+	}
+	clear(c.values[i:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:i]
+	c.numRow = len(c.values)
+	c.dataColumn.DeleteFunc(del)
 }
 
 // AppendP nullable value for insert
@@ -222,7 +250,7 @@ func (c *BaseNullable[T]) AppendMultiP(v ...*T) {
 // Append nil value for insert
 func (c *BaseNullable[T]) AppendNil() {
 	c.preHookAppend()
-	c.writerData = append(c.writerData, 1)
+	c.values = append(c.values, 1)
 	c.dataColumn.appendEmpty()
 }
 
@@ -243,9 +271,8 @@ func (c *BaseNullable[T]) Array() *ArrayNullable[T] {
 // When inserting, buffers are reset only after the operation is successful.
 // If an error occurs, you can safely call insert again.
 func (c *BaseNullable[T]) Reset() {
-	c.b = c.b[:0]
+	c.values = c.values[:0]
 	c.numRow = 0
-	c.writerData = c.writerData[:0]
 	c.dataColumn.Reset()
 }
 
@@ -253,8 +280,8 @@ func (c *BaseNullable[T]) Reset() {
 // this buffer only used for writing.
 // By setting this buffer, you will avoid allocating the memory several times.
 func (c *BaseNullable[T]) SetWriteBufferSize(row int) {
-	if cap(c.writerData) < row {
-		c.writerData = make([]byte, 0, row)
+	if cap(c.values) < row {
+		c.values = make([]byte, 0, row)
 	}
 	c.dataColumn.SetWriteBufferSize(row)
 }
@@ -272,8 +299,8 @@ func (c *BaseNullable[T]) ReadRaw(num int) error {
 }
 
 func (c *BaseNullable[T]) readBuffer() error {
-	c.b = helper.ResetSlice(c.b, c.numRow, false)
-	_, err := c.r.Read(c.b)
+	c.values = helper.ResetSlice(c.values, c.numRow, false)
+	_, err := c.r.Read(c.values)
 	if err != nil {
 		return fmt.Errorf("read nullable data: %w", err)
 	}
@@ -332,7 +359,7 @@ func (c *BaseNullable[T]) structType() string {
 // WriteTo write data to ClickHouse.
 // it uses internally
 func (c *BaseNullable[T]) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(c.writerData)
+	n, err := w.Write(c.values)
 	if err != nil {
 		return int64(n), fmt.Errorf("write nullable data: %w", err)
 	}

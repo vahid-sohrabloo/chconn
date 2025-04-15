@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"time"
 )
 
 // ServerInfo detail of server info
@@ -30,4 +31,16 @@ func (srv *ServerInfo) String() string {
 		srv.ServerDisplayName,
 		srv.ServerVersionPatch,
 	)
+}
+
+func EmptyServerInfo() *ServerInfo {
+	return &ServerInfo{
+		Name:               "",
+		Revision:           0,
+		MajorVersion:       0,
+		MinorVersion:       0,
+		ServerDisplayName:  "",
+		ServerVersionPatch: 0,
+		Timezone:           time.Local.String(),
+	}
 }

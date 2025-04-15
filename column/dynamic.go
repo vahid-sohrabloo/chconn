@@ -337,6 +337,25 @@ func (c *Dynamic) Remove(n int) {
 	c.variant.Remove(n)
 }
 
+func (c *Dynamic) Delete(start int, end int) {
+	if c.NumRow() == 0 || c.NumRow() <= start {
+		return
+	}
+
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+
+	// TODO: needs to complete
+}
+
+func (c *Dynamic) DeleteFunc(del func(row int) bool) {
+	if c.NumRow() == 0 {
+		return
+	}
+	// TODO: needs to complete
+}
+
 func (c *Dynamic) FullType() string {
 	if len(c.columnHeader.Name) == 0 {
 		return "Dynamic()"

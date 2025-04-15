@@ -36,6 +36,8 @@ type ColumnCore interface {
 	canAppend(any) bool
 	FullType() string
 	Remove(n int)
+	Delete(start int, end int)
+	DeleteFunc(del func(row int) bool)
 	ToJSON(row int, stringQuotes bool, b []byte) []byte
 	setLocationInParent(locationInParent int)
 	getLocationInParent() uint8
@@ -63,9 +65,7 @@ type NullableColumn[T any] interface {
 }
 
 type column struct {
-	b                []byte
 	r                *readerwriter.Reader
-	totalByte        int
 	columnHeader     ColumnHeader
 	LocationInParent uint8
 	variantParent    *Variant

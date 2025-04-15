@@ -16,8 +16,7 @@ type NothingNullable struct {
 	column
 	numRow     int
 	dataColumn *Nothing
-	writerData []byte
-	b          []byte
+	values     []byte
 }
 
 // NewNothingNullable return new NothingNullable for Nullable(Nothing) ClickHouse DataType
@@ -81,17 +80,17 @@ func (c *NothingNullable) RowP(row int) *NothingData {
 
 // ReadAll read all nils state in this block and append to the input
 func (c *NothingNullable) ReadNil(value []bool) []bool {
-	return append(value, *(*[]bool)(unsafe.Pointer(&c.b))...)
+	return append(value, *(*[]bool)(unsafe.Pointer(&c.values))...)
 }
 
 // DataNil get all nil state in this block
 func (c *NothingNullable) DataNil() []bool {
-	return *(*[]bool)(unsafe.Pointer(&c.b))
+	return *(*[]bool)(unsafe.Pointer(&c.values))
 }
 
 // RowIsNil return true if the row is null
 func (c *NothingNullable) RowIsNil(row int) bool {
-	return c.b[row] == 1
+	return c.values[row] == 1
 }
 
 // Append value for insert
@@ -118,6 +117,12 @@ func (c *NothingNullable) AppendMulti(v ...NothingData) {
 //
 // its equal to data = data[:n]
 func (c *NothingNullable) Remove(n int) {
+}
+
+func (c *NothingNullable) Delete(start int, end int) {
+}
+
+func (c *NothingNullable) DeleteFunc(del func(row int) bool) {
 }
 
 // AppendP nullable value for insert
@@ -159,9 +164,8 @@ func (c *NothingNullable) Array() *ArrayNullable[NothingData] {
 // When inserting, buffers are reset only after the operation is successful.
 // If an error occurs, you can safely call insert again.
 func (c *NothingNullable) Reset() {
-	c.b = c.b[:0]
 	c.numRow = 0
-	c.writerData = c.writerData[:0]
+	c.values = c.values[:0]
 	c.dataColumn.Reset()
 }
 
@@ -184,8 +188,8 @@ func (c *NothingNullable) ReadRaw(num int) error {
 }
 
 func (c *NothingNullable) readBuffer() error {
-	c.b = helper.ResetSlice(c.b, c.numRow, false)
-	_, err := c.r.Read(c.b)
+	c.values = helper.ResetSlice(c.values, c.numRow, false)
+	_, err := c.r.Read(c.values)
 	if err != nil {
 		return fmt.Errorf("read nullable data: %w", err)
 	}
