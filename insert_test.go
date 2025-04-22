@@ -635,7 +635,7 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 	require.EqualError(
 		t,
 		err,
-		"column at index 0: the chconn type 'column.StringBase[string]' is mapped to ClickHouse type 'String', "+
+		"column col (index 0): the chconn type 'column.StringBase[string]' is mapped to ClickHouse type 'String', "+
 			"which does not match the expected ClickHouse type 'LowCardinality(String)'")
 	assert.True(t, c.IsClosed())
 }

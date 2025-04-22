@@ -395,13 +395,11 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 	} else {
 		c.indices.Reset()
 	}
-	fmt.Println(c.keys, c.keys)
 	c.indices.appendInts(c.keys)
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
 		return n, fmt.Errorf("error writing indices: %w", err)
 	}
-	fmt.Println("write to", nwt)
 	return n + nwt, err
 }
 
