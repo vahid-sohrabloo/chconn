@@ -128,11 +128,11 @@ func (s *insertStmt) Write(ctx context.Context, columns ...column.ColumnCore) er
 	for i, col := range columns {
 		if err := col.SetColumnHeader(s.block.ColumnsHeader[i]); err != nil {
 			s.hasError = true
-			return fmt.Errorf("column at index %d: %w", i, err)
+			return fmt.Errorf("column %s (index %d): %w", string(col.Name()), i, err)
 		}
 		if errValidate := col.ValidateInsert(); errValidate != nil {
 			s.hasError = true
-			return fmt.Errorf("column at index %d: %w", i, errValidate)
+			return fmt.Errorf("column %s (index %d): %w", string(col.Name()), i, errValidate)
 		}
 	}
 
