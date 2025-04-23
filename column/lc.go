@@ -265,7 +265,11 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 		return fmt.Errorf("error reading indices: %w", err)
 	}
 	c.readDict = c.readDict[:0]
-	c.keys = c.keys[:0]
+	if cap(c.keys) < c.numRow {
+		c.keys = make([]int, 0, c.numRow)
+	} else {
+		c.keys = c.keys[:0]
+	}
 	c.readDict = c.dictColumn.Read(c.readDict)
 	c.indices.readInt(&c.keys)
 	return nil
@@ -392,10 +396,8 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 	if c.indices == nil || c.oldIndicesType != intType {
 		c.indices = getLCIndicate(intType, nil)
 		c.oldIndicesType = intType
-	} else {
-		c.indices.Reset()
 	}
-	c.indices.appendInts(c.keys)
+	c.indices.setKeys(c.keys)
 	nwt, err := c.indices.WriteTo(w)
 	if err != nil {
 		return n, fmt.Errorf("error writing indices: %w", err)

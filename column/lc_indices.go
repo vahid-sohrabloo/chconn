@@ -10,7 +10,7 @@ import (
 type indicesColumnI interface {
 	ReadRaw(num int) error
 	WriteTo(io.Writer) (int64, error)
-	appendInts([]int)
+	setKeys([]int)
 	readInt(value *[]int)
 	Remove(int)
 	Reset()
@@ -46,8 +46,14 @@ func (c *indicesColumn[T]) readInt(value *[]int) {
 	}
 }
 
-func (c *indicesColumn[T]) appendInts(values []int) {
-	for _, v := range values {
-		c.values = append(c.values, T(v))
+func (c *indicesColumn[T]) setKeys(values []int) {
+	c.Reset()
+	if cap(c.values) < len(values) {
+		c.values = make([]T, len(values))
+	} else {
+		c.values = c.values[:len(values)]
+	}
+	for i, v := range values {
+		c.values[i] = T(v)
 	}
 }

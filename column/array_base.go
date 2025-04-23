@@ -142,8 +142,15 @@ func (c *ArrayBase) DeleteFunc(del func(row int) bool) {
 
 		if del(i) {
 			// Row should be deleted
-			// Mark these data elements for deletion
-			c.dataColumn.Delete(int(startOffset-totalDeleted), int(endOffset-totalDeleted))
+			// Ensure we don't underflow with unsigned integers
+			if startOffset >= totalDeleted {
+				start := int(startOffset - totalDeleted)
+				end := int(endOffset - totalDeleted)
+				// Only perform delete if we have valid indices
+				if start < end && end <= c.dataColumn.NumRow() {
+					c.dataColumn.Delete(start, end)
+				}
+			}
 			totalDeleted += rowSize
 		} else {
 			// Row should be kept
