@@ -96,8 +96,9 @@ func (c *LowCardinality[T]) Append(v T) {
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
-		c.dict[v] = key
 		c.dictColumn.Append(v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 	}
 	c.keys = append(c.keys, key)
 	c.numRow++
@@ -126,8 +127,9 @@ func (c *LowCardinality[T]) AppendMulti(v ...T) {
 		key, ok := c.dict[v]
 		if !ok {
 			key = len(c.dict)
-			c.dict[v] = key
 			c.dictColumn.Append(v)
+			// we are not using the main input as a map key. possible its using some unsafe strings
+			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
 		c.keys = append(c.keys, key)
 	}

@@ -125,8 +125,9 @@ func (c *LowCardinalityNullable[T]) Append(v T) {
 	key, ok := c.dict[v]
 	if !ok {
 		key = len(c.dict)
-		c.dict[v] = key
 		c.dictColumn.Append(v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 	}
 	c.keys = append(c.keys, key+1)
 	c.numRow++
@@ -166,8 +167,9 @@ func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 		key, ok := c.dict[v]
 		if !ok {
 			key = len(c.dict)
-			c.dict[v] = key
 			c.dictColumn.Append(v)
+			// we are not using the main input as a map key. possible its using some unsafe strings
+			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
 		c.keys = append(c.keys, key+1)
 	}
@@ -194,8 +196,9 @@ func (c *LowCardinalityNullable[T]) AppendP(v *T) {
 	key, ok := c.dict[*v]
 	if !ok {
 		key = len(c.dict)
-		c.dict[*v] = key
 		c.dictColumn.Append(*v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 	}
 	c.keys = append(c.keys, key+1)
 
@@ -215,8 +218,9 @@ func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
 		key, ok := c.dict[*v]
 		if !ok {
 			key = len(c.dict)
-			c.dict[*v] = key
 			c.dictColumn.Append(*v)
+			// we are not using the main input as a map key. possible its using some unsafe strings
+			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
 		c.keys = append(c.keys, key+1)
 	}
