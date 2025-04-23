@@ -223,6 +223,7 @@ func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
 	if cap(c.keys) < row {
 		c.keys = make([]int, 0, row)
 	}
+	c.dictColumn.SetWriteBufferSize(row)
 }
 
 // ReadRaw read raw data from the reader. it runs automatically

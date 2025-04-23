@@ -48,7 +48,7 @@ func (c *indicesColumn[T]) readInt(value *[]int) {
 
 func (c *indicesColumn[T]) setKeys(values []int) {
 	c.Reset()
-	if cap(c.values) < len(values) {
+	if len(values) > cap(c.values) {
 		c.values = make([]T, len(values))
 	} else {
 		c.values = c.values[:len(values)]

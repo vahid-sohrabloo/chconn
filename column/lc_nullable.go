@@ -34,6 +34,19 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 	return l
 }
 
+// SetWriteBufferSize set write buffer (number of rows)
+// this buffer only used for writing.
+// By setting this buffer, you will avoid allocating the memory several times.
+func (c *LowCardinalityNullable[T]) SetWriteBufferSize(row int) {
+	if cap(c.keys) < row {
+		c.keys = make([]int, 0, row)
+	}
+	c.dictColumn.SetWriteBufferSize(row)
+	c.dictColumn.Reset()
+	var empty T
+	c.dictColumn.Append(empty)
+}
+
 // Data get all nullable data in current block as a slice.
 //
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
