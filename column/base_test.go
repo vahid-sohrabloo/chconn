@@ -1145,7 +1145,7 @@ func testColumn[T column.BaseType](
 	var colLCData []T
 	var colLCDataWithKeys []T
 	var dictData []T
-	var dictKey []int
+	var dictKey []uint32
 	var colLCNullableData []*T
 	var colLCArrayData [][]T
 	var colLCNullableArrayData [][]*T

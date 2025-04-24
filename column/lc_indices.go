@@ -10,8 +10,8 @@ import (
 type indicesColumnI interface {
 	ReadRaw(num int) error
 	WriteTo(io.Writer) (int64, error)
-	setKeys([]int)
-	readInt(value *[]int)
+	setKeys([]uint32)
+	readInt(value *[]uint32)
 	Remove(int)
 	Reset()
 }
@@ -38,15 +38,15 @@ func newIndicesColumn[T indicatedTypes](r *readerwriter.Reader) *indicesColumn[T
 	}
 }
 
-func (c *indicesColumn[T]) readInt(value *[]int) {
+func (c *indicesColumn[T]) readInt(value *[]uint32) {
 	for _, v := range c.Data() {
 		*value = append(*value,
-			int(v),
+			uint32(v),
 		)
 	}
 }
 
-func (c *indicesColumn[T]) setKeys(values []int) {
+func (c *indicesColumn[T]) setKeys(values []uint32) {
 	c.Reset()
 	if len(values) > cap(c.values) {
 		c.values = make([]T, len(values))

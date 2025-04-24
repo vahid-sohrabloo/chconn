@@ -26,7 +26,7 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 	l := &LowCardinalityNullable[T]{
 		LowCardinality: LowCardinality[T]{
 			nullable:   true,
-			dict:       make(map[T]int),
+			dict:       make(map[T]uint32),
 			dictColumn: dictColumn,
 			rtype:      reflect.TypeOf((*T)(nil)).Elem(),
 		},
@@ -39,7 +39,7 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 // By setting this buffer, you will avoid allocating the memory several times.
 func (c *LowCardinalityNullable[T]) SetWriteBufferSize(row int) {
 	if cap(c.keys) < row {
-		c.keys = make([]int, 0, row)
+		c.keys = make([]uint32, 0, row)
 	}
 	c.dictColumn.SetWriteBufferSize(row)
 	c.dictColumn.Reset()
@@ -124,7 +124,7 @@ func (c *LowCardinalityNullable[T]) Append(v T) {
 	c.preHookAppend()
 	key, ok := c.dict[v]
 	if !ok {
-		key = len(c.dict)
+		key = uint32(len(c.dict))
 		c.dictColumn.Append(v)
 		// we are not using the main input as a map key. possible its using some unsafe strings
 		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -166,7 +166,7 @@ func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
-			key = len(c.dict)
+			key = uint32(len(c.dict))
 			c.dictColumn.Append(v)
 			// we are not using the main input as a map key. possible its using some unsafe strings
 			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -195,7 +195,7 @@ func (c *LowCardinalityNullable[T]) AppendP(v *T) {
 	}
 	key, ok := c.dict[*v]
 	if !ok {
-		key = len(c.dict)
+		key = uint32(len(c.dict))
 		c.dictColumn.Append(*v)
 		// we are not using the main input as a map key. possible its using some unsafe strings
 		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -217,7 +217,7 @@ func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
 		}
 		key, ok := c.dict[*v]
 		if !ok {
-			key = len(c.dict)
+			key = uint32(len(c.dict))
 			c.dictColumn.Append(*v)
 			// we are not using the main input as a map key. possible its using some unsafe strings
 			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -257,7 +257,7 @@ func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b [
 	if k == 0 {
 		return append(b, "null"...)
 	}
-	return c.dictColumn.ToJSON(k, ignoreDoubleQuotes, b)
+	return c.dictColumn.ToJSON(int(k), ignoreDoubleQuotes, b)
 }
 
 func (c *LowCardinalityNullable[T]) writeBinaryDataTo(w *readerwriter.Writer) {

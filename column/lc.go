@@ -34,8 +34,8 @@ type LowCardinality[T comparable] struct {
 	oldIndicesType int
 	scratch        [8]byte
 	readDict       []T
-	dict           map[T]int
-	keys           []int
+	dict           map[T]uint32
+	keys           []uint32
 	nullable       bool
 	rtype          reflect.Type
 }
@@ -48,7 +48,7 @@ func NewLowCardinality[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 // NewLC return new LC for LowCardinality ClickHouse DataTypes
 func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 	l := &LowCardinality[T]{
-		dict:       make(map[T]int),
+		dict:       make(map[T]uint32),
 		dictColumn: dictColumn,
 		rtype:      reflect.TypeOf((*T)(nil)).Elem(),
 	}
@@ -87,7 +87,7 @@ func (c *LowCardinality[T]) RowAny(row int) any {
 }
 
 func (c *LowCardinality[T]) Scan(row int, dest any) error {
-	return c.dictColumn.Scan(c.keys[row], dest)
+	return c.dictColumn.Scan(int(c.keys[row]), dest)
 }
 
 // Append value for insert
@@ -95,7 +95,7 @@ func (c *LowCardinality[T]) Append(v T) {
 	c.preHookAppend()
 	key, ok := c.dict[v]
 	if !ok {
-		key = len(c.dict)
+		key = uint32(len(c.dict))
 		c.dictColumn.Append(v)
 		// we are not using the main input as a map key. possible its using some unsafe strings
 		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -126,7 +126,7 @@ func (c *LowCardinality[T]) AppendMulti(v ...T) {
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
-			key = len(c.dict)
+			key = uint32(len(c.dict))
 			c.dictColumn.Append(v)
 			// we are not using the main input as a map key. possible its using some unsafe strings
 			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
@@ -185,7 +185,7 @@ func (c *LowCardinality[T]) Dicts() []T {
 
 // Keys get keys of data
 // each key is an index of the dictionary
-func (c *LowCardinality[T]) Keys() []int {
+func (c *LowCardinality[T]) Keys() []uint32 {
 	return c.keys
 }
 
@@ -223,7 +223,7 @@ func (c *LowCardinality[T]) Reset() {
 // By setting this buffer, you will avoid allocating the memory several times.
 func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
 	if cap(c.keys) < row {
-		c.keys = make([]int, 0, row)
+		c.keys = make([]uint32, 0, row)
 	}
 	c.dictColumn.SetWriteBufferSize(row)
 }
@@ -269,7 +269,7 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 	}
 	c.readDict = c.readDict[:0]
 	if cap(c.keys) < c.numRow {
-		c.keys = make([]int, 0, c.numRow)
+		c.keys = make([]uint32, 0, c.numRow)
 	} else {
 		c.keys = c.keys[:0]
 	}
@@ -460,7 +460,7 @@ func (c *LowCardinality[T]) FullType() string {
 }
 
 func (c *LowCardinality[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	return c.dictColumn.ToJSON(c.keys[row], ignoreDoubleQuotes, b)
+	return c.dictColumn.ToJSON(int(c.keys[row]), ignoreDoubleQuotes, b)
 }
 
 func (c *LowCardinality[T]) writeBinaryDataTo(w *readerwriter.Writer) {
