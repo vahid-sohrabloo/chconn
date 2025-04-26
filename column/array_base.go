@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/kelindar/bitmap"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
@@ -17,11 +18,12 @@ import (
 // ArrayBase is a base class for other arrays or use for none generic use
 type ArrayBase struct {
 	column
-	offsetColumn    *Base[uint64]
-	dataColumn      ColumnCore
-	offset          uint64
-	arrayChconnType string
-	resetHook       func()
+	offsetColumn     *Base[uint64]
+	dataColumn       ColumnCore
+	offset           uint64
+	arrayChconnType  string
+	resetHook        func()
+	bitmapDeleteKeep bitmap.Bitmap
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
@@ -122,46 +124,56 @@ func (c *ArrayBase) Delete(start int, end int) {
 }
 
 func (c *ArrayBase) DeleteFunc(del func(row int) bool) {
-	offsets := c.offsetColumn.values
-	if len(offsets) == 0 {
+	if c.NumRow() == 0 {
 		return
 	}
 
-	// Keep track of which rows to preserve
-	newOffsetIdx := 0
-	totalDeleted := uint64(0)
-
-	for i := 0; i < len(offsets); i++ {
-		// Calculate this row's data range
-		startOffset := uint64(0)
-		if i > 0 {
-			startOffset = offsets[i-1]
+	c.startBatchDelete()
+	for i := 0; i < c.NumRow(); i++ {
+		if !del(i) {
+			// Keep this row
+			c.bitmapDeleteKeep.Set(uint32(i))
 		}
-		endOffset := offsets[i]
-		rowSize := endOffset - startOffset
+	}
+	c.endBatchDelete()
+}
 
-		if del(i) {
-			// Row should be deleted
-			// Ensure we don't underflow with unsigned integers
-			if startOffset >= totalDeleted {
-				start := int(startOffset - totalDeleted)
-				end := int(endOffset - totalDeleted)
-				// Only perform delete if we have valid indices
-				if start < end && end <= c.dataColumn.NumRow() {
-					c.dataColumn.Delete(start, end)
-				}
+func (c *ArrayBase) startBatchDelete() {
+	lenNeeded := int(uint32(c.NumRow()) >> 6)
+	if cap(c.bitmapDeleteKeep) < lenNeeded {
+		c.bitmapDeleteKeep = make(bitmap.Bitmap, lenNeeded)
+	} else {
+		clear(c.bitmapDeleteKeep)
+	}
+}
+
+func (c *ArrayBase) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.bitmapDeleteKeep.Set(uint32(i))
+	}
+}
+
+func (c *ArrayBase) endBatchDelete() {
+	prevOffset := uint64(0)
+	keepIndex := 0
+	c.offset = 0
+	c.dataColumn.startBatchDelete()
+	for i := 0; i < c.NumRow(); i++ {
+		if c.bitmapDeleteKeep.Contains(uint32(i)) {
+			if i != 0 {
+				prevOffset = c.offsetColumn.Row(i - 1)
 			}
-			totalDeleted += rowSize
-		} else {
-			// Row should be kept
-			// Update its offset (accounting for previously deleted elements)
-			c.offsetColumn.values[newOffsetIdx] = endOffset - totalDeleted
-			newOffsetIdx++
+			currentOffset := c.offsetColumn.Row(i)
+			c.dataColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+			c.offset += currentOffset - prevOffset
+			c.offsetColumn.values[keepIndex] = c.offset
+			keepIndex++
 		}
 	}
 
-	// Resize the offset array to remove deleted rows
-	c.offsetColumn.Remove(newOffsetIdx)
+	c.offsetColumn.values = c.offsetColumn.values[:keepIndex]
+	c.offsetColumn.numRow = keepIndex
+	c.dataColumn.endBatchDelete()
 }
 
 func (c *ArrayBase) RowAny(row int) any {
@@ -271,6 +283,9 @@ func (c *ArrayBase) ReadRaw(num int) error {
 	err := c.offsetColumn.ReadRaw(num)
 	if err != nil {
 		return fmt.Errorf("array: read offset column: %w", err)
+	}
+	if num > 0 {
+		c.offset = c.offsetColumn.Row(num - 1)
 	}
 	err = c.dataColumn.ReadRaw(c.TotalRows())
 	if err != nil {

@@ -28,16 +28,17 @@ const (
 // LowCardinality use for LowCardinality ClickHouse DataTypes
 type LowCardinality[T comparable] struct {
 	column
-	numRow         int
-	dictColumn     Column[T]
-	indices        indicesColumnI
-	oldIndicesType int
-	scratch        [8]byte
-	readDict       []T
-	dict           map[T]uint32
-	keys           []uint32
-	nullable       bool
-	rtype          reflect.Type
+	numRow               int
+	dictColumn           Column[T]
+	indices              indicesColumnI
+	oldIndicesType       int
+	scratch              [8]byte
+	readDict             []T
+	dict                 map[T]uint32
+	keys                 []uint32
+	nullable             bool
+	rtype                reflect.Type
+	indexRemoveKeepIndex int
 }
 
 // NewLowCardinality return new LC for LowCardinality ClickHouse DataTypes
@@ -174,6 +175,26 @@ func (c *LowCardinality[T]) DeleteFunc(del func(row int) bool) {
 	}
 	clear(c.keys[i:]) // zero/nil out the obsolete elements, for GC
 	c.keys = c.keys[:i]
+	c.numRow = len(c.keys)
+}
+
+func (c *LowCardinality[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+}
+
+func (c *LowCardinality[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.keys[c.indexRemoveKeepIndex] = c.keys[i]
+		c.indexRemoveKeepIndex++
+	}
+}
+
+func (c *LowCardinality[T]) endBatchDelete() {
+	if c.indexRemoveKeepIndex == 0 {
+		return
+	}
+	clear(c.keys[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
+	c.keys = c.keys[:c.indexRemoveKeepIndex]
 	c.numRow = len(c.keys)
 }
 

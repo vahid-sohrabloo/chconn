@@ -18,9 +18,10 @@ import (
 // DateNullable is a column of Nullable(T) ClickHouse data type
 type DateNullable[T DateType[T]] struct {
 	column
-	numRow     int
-	dataColumn *Date[T]
-	values     []byte
+	numRow               int
+	dataColumn           *Date[T]
+	values               []byte
+	indexRemoveKeepIndex int
 }
 
 // NewDateNullable return new DateNullable for DateNullable(T) ClickHouse DataType
@@ -281,6 +282,29 @@ func (c *DateNullable[T]) DeleteFunc(del func(row int) bool) {
 	c.values = c.values[:i]
 	c.numRow = len(c.values)
 	c.dataColumn.DeleteFunc(del)
+}
+
+func (c *DateNullable[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+	c.dataColumn.startBatchDelete()
+}
+
+func (c *DateNullable[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.values[c.indexRemoveKeepIndex] = c.values[i]
+		c.indexRemoveKeepIndex++
+	}
+	c.dataColumn.batchDeleteKeep(start, end)
+}
+
+func (c *DateNullable[T]) endBatchDelete() {
+	if c.indexRemoveKeepIndex == 0 {
+		return
+	}
+	clear(c.values[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:c.indexRemoveKeepIndex]
+	c.numRow = len(c.values)
+	c.dataColumn.endBatchDelete()
 }
 
 // Append nil value for insert

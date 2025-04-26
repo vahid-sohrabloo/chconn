@@ -356,6 +356,18 @@ func (c *Dynamic) DeleteFunc(del func(row int) bool) {
 	// TODO: needs to complete
 }
 
+func (c *Dynamic) startBatchDelete() {
+	// TODO: needs to complete
+}
+
+func (c *Dynamic) batchDeleteKeep(start, end int) {
+	// TODO: needs to complete
+}
+
+func (c *Dynamic) endBatchDelete() {
+	// TODO: needs to complete
+}
+
 func (c *Dynamic) FullType() string {
 	if len(c.columnHeader.Name) == 0 {
 		return "Dynamic()"

@@ -398,6 +398,24 @@ func (c *Tuple) DeleteFunc(del func(row int) bool) {
 	}
 }
 
+func (c *Tuple) startBatchDelete() {
+	for _, col := range c.columns {
+		col.startBatchDelete()
+	}
+}
+
+func (c *Tuple) batchDeleteKeep(start, end int) {
+	for _, col := range c.columns {
+		col.batchDeleteKeep(start, end)
+	}
+}
+
+func (c *Tuple) endBatchDelete() {
+	for _, col := range c.columns {
+		col.endBatchDelete()
+	}
+}
+
 func (c *Tuple) FullType() string {
 	var chType string
 	if len(c.columnHeader.Name) == 0 {

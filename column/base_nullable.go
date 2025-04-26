@@ -17,9 +17,10 @@ import (
 // BaseNullable is a column of Nullable(T) ClickHouse data type
 type BaseNullable[T BaseType] struct {
 	column
-	numRow     int
-	dataColumn *Base[T]
-	values     []byte
+	numRow               int
+	dataColumn           *Base[T]
+	values               []byte
+	indexRemoveKeepIndex int
 }
 
 // NewBaseNullable return new BaseNullable for BaseNullable(T) ClickHouse DataType
@@ -221,6 +222,29 @@ func (c *BaseNullable[T]) DeleteFunc(del func(row int) bool) {
 	c.values = c.values[:i]
 	c.numRow = len(c.values)
 	c.dataColumn.DeleteFunc(del)
+}
+
+func (c *BaseNullable[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+	c.dataColumn.startBatchDelete()
+}
+
+func (c *BaseNullable[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.values[c.indexRemoveKeepIndex] = c.values[i]
+		c.indexRemoveKeepIndex++
+	}
+	c.dataColumn.batchDeleteKeep(start, end)
+}
+
+func (c *BaseNullable[T]) endBatchDelete() {
+	if c.indexRemoveKeepIndex == 0 {
+		return
+	}
+	clear(c.values[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:c.indexRemoveKeepIndex]
+	c.numRow = len(c.values)
+	c.dataColumn.endBatchDelete()
 }
 
 // AppendP nullable value for insert

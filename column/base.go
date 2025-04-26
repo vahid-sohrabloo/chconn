@@ -42,18 +42,19 @@ const (
 // Column use for most (fixed size) ClickHouse Columns type
 type Base[T BaseType] struct {
 	column
-	size          int
-	strict        bool
-	numRow        int
-	kind          reflect.Kind
-	rtype         reflect.Type
-	values        []T
-	params        []any
-	decimalType   decimalType
-	isEnum8       bool
-	isEnum16      bool
-	enumStringMap map[int16]string
-	sparseData    []T
+	size                 int
+	strict               bool
+	numRow               int
+	kind                 reflect.Kind
+	rtype                reflect.Type
+	values               []T
+	params               []any
+	decimalType          decimalType
+	isEnum8              bool
+	isEnum16             bool
+	enumStringMap        map[int16]string
+	sparseData           []T
+	indexRemoveKeepIndex int
 }
 
 // New create a new column
@@ -154,6 +155,26 @@ func (c *Base[T]) Delete(start int, end int) {
 	}
 
 	c.values = slices.Delete(c.values, start, end)
+	c.numRow = len(c.values)
+}
+
+func (c *Base[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+}
+
+func (c *Base[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.values[c.indexRemoveKeepIndex] = c.values[i]
+		c.indexRemoveKeepIndex++
+	}
+}
+
+func (c *Base[T]) endBatchDelete() {
+	if c.indexRemoveKeepIndex == 0 {
+		return
+	}
+	clear(c.values[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:c.indexRemoveKeepIndex]
 	c.numRow = len(c.values)
 }
 

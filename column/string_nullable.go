@@ -16,9 +16,10 @@ import (
 // StringNullable is a column of Nullable(T) ClickHouse data type
 type StringNullable[T ~string] struct {
 	column
-	numRow     int
-	dataColumn *StringBase[T]
-	values     []byte
+	numRow               int
+	dataColumn           *StringBase[T]
+	values               []byte
+	indexRemoveKeepIndex int
 }
 
 // NewStringNullable return new StringNullable for StringNullable(T) ClickHouse DataType
@@ -254,6 +255,29 @@ func (c *StringNullable[T]) DeleteFunc(del func(row int) bool) {
 	c.values = c.values[:i]
 	c.numRow = len(c.values)
 	c.dataColumn.DeleteFunc(del)
+}
+
+func (c *StringNullable[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+	c.dataColumn.startBatchDelete()
+}
+
+func (c *StringNullable[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.values[c.indexRemoveKeepIndex] = c.values[i]
+		c.indexRemoveKeepIndex++
+	}
+	c.dataColumn.batchDeleteKeep(start, end)
+}
+
+func (c *StringNullable[T]) endBatchDelete() {
+	if c.indexRemoveKeepIndex == 0 {
+		return
+	}
+	clear(c.values[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
+	c.values = c.values[:c.indexRemoveKeepIndex]
+	c.numRow = len(c.values)
+	c.dataColumn.endBatchDelete()
 }
 
 // AppendP nullable value for insert

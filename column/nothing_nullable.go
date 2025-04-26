@@ -125,6 +125,15 @@ func (c *NothingNullable) Delete(start int, end int) {
 func (c *NothingNullable) DeleteFunc(del func(row int) bool) {
 }
 
+func (c *NothingNullable) startBatchDelete() {
+}
+
+func (c *NothingNullable) batchDeleteKeep(start, end int) {
+}
+
+func (c *NothingNullable) endBatchDelete() {
+}
+
 // AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value

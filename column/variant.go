@@ -399,6 +399,18 @@ func (c *Variant) DeleteFunc(del func(row int) bool) {
 	// todo needs to be complete
 }
 
+func (c *Variant) startBatchDelete() {
+	// TODO: needs to complete
+}
+
+func (c *Variant) batchDeleteKeep(start, end int) {
+	// TODO: needs to complete
+}
+
+func (c *Variant) endBatchDelete() {
+	// TODO: needs to complete
+}
+
 func (c *Variant) FullType() string {
 	var chType string
 	if len(c.columnHeader.Name) == 0 {

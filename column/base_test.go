@@ -729,7 +729,7 @@ func testColumn[T column.BaseType](
 			val2 := secondVal(i * (insertN + 1))
 			valArray := []T{val, val2}
 			if i%2 == 0 {
-				valArray = []T{val}
+				valArray = []T{val, val2, val}
 			}
 			valArrayNil := []*T{&val, nil}
 			valArrayArray := [][]T{{val, val2}}

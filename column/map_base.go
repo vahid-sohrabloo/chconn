@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/kelindar/bitmap"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
@@ -17,12 +18,13 @@ import (
 // MapBase is a base class for map and also for non generic  of map to use dynamic select column
 type MapBase struct {
 	column
-	offsetColumn  *Base[uint64]
-	keyColumn     ColumnCore
-	valueColumn   ColumnCore
-	offset        uint64
-	mapChconnType string
-	resetHook     func()
+	offsetColumn     *Base[uint64]
+	keyColumn        ColumnCore
+	valueColumn      ColumnCore
+	offset           uint64
+	mapChconnType    string
+	resetHook        func()
+	bitmapDeleteKeep bitmap.Bitmap
 }
 
 // NewMapBase create a new map column of Map(K,V) ClickHouse data type
@@ -168,40 +170,59 @@ func (c *MapBase) Delete(start int, end int) {
 }
 
 func (c *MapBase) DeleteFunc(del func(row int) bool) {
-	offsets := c.offsetColumn.values
-	if len(offsets) == 0 {
+	if c.NumRow() == 0 {
 		return
 	}
 
-	// Keep track of which rows to preserve
-	newOffsetIdx := 0
-	totalDeleted := uint64(0)
-
-	for i := 0; i < len(offsets); i++ {
-		// Calculate this row's data range
-		startOffset := uint64(0)
-		if i > 0 {
-			startOffset = offsets[i-1]
+	c.startBatchDelete()
+	for i := 0; i < c.NumRow(); i++ {
+		if !del(i) {
+			// Keep this row
+			c.bitmapDeleteKeep.Set(uint32(i))
 		}
-		endOffset := offsets[i]
-		rowSize := endOffset - startOffset
+	}
+	c.endBatchDelete()
+}
 
-		if del(i) {
-			// Row should be deleted
-			// Mark these data elements for deletion
-			c.keyColumn.Delete(int(startOffset-totalDeleted), int(endOffset-totalDeleted))
-			c.valueColumn.Delete(int(startOffset-totalDeleted), int(endOffset-totalDeleted))
-			totalDeleted += rowSize
-		} else {
-			// Row should be kept
-			// Update its offset (accounting for previously deleted elements)
-			c.offsetColumn.values[newOffsetIdx] = endOffset - totalDeleted
-			newOffsetIdx++
+func (c *MapBase) startBatchDelete() {
+	lenNeeded := (c.NumRow() % 64) + 1
+	if cap(c.bitmapDeleteKeep) < lenNeeded {
+		c.bitmapDeleteKeep = make(bitmap.Bitmap, lenNeeded)
+	} else {
+		clear(c.bitmapDeleteKeep)
+	}
+}
+
+func (c *MapBase) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.bitmapDeleteKeep.Set(uint32(i))
+	}
+}
+
+func (c *MapBase) endBatchDelete() {
+	prevOffset := uint64(0)
+	keepIndex := 0
+	c.offset = 0
+	c.keyColumn.startBatchDelete()
+	c.valueColumn.startBatchDelete()
+	for i := 0; i < c.NumRow(); i++ {
+		if c.bitmapDeleteKeep.Contains(uint32(i)) {
+			if i != 0 {
+				prevOffset = c.offsetColumn.Row(i - 1)
+			}
+			currentOffset := c.offsetColumn.Row(i)
+			c.keyColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+			c.valueColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+			c.offset += currentOffset - prevOffset
+			c.offsetColumn.values[keepIndex] = c.offset
+			keepIndex++
 		}
 	}
 
-	// Resize the offset array to remove deleted rows
-	c.offsetColumn.Remove(newOffsetIdx)
+	c.offsetColumn.values = c.offsetColumn.values[:keepIndex]
+	c.offsetColumn.numRow = keepIndex
+	c.keyColumn.endBatchDelete()
+	c.valueColumn.endBatchDelete()
 }
 
 func (c *MapBase) RowAny(row int) any {

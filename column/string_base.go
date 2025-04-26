@@ -20,10 +20,11 @@ type stringPos struct {
 // StringBase is a column of String ClickHouse data type with generic type
 type StringBase[T ~string] struct {
 	column
-	numRow        int
-	vals          []byte
-	pos           []stringPos
-	sparseDataPos []stringPos
+	numRow               int
+	vals                 []byte
+	pos                  []stringPos
+	sparseDataPos        []stringPos
+	indexRemoveKeepIndex int
 }
 
 // NewString is a column of String ClickHouse data type with generic type
@@ -249,16 +250,37 @@ func (c *StringBase[T]) AppendMulti(v ...T) {
 //
 // its equal to data = data[:n]
 func (c *StringBase[T]) Remove(n int) {
-	if c.NumRow() == 0 || c.NumRow() <= n {
+	if n < 0 {
+		n = 0 // Cannot keep negative elements
+	}
+	if n >= c.numRow {
+		return // Keep all or more elements than exist; do nothing
+	}
+
+	if n == 0 {
+		// Keep zero elements
+		c.vals = c.vals[:0]
+		c.pos = c.pos[:0]
+		c.numRow = 0
 		return
 	}
-	skip := 0
-	for i := 0; i < n; i++ {
-		strLen, l := binary.Uvarint(c.vals[skip:])
-		skip += l + int(strLen)
-	}
+
+	// The first n elements in c.pos are the ones to keep.
+	// Find the end byte position of the *data* for the last kept element (n-1).
+	// This position marks the end of the valid data in c.vals that corresponds
+	// to the elements being kept.
+	endBytePos := c.pos[n-1].end
+
+	// Truncate pos slice first.
+	c.pos = c.pos[:n]
+
+	// Truncate vals slice right after the data of the last kept element.
+	// This ensures vals only contains complete prefixes and data for the
+	// elements referenced by the truncated pos slice.
+	c.vals = c.vals[:endBytePos]
+
+	// Update the number of rows.
 	c.numRow = n
-	c.vals = c.vals[:skip]
 }
 
 func (c *StringBase[T]) Delete(start int, end int) {
@@ -325,6 +347,56 @@ func (c *StringBase[T]) DeleteFunc(del func(row int) bool) {
 	c.vals = newVals
 	c.pos = newPos
 	c.numRow = len(newPos)
+}
+
+func (c *StringBase[T]) startBatchDelete() {
+	c.indexRemoveKeepIndex = 0
+}
+
+func (c *StringBase[T]) batchDeleteKeep(start, end int) {
+	for i := start; i < end; i++ {
+		c.pos[c.indexRemoveKeepIndex] = c.pos[i]
+		c.indexRemoveKeepIndex++
+	}
+}
+
+func (c *StringBase[T]) endBatchDelete() {
+	keep := c.indexRemoveKeepIndex
+
+	// nothing kept → clear everything
+	if keep == 0 {
+		c.vals = c.vals[:0]
+		c.pos = c.pos[:0]
+		c.numRow = 0
+		return
+	}
+	// nothing deleted → no work
+	if keep == len(c.pos) {
+		return
+	}
+
+	// compact in-place
+	writeOff := 0
+	for i := 0; i < keep; i++ {
+		old := c.pos[i]
+		strLen := old.end - old.start
+		prefixLen := helper.NumberByteForUvarint(uint64(strLen))
+		segStart := old.start - prefixLen
+		segLen := prefixLen + strLen
+
+		// slide the [prefix + data] block down to writeOff
+		copy(c.vals[writeOff:writeOff+segLen], c.vals[segStart:segStart+segLen])
+
+		// update position to new locations
+		c.pos[i].start = writeOff + prefixLen
+		c.pos[i].end = c.pos[i].start + strLen
+
+		writeOff += segLen
+	}
+
+	c.vals = c.vals[:writeOff]
+	c.pos = c.pos[:keep]
+	c.numRow = keep
 }
 
 // AppendBytes value of bytes for insert

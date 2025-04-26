@@ -38,6 +38,9 @@ type ColumnCore interface {
 	Remove(n int)
 	Delete(start int, end int)
 	DeleteFunc(del func(row int) bool)
+	startBatchDelete()
+	batchDeleteKeep(start, end int)
+	endBatchDelete()
 	ToJSON(row int, stringQuotes bool, b []byte) []byte
 	setLocationInParent(locationInParent int)
 	getLocationInParent() uint8
