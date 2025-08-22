@@ -181,7 +181,7 @@ func (c *DateNullable[T]) AppendAny(value any) error {
 
 			return nil
 		}
-		var t = (*v).ToTime(c.dataColumn.loc, c.dataColumn.precision)
+		t := (*v).ToTime(c.dataColumn.loc, c.dataColumn.precision)
 		c.AppendP(&t)
 	case nil:
 		c.AppendNil()
@@ -311,7 +311,8 @@ func (c *DateNullable[T]) endBatchDelete() {
 func (c *DateNullable[T]) AppendNil() {
 	c.preHookAppend()
 	c.values = append(c.values, 1)
-	c.dataColumn.appendEmpty()
+	var emptyValue T
+	c.dataColumn.Base.Append(emptyValue)
 }
 
 // NumRow return number of row for this block

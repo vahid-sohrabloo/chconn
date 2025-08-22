@@ -220,12 +220,6 @@ func (c *Base[T]) LowCardinality() *LowCardinality[T] {
 	return NewLowCardinality[T](c)
 }
 
-// appendEmpty append empty value for insert
-func (c *Base[T]) appendEmpty() {
-	var emptyValue T
-	c.Append(emptyValue)
-}
-
 // Reset all statuses and buffered data
 //
 // After each reading, the reading data does not need to be reset. It will be automatically reset.

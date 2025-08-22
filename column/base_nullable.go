@@ -147,6 +147,7 @@ func (c *BaseNullable[T]) canAppend(value any) bool {
 	}
 	return false
 }
+
 func (c *BaseNullable[T]) AppendAny(value any) error {
 	switch v := value.(type) {
 	case nil:
@@ -275,7 +276,30 @@ func (c *BaseNullable[T]) AppendMultiP(v ...*T) {
 func (c *BaseNullable[T]) AppendNil() {
 	c.preHookAppend()
 	c.values = append(c.values, 1)
-	c.dataColumn.appendEmpty()
+	var emptyValue T
+	c.dataColumn.Append(emptyValue)
+}
+
+func (c *BaseNullable[T]) SetAt(row int, v T) {
+	c.values[row] = 0
+	c.dataColumn.SetAt(row, v)
+}
+
+func (c *BaseNullable[T]) SetNilAt(row int) {
+	c.values[row] = 1
+	var emptyValue T
+	c.dataColumn.SetAt(row, emptyValue)
+}
+
+func (c *BaseNullable[T]) SetAtP(row int, v *T) {
+	if v == nil {
+		c.values[row] = 1
+		var emptyValue T
+		c.dataColumn.SetAt(row, emptyValue)
+		return
+	}
+	c.values[row] = 0
+	c.dataColumn.SetAt(row, *v)
 }
 
 // NumRow return number of row for this block
