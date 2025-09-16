@@ -100,7 +100,9 @@ func (c *Base[T]) Append(v T) {
 	c.numRow++
 }
 
-// Append value for insert
+// Set value at given row
+//
+// NOTE: Row number start from zero
 func (c *Base[T]) SetAt(row int, v T) {
 	c.values[row] = v
 }

@@ -105,6 +105,24 @@ func (c *LowCardinality[T]) Append(v T) {
 	c.numRow++
 }
 
+// Set value at given row
+//
+// NOTE: Row number start from zero
+func (c *LowCardinality[T]) SetAt(row int, v T) {
+	if row >= c.NumRow() {
+		return
+	}
+
+	key, ok := c.dict[v]
+	if !ok {
+		key = uint32(len(c.dict))
+		c.dictColumn.Append(v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
+	}
+	c.keys[row] = key
+}
+
 func (c *LowCardinality[T]) canAppend(value any) bool {
 	if _, ok := value.(T); ok {
 		return true
