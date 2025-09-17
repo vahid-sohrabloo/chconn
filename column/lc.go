@@ -98,6 +98,7 @@ func (c *LowCardinality[T]) Append(v T) {
 	if !ok {
 		key = uint32(len(c.dict))
 		c.dictColumn.Append(v)
+		c.readDict = append(c.readDict, v)
 		// we are not using the main input as a map key. possible its using some unsafe strings
 		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 	}
@@ -148,6 +149,7 @@ func (c *LowCardinality[T]) AppendMulti(v ...T) {
 		if !ok {
 			key = uint32(len(c.dict))
 			c.dictColumn.Append(v)
+			c.readDict = append(c.readDict, v)
 			// we are not using the main input as a map key. possible its using some unsafe strings
 			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
