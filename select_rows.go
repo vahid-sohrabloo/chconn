@@ -211,6 +211,9 @@ func (r *baseRows) Err() error {
 }
 
 func (r *baseRows) Close() {
+	for r.Next() {
+		// drain remaining rows
+	}
 	r.selectStmt.Close()
 }
 
@@ -242,6 +245,7 @@ func (r *connRow) Scan(dest ...any) (err error) {
 	}
 	//nolint:errcheck // it checks the error in rows.Err() line
 	rows.Scan(dest...)
+
 	rows.Close()
 	return rows.Err()
 }

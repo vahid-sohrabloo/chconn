@@ -124,11 +124,27 @@ func IsDynamic(chType []byte) bool {
 	return string(chType) == DynamicStr
 }
 
+func IsJSON(chType []byte) bool {
+	if len(chType) < LenJSONStr {
+		return false
+	}
+	if string(chType[:LenJSONStr]) != JSONStr {
+		return false
+	}
+	if len(chType) == LenJSONStr {
+		return true
+	}
+	return chType[LenJSONStr] == '('
+}
+
 type ColumnData struct {
 	ChType, Name []byte
 }
 
 func TypesInParentheses(b []byte) ([]ColumnData, error) {
+	if len(b) == 0 {
+		return nil, nil
+	}
 	var columns []ColumnData
 	var openFunc int
 	var hasBacktick bool

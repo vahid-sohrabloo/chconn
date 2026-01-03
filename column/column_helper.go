@@ -425,6 +425,11 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 			columns[i] = col
 		}
 
+		if len(columns) == 0 {
+			// for empty tuple clickhouse is using Nothing type internally
+			columns = append(columns, NewNothing())
+		}
+
 		c := NewTuple(columns...).Elem(arrayLevel)
 		c.SetType(chType)
 		return c, nil
@@ -450,6 +455,16 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 
 	case helper.IsDynamic(chType):
 		c := NewDynamic().Elem(arrayLevel)
+		c.SetType(chType)
+		return c, nil
+	case helper.IsJSON(chType):
+		if nullable {
+			return nil, fmt.Errorf("nullable JSON is not supported yet")
+		}
+		if arrayLevel > 0 {
+			return nil, fmt.Errorf("array of JSON is not supported yet")
+		}
+		c := NewJSON()
 		c.SetType(chType)
 		return c, nil
 	case helper.IsMap(chType):

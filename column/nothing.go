@@ -58,6 +58,12 @@ func (c *Nothing) Scan(row int, dest any) error {
 func (c *Nothing) Append(v NothingData) {
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *Nothing) RowAny(row int) any {
+	return nil
+}
+
 func (c *Nothing) canAppend(value any) bool {
 	return false
 }

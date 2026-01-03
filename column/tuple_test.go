@@ -753,3 +753,61 @@ func TestGeo(t *testing.T) {
 	assert.Equal(t, polygonInsert, polygonData)
 	assert.Equal(t, multiPolygonInsert, multiPolygonData)
 }
+
+func TestTupleEmpty(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Select 1 empty tuple
+	query := "SELECT tuple() as t from system.numbers LIMIT 10"
+	row := conn.QueryRow(context.Background(), query)
+	var data any
+	err = row.Scan(&data)
+	require.NoError(t, err)
+	assert.Equal(t, nil, data)
+	require.NoError(t, err)
+
+	var chconnJSON []string
+	jsonFormat := format.NewJSON(1000, func(b []byte, cb []column.ColumnCore) {
+		chconnJSON = append(chconnJSON, string(b))
+	})
+
+	selectStmt, err := conn.Select(context.Background(), query)
+	require.NoError(t, err)
+
+	err = jsonFormat.ReadEachRow(selectStmt)
+	require.NoError(t, err)
+
+	jsonFromClickhouse := httpJSON(query)
+
+	d := json.NewDecoder(strings.NewReader(strings.Join(chconnJSON, "\n")))
+	var valsChconn []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsChconn = append(valsChconn, v)
+	}
+
+	d = json.NewDecoder(bytes.NewReader(jsonFromClickhouse))
+	var valsClickhouse []any
+	for {
+		var v any
+		if err := d.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		valsClickhouse = append(valsClickhouse, v)
+	}
+
+	assert.Equal(t, valsClickhouse, valsChconn)
+}

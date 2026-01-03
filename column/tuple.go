@@ -22,6 +22,7 @@ type TupleStruct[T any] interface {
 type Tuple struct {
 	column
 	isNamed bool
+	isEmpty bool
 	columns []ColumnCore
 }
 
@@ -98,6 +99,9 @@ func (c *Tuple) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo
 }
 
 func (c *Tuple) Row(row int) any {
+	if c.isEmpty {
+		return nil
+	}
 	if c.isNamed {
 		ret := make(map[string]any, len(c.columns))
 		for _, col := range c.columns {
@@ -122,6 +126,9 @@ func (c *Tuple) Scan(row int, dest any) error {
 func (c *Tuple) ScanValue(row int, dest reflect.Value) error {
 	if dest.Kind() != reflect.Ptr {
 		return fmt.Errorf("scan dest should be a pointer")
+	}
+	if c.isEmpty {
+		return nil
 	}
 	switch dest.Elem().Kind() {
 	case reflect.Struct:
@@ -169,7 +176,6 @@ func (c *Tuple) scanMap(row int, val reflect.Value) error {
 			}
 		} else {
 			err := col.Scan(row, mapIndexValue.Addr().Interface())
-
 			if err != nil {
 				return fmt.Errorf("tuple: scan %s: %w", colName, err)
 			}
@@ -226,6 +232,10 @@ func (c *Tuple) Columns() []ColumnCore {
 	return c.columns
 }
 
+var emptyTypeColumns = []helper.ColumnData{
+	{ChType: []byte("Nothing")},
+}
+
 func (c *Tuple) SetColumnHeader(ch ColumnHeader) error {
 	c.columnHeader = ch
 	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
@@ -244,6 +254,10 @@ func (c *Tuple) SetColumnHeader(ch ColumnHeader) error {
 	columnsTuple, err := helper.TypesInParentheses(chType[helper.LenTupleStr : len(chType)-1])
 	if err != nil {
 		return fmt.Errorf("tuple invalid types %w", err)
+	}
+	if len(columnsTuple) == 0 {
+		columnsTuple = emptyTypeColumns
+		c.isEmpty = true
 	}
 	if len(columnsTuple) != len(c.columns) {
 		//nolint:goerr113
@@ -386,6 +400,7 @@ func (c *Tuple) Remove(n int) {
 		col.Remove(n)
 	}
 }
+
 func (c *Tuple) Delete(start int, end int) {
 	for _, col := range c.columns {
 		col.Delete(start, end)

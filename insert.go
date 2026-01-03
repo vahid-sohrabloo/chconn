@@ -205,7 +205,8 @@ func (ch *conn) InsertWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *QueryOptions,
-	columns ...column.ColumnCore) error {
+	columns ...column.ColumnCore,
+) error {
 	stmt, err := ch.InsertStreamWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return err
@@ -240,7 +241,8 @@ func (ch *conn) InsertStream(ctx context.Context, query string) (InsertStmt, err
 func (ch *conn) InsertStreamWithOption(
 	ctx context.Context,
 	query string,
-	queryOptions *QueryOptions) (InsertStmt, error) {
+	queryOptions *QueryOptions,
+) (InsertStmt, error) {
 	err := ch.lock()
 	if err != nil {
 		return nil, err
