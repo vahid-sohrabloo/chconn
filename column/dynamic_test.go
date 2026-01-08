@@ -25,7 +25,7 @@ func deepConvertToInterfaceSlice(v interface{}) interface{} {
 	if rv.Kind() != reflect.Slice {
 		return v
 	}
-	result := make([]interface{}, rv.Len())
+	result := make([]any, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		result[i] = deepConvertToInterfaceSlice(rv.Index(i).Interface())
 	}

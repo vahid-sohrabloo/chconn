@@ -184,6 +184,7 @@ func TestDecimal32(t *testing.T) {
 		return types.Decimal32(i * -1)
 	})
 }
+
 func TestDecimal64(t *testing.T) {
 	testColumn(t, false, false, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
 		return types.Decimal64(i)
@@ -349,6 +350,7 @@ func TestInt256WithDelete(t *testing.T) {
 		return types.Int256FromBig(x)
 	})
 }
+
 func TestFixedStringWithDelete(t *testing.T) {
 	testColumn(t, false, true, true, "FixedString(2)", "fixedString", func(i int) [2]byte {
 		return [2]byte{byte(i), byte(i + 1)}
@@ -380,6 +382,7 @@ func TestDecimal32WithDelete(t *testing.T) {
 		return types.Decimal32(i + 1)
 	})
 }
+
 func TestDecimal64WithDelete(t *testing.T) {
 	testColumn(t, false, true, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
 		return types.Decimal64(i)
@@ -447,6 +450,7 @@ func TestUint8WithDeleteFunc(t *testing.T) {
 		return uint8(i + 1)
 	})
 }
+
 func TestUint16WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "UInt16", "uint16", func(i int) uint16 {
 		return uint16(i)
@@ -462,6 +466,7 @@ func TestUint32WithDeleteFunc(t *testing.T) {
 		return uint32(i + 1)
 	})
 }
+
 func TestUint64WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "UInt64", "uint64", func(i int) uint64 {
 		return uint64(i)
@@ -479,6 +484,7 @@ func TestUint128WithDeleteFunc(t *testing.T) {
 		return types.Uint128FromBig(x)
 	})
 }
+
 func TestUint256WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "UInt256", "uint256", func(i int) types.Uint256 {
 		return types.Uint256FromBig(big.NewInt(int64(i)))
@@ -489,6 +495,7 @@ func TestUint256WithDeleteFunc(t *testing.T) {
 		return types.Uint256FromBig(x)
 	})
 }
+
 func TestInt8WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int8", "int8", func(i int) int8 {
 		return int8(i)
@@ -496,6 +503,7 @@ func TestInt8WithDeleteFunc(t *testing.T) {
 		return int8(i + 1)
 	})
 }
+
 func TestInt16WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int16", "int16", func(i int) int16 {
 		return int16(i)
@@ -503,6 +511,7 @@ func TestInt16WithDeleteFunc(t *testing.T) {
 		return int16(i + 1)
 	})
 }
+
 func TestInt32WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int32", "int32", func(i int) int32 {
 		return int32(i)
@@ -510,6 +519,7 @@ func TestInt32WithDeleteFunc(t *testing.T) {
 		return int32(i + 1)
 	})
 }
+
 func TestInt64WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int64", "int64", func(i int) int64 {
 		return int64(i)
@@ -517,6 +527,7 @@ func TestInt64WithDeleteFunc(t *testing.T) {
 		return int64(i + 1)
 	})
 }
+
 func TestInt128WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int128", "int128", func(i int) types.Int128 {
 		return types.Int128FromBig(big.NewInt(int64(i * -1)))
@@ -526,6 +537,7 @@ func TestInt128WithDeleteFunc(t *testing.T) {
 		return types.Int128FromBig(x)
 	})
 }
+
 func TestInt256WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Int256", "int256", func(i int) types.Int256 {
 		return types.Int256FromBig(big.NewInt(int64(i)))
@@ -544,6 +556,7 @@ func TestFixedStringWithDeleteFunc(t *testing.T) {
 		return [2]byte{byte(i + 1), byte(i + 2)}
 	})
 }
+
 func TestFloat32WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Float32", "float32", func(i int) float32 {
 		return float32(i)
@@ -551,6 +564,7 @@ func TestFloat32WithDeleteFunc(t *testing.T) {
 		return float32(i + 1)
 	})
 }
+
 func TestFloat64WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "Float64", "float64", func(i int) float64 {
 		return float64(i)
@@ -558,6 +572,7 @@ func TestFloat64WithDeleteFunc(t *testing.T) {
 		return float64(i + 1)
 	})
 }
+
 func TestDecimal32WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, false, "Decimal32(3)", "decimal32", func(i int) types.Decimal32 {
 		return types.Decimal32(i)
@@ -565,6 +580,7 @@ func TestDecimal32WithDeleteFunc(t *testing.T) {
 		return types.Decimal32(i + 1)
 	})
 }
+
 func TestDecimal64WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, false, "Decimal64(3)", "decimal64", func(i int) types.Decimal64 {
 		return types.Decimal64(i)
@@ -572,6 +588,7 @@ func TestDecimal64WithDeleteFunc(t *testing.T) {
 		return types.Decimal64(i + 1)
 	})
 }
+
 func TestDecimal128WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, false, "Decimal128(3)", "decimal128", func(i int) types.Decimal128 {
 		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i))))
@@ -579,6 +596,7 @@ func TestDecimal128WithDeleteFunc(t *testing.T) {
 		return types.Decimal128(types.Int128FromBig(big.NewInt(int64(i + 1))))
 	})
 }
+
 func TestDecimal256WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, false, "Decimal256(3)", "decimal256", func(i int) types.Decimal256 {
 		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i))))
@@ -586,6 +604,7 @@ func TestDecimal256WithDeleteFunc(t *testing.T) {
 		return types.Decimal256(types.Int256FromBig(big.NewInt(int64(i + 1))))
 	})
 }
+
 func TestIPv4WithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "IPv4", "ipv4", func(i int) types.IPv4 {
 		// or directly return types.IPv4
@@ -1463,7 +1482,7 @@ func httpJSON(query string) []byte {
 		url = "http://localhost:8123"
 	}
 
-	url += "?output_format_json_quote_decimals=1"
+	url += "?output_format_json_quote_decimals=1&output_format_json_quote_64bit_integers=1"
 
 	// Your ClickHouse query
 	query += " FORMAT JSONEachRow"

@@ -69,6 +69,16 @@ func TestColumnByTypeError(t *testing.T) {
 			chType:  "Unknown",
 			wantErr: "unknown type: Unknown",
 		},
+		{
+			name:    "Nullable JSON",
+			chType:  "Nullable(JSON)",
+			wantErr: "nullable invalid type: nullable JSON is not supported yet",
+		},
+		{
+			name:    "Array JSON",
+			chType:  "Array(JSON)",
+			wantErr: "array invalid type: array of JSON is not supported yet",
+		},
 	}
 
 	for _, tt := range tests {
@@ -78,6 +88,19 @@ func TestColumnByTypeError(t *testing.T) {
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestColumnByTypeJSON(t *testing.T) {
+	col, err := ColumnByType([]byte("JSON"), 0, false, false, "")
+	require.NoError(t, err)
+	_, ok := col.(*JSON)
+	assert.True(t, ok, "expected JSON column, got %T", col)
+}
+
+func TestJSONSetColumnHeaderTypedDefinition(t *testing.T) {
+	c := NewJSON()
+	err := c.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(String)")})
+	assert.EqualError(t, err, "json: typed JSON definition is not supported yet: JSON(String)")
 }
 
 func TestGetFixedStringType(t *testing.T) {

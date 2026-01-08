@@ -27,7 +27,8 @@ type Dynamic struct {
 // NewVariant create a new Variant of Variant(T1,T2,.....,Tn) ClickHouse data type
 func NewDynamic(columns ...ColumnCore) *Dynamic {
 	if len(columns) > 0 {
-		//TODO: check duplicate columns. its not allowed to have duplicate columns types
+
+	// TODO: check duplicate columns. its not allowed to have duplicate columns types
 
 		sharedIndex := slices.IndexFunc(columns, func(c ColumnCore) bool {
 			_, ok := c.(*SharedVariant)
