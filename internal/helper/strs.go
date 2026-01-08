@@ -17,6 +17,11 @@ const (
 )
 
 const (
+	JSONStr    = "JSON"
+	LenJSONStr = len(JSONStr)
+)
+
+const (
 	SharedVariantStr    = "SharedVariant"
 	LenSharedVariantStr = len(SharedVariantStr)
 )
