@@ -120,6 +120,8 @@ type Row interface {
 	// rows were found it returns ErrNoRows. If multiple rows are returned it
 	// ignores all but the first.
 	Scan(dest ...any) error
+	// Columns returns the columns
+	Columns() []column.ColumnCore
 }
 
 type baseRows struct {
@@ -248,6 +250,10 @@ func (r *connRow) Scan(dest ...any) (err error) {
 
 	rows.Close()
 	return rows.Err()
+}
+
+func (r *connRow) Columns() []column.ColumnCore {
+	return (*baseRows)(r).Columns()
 }
 
 // ForEachRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row

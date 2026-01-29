@@ -22,6 +22,8 @@ type errRow struct {
 	err error
 }
 
+func (e errRow) Columns() []column.ColumnCore { return nil }
+
 func (e errRow) Scan(dest ...any) error { return e.err }
 
 type poolRows struct {
@@ -104,4 +106,8 @@ func (row *poolRow) Scan(dest ...any) error {
 		row.c.Release()
 	}
 	return err
+}
+
+func (rows *poolRow) Columns() []column.ColumnCore {
+	return rows.r.Columns()
 }
