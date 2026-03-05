@@ -8,6 +8,7 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
@@ -179,6 +180,79 @@ func (c *SharedVariant) FullType() string {
 }
 
 func (c *SharedVariant) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
-	// todo implement this
-	return c.StringBase.ToJSON(row, ignoreDoubleQuotes, b)
+	data := c.RowBytes(row)
+	if len(data) == 0 {
+		return append(b, "null"...)
+	}
+	bType, data := c.readSharedTypes(data)
+	b, _ = c.valueToJSON(bType, data, ignoreDoubleQuotes, b)
+	return b
+}
+
+//nolint:gocyclo,gocritic
+func (c *SharedVariant) valueToJSON(btype binaryBaseType, data []byte, ignoreDoubleQuotes bool, b []byte) ([]byte, []byte) {
+	switch btype.bType {
+	case helper.BinaryTypeIndexNothing:
+		return append(b, "null"...), data
+	case helper.BinaryTypeIndexUInt8:
+		return strconv.AppendUint(b, uint64(data[0]), 10), data[1:]
+	case helper.BinaryTypeIndexUInt16:
+		return strconv.AppendUint(b, uint64(binary.LittleEndian.Uint16(data)), 10), data[2:]
+	case helper.BinaryTypeIndexUInt32:
+		return strconv.AppendUint(b, uint64(binary.LittleEndian.Uint32(data)), 10), data[4:]
+	case helper.BinaryTypeIndexUInt64:
+		return strconv.AppendUint(b, binary.LittleEndian.Uint64(data), 10), data[8:]
+	case helper.BinaryTypeIndexInt8:
+		return strconv.AppendInt(b, int64(int8(data[0])), 10), data[1:]
+	case helper.BinaryTypeIndexInt16:
+		return strconv.AppendInt(b, int64(int16(binary.LittleEndian.Uint16(data))), 10), data[2:]
+	case helper.BinaryTypeIndexInt32:
+		return strconv.AppendInt(b, int64(int32(binary.LittleEndian.Uint32(data))), 10), data[4:]
+	case helper.BinaryTypeIndexInt64:
+		return strconv.AppendInt(b, int64(binary.LittleEndian.Uint64(data)), 10), data[8:]
+	case helper.BinaryTypeIndexFloat32:
+		bits := binary.LittleEndian.Uint32(data)
+		return strconv.AppendFloat(b, float64(math.Float32frombits(bits)), 'f', -1, 32), data[4:]
+	case helper.BinaryTypeIndexFloat64:
+		bits := binary.LittleEndian.Uint64(data)
+		return strconv.AppendFloat(b, math.Float64frombits(bits), 'f', -1, 64), data[8:]
+	case helper.BinaryTypeIndexString:
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, data), data[len(data):]
+	case helper.BinaryTypeIndexBool:
+		if data[0] != 0 {
+			b = append(b, "true"...)
+		} else {
+			b = append(b, "false"...)
+		}
+		return b, data[1:]
+	case helper.BinaryTypeIndexArray:
+		lenArray, nRead := binary.Uvarint(data)
+		data = data[nRead:]
+		b = append(b, '[')
+		for i := uint64(0); i < lenArray; i++ {
+			if i > 0 {
+				b = append(b, ',')
+			}
+			b, data = c.valueToJSON(btype.childTypes[0], data, ignoreDoubleQuotes, b)
+		}
+		b = append(b, ']')
+		return b, data
+	case helper.BinaryTypeIndexUUID:
+		// UUID is 16 bytes; output as string for now
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, data[0:16]), data[16:]
+	case helper.BinaryTypeIndexIPv4:
+		ip := net.IP(data[0:4])
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(ip.String())), data[4:]
+	case helper.BinaryTypeIndexIPv6:
+		ip := net.IP(data[6:16])
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(ip.String())), data[16:]
+	case helper.BinaryTypeIndexDate:
+		t := time.Unix(int64(binary.LittleEndian.Uint16(data))*86400, 0).UTC()
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(t.Format("2006-01-02"))), data[2:]
+	case helper.BinaryTypeIndexDateTimeUTC:
+		t := time.Unix(int64(binary.LittleEndian.Uint32(data)), 0).UTC()
+		return helper.AppendJSONSting(b, ignoreDoubleQuotes, []byte(t.Format("2006-01-02 15:04:05"))), data[4:]
+	default:
+		return append(b, "null"...), data
+	}
 }

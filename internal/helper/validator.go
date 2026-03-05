@@ -121,7 +121,16 @@ func IsVariant(chType []byte) bool {
 }
 
 func IsDynamic(chType []byte) bool {
-	return string(chType) == DynamicStr
+	if len(chType) < LenDynamicStr {
+		return false
+	}
+	if string(chType[:LenDynamicStr]) != DynamicStr {
+		return false
+	}
+	if len(chType) == LenDynamicStr {
+		return true
+	}
+	return chType[LenDynamicStr] == '('
 }
 
 func IsJSON(chType []byte) bool {

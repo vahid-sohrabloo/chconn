@@ -99,8 +99,10 @@ func TestColumnByTypeJSON(t *testing.T) {
 
 func TestJSONSetColumnHeaderTypedDefinition(t *testing.T) {
 	c := NewJSON()
-	err := c.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(String)")})
-	assert.EqualError(t, err, "json: typed JSON definition is not supported yet: JSON(String)")
+	// Typed definitions without a name have no Name in ColumnData, so they are skipped.
+	// This should not error — typed JSON definitions are now supported.
+	err := c.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(a String)")})
+	assert.NoError(t, err)
 }
 
 func TestGetFixedStringType(t *testing.T) {
