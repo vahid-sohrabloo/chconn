@@ -96,7 +96,7 @@ func TestJSON(t *testing.T) {
 	for i, expected := range colInsert {
 		actual, ok := colData[i].(string)
 		require.True(t, ok, "row %d: expected string, got %T", i, colData[i])
-		assert.JSONEq(t, expected, actual)
+		assertJSONValuesEqual(t, expected, actual, "read row %d", i)
 	}
 
 	// test read Row
@@ -121,7 +121,7 @@ func TestJSON(t *testing.T) {
 	for i, expected := range colInsert {
 		actual, ok := colData[i].(string)
 		require.True(t, ok, "row %d: expected string, got %T", i, colData[i])
-		assert.JSONEq(t, expected, actual)
+		assertJSONValuesEqual(t, expected, actual, "row-read row %d", i)
 	}
 
 	// check auto-column detection
@@ -152,7 +152,7 @@ func TestJSON(t *testing.T) {
 	for i, expected := range colInsert {
 		actual, ok := colData[i].(string)
 		require.True(t, ok, "row %d: expected string, got %T", i, colData[i])
-		assert.JSONEq(t, expected, actual)
+		assertJSONValuesEqual(t, expected, actual, "auto-detect row %d", i)
 	}
 
 	selectStmt.Close()
