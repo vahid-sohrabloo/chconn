@@ -27,8 +27,7 @@ type Dynamic struct {
 // NewVariant create a new Variant of Variant(T1,T2,.....,Tn) ClickHouse data type
 func NewDynamic(columns ...ColumnCore) *Dynamic {
 	if len(columns) > 0 {
-
-	// TODO: check duplicate columns. its not allowed to have duplicate columns types
+		// TODO: check duplicate columns. its not allowed to have duplicate columns types
 
 		sharedIndex := slices.IndexFunc(columns, func(c ColumnCore) bool {
 			_, ok := c.(*SharedVariant)
@@ -338,16 +337,12 @@ func (c *Dynamic) Remove(n int) {
 	c.variant.Remove(n)
 }
 
-func (c *Dynamic) Delete(start int, end int) {
+func (c *Dynamic) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}
 
-	if end > c.NumRow() {
-		end = c.NumRow()
-	}
-
-	// TODO: needs to complete
+	_ = end // TODO: needs to complete
 }
 
 func (c *Dynamic) DeleteFunc(del func(row int) bool) {

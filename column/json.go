@@ -594,7 +594,7 @@ func (c *JSON) Remove(n int) {
 	}
 }
 
-func (c *JSON) Delete(start int, end int) {
+func (c *JSON) Delete(start, end int) {
 	if c.isStringSerialization() {
 		c.jsonStrings.Delete(start, end)
 		return

@@ -92,7 +92,7 @@ func (c *ArrayBase) Remove(n int) {
 }
 
 // Delete removes rows in the range [start, end)
-func (c *ArrayBase) Delete(start int, end int) {
+func (c *ArrayBase) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start || start >= end {
 		return
 	}
@@ -159,16 +159,17 @@ func (c *ArrayBase) endBatchDelete() {
 	c.offset = 0
 	c.dataColumn.startBatchDelete()
 	for i := 0; i < c.NumRow(); i++ {
-		if c.bitmapDeleteKeep.Contains(uint32(i)) {
-			if i != 0 {
-				prevOffset = c.offsetColumn.Row(i - 1)
-			}
-			currentOffset := c.offsetColumn.Row(i)
-			c.dataColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
-			c.offset += currentOffset - prevOffset
-			c.offsetColumn.values[keepIndex] = c.offset
-			keepIndex++
+		if !c.bitmapDeleteKeep.Contains(uint32(i)) {
+			continue
 		}
+		if i != 0 {
+			prevOffset = c.offsetColumn.Row(i - 1)
+		}
+		currentOffset := c.offsetColumn.Row(i)
+		c.dataColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+		c.offset += currentOffset - prevOffset
+		c.offsetColumn.values[keepIndex] = c.offset
+		keepIndex++
 	}
 
 	c.offsetColumn.values = c.offsetColumn.values[:keepIndex]

@@ -185,7 +185,6 @@ func TestMapWihDeleteFloat64(t *testing.T) {
 	})
 }
 
-
 func TestMapWihDeleteFuncFloat64(t *testing.T) {
 	testMapColumn(t, true, false, "Float64", "float64", func(i int) []float64 {
 		d := make([]float64, 2)

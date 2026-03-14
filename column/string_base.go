@@ -283,7 +283,7 @@ func (c *StringBase[T]) Remove(n int) {
 	c.numRow = n
 }
 
-func (c *StringBase[T]) Delete(start int, end int) {
+func (c *StringBase[T]) Delete(start, end int) {
 	// Current validation checks...
 
 	// Calculate byte range to remove
@@ -483,7 +483,7 @@ func (c *StringBase[T]) ReadRaw(num int) error {
 			return fmt.Errorf("error read string len: %w", err)
 		}
 		// append length of string to make sure has the same data for write
-		c.vals = binary.AppendUvarint(c.vals, uint64(l))
+		c.vals = binary.AppendUvarint(c.vals, l)
 		p.start = len(c.vals)
 		p.end = len(c.vals) + int(l)
 		if l > 0 {

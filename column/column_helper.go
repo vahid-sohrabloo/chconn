@@ -36,7 +36,7 @@ type ColumnCore interface {
 	canAppend(any) bool
 	FullType() string
 	Remove(n int)
-	Delete(start int, end int)
+	Delete(start, end int)
 	DeleteFunc(del func(row int) bool)
 	startBatchDelete()
 	batchDeleteKeep(start, end int)

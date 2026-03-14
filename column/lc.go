@@ -169,7 +169,7 @@ func (c *LowCardinality[T]) Remove(n int) {
 	c.numRow = len(c.keys)
 }
 
-func (c *LowCardinality[T]) Delete(start int, end int) {
+func (c *LowCardinality[T]) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}

@@ -197,7 +197,7 @@ func (c *BaseNullable[T]) Remove(n int) {
 	c.dataColumn.Remove(n)
 }
 
-func (c *BaseNullable[T]) Delete(start int, end int) {
+func (c *BaseNullable[T]) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}

@@ -119,7 +119,7 @@ func (c *NothingNullable) AppendMulti(v ...NothingData) {
 func (c *NothingNullable) Remove(n int) {
 }
 
-func (c *NothingNullable) Delete(start int, end int) {
+func (c *NothingNullable) Delete(start, end int) {
 }
 
 func (c *NothingNullable) DeleteFunc(del func(row int) bool) {

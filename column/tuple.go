@@ -401,7 +401,7 @@ func (c *Tuple) Remove(n int) {
 	}
 }
 
-func (c *Tuple) Delete(start int, end int) {
+func (c *Tuple) Delete(start, end int) {
 	for _, col := range c.columns {
 		col.Delete(start, end)
 	}

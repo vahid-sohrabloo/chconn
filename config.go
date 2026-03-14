@@ -519,7 +519,6 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		sslsni = "1"
 	}
 
-	//nolint:gosec // it change by config
 	tlsConfig := &tls.Config{}
 
 	switch sslmode {
@@ -544,6 +543,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		// and https://pkg.go.dev/crypto/tls?tab=doc#example-Config-VerifyPeerCertificate
 		// for more info.
 		tlsConfig.InsecureSkipVerify = true
+		//nolint:gosec // verify-ca mode uses VerifyPeerCertificate without VerifyConnection
 		tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
 			certs := make([]*x509.Certificate, len(certificates))
 			for i, asn1Data := range certificates {

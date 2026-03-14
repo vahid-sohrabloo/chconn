@@ -384,7 +384,7 @@ func (c *Variant) Remove(n int) {
 	c.discriminators.Remove(n)
 }
 
-func (c *Variant) Delete(start int, end int) {
+func (c *Variant) Delete(start, end int) {
 	if start < 0 || end < 0 || start >= c.NumRow() || end >= c.NumRow() {
 		return
 	}

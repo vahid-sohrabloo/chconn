@@ -147,7 +147,7 @@ func (c *Base[T]) Remove(n int) {
 	c.numRow = len(c.values)
 }
 
-func (c *Base[T]) Delete(start int, end int) {
+func (c *Base[T]) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}

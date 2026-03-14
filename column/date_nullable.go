@@ -255,7 +255,7 @@ func (c *DateNullable[T]) Remove(n int) {
 	c.numRow = len(c.values)
 }
 
-func (c *DateNullable[T]) Delete(start int, end int) {
+func (c *DateNullable[T]) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}

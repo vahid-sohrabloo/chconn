@@ -137,7 +137,7 @@ func (c *MapBase) Remove(n int) {
 }
 
 // Delete removes rows in the range [start, end)
-func (c *MapBase) Delete(start int, end int) {
+func (c *MapBase) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start || start >= end {
 		return
 	}
@@ -206,17 +206,18 @@ func (c *MapBase) endBatchDelete() {
 	c.keyColumn.startBatchDelete()
 	c.valueColumn.startBatchDelete()
 	for i := 0; i < c.NumRow(); i++ {
-		if c.bitmapDeleteKeep.Contains(uint32(i)) {
-			if i != 0 {
-				prevOffset = c.offsetColumn.Row(i - 1)
-			}
-			currentOffset := c.offsetColumn.Row(i)
-			c.keyColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
-			c.valueColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
-			c.offset += currentOffset - prevOffset
-			c.offsetColumn.values[keepIndex] = c.offset
-			keepIndex++
+		if !c.bitmapDeleteKeep.Contains(uint32(i)) {
+			continue
 		}
+		if i != 0 {
+			prevOffset = c.offsetColumn.Row(i - 1)
+		}
+		currentOffset := c.offsetColumn.Row(i)
+		c.keyColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+		c.valueColumn.batchDeleteKeep(int(prevOffset), int(currentOffset))
+		c.offset += currentOffset - prevOffset
+		c.offsetColumn.values[keepIndex] = c.offset
+		keepIndex++
 	}
 
 	c.offsetColumn.values = c.offsetColumn.values[:keepIndex]
