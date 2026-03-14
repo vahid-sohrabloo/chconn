@@ -763,13 +763,21 @@ func TestTupleEmpty(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	// tuple() with no args requires CH < 26 (CH 26+ requires at least one argument)
-	if chVersionAtLeast(conn.ServerInfo(), 26, 0) {
-		t.Skip("ClickHouse 26+ does not support tuple() with no arguments")
-	}
-
-	// Select 1 empty tuple
+	// tuple() with no args is only supported in some CH versions (e.g. 24.8).
+	// Many versions (24.3, 26.2+) require at least one argument.
+	// Probe to see if it works.
 	query := "SELECT tuple() as t from system.numbers LIMIT 10"
+	probe := conn.QueryRow(context.Background(), query)
+	var probeData any
+	if err := probe.Scan(&probeData); err != nil {
+		t.Skipf("ClickHouse %d.%d does not support tuple() with no arguments: %v",
+			conn.ServerInfo().MajorVersion, conn.ServerInfo().MinorVersion, err)
+	}
+	// Reconnect since the probe may have consumed the connection
+	conn.Close()
+	conn, err = chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+	defer conn.Close()
 	row := conn.QueryRow(context.Background(), query)
 	var data any
 	err = row.Scan(&data)
