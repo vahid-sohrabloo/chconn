@@ -14,7 +14,7 @@ jobs:
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
-      CHX_TEST_TCP_CONN_STRING: 'clickhouse://default:chconn_ci@localhost:9000/default'
+      CHX_TEST_TCP_CONN_STRING: 'host=localhost user=default password=chconn_ci database=default'
       CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
@@ -50,7 +50,7 @@ jobs:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
       CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
-      CHX_TEST_TCP_CONN_STRING: 'clickhouse://default:chconn_ci@localhost:9000/default'
+      CHX_TEST_TCP_CONN_STRING: 'host=localhost user=default password=chconn_ci database=default'
       CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
