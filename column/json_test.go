@@ -172,15 +172,20 @@ func TestJSON(t *testing.T) {
 	err = jsonFormat.ReadEachRow(selectStmt)
 	require.NoError(t, err)
 
-	// Use output_format_json_quote_64bit_integers=0 so ClickHouse HTTP output
-	// matches our raw JSON (string mode preserves original number types).
-	jsonFromClickhouse := httpJSONWithSettings(selectQuery,
-		"allow_experimental_json_type=1",
-		"allow_experimental_dynamic_type=1",
+	// Use output_format_json_quote_64bit_integers=1 so ClickHouse HTTP output
+	// quotes Int64 values the same way as chconn's string mode in CH 25.3+.
+	httpSettings := []string{
 		"output_format_native_write_json_as_string=1",
-		"output_format_json_quote_64bit_integers=0",
+		"output_format_json_quote_64bit_integers=1",
 		"output_format_json_quote_decimals=1",
-	)
+	}
+	if !chVersionAtLeast(conn.ServerInfo(), 25, 3) {
+		httpSettings = append(httpSettings,
+			"allow_experimental_json_type=1",
+			"allow_experimental_dynamic_type=1",
+		)
+	}
+	jsonFromClickhouse := httpJSONWithSettings(selectQuery, httpSettings...)
 
 	var valsChconn []any
 	for index, j := range chconnJSON {
