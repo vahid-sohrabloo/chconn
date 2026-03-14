@@ -25,7 +25,7 @@ func TestVariant(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "Variant type")
+	skipIfCHBelow(t, conn.ServerInfo(), 25, 3, "Variant type")
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),

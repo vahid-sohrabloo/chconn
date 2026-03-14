@@ -40,7 +40,7 @@ func TestDynamic(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "Dynamic type")
+	skipIfCHBelow(t, conn.ServerInfo(), 25, 3, "Dynamic type")
 
 	tableName := "dynamic"
 

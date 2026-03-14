@@ -26,7 +26,7 @@ func TestJSON(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+	skipIfCHBelow(t, conn.ServerInfo(), 25, 3, "JSON type")
 
 	tableName := "json_str"
 
@@ -215,7 +215,7 @@ func TestJSONObject(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+	skipIfCHBelow(t, conn.ServerInfo(), 25, 3, "JSON type")
 
 	tableName := "json_object"
 
@@ -562,7 +562,7 @@ func TestJSONScanZeroFill(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+	skipIfCHBelow(t, conn.ServerInfo(), 25, 3, "JSON type")
 
 	tableName := "json_zerofill"
 
