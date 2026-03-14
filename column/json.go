@@ -408,6 +408,9 @@ func (c *JSON) rowObject(row int) map[string]any {
 		setNestedValue(obj, path, val)
 	}
 	for i, path := range c.dynamicPaths {
+		if c.dynamicColumns[i].RowIsNil(row) {
+			continue
+		}
 		val := c.dynamicColumns[i].RowAny(row)
 		setNestedValue(obj, path, val)
 	}
@@ -679,6 +682,9 @@ func (c *JSON) objectToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 		allPaths = append(allPaths, pathCol{path: path, col: c.typedColumns[i]})
 	}
 	for i, path := range c.dynamicPaths {
+		if c.dynamicColumns[i].RowIsNil(row) {
+			continue
+		}
 		allPaths = append(allPaths, pathCol{path: path, col: c.dynamicColumns[i]})
 	}
 

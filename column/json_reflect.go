@@ -125,6 +125,9 @@ func (c *JSON) findColumnForPath(row int, path string) (ColumnCore, int, bool) {
 	}
 	if idx, ok := c.dynamicPathIndex[path]; ok {
 		col := c.dynamicColumns[idx]
+		if col.RowIsNil(row) {
+			return nil, 0, false
+		}
 		return col, row, true
 	}
 	return nil, 0, false

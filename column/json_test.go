@@ -583,6 +583,204 @@ func httpJSONWithSettings(query string, settings ...string) []byte {
 	return body
 }
 
+// TestJSONScanZeroFill demonstrates that column.NewJSON().Scan() returns
+// zero-filled values for keys that were never inserted in a given row.
+// When rows have different JSON keys, ClickHouse's object serialization
+// merges the schema and backfills default values (0, "") for missing keys,
+// making it impossible to distinguish "value is zero" from "value was never sent".
+func TestJSONScanZeroFill(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+	conn, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	tableName := "json_zerofill"
+
+	err = conn.Exec(context.Background(),
+		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
+	)
+	require.NoError(t, err)
+	set := chconn.Settings{
+		{Name: "allow_experimental_json_type", Value: "true"},
+		{Name: "allow_experimental_dynamic_type", Value: "true"},
+	}
+	insertSet := chconn.Settings{
+		{Name: "allow_experimental_json_type", Value: "true"},
+		{Name: "allow_experimental_dynamic_type", Value: "true"},
+		{Name: "output_format_native_write_json_as_string", Value: "1"},
+	}
+	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
+				id UInt64,
+				metrics JSON DEFAULT '{}'
+			) Engine=MergeTree() ORDER BY id`, tableName), &chconn.QueryOptions{
+		Settings: set,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		conn.Exec(context.Background(), fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName))
+	})
+
+	// Insert two rows with different keys.
+	colID := column.New[uint64]()
+	colMetrics := column.NewJSON()
+
+	colID.Append(1)
+	colMetrics.Append(`{"temperature":22.5,"voltage":12.6}`)
+
+	colID.Append(2)
+	colMetrics.Append(`{"humidity":80.0}`) // no temperature, no voltage
+
+	err = conn.InsertWithOption(context.Background(), fmt.Sprintf(`INSERT INTO
+		test_%[1]s (id, metrics) VALUES`, tableName),
+		&chconn.QueryOptions{Settings: insertSet},
+		colID, colMetrics,
+	)
+	require.NoError(t, err)
+
+	// --- Read via column.NewJSON().Scan() in object mode ---
+	t.Run("Scan_shows_zero_fill", func(t *testing.T) {
+		colID2 := column.New[uint64]()
+		colMetrics2 := column.NewJSON()
+
+		stmt, err := conn.SelectWithOption(context.Background(),
+			fmt.Sprintf(`SELECT id, metrics FROM test_%s ORDER BY id`, tableName),
+			&chconn.QueryOptions{Settings: set},
+			colID2, colMetrics2)
+		require.NoError(t, err)
+
+		rows := map[uint64]string{}
+		for stmt.Next() {
+			for i := 0; i < stmt.RowsInBlock(); i++ {
+				id := colID2.Row(i)
+				var s string
+				require.NoError(t, colMetrics2.Scan(i, &s))
+				rows[id] = s
+				t.Logf("Scan row id=%d: %s", id, s)
+			}
+		}
+		require.NoError(t, stmt.Err())
+		stmt.Close()
+
+		// Row 2 should only have "humidity", but Scan returns zero-filled keys.
+		var row2 map[string]any
+		require.NoError(t, json.Unmarshal([]byte(rows[2]), &row2))
+
+		// BUG: these keys were never inserted for row 2, but they appear with value "0".
+		_, hasTemp := row2["temperature"]
+		_, hasVoltage := row2["voltage"]
+		if hasTemp || hasVoltage {
+			t.Errorf("BUG: Row 2 has phantom keys from schema inference:\n"+
+				"  got:      %s\n"+
+				"  expected: only {\"humidity\": ...}\n"+
+				"  This makes it impossible to distinguish 'temperature=0' from 'temperature not sent'.",
+				rows[2])
+		}
+	})
+
+	// --- Read via Scan to map ---
+	t.Run("Scan_map_shows_zero_fill", func(t *testing.T) {
+		colID3 := column.New[uint64]()
+		colMetrics3 := column.NewJSON()
+
+		stmt, err := conn.SelectWithOption(context.Background(),
+			fmt.Sprintf(`SELECT id, metrics FROM test_%s ORDER BY id`, tableName),
+			&chconn.QueryOptions{Settings: set},
+			colID3, colMetrics3)
+		require.NoError(t, err)
+
+		rowMaps := map[uint64]map[string]any{}
+		for stmt.Next() {
+			for i := 0; i < stmt.RowsInBlock(); i++ {
+				id := colID3.Row(i)
+				var m map[string]any
+				require.NoError(t, colMetrics3.Scan(i, &m))
+				rowMaps[id] = m
+				t.Logf("Scan map row id=%d: %v", id, m)
+			}
+		}
+		require.NoError(t, stmt.Err())
+		stmt.Close()
+
+		row2 := rowMaps[2]
+		_, hasTemp := row2["temperature"]
+		_, hasVoltage := row2["voltage"]
+		if hasTemp || hasVoltage {
+			t.Errorf("BUG: Row 2 map scan has phantom keys: %v", row2)
+		}
+	})
+
+	// --- Workaround: toString() returns the original JSON ---
+	t.Run("toString_workaround", func(t *testing.T) {
+		colID4 := column.New[uint64]()
+		colMetrics4 := column.NewString() // read as String
+
+		stmt, err := conn.SelectWithOption(context.Background(),
+			fmt.Sprintf(`SELECT id, toString(metrics) FROM test_%s ORDER BY id`, tableName),
+			&chconn.QueryOptions{Settings: set},
+			colID4, colMetrics4)
+		require.NoError(t, err)
+
+		rows := map[uint64]string{}
+		for stmt.Next() {
+			for i := 0; i < stmt.RowsInBlock(); i++ {
+				id := colID4.Row(i)
+				s := colMetrics4.Row(i)
+				rows[id] = s
+				t.Logf("toString row id=%d: %s", id, s)
+			}
+		}
+		require.NoError(t, stmt.Err())
+		stmt.Close()
+
+		// toString() returns the original JSON without zero-fill.
+		var row2 map[string]any
+		require.NoError(t, json.Unmarshal([]byte(rows[2]), &row2))
+
+		assert.Contains(t, row2, "humidity", "should have humidity")
+		assert.NotContains(t, row2, "temperature", "should NOT have temperature")
+		assert.NotContains(t, row2, "voltage", "should NOT have voltage")
+	})
+
+	// --- String serialization mode (with output_format_native_write_json_as_string) ---
+	t.Run("string_mode_no_zero_fill", func(t *testing.T) {
+		stringSet := chconn.Settings{
+			{Name: "allow_experimental_json_type", Value: "true"},
+			{Name: "allow_experimental_dynamic_type", Value: "true"},
+			{Name: "output_format_native_write_json_as_string", Value: "1"},
+		}
+
+		colID5 := column.New[uint64]()
+		colMetrics5 := column.NewJSON()
+
+		stmt, err := conn.SelectWithOption(context.Background(),
+			fmt.Sprintf(`SELECT id, metrics FROM test_%s ORDER BY id`, tableName),
+			&chconn.QueryOptions{Settings: stringSet},
+			colID5, colMetrics5)
+		require.NoError(t, err)
+
+		rows := map[uint64]string{}
+		for stmt.Next() {
+			for i := 0; i < stmt.RowsInBlock(); i++ {
+				id := colID5.Row(i)
+				var s string
+				require.NoError(t, colMetrics5.Scan(i, &s))
+				rows[id] = s
+				t.Logf("String mode row id=%d: %s", id, s)
+			}
+		}
+		require.NoError(t, stmt.Err())
+		stmt.Close()
+
+		var row2 map[string]any
+		require.NoError(t, json.Unmarshal([]byte(rows[2]), &row2))
+
+		assert.Contains(t, row2, "humidity", "should have humidity")
+		assert.NotContains(t, row2, "temperature", "should NOT have temperature in string mode")
+		assert.NotContains(t, row2, "voltage", "should NOT have voltage in string mode")
+	})
+}
+
 func BenchmarkJSONObjectAppend(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
