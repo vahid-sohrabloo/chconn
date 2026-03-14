@@ -40,18 +40,15 @@ func TestDynamic(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
+	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "Dynamic type")
+
 	tableName := "dynamic"
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
 	)
 	require.NoError(t, err)
-	set := chconn.Settings{
-		{
-			Name:  "allow_experimental_dynamic_type",
-			Value: "true",
-		},
-	}
+	set := dynamicSettings(conn.ServerInfo())
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 				block_id UInt8,
 				col Dynamic(),

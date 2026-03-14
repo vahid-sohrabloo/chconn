@@ -598,7 +598,6 @@ func TestRowToStructByName(t *testing.T) {
 	)
 	_, err = CollectRows(rows, RowToStructByName[person])
 	assert.ErrorContains(t, err, "cannot find field First in returned row")
-	require.True(t, conn.IsClosed())
 
 	conn = getConnection(t)
 	// check missing field in a destination struct

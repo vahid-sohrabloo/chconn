@@ -763,6 +763,11 @@ func TestTupleEmpty(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
+	// tuple() with no args requires CH < 26 (CH 26+ requires at least one argument)
+	if chVersionAtLeast(conn.ServerInfo(), 26, 0) {
+		t.Skip("ClickHouse 26+ does not support tuple() with no arguments")
+	}
+
 	// Select 1 empty tuple
 	query := "SELECT tuple() as t from system.numbers LIMIT 10"
 	row := conn.QueryRow(context.Background(), query)

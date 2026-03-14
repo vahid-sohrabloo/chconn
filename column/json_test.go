@@ -26,26 +26,15 @@ func TestJSON(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
+	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+
 	tableName := "json_str"
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
 	)
 	require.NoError(t, err)
-	set := chconn.Settings{
-		{
-			Name:  "allow_experimental_json_type",
-			Value: "true",
-		},
-		{
-			Name:  "allow_experimental_dynamic_type",
-			Value: "true",
-		},
-		{
-			Name:  "output_format_native_write_json_as_string",
-			Value: "1",
-		},
-	}
+	set := jsonStringSettings(conn.ServerInfo())
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 				block_id UInt8,
 				col JSON
@@ -226,36 +215,16 @@ func TestJSONObject(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
+	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+
 	tableName := "json_object"
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
 	)
 	require.NoError(t, err)
-	set := chconn.Settings{
-		{
-			Name:  "allow_experimental_json_type",
-			Value: "true",
-		},
-		{
-			Name:  "allow_experimental_dynamic_type",
-			Value: "true",
-		},
-	}
-	insertSet := chconn.Settings{
-		{
-			Name:  "allow_experimental_json_type",
-			Value: "true",
-		},
-		{
-			Name:  "allow_experimental_dynamic_type",
-			Value: "true",
-		},
-		{
-			Name:  "output_format_native_write_json_as_string",
-			Value: "1",
-		},
-	}
+	set := jsonSettings(conn.ServerInfo())
+	insertSet := jsonStringSettings(conn.ServerInfo())
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 				block_id UInt8,
 				col JSON
@@ -593,21 +562,16 @@ func TestJSONScanZeroFill(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
+	skipIfCHBelow(t, conn.ServerInfo(), 24, 8, "JSON type")
+
 	tableName := "json_zerofill"
 
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
 	)
 	require.NoError(t, err)
-	set := chconn.Settings{
-		{Name: "allow_experimental_json_type", Value: "true"},
-		{Name: "allow_experimental_dynamic_type", Value: "true"},
-	}
-	insertSet := chconn.Settings{
-		{Name: "allow_experimental_json_type", Value: "true"},
-		{Name: "allow_experimental_dynamic_type", Value: "true"},
-		{Name: "output_format_native_write_json_as_string", Value: "1"},
-	}
+	set := jsonSettings(conn.ServerInfo())
+	insertSet := jsonStringSettings(conn.ServerInfo())
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 				id UInt64,
 				metrics JSON DEFAULT '{}'
@@ -742,11 +706,7 @@ func TestJSONScanZeroFill(t *testing.T) {
 
 	// --- String serialization mode (with output_format_native_write_json_as_string) ---
 	t.Run("string_mode_no_zero_fill", func(t *testing.T) {
-		stringSet := chconn.Settings{
-			{Name: "allow_experimental_json_type", Value: "true"},
-			{Name: "allow_experimental_dynamic_type", Value: "true"},
-			{Name: "output_format_native_write_json_as_string", Value: "1"},
-		}
+		stringSet := jsonStringSettings(conn.ServerInfo())
 
 		colID5 := column.New[uint64]()
 		colMetrics5 := column.NewJSON()

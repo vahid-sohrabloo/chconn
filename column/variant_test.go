@@ -25,23 +25,13 @@ func TestVariant(t *testing.T) {
 	conn, err := chconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	if conn.ServerInfo().MajorVersion < 24 {
-		t.Skipf("clickhouse-server version %d.%d does not support Variant type", conn.ServerInfo().MajorVersion, conn.ServerInfo().MinorVersion)
-	}
+	skipIfCHBelow(t, conn.ServerInfo(), 24, 0, "Variant type")
+
 	err = conn.Exec(context.Background(),
 		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName),
 	)
 	require.NoError(t, err)
-	set := chconn.Settings{
-		{
-			Name:  "allow_suspicious_low_cardinality_types",
-			Value: "true",
-		},
-		{
-			Name:  "allow_experimental_variant_type",
-			Value: "1",
-		},
-	}
+	set := variantSettings(conn.ServerInfo())
 
 	err = conn.ExecWithOption(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
 		block_id UInt8,
