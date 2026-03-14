@@ -172,11 +172,11 @@ func TestJSON(t *testing.T) {
 	err = jsonFormat.ReadEachRow(selectStmt)
 	require.NoError(t, err)
 
-	// Use output_format_json_quote_64bit_integers=1 so ClickHouse HTTP output
-	// quotes Int64 values the same way as chconn's string mode in CH 25.3+.
+	// Compare chconn JSON format output against ClickHouse HTTP JSON output.
+	// Different CH versions quote Int64 differently, so we normalize both sides
+	// by converting all values to strings via fmt.Sprint before comparing.
 	httpSettings := []string{
 		"output_format_native_write_json_as_string=1",
-		"output_format_json_quote_64bit_integers=1",
 		"output_format_json_quote_decimals=1",
 	}
 	if !chVersionAtLeast(conn.ServerInfo(), 25, 3) {
@@ -209,7 +209,15 @@ func TestJSON(t *testing.T) {
 		}
 		valsClickhouse = append(valsClickhouse, v)
 	}
-	assert.Equal(t, valsClickhouse, valsChconn)
+
+	// Normalize both sides: convert all values to strings to handle
+	// Int64 quoting differences across CH versions.
+	require.Equal(t, len(valsClickhouse), len(valsChconn))
+	for i := range valsClickhouse {
+		chJSON, _ := json.Marshal(normalizeJSONValues(valsClickhouse[i]))
+		ccJSON, _ := json.Marshal(normalizeJSONValues(valsChconn[i]))
+		assert.JSONEq(t, string(chJSON), string(ccJSON), "JSON format row %d", i)
+	}
 }
 
 func TestJSONObject(t *testing.T) {
@@ -523,6 +531,30 @@ func assertJSONValuesEqual(t *testing.T, expected, actual string, msgAndArgs ...
 		av, ok := actualMap[k]
 		require.True(t, ok, "missing key %q", k)
 		assert.Equal(t, fmt.Sprint(ev), fmt.Sprint(av), "key %q", k)
+	}
+}
+
+// normalizeJSONValues recursively converts all numeric values to their string
+// representation so that comparisons are immune to Int64 quoting differences
+// across ClickHouse versions (e.g., "0" vs 0).
+func normalizeJSONValues(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(val))
+		for k, v := range val {
+			out[k] = normalizeJSONValues(v)
+		}
+		return out
+	case []any:
+		out := make([]any, len(val))
+		for i, v := range val {
+			out[i] = normalizeJSONValues(v)
+		}
+		return out
+	case float64:
+		return fmt.Sprint(val)
+	default:
+		return v
 	}
 }
 
