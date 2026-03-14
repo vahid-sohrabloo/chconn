@@ -14,11 +14,14 @@ jobs:
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
+      CHX_TEST_TCP_CONN_STRING: 'clickhouse://default:chconn_ci@localhost:9000/default'
+      CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v2
       with:
         version: '26.2'
+        password: 'chconn_ci'
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -47,11 +50,14 @@ jobs:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
       CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
+      CHX_TEST_TCP_CONN_STRING: 'clickhouse://default:chconn_ci@localhost:9000/default'
+      CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v2
       with:
         version: '${{ matrix.clickhouse-version }}'
+        password: 'chconn_ci'
 
     - name: Set up Go
       uses: actions/setup-go@v5
