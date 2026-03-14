@@ -201,7 +201,6 @@ func TestJSON(t *testing.T) {
 		} else if err != nil {
 			require.NoError(t, err, "index %d", index)
 		}
-		//nolint:staticcheck
 		valsChconn = append(valsChconn, v)
 	}
 
@@ -214,7 +213,6 @@ func TestJSON(t *testing.T) {
 		} else if err != nil {
 			t.Fatal(err)
 		}
-		//nolint:staticcheck
 		valsClickhouse = append(valsClickhouse, v)
 	}
 	assert.Equal(t, valsClickhouse, valsChconn)

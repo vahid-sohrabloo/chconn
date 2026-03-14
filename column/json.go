@@ -20,12 +20,12 @@ const (
 	// V2=2: object mode without max_dynamic_paths
 	// FLATTENED=3: flattened mode
 	// V3=4: object mode with shared data
-	jsonObjectV1SerializationVersion   = uint64(0)
-	jsonStringSerializationVersion     = uint64(1)
-	jsonObjectV2SerializationVersion   = uint64(2)
-	jsonFlattenedSerializationVersion  = uint64(3)
-	jsonObjectV3SerializationVersion   = uint64(4)
-	jsonUnsetSerializationVersion      = ^uint64(0)
+	jsonObjectV1SerializationVersion  = uint64(0)
+	jsonStringSerializationVersion    = uint64(1)
+	jsonObjectV2SerializationVersion  = uint64(2)
+	jsonFlattenedSerializationVersion = uint64(3)
+	jsonObjectV3SerializationVersion  = uint64(4)
+	jsonUnsetSerializationVersion     = ^uint64(0)
 )
 
 type JSON struct {
@@ -39,9 +39,9 @@ type JSON struct {
 	dynamicPathIndex map[string]int
 	dynamicColumns   []*Dynamic
 
-	jsonStrings      *String
-	maxDynamicPaths  uint64
-	serverTimeZone   string
+	jsonStrings     *String
+	maxDynamicPaths uint64
+	serverTimeZone  string
 
 	serializationVersion uint64
 	rows                 int
