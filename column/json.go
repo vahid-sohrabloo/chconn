@@ -40,6 +40,7 @@ type JSON struct {
 	dynamicColumns   []*Dynamic
 
 	jsonStrings     *String
+	sharedData      ColumnCore // Map(String, String) for shared data in V2/V3
 	maxDynamicPaths uint64
 	serverTimeZone  string
 
@@ -222,6 +223,21 @@ func (c *JSON) decodeObjectHeader(r *readerwriter.Reader, serverInfo *shared.Ser
 		c.dynamicPathIndex[path] = len(c.dynamicPaths) - 1
 	}
 
+	// Read shared data column header (Map(String, String)) for V2/V3
+	if c.serializationVersion != jsonObjectV1SerializationVersion {
+		sharedDataCol, err := ColumnByType([]byte("Map(String, String)"), 0, false, false, c.serverTimeZone)
+		if err != nil {
+			return fmt.Errorf("json: create shared data column: %w", err)
+		}
+		if err := sharedDataCol.SetColumnHeader(ColumnHeader{ChType: []byte("Map(String, String)")}); err != nil {
+			return fmt.Errorf("json: set shared data header: %w", err)
+		}
+		if err := sharedDataCol.ReadHeader(r, serverInfo); err != nil {
+			return fmt.Errorf("json: read shared data header: %w", err)
+		}
+		c.sharedData = sharedDataCol
+	}
+
 	return nil
 }
 
@@ -244,11 +260,17 @@ func (c *JSON) ReadRaw(num int) error {
 				return fmt.Errorf("json: read dynamic data for path %q: %w", c.dynamicPaths[i], err)
 			}
 		}
-		// V1 includes SharedData: one UInt64 per row at the end
+		// Read shared data
 		if c.serializationVersion == jsonObjectV1SerializationVersion && num > 0 {
+			// V1: SharedData is raw UInt64 per row
 			sharedDataSize := 8 * num
 			if _, err := c.r.Read(make([]byte, sharedDataSize)); err != nil {
 				return fmt.Errorf("json: read shared data (%d bytes): %w", sharedDataSize, err)
+			}
+		} else if c.sharedData != nil {
+			// V2/V3: SharedData is a Map(String, String) column
+			if err := c.sharedData.ReadRaw(num); err != nil {
+				return fmt.Errorf("json: read shared data column: %w", err)
 			}
 		}
 		return nil
