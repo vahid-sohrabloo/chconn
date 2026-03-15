@@ -252,12 +252,13 @@ func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
 	ctx := octx
-	fallbackConfigs, err = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
-	if err != nil {
-		return nil, &connectError{config: config, msg: "hostname resolving error", err: err}
-	}
-
+	var lookupErrors []error
+	fallbackConfigs, lookupErrors = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
 	if len(fallbackConfigs) == 0 {
+		// If no hosts resolved, report the first lookup error if available.
+		if len(lookupErrors) > 0 {
+			return nil, &connectError{config: config, msg: "hostname resolving error", err: lookupErrors[0]}
+		}
 		return nil, &connectError{config: config, msg: "hostname resolving error", err: ErrIPNotFound}
 	}
 
@@ -304,13 +305,17 @@ func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 	return c, nil
 }
 
-func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, error) {
+func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, []error) {
 	var configs []*FallbackConfig
+	var errs []error
 
 	for _, fb := range fallbacks {
 		ips, err := lookupFn(ctx, fb.Host)
 		if err != nil {
-			return nil, err
+			// Skip hosts that fail to resolve instead of aborting all fallbacks.
+			// Collect errors so the caller can report them if no hosts resolve.
+			errs = append(errs, err)
+			continue
 		}
 
 		for _, ip := range ips {
@@ -318,7 +323,8 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 			if err == nil {
 				port, err := strconv.ParseUint(splitPort, 10, 16)
 				if err != nil {
-					return nil, fmt.Errorf("error parsing port (%s) from lookup: %w", splitPort, err)
+					errs = append(errs, fmt.Errorf("error parsing port (%s) from lookup: %w", splitPort, err))
+					continue
 				}
 				configs = append(configs, &FallbackConfig{
 					Host:      splitIP,
@@ -335,7 +341,7 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 		}
 	}
 
-	return configs, nil
+	return configs, errs
 }
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (Conn, error) {
