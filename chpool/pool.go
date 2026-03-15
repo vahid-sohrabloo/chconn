@@ -191,12 +191,15 @@ type pool struct {
 	beforeAcquire         func(context.Context, chconn.Conn) bool
 	afterRelease          func(chconn.Conn) bool
 	beforeClose           func(chconn.Conn)
+	shouldPing            func(time.Duration) bool
 	minConns              int32
 	maxConns              int32
+	minIdleConns          int32
 	maxConnLifetime       time.Duration
 	maxConnLifetimeJitter time.Duration
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
+	pingTimeout           time.Duration
 
 	healthCheckChan chan struct{}
 
@@ -249,6 +252,19 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
+	// MinIdleConns is the minimum number of idle connections in the pool. The health check will create new
+	// connections if the number of idle connections falls below this value. This is useful for reducing
+	// tail latency by always having connections ready. Default is 0 (disabled).
+	MinIdleConns int32
+
+	// PingTimeout is the timeout for health check pings. If zero, a default timeout of 5 seconds is used.
+	PingTimeout time.Duration
+
+	// ShouldPing is called when acquiring a connection from the pool that has been idle. It receives the
+	// idle duration and returns true if the connection should be pinged before use. If nil, the default
+	// behavior pings connections that have been idle for more than 1 second.
+	ShouldPing func(idleDuration time.Duration) bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -283,6 +299,18 @@ func NewWithConfig(config *Config) (Pool, error) {
 		panic("config must be created by ParseConfig")
 	}
 
+	pingTimeout := config.PingTimeout
+	if pingTimeout <= 0 {
+		pingTimeout = 5 * time.Second
+	}
+
+	shouldPing := config.ShouldPing
+	if shouldPing == nil {
+		shouldPing = func(idleDuration time.Duration) bool {
+			return idleDuration > time.Second
+		}
+	}
+
 	p := &pool{
 		config:                config,
 		beforeConnect:         config.BeforeConnect,
@@ -290,12 +318,15 @@ func NewWithConfig(config *Config) (Pool, error) {
 		beforeAcquire:         config.BeforeAcquire,
 		afterRelease:          config.AfterRelease,
 		beforeClose:           config.BeforeClose,
+		shouldPing:            shouldPing,
 		minConns:              config.MinConns,
 		maxConns:              config.MaxConns,
+		minIdleConns:          config.MinIdleConns,
 		maxConnLifetime:       config.MaxConnLifetime,
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 		maxConnIdleTime:       config.MaxConnIdleTime,
 		healthCheckPeriod:     config.HealthCheckPeriod,
+		pingTimeout:           pingTimeout,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
 	}
@@ -463,6 +494,24 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConnLifetimeJitter = d
 	}
 
+	if s, ok := config.ConnConfig.RuntimeParams["pool_min_idle_conns"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_min_idle_conns")
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse pool_min_idle_conns: %w", err)
+		}
+		config.MinIdleConns = int32(n)
+	}
+
+	if s, ok := config.ConnConfig.RuntimeParams["pool_ping_timeout"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_ping_timeout")
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pool_ping_timeout: %w", err)
+		}
+		config.PingTimeout = d
+	}
+
 	return config, nil
 }
 
@@ -512,6 +561,9 @@ func (p *pool) checkHealth() {
 		// even get to minConns
 		if err := p.checkMinConns(); err != nil {
 			// Should we log this error somewhere?
+			break
+		}
+		if err := p.checkMinIdleConns(); err != nil {
 			break
 		}
 		if !p.checkConnsHealth() {
@@ -566,6 +618,17 @@ func (p *pool) checkMinConns() error {
 	return nil
 }
 
+func (p *pool) checkMinIdleConns() error {
+	if p.minIdleConns <= 0 {
+		return nil
+	}
+	toCreate := p.minIdleConns - p.Stat().IdleConns()
+	if toCreate > 0 {
+		return p.createIdleResources(int(toCreate))
+	}
+	return nil
+}
+
 func (p *pool) createIdleResources(targetResources int) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -605,8 +668,10 @@ func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 
 		cr := res.Value()
 
-		if res.IdleDuration() > time.Second {
-			err := cr.conn.Ping(ctx)
+		if p.shouldPing(res.IdleDuration()) {
+			pingCtx, cancel := context.WithTimeout(ctx, p.pingTimeout)
+			err := cr.conn.Ping(pingCtx)
+			cancel()
 			if err != nil {
 				res.Destroy()
 				continue

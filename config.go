@@ -36,6 +36,10 @@ type AfterConnectFunc func(ctx context.Context, chConn Conn) error
 type ValidateConnectFunc func(ctx context.Context, chConn Conn) error
 type GetSSLPasswordFunc func(ctx context.Context) string
 
+// OnErrorFunc is called when a server error is received. It can be used to control whether the connection
+// should be closed. Return true to close the connection (default behavior), or false to keep it open.
+type OnErrorFunc func(conn Conn, err error) bool
+
 // Config is the settings used to establish a connection to a ClickHouse server. It must be created by [ParseConfig]. A
 // manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
@@ -67,6 +71,11 @@ type Config struct {
 	// AfterConnect is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
 	// or prepare statements). If this returns an error the connection attempt fails.
 	AfterConnect AfterConnectFunc
+
+	// OnError is called when a server error (exception) is received. It can be used to decide whether to close
+	// the connection. Return true to close the connection (default behavior), or false to keep it open.
+	// If nil, the connection is always closed on server errors.
+	OnError OnErrorFunc
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 
@@ -502,6 +511,39 @@ func parseDSNSettings(s string) (map[string]string, error) {
 	return settings, nil
 }
 
+// configTLSVerifyCA configures TLS to verify the server's certificate chain
+// without hostname verification. This emulates libpq's verify-ca behavior.
+//
+// See https://github.com/golang/go/issues/21971#issuecomment-332693931
+// and https://pkg.go.dev/crypto/tls?tab=doc#example-Config-VerifyPeerCertificate
+func configTLSVerifyCA(tlsConfig *tls.Config) {
+	tlsConfig.InsecureSkipVerify = true
+	//nolint:gosec // verify-ca mode uses VerifyPeerCertificate without VerifyConnection
+	tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
+		certs := make([]*x509.Certificate, len(certificates))
+		for i, asn1Data := range certificates {
+			cert, err := x509.ParseCertificate(asn1Data)
+			if err != nil {
+				return fmt.Errorf("failed to parse certificate from server: %w", err)
+			}
+			certs[i] = cert
+		}
+
+		// Leave DNSName empty to skip hostname verification.
+		opts := x509.VerifyOptions{
+			Roots:         tlsConfig.RootCAs,
+			Intermediates: x509.NewCertPool(),
+		}
+		// Skip the first cert because it's the leaf. All others
+		// are intermediates.
+		for _, cert := range certs[1:] {
+			opts.Intermediates.AddCert(cert)
+		}
+		_, err := certs[0].Verify(opts)
+		return err
+	}
+}
+
 //nolint:funlen,gocyclo
 func configTLS(settings map[string]string, thisHost string, parseConfigOptions ParseConfigOptions) (*tls.Config, error) {
 	host := thisHost
@@ -525,48 +567,15 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	case "insecure":
 		tlsConfig.InsecureSkipVerify = true
 	case "require":
+		// If a root cert is provided, behave like verify-ca.
+		// Otherwise, skip verification entirely.
 		if sslrootcert != "" {
-			goto nextCase
+			configTLSVerifyCA(tlsConfig)
+		} else {
+			tlsConfig.InsecureSkipVerify = true
 		}
-		tlsConfig.InsecureSkipVerify = true
-		break
-	nextCase:
-		fallthrough
 	case "verify-ca":
-		// Don't perform the default certificate verification because it
-		// will verify the hostname. Instead, verify the server's
-		// certificate chain ourselves in VerifyPeerCertificate and
-		// ignore the server name. This emulates libpq's verify-ca
-		// behavior.
-		//
-		// See https://github.com/golang/go/issues/21971#issuecomment-332693931
-		// and https://pkg.go.dev/crypto/tls?tab=doc#example-Config-VerifyPeerCertificate
-		// for more info.
-		tlsConfig.InsecureSkipVerify = true
-		//nolint:gosec // verify-ca mode uses VerifyPeerCertificate without VerifyConnection
-		tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
-			certs := make([]*x509.Certificate, len(certificates))
-			for i, asn1Data := range certificates {
-				cert, err := x509.ParseCertificate(asn1Data)
-				if err != nil {
-					return fmt.Errorf("failed to parse certificate from server: %w", err)
-				}
-				certs[i] = cert
-			}
-
-			// Leave DNSName empty to skip hostname verification.
-			opts := x509.VerifyOptions{
-				Roots:         tlsConfig.RootCAs,
-				Intermediates: x509.NewCertPool(),
-			}
-			// Skip the first cert because it's the leaf. All others
-			// are intermediates.
-			for _, cert := range certs[1:] {
-				opts.Intermediates.AddCert(cert)
-			}
-			_, err := certs[0].Verify(opts)
-			return err
-		}
+		configTLSVerifyCA(tlsConfig)
 	case "verify-full":
 		tlsConfig.ServerName = host
 	default:

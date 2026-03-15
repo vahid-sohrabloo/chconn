@@ -574,6 +574,19 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
+func (ch *conn) handleServerException() error {
+	chErr := &ChError{}
+	if errRead := chErr.read(ch.reader); errRead != nil {
+		ch.Close()
+		return errRead
+	}
+	// Close connection by default, unless OnError callback says otherwise.
+	if ch.config.OnError == nil || ch.config.OnError(ch, chErr) {
+		ch.Close()
+	}
+	return chErr
+}
+
 func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
@@ -612,12 +625,7 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	case serverPong:
 		return &pong{}, err
 	case serverException:
-		err := &ChError{}
-		defer ch.Close()
-		if errRead := err.read(ch.reader); errRead != nil {
-			return nil, errRead
-		}
-		return nil, err
+		return nil, ch.handleServerException()
 	case serverEndOfStream:
 		return nil, nil
 
