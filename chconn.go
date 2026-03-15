@@ -65,6 +65,8 @@ const (
 	// String (UUID) describes a request for which next task is needed
 	//nolint:deadcode,unused,varcheck
 	serverReadTaskRequest = 13
+	// System logs of query execution
+	serverLog = 10
 	// Packet with profile events from server
 	serverProfileEvents = 14
 	// Receive server's (session-wide) default timezone
@@ -593,6 +595,54 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
+
+func (ch *conn) processProfileInfo(queryOption *QueryOptions) error {
+	profile := newProfile()
+	if err := profile.read(ch); err != nil {
+		return err
+	}
+	if queryOption.OnProfile != nil {
+		queryOption.OnProfile(profile)
+	}
+	return nil
+}
+
+func (ch *conn) processProfileEvents(queryOption *QueryOptions) error {
+	if err := ch.readCompressibleBlock(); err != nil {
+		return err
+	}
+	if err := ch.profileEvent.read(ch); err != nil {
+		return err
+	}
+	if queryOption.OnProfileEvent != nil {
+		queryOption.OnProfileEvent(ch.profileEvent)
+	}
+	return nil
+}
+
+func (ch *conn) processProgress(queryOption *QueryOptions) error {
+	progress := newProgress()
+	if err := progress.read(ch); err != nil {
+		return err
+	}
+	if queryOption.OnProgress != nil {
+		queryOption.OnProgress(progress)
+	}
+	return nil
+}
+
+// readCompressibleBlock reads a block that may be compressed at protocol >= 54481.
+// Log and ProfileEvents blocks are compressed starting from that version.
+func (ch *conn) readCompressibleBlock() error {
+	ch.block.reset()
+	oldCompress := ch.compress
+	if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+		ch.compress = false
+	}
+	err := ch.block.read()
+	ch.compress = oldCompress
+	return err
+}
 func (ch *conn) handleServerException() error {
 	chErr := &ChError{}
 	if errRead := chErr.read(ch.reader); errRead != nil {
@@ -617,24 +667,13 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		err = ch.block.read()
 		return ch.block, err
 	case serverProfileInfo:
-		profile := newProfile()
-
-		err = profile.read(ch)
-		if err != nil {
+		if err := ch.processProfileInfo(queryOption); err != nil {
 			return nil, err
-		}
-		if queryOption.OnProfile != nil {
-			queryOption.OnProfile(profile)
 		}
 		return ch.receiveAndProcessData(queryOption)
 	case serverProgress:
-		progress := newProgress()
-		err = progress.read(ch)
-		if err != nil {
+		if err := ch.processProgress(queryOption); err != nil {
 			return nil, err
-		}
-		if queryOption.OnProgress != nil {
-			queryOption.OnProgress(progress)
 		}
 		return ch.receiveAndProcessData(queryOption)
 
@@ -657,44 +696,18 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		ch.reader.SetCompress(false)
 		return ch.receiveAndProcessData(queryOption)
 	case serverProfileEvents:
-		ch.block.reset()
-		oldCompress := ch.compress
-		// Profile events are compressed starting from 54481; before that always uncompressed.
-		if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
-			ch.compress = false
-		}
-		err = ch.block.read()
-		if err != nil {
-			ch.compress = oldCompress
+		if err := ch.processProfileEvents(queryOption); err != nil {
 			return nil, err
 		}
-		err := ch.profileEvent.read(ch)
-		ch.compress = oldCompress
-		if err != nil {
+		return ch.receiveAndProcessData(queryOption)
+	case serverLog:
+		if err := ch.readCompressibleBlock(); err != nil {
 			return nil, err
-		}
-		if queryOption.OnProfileEvent != nil {
-			queryOption.OnProfileEvent(ch.profileEvent)
 		}
 		return ch.receiveAndProcessData(queryOption)
 	case serverTimezoneUpdate:
 		// TODO: save timezone
 		ch.reader.String() //nolint:errcheck //no needed
-		return ch.receiveAndProcessData(queryOption)
-	}
-
-	// serverLog (10) — system logs of query execution; skip the block like profile events.
-	if packet == 10 {
-		ch.block.reset()
-		oldCompress := ch.compress
-		if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
-			ch.compress = false
-		}
-		err = ch.block.read()
-		ch.compress = oldCompress
-		if err != nil {
-			return nil, err
-		}
 		return ch.receiveAndProcessData(queryOption)
 	}
 
