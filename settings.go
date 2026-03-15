@@ -238,6 +238,29 @@ func StringSliceParameter(name string, v []string) Parameter {
 	}
 }
 
+// skipSettings reads and discards a settings block from the reader.
+// Settings are serialized as repeated (name, flags, value) tuples,
+// terminated by an empty name string.
+func skipSettings(r *readerwriter.Reader) error {
+	for {
+		name, err := r.String()
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return nil
+		}
+		// skip flags (uint8)
+		if _, err := r.ReadByte(); err != nil {
+			return err
+		}
+		// skip value (string)
+		if _, err := r.String(); err != nil {
+			return err
+		}
+	}
+}
+
 func (p *Parameters) Params() []Setting {
 	return p.params
 }

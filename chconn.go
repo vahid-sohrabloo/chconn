@@ -420,8 +420,16 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 }
 
 func (ch *conn) sendAddendum() {
-	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithQuotaKey {
+	v := ch.negotiatedVersion()
+	if v >= helper.DbmsMinProtocolWithQuotaKey {
 		ch.writer.String(ch.config.QuotaKey)
+	}
+	if v >= helper.DbmsMinProtocolVersionWithChunkedPackets {
+		ch.writer.String("notchunked") // proto_send_chunked
+		ch.writer.String("notchunked") // proto_recv_chunked
+	}
+	if v >= helper.DbmsMinRevisionWithVersionedParallelReplicas {
+		ch.writer.Uvarint(0) // parallel replicas protocol version
 	}
 }
 
@@ -520,6 +528,11 @@ func (ch *conn) sendQueryWithOption(
 	}
 
 	ch.writer.String("")
+
+	if ch.negotiatedVersion() >= helper.DbmsMinProtocolWithInterserverExternallyGrantedRoles {
+		// externally granted roles — not used by external clients
+		ch.writer.String("")
+	}
 
 	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithInterServerSecret {
 		ch.writer.String("")
@@ -641,7 +654,10 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	case serverProfileEvents:
 		ch.block.reset()
 		oldCompress := ch.compress
-		ch.compress = false
+		// Profile events are compressed starting from 54481; before that they were always uncompressed.
+		if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+			ch.compress = false
+		}
 		err = ch.block.read()
 		if err != nil {
 			ch.compress = oldCompress
@@ -697,7 +713,14 @@ func (ch *conn) ExecWithOption(
 	return nil
 }
 
-func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) (err error) {
+func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) error {
+	// The server decides which fields to include based on the client's TCP version,
+	// so we must use the minimum of client and server versions when determining
+	// which fields to read.
+	return readServerInfoWithClientVersion(srv, r, helper.ClientTCPVersion)
+}
+
+func readServerInfoWithClientVersion(srv *shared.ServerInfo, r *readerwriter.Reader, clientVersion uint64) (err error) {
 	if srv.Name, err = r.String(); err != nil {
 		return &readError{"ServerInfo: could not read server name", err}
 	}
@@ -710,22 +733,49 @@ func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) (err error) 
 	if srv.Revision, err = r.Uvarint(); err != nil {
 		return &readError{"ServerInfo: could not read server revision", err}
 	}
-	if srv.Revision >= helper.DbmsMinRevisionWithServerTimezone {
+
+	// The server decides which fields to include based on the CLIENT's TCP version
+	// (what we sent in hello), not its own revision. Use min(client, server) to
+	// determine which fields the server actually sent.
+	v := clientVersion
+	if srv.Revision < v {
+		v = srv.Revision
+	}
+
+	// Fields are in the exact order the server's sendHello writes them.
+	if v >= helper.DbmsMinRevisionWithVersionedParallelReplicas {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read parallel replicas protocol version", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithServerTimezone {
 		if srv.Timezone, err = r.String(); err != nil {
 			return &readError{"ServerInfo: could not read server timezone", err}
 		}
 	}
-	if srv.Revision >= helper.DbmsMinRevisionWithServerDisplayName {
+	if v >= helper.DbmsMinRevisionWithServerDisplayName {
 		if srv.ServerDisplayName, err = r.String(); err != nil {
 			return &readError{"ServerInfo: could not read server display name", err}
 		}
 	}
-	if srv.Revision >= helper.DbmsMinRevisionWithVersionPatch {
+	if v >= helper.DbmsMinRevisionWithVersionPatch {
 		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
 			return &readError{"ServerInfo: could not read server version patch", err}
 		}
 	}
-	if srv.Revision >= helper.DbmsMinProtocolVersionWithPasswordComplexityRules {
+	if v >= helper.DbmsMinProtocolVersionWithChunkedPackets {
+		if _, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read proto_send_chunked_srv", err}
+		}
+		if _, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read proto_recv_chunked_srv", err}
+		}
+	}
+	return readServerInfoExtended(srv, r, v)
+}
+
+func readServerInfoExtended(srv *shared.ServerInfo, r *readerwriter.Reader, v uint64) (err error) {
+	if v >= helper.DbmsMinProtocolVersionWithPasswordComplexityRules {
 		lenRules, err := r.Uvarint()
 		if err != nil {
 			return &readError{"ServerInfo: could not read server password complexity rules: len", err}
@@ -742,16 +792,38 @@ func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) (err error) 
 			srv.PasswordPatterns[i] = rule
 		}
 	}
-
-	if srv.Revision >= helper.DbmsMinRevisionWithInterserverSecretV2 {
-		// read secret nonce
-		// we don't need it for now
-		_, err := r.Uint64()
-		if err != nil {
+	if v >= helper.DbmsMinRevisionWithInterserverSecretV2 {
+		if _, err = r.Uint64(); err != nil {
 			return &readError{"ServerInfo: could not read server interserver secret nonce", err}
 		}
 	}
+	if v >= helper.DbmsMinRevisionWithServerSettings {
+		if err = skipSettings(r); err != nil {
+			return &readError{"ServerInfo: could not read server settings", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithQueryPlanSerialization {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read query plan serialization version", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithVersionedClusterFunction {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read cluster function protocol version", err}
+		}
+	}
 	return nil
+}
+
+// negotiatedVersion returns the effective protocol version for this connection.
+// The server sends fields based on the client's advertised version, so we must
+// use min(client, server) to know which fields are actually present on the wire.
+func (ch *conn) negotiatedVersion() uint64 {
+	v := uint64(helper.ClientTCPVersion)
+	if ch.serverInfo.Revision < v {
+		v = ch.serverInfo.Revision
+	}
+	return v
 }
 
 // ServerInfo get server info

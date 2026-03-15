@@ -231,29 +231,42 @@ func (b *block) getColumnsByChType() ([]column.ColumnCore, error) {
 }
 
 type blockInfo struct {
-	field1      uint64
 	isOverflows uint8
-	field2      uint64
 	bucketNum   int32
-	num3        uint64
 }
 
 func (info *blockInfo) read(r *readerwriter.Reader) error {
-	var err error
-	if info.field1, err = r.Uvarint(); err != nil {
-		return &readError{"blockInfo: read field1", err}
-	}
-	if info.isOverflows, err = r.ReadByte(); err != nil {
-		return &readError{"blockInfo: read isOverflows", err}
-	}
-	if info.field2, err = r.Uvarint(); err != nil {
-		return &readError{"blockInfo: read field2", err}
-	}
-	if info.bucketNum, err = r.Int32(); err != nil {
-		return &readError{"blockInfo: read bucketNum", err}
-	}
-	if info.num3, err = r.Uvarint(); err != nil {
-		return &readError{"blockInfo: read num3", err}
+	for {
+		fieldID, err := r.Uvarint()
+		if err != nil {
+			return &readError{"blockInfo: read field id", err}
+		}
+		if fieldID == 0 {
+			break
+		}
+		switch fieldID {
+		case 1:
+			if info.isOverflows, err = r.ReadByte(); err != nil {
+				return &readError{"blockInfo: read isOverflows", err}
+			}
+		case 2:
+			if info.bucketNum, err = r.Int32(); err != nil {
+				return &readError{"blockInfo: read bucketNum", err}
+			}
+		case 3:
+			// out_of_order_buckets: vector<Int32> — read count then skip values
+			count, err := r.Uvarint()
+			if err != nil {
+				return &readError{"blockInfo: read out_of_order_buckets count", err}
+			}
+			for i := uint64(0); i < count; i++ {
+				if _, err := r.Int32(); err != nil {
+					return &readError{"blockInfo: read out_of_order_buckets value", err}
+				}
+			}
+		default:
+			return fmt.Errorf("blockInfo: unknown field id %d", fieldID)
+		}
 	}
 	return nil
 }
