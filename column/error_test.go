@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,8 +98,74 @@ func TestInsertColumnLowCardinalityError(t *testing.T) {
 	}
 }
 
+// selectColumnReadStart returns the number of reads needed before the first
+// column header read in stmt.Next(). This avoids hardcoded read counts
+// that break when the protocol version changes.
+func selectColumnReadStart(t *testing.T) int {
+	t.Helper()
+	config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	var count int
+	config.ReaderFunc = func(r io.Reader, _ chconn.Conn) io.Reader {
+		return &readCounterHelper{r: r, count: &count}
+	}
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	col := column.New[uint64]()
+	stmt, err := c.Select(context.Background(),
+		"SELECT number FROM system.numbers LIMIT 1", col)
+	require.NoError(t, err)
+	// readsBeforeNext is the count right before stmt.Next() starts reading column headers
+	readsBeforeNext := count
+	for stmt.Next() {
+	}
+	require.NoError(t, stmt.Err())
+	c.Close()
+
+	// Find the exact read position within stmt.Next() that produces "read column name"
+	for n := readsBeforeNext; n < readsBeforeNext+20; n++ {
+		cfg, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+		require.NoError(t, err)
+		cfg.ReaderFunc = func(r io.Reader, _ chconn.Conn) io.Reader {
+			return &readErrorHelper{
+				err:         errors.New("timeout"),
+				r:           r,
+				numberValid: n,
+			}
+		}
+		c, err := chconn.ConnectConfig(context.Background(), cfg)
+		if err != nil {
+			continue
+		}
+		col := column.New[uint64]()
+		stmt, err := c.Select(context.Background(),
+			"SELECT number FROM system.numbers LIMIT 1", col)
+		if err != nil {
+			continue
+		}
+		stmt.Next()
+		if stmt.Err() != nil && strings.Contains(stmt.Err().Error(), "read column name: read string length: timeout") {
+			return n
+		}
+	}
+	t.Fatal("could not find selectColumnReadStart")
+	return 0
+}
+
+type readCounterHelper struct {
+	r     io.Reader
+	count *int
+}
+
+func (r *readCounterHelper) Read(p []byte) (int, error) {
+	*r.count++
+	return r.r.Read(p)
+}
+
 func TestSelectReadLCError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -257,7 +324,7 @@ func TestInsertColumnArrayError(t *testing.T) {
 }
 
 func TestSelectReadArrayError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -391,7 +458,7 @@ func TestInsertColumnArrayNullable(t *testing.T) {
 }
 
 func TestSelectReadArrayNullableError(t *testing.T) {
-	startValidReader := 41
+	startValidReader := selectColumnReadStart(t) + 3 // +3 to skip column name reads, start at column type
 
 	tests := []struct {
 		name        string
@@ -444,7 +511,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 }
 
 func TestSelectReadNullableError(t *testing.T) {
-	startValidReader := 41
+	startValidReader := selectColumnReadStart(t) + 3 // +3 to skip column name reads, start at column type
 
 	tests := []struct {
 		name        string
@@ -553,7 +620,7 @@ func TestInsertColumnArray2Error(t *testing.T) {
 }
 
 func TestSelectReadArray2Error(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -681,7 +748,7 @@ func TestInsertColumnArray3Error(t *testing.T) {
 }
 
 func TestSelectReadArray3Error(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -811,7 +878,7 @@ func TestInsertColumnTupleError(t *testing.T) {
 }
 
 func TestSelectReadTupleError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -942,7 +1009,7 @@ func TestInsertColumnMapError(t *testing.T) {
 }
 
 func TestSelectReadMapError(t *testing.T) {
-	startValidReader := 38
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string

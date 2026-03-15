@@ -14,7 +14,7 @@ import (
 )
 
 func TestProfileReadError(t *testing.T) {
-	startValidReader := 43
+	startValidReader := helloReadsCount(t) + 28 // 28 = reads after hello for the SELECT response up to profile
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	c, err := ConnectConfig(context.Background(), config)

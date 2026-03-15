@@ -251,7 +251,8 @@ func TestSelectParameters(t *testing.T) {
 }
 
 func TestSelectProgressError(t *testing.T) {
-	startValidReader := 35
+	// Dynamically discover reads needed to reach the first progress packet.
+	startValidReader := progressReadsCount(t)
 
 	tests := []struct {
 		name        string

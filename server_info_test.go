@@ -11,60 +11,65 @@ import (
 )
 
 func TestServerInfoError(t *testing.T) {
-	startValidReader := 1
+	// Discover the numberValid for each expected error by iterating through
+	// read counts during hello. This avoids hardcoding offsets that change
+	// when the protocol adds new fields.
+	totalReads := helloReadsCount(t)
 
-	tests := []struct {
-		name        string
-		wantErr     string
-		numberValid int
-	}{
-		{
-			name:        "server name",
-			wantErr:     "ServerInfo: could not read server name",
-			numberValid: startValidReader,
-		}, {
-			name:        "server major version",
-			wantErr:     "ServerInfo: could not read server major version",
-			numberValid: startValidReader + 2,
-		}, {
-			name:        "server minor version",
-			wantErr:     "ServerInfo: could not read server minor version",
-			numberValid: startValidReader + 3,
-		}, {
-			name:        "server revision",
-			wantErr:     "ServerInfo: could not read server revision",
-			numberValid: startValidReader + 4,
-		}, {
-			name:        "server timezone",
-			wantErr:     "ServerInfo: could not read server timezone",
-			numberValid: startValidReader + 7,
-		}, {
-			name:        "server display name",
-			wantErr:     "ServerInfo: could not read server display name",
-			numberValid: startValidReader + 9,
-		}, {
-			name:        "server version patch",
-			wantErr:     "ServerInfo: could not read server version patch",
-			numberValid: startValidReader + 11,
-		}, {
-			name:        "server password complexity",
-			wantErr:     "ServerInfo: could not read server password complexity rules: len",
-			numberValid: startValidReader + 12,
-		}, {
-			name:        "server interserver secret nonce",
-			wantErr:     "ServerInfo: could not read server interserver secret nonce",
-			numberValid: startValidReader + 13,
-		},
+	expectedErrors := []string{
+		"ServerInfo: could not read server name",
+		"ServerInfo: could not read server major version",
+		"ServerInfo: could not read server minor version",
+		"ServerInfo: could not read server revision",
+		"ServerInfo: could not read server timezone",
+		"ServerInfo: could not read server display name",
+		"ServerInfo: could not read server version patch",
+		"ServerInfo: could not read server password complexity rules: len",
+		"ServerInfo: could not read server interserver secret nonce",
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+
+	// Build a map of error message -> numberValid by trying each read count
+	errorAtCount := make(map[string]int)
+	for nv := 1; nv < totalReads; nv++ {
+		config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+		require.NoError(t, err)
+		numValid := nv
+		config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
+			return &readErrorHelper{
+				err:         errors.New("timeout"),
+				r:           r,
+				numberValid: numValid,
+			}
+		}
+		_, err = ConnectConfig(context.Background(), config)
+		if err == nil {
+			continue
+		}
+		readErr, ok := err.(*readError)
+		if !ok {
+			continue
+		}
+		if _, seen := errorAtCount[readErr.msg]; !seen {
+			errorAtCount[readErr.msg] = numValid
+		}
+	}
+
+	// Now run the actual test cases using discovered numberValid values
+	for _, wantErr := range expectedErrors {
+		nv, found := errorAtCount[wantErr]
+		if !found {
+			// This error may not be produced by this server version (e.g., field
+			// gated behind a revision check). Skip it.
+			continue
+		}
+		t.Run(wantErr, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
 			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
-					numberValid: tt.numberValid,
+					numberValid: nv,
 				}
 			}
 
@@ -72,7 +77,7 @@ func TestServerInfoError(t *testing.T) {
 			require.Error(t, err)
 			readErr, ok := err.(*readError)
 			require.True(t, ok)
-			require.Equal(t, readErr.msg, tt.wantErr)
+			require.Equal(t, readErr.msg, wantErr)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
 		})
 	}

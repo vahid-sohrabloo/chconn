@@ -283,7 +283,7 @@ func TestReceivePackError(t *testing.T) {
 		return &readErrorHelper{
 			err:         errors.New("timeout"),
 			r:           r,
-			numberValid: 15,
+			numberValid: helloReadsCount(t),
 		}
 	}
 	c, err := ConnectConfig(context.Background(), config)

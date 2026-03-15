@@ -67,11 +67,12 @@ func TestInsertError(t *testing.T) {
 
 	require.NoError(t, err)
 
+	insertReadValid := insertColumnNameReadsCount(t) // reads needed to reach column name read in INSERT
 	config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 		return &readErrorHelper{
 			err:         errors.New("timeout"),
 			r:           r,
-			numberValid: 28,
+			numberValid: insertReadValid,
 		}
 	}
 	c, err = ConnectConfig(context.Background(), config)

@@ -649,12 +649,17 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		return nil, nil
 
 	case serverTableColumns:
+		// At version >= 54481, table columns are sent compressed when compression is enabled.
+		if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithCompressedLogsProfileEvents && ch.compress {
+			ch.reader.SetCompress(true)
+		}
 		ch.readTableColumn()
+		ch.reader.SetCompress(false)
 		return ch.receiveAndProcessData(queryOption)
 	case serverProfileEvents:
 		ch.block.reset()
 		oldCompress := ch.compress
-		// Profile events are compressed starting from 54481; before that they were always uncompressed.
+		// Profile events are compressed starting from 54481; before that always uncompressed.
 		if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
 			ch.compress = false
 		}
@@ -675,6 +680,21 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	case serverTimezoneUpdate:
 		// TODO: save timezone
 		ch.reader.String() //nolint:errcheck //no needed
+		return ch.receiveAndProcessData(queryOption)
+	}
+
+	// serverLog (10) — system logs of query execution; skip the block like profile events.
+	if packet == 10 {
+		ch.block.reset()
+		oldCompress := ch.compress
+		if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+			ch.compress = false
+		}
+		err = ch.block.read()
+		ch.compress = oldCompress
+		if err != nil {
+			return nil, err
+		}
 		return ch.receiveAndProcessData(queryOption)
 	}
 

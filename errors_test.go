@@ -12,7 +12,7 @@ import (
 )
 
 func TestChErrorReadError(t *testing.T) {
-	startValidReader := 16
+	startValidReader := helloReadsCount(t) + 1 // +1 for packet type read
 
 	tests := []struct {
 		name        string
