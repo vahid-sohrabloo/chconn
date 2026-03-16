@@ -608,12 +608,24 @@ func (ch *conn) processProfileInfo(queryOption *QueryOptions) error {
 }
 
 func (ch *conn) processProfileEvents(queryOption *QueryOptions) error {
-	if err := ch.readCompressibleBlock(); err != nil {
+	// Profile events blocks (and their column data) are compressed only at >= 54481.
+	// We must keep compression disabled for both block.read() and readColumnsData()
+	// on older servers, so we manage the compress flag here rather than in
+	// readCompressibleBlock.
+	ch.block.reset()
+	oldCompress := ch.compress
+	if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+		ch.compress = false
+	}
+	defer func() { ch.compress = oldCompress }()
+
+	if err := ch.block.read(); err != nil {
 		return err
 	}
 	if err := ch.profileEvent.read(ch); err != nil {
 		return err
 	}
+	// profileEvent.read → readColumnsData has its own defer SetCompress(false).
 	if queryOption.OnProfileEvent != nil {
 		queryOption.OnProfileEvent(ch.profileEvent)
 	}
@@ -631,8 +643,9 @@ func (ch *conn) processProgress(queryOption *QueryOptions) error {
 	return nil
 }
 
-// readCompressibleBlock reads a block that may be compressed at protocol >= 54481.
-// Log and ProfileEvents blocks are compressed starting from that version.
+// readCompressibleBlock reads a log/profile-events block header only.
+// After returning, compression is reset to off regardless of the block type,
+// because log blocks have no column data to follow.
 func (ch *conn) readCompressibleBlock() error {
 	ch.block.reset()
 	oldCompress := ch.compress
@@ -641,6 +654,9 @@ func (ch *conn) readCompressibleBlock() error {
 	}
 	err := ch.block.read()
 	ch.compress = oldCompress
+	// block.read() left compression active; reset it since log blocks have no
+	// subsequent column-data read.
+	ch.reader.SetCompress(false)
 	return err
 }
 func (ch *conn) handleServerException() error {
@@ -666,17 +682,6 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		ch.block.reset()
 		err = ch.block.read()
 		return ch.block, err
-	case serverProfileInfo:
-		if err := ch.processProfileInfo(queryOption); err != nil {
-			return nil, err
-		}
-		return ch.receiveAndProcessData(queryOption)
-	case serverProgress:
-		if err := ch.processProgress(queryOption); err != nil {
-			return nil, err
-		}
-		return ch.receiveAndProcessData(queryOption)
-
 	case serverHello:
 		err = readServerInfo(ch.serverInfo, ch.reader)
 		return nil, err
@@ -686,32 +691,41 @@ func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 		return nil, ch.handleServerException()
 	case serverEndOfStream:
 		return nil, nil
-
-	case serverTableColumns:
-		// At version >= 54481, table columns are sent compressed when compression is enabled.
-		if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithCompressedLogsProfileEvents && ch.compress {
-			ch.reader.SetCompress(true)
-		}
-		ch.readTableColumn()
-		ch.reader.SetCompress(false)
-		return ch.receiveAndProcessData(queryOption)
-	case serverProfileEvents:
-		if err := ch.processProfileEvents(queryOption); err != nil {
-			return nil, err
-		}
-		return ch.receiveAndProcessData(queryOption)
-	case serverLog:
-		if err := ch.readCompressibleBlock(); err != nil {
-			return nil, err
-		}
-		return ch.receiveAndProcessData(queryOption)
-	case serverTimezoneUpdate:
-		// TODO: save timezone
-		ch.reader.String() //nolint:errcheck //no needed
-		return ch.receiveAndProcessData(queryOption)
+	default:
+		return ch.processNonDataPacket(packet, queryOption)
 	}
+}
 
-	return nil, &notImplementedPacket{packet: packet}
+func (ch *conn) processNonDataPacket(packet uint64, queryOption *QueryOptions) (any, error) {
+	var err error
+	switch packet {
+	case serverProfileInfo:
+		err = ch.processProfileInfo(queryOption)
+	case serverProgress:
+		err = ch.processProgress(queryOption)
+	case serverTableColumns:
+		ch.processTableColumns()
+	case serverProfileEvents:
+		err = ch.processProfileEvents(queryOption)
+	case serverLog:
+		err = ch.readCompressibleBlock()
+	case serverTimezoneUpdate:
+		ch.reader.String() //nolint:errcheck //no needed
+	default:
+		return nil, &notImplementedPacket{packet: packet}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ch.receiveAndProcessData(queryOption)
+}
+
+func (ch *conn) processTableColumns() {
+	if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithCompressedLogsProfileEvents && ch.compress {
+		ch.reader.SetCompress(true)
+	}
+	ch.readTableColumn()
+	ch.reader.SetCompress(false)
 }
 
 var emptyQueryOptions = &QueryOptions{}

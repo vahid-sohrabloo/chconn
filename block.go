@@ -40,7 +40,9 @@ func (b *block) read() error {
 		return &readError{"block: temporary table", err}
 	}
 	b.c.reader.SetCompress(b.c.compress)
-	defer b.c.reader.SetCompress(false)
+	// NOTE: compression is intentionally left active after read() returns.
+	// The caller (readColumnsHeader or readColumnsData) continues reading from
+	// the same compressed frame, and is responsible for calling SetCompress(false).
 
 	var err error
 	err = b.info.read(b.c.reader)
@@ -93,7 +95,8 @@ func readColumnHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) (co
 }
 
 func (b *block) readColumnsHeader() error {
-	b.c.reader.SetCompress(b.c.compress)
+	// block.read() left compression active; we continue reading from the same
+	// compressed frame, then turn compression off when done.
 	defer b.c.reader.SetCompress(false)
 	b.ColumnsHeader = make([]column.ColumnHeader, b.NumColumns)
 
