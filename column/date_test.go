@@ -524,20 +524,22 @@ func testDateColumn[T column.DateType[T]](
 		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
 	require.NoError(t, selectStmt.Err())
+	// Scan uses auto-discovered columns which may use the server timezone,
+	// while colInsert uses Local. Normalize to UTC before comparison.
 	if isLC {
-		assert.Equal(t, colInsert, colData)
-		assert.Equal(t, colNullableInsert, colNullableData)
-		assert.Equal(t, colArrayInsert, colArrayData)
-		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
-		assert.Equal(t, colLCInsert, colLCData)
-		assert.Equal(t, colLCNullableInsert, colLCNullableData)
-		assert.Equal(t, colLCArrayInsert, colLCArrayData)
-		assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
+		assert.Equal(t, normalizeTimesToUTC(colInsert), normalizeTimesToUTC(colData))
+		assert.Equal(t, normalizeTimesToUTC(colNullableInsert), normalizeTimesToUTC(colNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayInsert), normalizeTimesToUTC(colArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayNullableInsert), normalizeTimesToUTC(colArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colLCInsert), normalizeTimesToUTC(colLCData))
+		assert.Equal(t, normalizeTimesToUTC(colLCNullableInsert), normalizeTimesToUTC(colLCNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colLCArrayInsert), normalizeTimesToUTC(colLCArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colLCNullableArrayInsert), normalizeTimesToUTC(colLCNullableArrayData))
 	} else {
-		assert.Equal(t, colInsert, colData)
-		assert.Equal(t, colNullableInsert, colNullableData)
-		assert.Equal(t, colArrayInsert, colArrayData)
-		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
+		assert.Equal(t, normalizeTimesToUTC(colInsert), normalizeTimesToUTC(colData))
+		assert.Equal(t, normalizeTimesToUTC(colNullableInsert), normalizeTimesToUTC(colNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayInsert), normalizeTimesToUTC(colArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayNullableInsert), normalizeTimesToUTC(colArrayNullableData))
 	}
 
 	selectStmt.Close()

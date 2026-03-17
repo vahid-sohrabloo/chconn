@@ -308,6 +308,8 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 			} else if loc, err := time.LoadLocation(serverTimeZone); err == nil {
 				col.SetLocation(loc)
 			}
+		} else if loc, err := time.LoadLocation(serverTimeZone); err == nil {
+			col.SetLocation(loc)
 		}
 		col.SetType(chType)
 		return col.Elem(arrayLevel, nullable, lc), nil

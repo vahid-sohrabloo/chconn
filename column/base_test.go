@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1407,28 +1409,30 @@ func testColumn[T column.BaseType](
 		colLCNullableArrayData = append(colLCNullableArrayData, colLCNullableArrayVal)
 	}
 	require.NoError(t, selectStmt.Err())
+	// Scan uses auto-discovered columns which may use the server timezone,
+	// while colInsert uses Local. Normalize to UTC before comparison.
 	if isLC {
-		assert.Equal(t, colInsert, colData)
-		assert.Equal(t, colNullableInsert, colNullableData)
-		assert.Equal(t, colArrayInsert, colArrayData)
-		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
-		assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
-		assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
-		assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
-		assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
-		assert.Equal(t, colLCInsert, colLCData)
-		assert.Equal(t, colLCNullableInsert, colLCNullableData)
-		assert.Equal(t, colLCArrayInsert, colLCArrayData)
-		assert.Equal(t, colLCNullableArrayInsert, colLCNullableArrayData)
+		assert.Equal(t, normalizeTimesToUTC(colInsert), normalizeTimesToUTC(colData))
+		assert.Equal(t, normalizeTimesToUTC(colNullableInsert), normalizeTimesToUTC(colNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayInsert), normalizeTimesToUTC(colArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayNullableInsert), normalizeTimesToUTC(colArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayInsert), normalizeTimesToUTC(colArrayArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayNullableInsert), normalizeTimesToUTC(colArrayArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayArrayInsert), normalizeTimesToUTC(colArrayArrayArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayArrayNullableInsert), normalizeTimesToUTC(colArrayArrayArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colLCInsert), normalizeTimesToUTC(colLCData))
+		assert.Equal(t, normalizeTimesToUTC(colLCNullableInsert), normalizeTimesToUTC(colLCNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colLCArrayInsert), normalizeTimesToUTC(colLCArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colLCNullableArrayInsert), normalizeTimesToUTC(colLCNullableArrayData))
 	} else {
-		assert.Equal(t, colInsert, colData)
-		assert.Equal(t, colNullableInsert, colNullableData)
-		assert.Equal(t, colArrayInsert, colArrayData)
-		assert.Equal(t, colArrayNullableInsert, colArrayNullableData)
-		assert.Equal(t, colArrayArrayInsert, colArrayArrayData)
-		assert.Equal(t, colArrayArrayNullableInsert, colArrayArrayNullableData)
-		assert.Equal(t, colArrayArrayArrayInsert, colArrayArrayArrayData)
-		assert.Equal(t, colArrayArrayArrayNullableInsert, colArrayArrayArrayNullableData)
+		assert.Equal(t, normalizeTimesToUTC(colInsert), normalizeTimesToUTC(colData))
+		assert.Equal(t, normalizeTimesToUTC(colNullableInsert), normalizeTimesToUTC(colNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayInsert), normalizeTimesToUTC(colArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayNullableInsert), normalizeTimesToUTC(colArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayInsert), normalizeTimesToUTC(colArrayArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayNullableInsert), normalizeTimesToUTC(colArrayArrayNullableData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayArrayInsert), normalizeTimesToUTC(colArrayArrayArrayData))
+		assert.Equal(t, normalizeTimesToUTC(colArrayArrayArrayNullableInsert), normalizeTimesToUTC(colArrayArrayArrayNullableData))
 	}
 
 	selectStmt.Close()
@@ -1472,43 +1476,114 @@ func testColumn[T column.BaseType](
 		valsClickhouse = append(valsClickhouse, v)
 	}
 
+	// Normalize JSON values: older CH may return unquoted numbers where chconn
+	// returns quoted strings (e.g. Decimal without output_format_json_quote_decimals),
+	// or vice versa for Int64. Convert both sides to a common representation.
+	for i := range valsClickhouse {
+		valsClickhouse[i] = normalizeJSONNumericValues(valsClickhouse[i])
+	}
+	for i := range valsChconn {
+		valsChconn[i] = normalizeJSONNumericValues(valsChconn[i])
+	}
 	assert.Equal(t, valsClickhouse, valsChconn)
 }
 
+// normalizeJSONNumericValues recursively converts float64 values to their
+// string representation so comparisons work across CH versions with different
+// numeric quoting settings (e.g. output_format_json_quote_decimals).
+func normalizeJSONNumericValues(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(val))
+		for k, mv := range val {
+			out[k] = normalizeJSONNumericValues(mv)
+		}
+		return out
+	case []any:
+		out := make([]any, len(val))
+		for i, av := range val {
+			out[i] = normalizeJSONNumericValues(av)
+		}
+		return out
+	case float64:
+		return fmt.Sprint(val)
+	default:
+		return v
+	}
+}
+
 func httpJSON(query string) []byte {
-	// URL of your ClickHouse server
-	url := os.Getenv("CHX_TEST_HTTP_CONN_STRING")
-	if url == "" {
-		url = "http://localhost:8123"
+	baseURL := os.Getenv("CHX_TEST_HTTP_CONN_STRING")
+	if baseURL == "" {
+		baseURL = "http://localhost:8123"
 	}
 
-	url += "?output_format_json_quote_decimals=1&output_format_json_quote_64bit_integers=1"
+	queryFmt := query + " FORMAT JSONEachRow"
 
-	// Your ClickHouse query
-	query += " FORMAT JSONEachRow"
-
-	// Create a new HTTP request with the query
-	req, err := http.NewRequest("POST", url, bytes.NewBufferString(query))
-	if err != nil {
-		panic(err)
+	// Try with precision settings first; fall back without them for older servers
+	// that don't support output_format_json_quote_decimals.
+	for _, settings := range []string{
+		"?output_format_json_quote_decimals=1&output_format_json_quote_64bit_integers=1",
+		"",
+	} {
+		req, err := http.NewRequest("POST", baseURL+settings, bytes.NewBufferString(queryFmt))
+		if err != nil {
+			panic(err)
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			panic(err)
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			panic(err)
+		}
+		// If the server returned an error response (e.g. unknown setting), retry without settings.
+		if resp.StatusCode == http.StatusOK {
+			return body
+		}
 	}
+	panic("httpJSON: all attempts failed for query: " + query)
+}
 
-	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
+// normalizeTimesToUTC recursively converts all time.Time values in v to UTC.
+// This allows comparing data read with different timezone locations (e.g. Local
+// vs server timezone) by normalizing to the same representation.
+func normalizeTimesToUTC(v any) any {
+	return normalizeReflectValue(reflect.ValueOf(v)).Interface()
+}
+
+func normalizeReflectValue(v reflect.Value) reflect.Value {
+	switch v.Kind() {
+	case reflect.Slice:
+		if v.IsNil() {
+			return v
+		}
+		result := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
+		for i := 0; i < v.Len(); i++ {
+			result.Index(i).Set(normalizeReflectValue(v.Index(i)))
+		}
+		return result
+	case reflect.Ptr:
+		if v.IsNil() {
+			return v
+		}
+		result := reflect.New(v.Type().Elem())
+		result.Elem().Set(normalizeReflectValue(v.Elem()))
+		return result
+	case reflect.Interface:
+		if v.IsNil() {
+			return v
+		}
+		return normalizeReflectValue(v.Elem())
+	default:
+		if t, ok := v.Interface().(time.Time); ok {
+			return reflect.ValueOf(t.UTC())
+		}
+		return v
 	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	// The body contains the JSON response
-	return body
 }
 
 func TestEmptyCollection(t *testing.T) {

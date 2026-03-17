@@ -30,8 +30,9 @@ func helloReadsCount(t *testing.T) int {
 	return count
 }
 
-// progressReadsCount returns the number of reads needed to reach the first
-// progress packet in a SELECT sleep(1) query. Used by progress error tests.
+// progressReadsCount returns the exact number of valid reads after which the
+// next read would fail on "read ReadRows" in a progress packet. Used by
+// progress error tests. Dynamically discovered to be version-agnostic.
 func progressReadsCount(t *testing.T) int {
 	t.Helper()
 	var count int
@@ -63,17 +64,50 @@ func progressReadsCount(t *testing.T) int {
 	require.NoError(t, res.Err())
 	c.Close()
 	require.Greater(t, progressAt, 0, "no progress packet received")
-	// progressAt is the read count after the full progress packet is read.
-	// The progress packet has 7 fields (ReadRows, ReadBytes, TotalRows,
-	// TotalBytes, WriterRows, WrittenBytes, ElapsedNS).
-	// Return the count just before the first field (ReadRows).
-	// progressAt is captured when OnProgress fires, right after progress.read().
-	// Subtract the packet type read (1) + progress fields (7) to get the position
-	// just before the packet type byte. Then the test adds offsets for each field.
-	// But the test's numberValid is checked AFTER a read succeeds, so the first
-	// field that fails is at startValidReader+1. The test expects startValidReader
-	// to be the last successful read before ReadRows fails.
-	return progressAt - 10
+
+	// Dynamically find the exact position where injecting an error produces
+	// "progress: read ReadRows". Search backward from progressAt.
+	for n := progressAt - 1; n >= progressAt-15; n-- {
+		if progressErrorAt(t, n) == "progress: read ReadRows (timeout)" {
+			return n
+		}
+	}
+	t.Fatal("could not find progressReadsCount: ReadRows error position not found")
+	return 0
+}
+
+// progressErrorAt injects a timeout at read n+1 and returns the error message.
+func progressErrorAt(t *testing.T, n int) string {
+	t.Helper()
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	if err != nil {
+		return ""
+	}
+	config.ReaderFunc = func(r io.Reader, _ Conn) io.Reader {
+		return &readErrorHelper{err: errTestTimeout, r: r, numberValid: n}
+	}
+	c, err := ConnectConfig(context.Background(), config)
+	if err != nil {
+		return ""
+	}
+	colSleep := column.New[uint8]()
+	colNumber := column.New[uint64]()
+	res, err := c.SelectWithOption(context.Background(),
+		"SELECT sleep(1), * FROM system.numbers LIMIT 1",
+		&QueryOptions{OnProgress: func(_ *Progress) {}},
+		colSleep, colNumber,
+	)
+	if err != nil {
+		c.Close()
+		return err.Error()
+	}
+	for res.Next() {
+	}
+	c.Close()
+	if res.Err() != nil {
+		return res.Err().Error()
+	}
+	return ""
 }
 
 // insertColumnNameReadsCount returns the number of reads needed to reach the

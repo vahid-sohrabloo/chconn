@@ -16,9 +16,11 @@ import (
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING") + " connect_timeout=10"
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	config.ConnectTimeout = 10 * time.Second
 
-	conn, err := Connect(context.Background(), connString)
+	conn, err := ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
 	require.NoError(t, conn.Ping(context.Background()))

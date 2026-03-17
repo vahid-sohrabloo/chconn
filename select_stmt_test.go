@@ -189,7 +189,7 @@ func TestSelectParameters(t *testing.T) {
 				IntSliceParameter("as", []int32{-15, -16}),
 				StringParameter("b", "str'"),
 				StringSliceParameter("bs", []string{"str", "str2\\'"}),
-				StringParameter("c", "2022-08-04 18:30:53"),
+				StringParameter("c", "1659637853"), // Unix timestamp, unambiguous across server timezones
 				StringParameter("d", `{'a': 1, 'b': 2}`),
 				UintParameter("e", uint64(14)),
 				UintSliceParameter("es", []uint32{15, 16}),
@@ -235,7 +235,7 @@ func TestSelectParameters(t *testing.T) {
 	assert.Equal(t, []int32{-15, -16}, colAS.Data()[0])
 	assert.Equal(t, "str'", colB.Data()[0])
 	assert.Equal(t, []string{"str", "str2\\'"}, colBS.Data()[0])
-	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].Format("2006-01-02 15:04:05"))
+	assert.Equal(t, "2022-08-04 18:30:53", colC.Data()[0].UTC().Format("2006-01-02 15:04:05"))
 	assert.Equal(t, map[string]uint8{
 		"a": 1,
 		"b": 2,

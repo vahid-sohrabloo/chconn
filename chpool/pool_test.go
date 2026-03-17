@@ -826,7 +826,10 @@ func TestPoolInsertCompress(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	pool, err := New(os.Getenv("CHX_TEST_TCP_CONN_STRING") + " compress=lz4")
+	cfg, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	cfg.ConnConfig.Compress = chconn.CompressLZ4
+	pool, err := NewWithConfig(cfg)
 	require.NoError(t, err)
 	defer pool.Close()
 
