@@ -256,6 +256,7 @@ func (r *connRow) Columns() []column.ColumnCore {
 	return (*baseRows)(r).Columns()
 }
 
+// Deprecated: Use range QueryIter instead.
 // ForEachRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row
 // fails to scan or fn returns an error the query will be aborted and the error will be returned. Rows will be closed
 // when ForEachRow returns.
@@ -286,6 +287,7 @@ type CollectableRow interface {
 // RowToFunc is a function that scans or otherwise converts row to a T.
 type RowToFunc[T any] func(row CollectableRow) (T, error)
 
+// Deprecated: Use QueryAll with append instead.
 // AppendRows iterates through rows, calling fn for each row, and appending the results into a slice of T.
 func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 	defer rows.Close()
@@ -305,11 +307,13 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 	return slice, nil
 }
 
+// Deprecated: Use QueryAll instead.
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
 func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 	return AppendRows([]T{}, rows, fn)
 }
 
+// Deprecated: Use QueryOne instead.
 // CollectOneRow calls fn for the first row in rows and returns the result.
 // If no rows are found returns an error where errors.Is(ErrNoRows) is true.
 // CollectOneRow is to CollectRows as QueryRow is to Query.
@@ -336,6 +340,7 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	return value, rows.Err()
 }
 
+// Deprecated: Use QueryExactlyOne instead.
 // CollectExactlyOneRow calls fn for the first row in rows and returns the result.
 //   - If no rows are found returns an error where errors.Is(ErrNoRows) is true.
 //   - If more than 1 row is found returns an error where errors.Is(ErrTooManyRows) is true.
@@ -370,13 +375,48 @@ func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	return value, rows.Err()
 }
 
-// RowTo returns a T scanned from row.
+// RowTo returns a T scanned from row. It auto-detects the type:
+// If T is a struct, it uses by-name scanning. If T is map[string]any, it delegates to RowToMap.
+// Otherwise it performs a single-column Scan.
 func RowTo[T any](row CollectableRow) (T, error) {
 	var value T
-	err := row.Scan(&value)
+	t := reflect.TypeFor[T]()
+	switch {
+	case t.Kind() == reflect.Struct:
+		err := (&namedStructRowScanner{ptrToStruct: &value}).ScanRow(row)
+		return value, err
+	case t == reflect.TypeFor[map[string]any]():
+		m, err := RowToMap(row)
+		if err != nil {
+			return value, err
+		}
+		return any(m).(T), nil
+	default:
+		err := row.Scan(&value)
+		return value, err
+	}
+}
+
+// RowToByPos returns a T scanned from row by field position.
+// T must be a struct. The row and T fields will be matched by position.
+// If the "db" struct tag is "-" then the field will be ignored.
+func RowToByPos[T any](row CollectableRow) (T, error) {
+	var value T
+	err := (&positionalStructRowScanner{ptrToStruct: &value}).ScanRow(row)
 	return value, err
 }
 
+// RowToLax returns a T scanned from row by field name, allowing extra struct fields
+// that have no corresponding column. T must be a struct. The match is case-insensitive.
+// The database column name can be overridden with a "db" struct tag.
+// If the "db" struct tag is "-" then the field will be ignored.
+func RowToLax[T any](row CollectableRow) (T, error) {
+	var value T
+	err := (&namedStructRowScanner{ptrToStruct: &value, lax: true}).ScanRow(row)
+	return value, err
+}
+
+// Deprecated: Use RowTo instead and take the address yourself.
 // RowTo returns a the address of a T scanned from row.
 func RowToAddrOf[T any](row CollectableRow) (*T, error) {
 	var value T
@@ -404,6 +444,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	return nil
 }
 
+// Deprecated: Use RowToByPos instead.
 // RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number a public fields as row
 // has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
@@ -413,6 +454,7 @@ func RowToStructByPos[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
+// Deprecated: Use RowToByPos instead and take the address yourself.
 // RowToAddrOfStructByPos returns the address of a T scanned from row. T must be a struct. T must have the same number a
 // public fields as row has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then
 // the field will be ignored.
@@ -482,6 +524,7 @@ func computeStructFields(
 	return fields
 }
 
+// Deprecated: Use RowTo instead, which auto-detects struct by name.
 // RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number of named public
 // fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
@@ -491,6 +534,7 @@ func RowToStructByName[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
+// Deprecated: Use RowTo instead.
 // RowToAddrOfStructByName returns the address of a T scanned from row. T must be a struct. T must have the same number
 // of named public fields as row has fields. The row and T fields will be matched by name. The match is
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
@@ -501,6 +545,7 @@ func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
 	return &value, err
 }
 
+// Deprecated: Use RowToLax instead.
 // RowToStructByNameLax returns a T scanned from row. T must be a struct. T must have greater than or equal number of named public
 // fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
@@ -510,6 +555,7 @@ func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
+// Deprecated: Use RowToLax instead.
 // RowToAddrOfStructByNameLax returns the address of a T scanned from row. T must be a struct. T must have greater than or
 // equal number of named public fields as row has fields. The row and T fields will be matched by name. The match is
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"

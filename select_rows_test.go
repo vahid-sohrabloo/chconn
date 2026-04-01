@@ -897,3 +897,83 @@ create temporary table products (
 	// Fries: $5
 	// Soft Drink: $3
 }
+
+func TestRowToAutoStruct(t *testing.T) {
+	type person struct {
+		Last  string
+		First string
+		Age   int32
+	}
+
+	conn := getConnection(t)
+	rows, _ := conn.Query(
+		context.Background(),
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age from system.numbers limit 10`,
+	)
+	slice, err := CollectRows(rows, RowTo[person])
+	assert.NoError(t, err)
+	assert.Len(t, slice, 10)
+	for i := range slice {
+		assert.Equal(t, "Smith", slice[i].Last)
+		assert.Equal(t, "John", slice[i].First)
+		assert.EqualValues(t, i, slice[i].Age)
+	}
+}
+
+func TestRowToAutoMap(t *testing.T) {
+	conn := getConnection(t)
+	rows, _ := conn.Query(
+		context.Background(),
+		`select 'Joe' as name, toInt32(number) as age from system.numbers limit 10`,
+	)
+	slice, err := CollectRows(rows, RowTo[map[string]any])
+	require.NoError(t, err)
+	assert.Len(t, slice, 10)
+	for i := range slice {
+		assert.Equal(t, "Joe", slice[i]["name"])
+		assert.EqualValues(t, i, slice[i]["age"])
+	}
+}
+
+func TestRowToByPos(t *testing.T) {
+	type person struct {
+		Name string
+		Age  int32
+	}
+
+	conn := getConnection(t)
+	rows, _ := conn.Query(
+		context.Background(),
+		`select 'Joe' as name, toInt32(number) as age from system.numbers limit 10`,
+	)
+	slice, err := CollectRows(rows, RowToByPos[person])
+	require.NoError(t, err)
+	assert.Len(t, slice, 10)
+	for i := range slice {
+		assert.Equal(t, "Joe", slice[i].Name)
+		assert.EqualValues(t, i, slice[i].Age)
+	}
+}
+
+func TestRowToLax(t *testing.T) {
+	type person struct {
+		Last  string
+		First string
+		Age   int32
+		Extra bool `db:"-"`
+	}
+
+	conn := getConnection(t)
+	rows, _ := conn.Query(
+		context.Background(),
+		`select 'John' as first, 'Smith' as last, toInt32(number) as age from system.numbers limit 10`,
+	)
+	slice, err := CollectRows(rows, RowToLax[person])
+	assert.NoError(t, err)
+	assert.Len(t, slice, 10)
+	for i := range slice {
+		assert.Equal(t, "Smith", slice[i].Last)
+		assert.Equal(t, "John", slice[i].First)
+		assert.EqualValues(t, i, slice[i].Age)
+	}
+}
