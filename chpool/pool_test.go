@@ -306,7 +306,7 @@ func TestPoolAfterRelease(t *testing.T) {
 
 	conns := map[string]struct{}{}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
 		conns[conn.Conn().RawConn().LocalAddr().String()] = struct{}{}
@@ -343,7 +343,7 @@ func TestPoolBeforeClose(t *testing.T) {
 
 	acquiredPIDs := make([]string, 0, 5)
 	closedPIDs := make([]string, 0, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		conn, err := db.Acquire(ctx)
 		assert.NoError(t, err)
 		acquiredPIDs = append(acquiredPIDs, conn.Conn().RawConn().LocalAddr().String())
@@ -461,7 +461,7 @@ func TestConnReleaseClosesBusyConn(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// wait for the connection to actually be destroyed
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
 			break
 		}
@@ -522,7 +522,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	c.Release()
 	time.Sleep(config.HealthCheckPeriod)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if db.Stat().TotalConns() == 0 {
 			break
 		}
@@ -993,7 +993,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// wait for the connection to actually be destroyed
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		if pool.Stat().TotalConns() == 0 {
 			break
 		}
@@ -1013,14 +1013,14 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	n := 100
 	done := make(chan bool)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		go func() {
 			defer func() { done <- true }()
 			testSelect(t, pool)
 		}()
 	}
 
-	for i := 0; i < n; i++ {
+	for range n {
 		<-done
 	}
 }
@@ -1148,7 +1148,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		time.Sleep(10 * time.Millisecond)
 
 		stat := pool.Stat()

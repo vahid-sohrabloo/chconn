@@ -44,10 +44,10 @@ func Example() {
 	col1.SetWriteBufferSize(rows)
 	col2.SetWriteBufferSize(rows)
 	startInsert := time.Now()
-	for i := 0; i < numInsert; i++ {
+	for i := range numInsert {
 		col1.Reset()
 		col2.Reset()
-		for y := 0; y < rows; y++ {
+		for range rows {
 			col1.Append(uint64(i))
 			if i%2 == 0 {
 				col2.Append(uint64(i))

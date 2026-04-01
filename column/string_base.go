@@ -377,7 +377,7 @@ func (c *StringBase[T]) endBatchDelete() {
 
 	// compact in-place
 	writeOff := 0
-	for i := 0; i < keep; i++ {
+	for i := range keep {
 		old := c.pos[i]
 		strLen := old.end - old.start
 		prefixLen := helper.NumberByteForUvarint(uint64(strLen))
@@ -530,7 +530,7 @@ func (c *StringBase[T]) ValidateInsert() error {
 }
 
 func (c *StringBase[T]) chconnType() string {
-	return "column.StringBase[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
+	return "column.StringBase[" + reflect.TypeFor[T]().String() + "]"
 }
 
 func (c *StringBase[T]) structType() string {

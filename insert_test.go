@@ -227,7 +227,7 @@ func TestInsert(t *testing.T) {
 	var col32Insert []int32
 
 	rows := 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		col8.Append(int8(i))
 		col16.Append(int16(i))
 		col32.Append(int32(i))
@@ -302,7 +302,7 @@ func TestInsertNotFoundColumn(t *testing.T) {
 	col8.SetName([]byte("not_found"))
 
 	rows := 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		col8.Append(int8(i))
 	}
 
@@ -360,7 +360,7 @@ func TestCompressInsert(t *testing.T) {
 			var colInsert []int8
 
 			rows := 1000
-			for i := 0; i < rows; i++ {
+			for i := range rows {
 				val := int8(i)
 
 				col.Append(val)

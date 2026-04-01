@@ -105,8 +105,8 @@ func TestVariant(t *testing.T) {
 	colArrayLCNullable.SetWriteBufferSize(10)
 
 	rowsInsert := 10
-	for insertN := 0; insertN < 2; insertN++ {
-		for i := 0; i < rowsInsert; i++ {
+	for insertN := range 2 {
+		for i := range rowsInsert {
 			blockID.Append(uint8(insertN))
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
@@ -242,7 +242,7 @@ func TestVariant(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		insertStmt, err := conn.InsertStream(context.Background(), fmt.Sprintf(`INSERT INTO
 			test_%[1]s (
 				block_id,
@@ -258,7 +258,7 @@ func TestVariant(t *testing.T) {
 		VALUES`, tableName))
 
 		require.NoError(t, err)
-		for i := 0; i < rowsInsert; i++ {
+		for i := range rowsInsert {
 			blockID.Append(uint8(insertN) + 3)
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)

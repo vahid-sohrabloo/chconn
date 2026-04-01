@@ -97,9 +97,9 @@ func (c *JSON) parseTypedDefinitions(inner []byte) error {
 	for _, entry := range entries {
 		s := string(bytes.TrimSpace(entry.ChType))
 		// check for settings like max_dynamic_paths=N
-		if idx := strings.IndexByte(s, '='); idx >= 0 {
-			key := strings.TrimSpace(s[:idx])
-			val := strings.TrimSpace(s[idx+1:])
+		if rawKey, rawVal, found := strings.Cut(s, "="); found {
+			key := strings.TrimSpace(rawKey)
+			val := strings.TrimSpace(rawVal)
 			if key == "max_dynamic_paths" {
 				n, err := strconv.ParseUint(val, 10, 64)
 				if err != nil {
@@ -191,7 +191,7 @@ func (c *JSON) decodeObjectHeader(r *readerwriter.Reader, serverInfo *shared.Ser
 
 	// Read dynamic path names
 	dynPathNames := make([]string, totalDynamicPaths)
-	for i := uint64(0); i < totalDynamicPaths; i++ {
+	for i := range totalDynamicPaths {
 		pathBytes, err := r.ReadBytes(nil)
 		if err != nil {
 			return fmt.Errorf("json: read dynamic path %d: %w", i, err)
@@ -207,7 +207,7 @@ func (c *JSON) decodeObjectHeader(r *readerwriter.Reader, serverInfo *shared.Ser
 	}
 
 	// Read dynamic column headers
-	for i := uint64(0); i < totalDynamicPaths; i++ {
+	for i := range totalDynamicPaths {
 		path := dynPathNames[i]
 
 		dynamicCol := NewDynamic()

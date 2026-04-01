@@ -55,8 +55,8 @@ func TestSparseColumn(
 	colString.SetWriteBufferSize(10)
 
 	rows := 10
-	for numberInsert := 0; numberInsert < 2; numberInsert++ {
-		for i := 0; i < rows; i++ {
+	for range 2 {
+		for i := range rows {
 			val := int32(0)
 			valString := ""
 			if i%3 == 0 {
@@ -90,7 +90,7 @@ func TestSparseColumn(
 		int32,
 		string
 	FROM test_%[1]s`, tableName)
-	for numRead := 0; numRead < 2; numRead++ {
+	for range 2 {
 		selectStmt, err := conn.Select(context.Background(), selectQuery,
 			colRead,
 			colStringRead,

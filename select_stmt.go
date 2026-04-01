@@ -2,6 +2,7 @@ package chconn
 
 import (
 	"context"
+	"iter"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
@@ -114,6 +115,13 @@ type SelectStmt interface {
 	Close()
 	// Rows return the rows of this select statement.
 	Rows() Rows
+	// Iter returns a block-level iterator. Each iteration yields the number of rows
+	// in the current block. The statement is closed when iteration completes or breaks.
+	Iter() iter.Seq2[int, error]
+	// RowIter returns a row-level iterator that flattens block boundaries.
+	// Each iteration yields the row index within the current block (matching col.Row(i)).
+	// The statement is closed when iteration completes or breaks.
+	RowIter() iter.Seq2[int, error]
 }
 
 type selectStmt struct {
@@ -253,5 +261,35 @@ func (s *selectStmt) Columns() []column.ColumnCore {
 func (s *selectStmt) Rows() Rows {
 	return &baseRows{
 		selectStmt: s,
+	}
+}
+
+func (s *selectStmt) Iter() iter.Seq2[int, error] {
+	return func(yield func(int, error) bool) {
+		defer s.Close()
+		for s.Next() {
+			if !yield(s.RowsInBlock(), nil) {
+				return
+			}
+		}
+		if s.Err() != nil {
+			yield(0, s.Err())
+		}
+	}
+}
+
+func (s *selectStmt) RowIter() iter.Seq2[int, error] {
+	return func(yield func(int, error) bool) {
+		defer s.Close()
+		for s.Next() {
+			for i := range s.RowsInBlock() {
+				if !yield(i, nil) {
+					return
+				}
+			}
+		}
+		if s.Err() != nil {
+			yield(0, s.Err())
+		}
 	}
 }

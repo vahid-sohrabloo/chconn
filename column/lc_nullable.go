@@ -28,7 +28,7 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 			nullable:   true,
 			dict:       make(map[T]uint32),
 			dictColumn: dictColumn,
-			rtype:      reflect.TypeOf((*T)(nil)).Elem(),
+			rtype:      reflect.TypeFor[T](),
 		},
 	}
 	return l

@@ -17,7 +17,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/format"
 )
 
-func deepConvertToInterfaceSlice(v interface{}) interface{} {
+func deepConvertToInterfaceSlice(v any) any {
 	if v == nil {
 		return nil
 	}
@@ -70,9 +70,9 @@ func TestDynamic(t *testing.T) {
 
 	// SetWriteBufferSize is not necessary. this just to show how to set write buffer
 	dynamicCol.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 2
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			if i%2 == 0 {
 				col1.Append(int64(i))
@@ -104,9 +104,9 @@ func TestDynamic(t *testing.T) {
 	blockID = column.New[uint8]()
 	dynamicArrayCol = column.NewArray(column.NewDynamic())
 	// test insert any with different types
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 2
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN + 2))
 			if insertN == 0 {
 				if i%2 == 0 {

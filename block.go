@@ -262,7 +262,7 @@ func (info *blockInfo) read(r *readerwriter.Reader) error {
 			if err != nil {
 				return &readError{"blockInfo: read out_of_order_buckets count", err}
 			}
-			for i := uint64(0); i < count; i++ {
+			for range count {
 				if _, err := r.Int32(); err != nil {
 					return &readError{"blockInfo: read out_of_order_buckets value", err}
 				}

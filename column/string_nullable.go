@@ -404,7 +404,7 @@ func (c *StringNullable[T]) ValidateInsert() error {
 }
 
 func (c *StringNullable[T]) chconnType() string {
-	return "StringNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
+	return "StringNullable[" + reflect.TypeFor[T]().String() + "]"
 }
 
 func (c *StringNullable[T]) structType() string {

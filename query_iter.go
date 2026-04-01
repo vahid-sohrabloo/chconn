@@ -7,7 +7,9 @@ import (
 
 // QueryIterWithOptionWith returns an iterator that yields T for each row using a custom RowToFunc.
 // This is the core implementation — all other QueryIter* variants delegate to this.
-func QueryIterWithOptionWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter) iter.Seq2[T, error] {
+func QueryIterWithOptionWith[T any](
+	ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter,
+) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		rows, err := q.QueryWithOption(ctx, sql, opts, args...)
 		if err != nil {
@@ -51,7 +53,9 @@ func QueryIterWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql s
 }
 
 // QueryAllWithOptionWith collects all rows into a slice of T using a custom RowToFunc and QueryOptions.
-func QueryAllWithOptionWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter) ([]T, error) {
+func QueryAllWithOptionWith[T any](
+	ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter,
+) ([]T, error) {
 	var result []T
 	for v, err := range QueryIterWithOptionWith(ctx, q, fn, sql, opts, args...) {
 		if err != nil {
@@ -80,7 +84,9 @@ func QueryAllWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql st
 
 // QueryOneWithOptionWith returns the first row as T using a custom RowToFunc and QueryOptions.
 // Returns ErrNoRows if no rows found.
-func QueryOneWithOptionWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter) (T, error) {
+func QueryOneWithOptionWith[T any](
+	ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter,
+) (T, error) {
 	var zero T
 	for v, err := range QueryIterWithOptionWith(ctx, q, fn, sql, opts, args...) {
 		if err != nil {
@@ -109,7 +115,9 @@ func QueryOneWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql st
 
 // QueryExactlyOneWithOptionWith returns exactly one row as T using a custom RowToFunc and QueryOptions.
 // Returns ErrNoRows if no rows found, ErrTooManyRows if more than one row.
-func QueryExactlyOneWithOptionWith[T any](ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter) (T, error) {
+func QueryExactlyOneWithOptionWith[T any](
+	ctx context.Context, q Querier, fn RowToFunc[T], sql string, opts *QueryOptions, args ...Parameter,
+) (T, error) {
 	var zero T
 	rows, err := q.QueryWithOption(ctx, sql, opts, args...)
 	if err != nil {
@@ -118,7 +126,7 @@ func QueryExactlyOneWithOptionWith[T any](ctx context.Context, q Querier, fn Row
 	defer rows.Close()
 
 	if !rows.Next() {
-		if err = rows.Err(); err != nil {
+		if err := rows.Err(); err != nil {
 			return zero, err
 		}
 		return zero, ErrNoRows

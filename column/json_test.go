@@ -50,9 +50,9 @@ func TestJSON(t *testing.T) {
 
 	// SetWriteBufferSize is not necessary. this just to show how to set write buffer
 	col.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 5
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := fmt.Sprintf(`{"name":"user_%d","batch":%d,"score":%d}`, i, insertN, i*10+insertN)
 			col.Append(val)
@@ -252,9 +252,9 @@ func TestJSONObject(t *testing.T) {
 	var colInsert []string
 
 	col.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 5
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := fmt.Sprintf(`{"name":"user_%d","batch":%d,"score":%d}`, i, insertN, i*10+insertN)
 			col.Append(val)
@@ -780,7 +780,7 @@ func BenchmarkJSONObjectAppend(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		col := column.NewJSON()
-		for j := 0; j < 10000; j++ {
+		for j := range 10000 {
 			jv := column.NewJSONValue()
 			jv.SetValueAtPath("name", "test")
 			jv.SetValueAtPath("value", int64(j))
@@ -793,7 +793,7 @@ func BenchmarkJSONStringAppend(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		col := column.NewJSON()
-		for j := 0; j < 10000; j++ {
+		for j := range 10000 {
 			col.Append(fmt.Sprintf(`{"name":"test","value":%d}`, j))
 		}
 	}

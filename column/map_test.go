@@ -331,9 +331,9 @@ func testMapColumn[V column.BaseType](
 	colLCNullable.SetWriteBufferSize(10)
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			valData := firstVal(i)
 			val2Data := secondVal(i)

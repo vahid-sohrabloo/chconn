@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -307,19 +308,25 @@ func (c *Tuple) ValidateInsert() error {
 }
 
 func (c *Tuple) structType() string {
-	str := helper.TupleStr
+	var str strings.Builder
+	str.WriteString(helper.TupleStr)
 	for _, col := range c.columns {
-		str += col.structType() + ","
+		str.WriteString(col.structType())
+		str.WriteString(",")
 	}
-	return str[:len(str)-1] + ")"
+	result := str.String()
+	return result[:len(result)-1] + ")"
 }
 
 func (c *Tuple) chconnType() string {
-	chConn := "column.Tuple("
+	var chConn strings.Builder
+	chConn.WriteString("column.Tuple(")
 	for _, col := range c.columns {
-		chConn += col.chconnType() + ", "
+		chConn.WriteString(col.chconnType())
+		chConn.WriteString(", ")
 	}
-	return chConn[:len(chConn)-2] + ")"
+	result := chConn.String()
+	return result[:len(result)-2] + ")"
 }
 
 func (c *Tuple) canAppend(value any) bool {

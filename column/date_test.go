@@ -155,9 +155,9 @@ func testDateColumn[T column.DateType[T]](
 	colLCNullable.SetWriteBufferSize(10)
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 1
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := firstVal(i)
 			val2 := secondVal(i)

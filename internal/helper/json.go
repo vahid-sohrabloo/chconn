@@ -8,7 +8,7 @@ const chars = "0123456789abcdef"
 func getTable(falseValues ...int) [128]bool {
 	table := [128]bool{}
 
-	for i := 0; i < 128; i++ {
+	for i := range 128 {
 		table[i] = true
 	}
 

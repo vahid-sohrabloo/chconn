@@ -2,7 +2,6 @@ package chpool
 
 import (
 	"context"
-	"sync/atomic"
 
 	puddle "github.com/jackc/puddle/v2"
 	"github.com/vahid-sohrabloo/chconn/v3"
@@ -76,7 +75,7 @@ func (ch *conn) Release() {
 	// lifetime of a connection since we only check idle connections in checkConnsHealth
 	// so we also check the lifetime here and force a health check
 	if ch.p.isExpired(res) {
-		atomic.AddInt64(&ch.p.lifetimeDestroyCount, 1)
+		ch.p.lifetimeDestroyCount.Add(1)
 		res.Destroy()
 		// Signal to the health check to run since we just destroyed a connections
 		// and we might be below minConns now

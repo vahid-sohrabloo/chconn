@@ -68,9 +68,9 @@ func TestString(t *testing.T) {
 	var colLCArrayInsert [][]string
 	var colLCNullableArrayInsert [][]*string
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := fmt.Sprintf("string %d", i)
 			val2 := strings.Repeat(val, 50)
@@ -320,9 +320,9 @@ func TestStringWithDeleteFunc(t *testing.T) {
 	var colLCArrayInsert [][]string
 	var colLCNullableArrayInsert [][]*string
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := fmt.Sprintf("string %d", i)
 			val2 := strings.Repeat(val, 50)

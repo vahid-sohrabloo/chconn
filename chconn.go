@@ -784,10 +784,7 @@ func readServerInfoWithClientVersion(srv *shared.ServerInfo, r *readerwriter.Rea
 	// The server decides which fields to include based on the CLIENT's TCP version
 	// (what we sent in hello), not its own revision. Use min(client, server) to
 	// determine which fields the server actually sent.
-	v := clientVersion
-	if srv.Revision < v {
-		v = srv.Revision
-	}
+	v := min(clientVersion, srv.Revision)
 
 	// Fields are in the exact order the server's sendHello writes them.
 	if v >= helper.DbmsMinRevisionWithVersionedParallelReplicas {
@@ -828,7 +825,7 @@ func readServerInfoExtended(srv *shared.ServerInfo, r *readerwriter.Reader, v ui
 			return &readError{"ServerInfo: could not read server password complexity rules: len", err}
 		}
 		srv.PasswordPatterns = make([]shared.ServerInfoPasswordRules, lenRules)
-		for i := uint64(0); i < lenRules; i++ {
+		for i := range lenRules {
 			var rule shared.ServerInfoPasswordRules
 			if rule.Pattern, err = r.String(); err != nil {
 				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
@@ -866,10 +863,7 @@ func readServerInfoExtended(srv *shared.ServerInfo, r *readerwriter.Reader, v ui
 // The server sends fields based on the client's advertised version, so we must
 // use min(client, server) to know which fields are actually present on the wire.
 func (ch *conn) negotiatedVersion() uint64 {
-	v := uint64(helper.ClientTCPVersion)
-	if ch.serverInfo.Revision < v {
-		v = ch.serverInfo.Revision
-	}
+	v := min(uint64(helper.ClientTCPVersion), ch.serverInfo.Revision)
 	return v
 }
 

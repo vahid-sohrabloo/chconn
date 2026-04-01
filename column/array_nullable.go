@@ -19,7 +19,7 @@ type ArrayNullable[T any] struct {
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
 func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
-	rtype := reflect.TypeOf((*T)(nil)).Elem()
+	rtype := reflect.TypeFor[T]()
 
 	a := &ArrayNullable[T]{
 		dataColumn: dataColumn,

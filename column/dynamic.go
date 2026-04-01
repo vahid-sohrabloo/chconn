@@ -134,7 +134,7 @@ func (c *Dynamic) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerIn
 		c.variant.columns = c.variant.columns[:1]
 	}
 
-	for i := uint64(0); i < totalTypes; i++ {
+	for i := range totalTypes {
 		strLen, err := r.Uvarint()
 		if err != nil {
 			return fmt.Errorf("dynamic: read variant type len: %w", err)

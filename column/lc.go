@@ -51,7 +51,7 @@ func NewLC[T comparable](dictColumn Column[T]) *LowCardinality[T] {
 	l := &LowCardinality[T]{
 		dict:       make(map[T]uint32),
 		dictColumn: dictColumn,
-		rtype:      reflect.TypeOf((*T)(nil)).Elem(),
+		rtype:      reflect.TypeFor[T](),
 	}
 	return l
 }
@@ -339,9 +339,9 @@ func (c *LowCardinality[T]) ReadHeader(r *readerwriter.Reader, serverInfo *share
 
 func (c *LowCardinality[T]) chconnType() string {
 	if c.nullable {
-		return "column.LowCardinalityNullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
+		return "column.LowCardinalityNullable[" + reflect.TypeFor[T]().String() + "]"
 	}
-	return "column.LowCardinality[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]"
+	return "column.LowCardinality[" + reflect.TypeFor[T]().String() + "]"
 }
 
 func (c *LowCardinality[T]) structType() string {

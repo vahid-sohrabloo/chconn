@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
@@ -308,19 +309,29 @@ func (c *Variant) ValidateInsert() error {
 }
 
 func (c *Variant) chconnType() string {
-	chConn := "column.Variant("
-	for _, col := range c.columns {
-		chConn += col.chconnType() + ", "
+	var chConn strings.Builder
+	chConn.WriteString("column.Variant(")
+	for i, col := range c.columns {
+		if i > 0 {
+			chConn.WriteString(", ")
+		}
+		chConn.WriteString(col.chconnType())
 	}
-	return chConn[:len(chConn)-2] + ")"
+	chConn.WriteString(")")
+	return chConn.String()
 }
 
 func (c *Variant) structType() string {
-	str := helper.VariantStr
-	for _, col := range c.columns {
-		str += col.structType() + ", "
+	var str strings.Builder
+	str.WriteString(helper.VariantStr)
+	for i, col := range c.columns {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(col.structType())
 	}
-	return str[:len(str)-2] + ")"
+	str.WriteString(")")
+	return str.String()
 }
 
 // WriteTo write data to ClickHouse.

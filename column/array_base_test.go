@@ -53,7 +53,7 @@ func TestArrayBase_DeleteFunc_None(t *testing.T) {
 
 func TestArrayBase_DeleteFunc_All(t *testing.T) {
 	arr := column.New[uint32]().Array()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		arr.Append([]uint32{uint32(i)})
 	}
 	// predicate that deletes everything
@@ -69,7 +69,7 @@ func BenchmarkArrayBase_DeleteFunc_1D(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		arr := column.New[uint32]().Array()
-		for i := 0; i < n; i++ {
+		for i := range n {
 			arr.Append([]uint32{uint32(i)})
 		}
 		b.StartTimer()
@@ -86,7 +86,7 @@ func BenchmarkArrayBase_DeleteFunc_2D(b *testing.B) {
 		b.StopTimer()
 		arr := column.NewString().LowCardinality().Array()
 		arr.SetWriteBufferSize(n)
-		for i := 0; i < n; i++ {
+		for range n {
 			arr.Append(data)
 		}
 		b.StartTimer()

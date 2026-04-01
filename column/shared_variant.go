@@ -229,7 +229,7 @@ func (c *SharedVariant) valueToJSON(btype binaryBaseType, data []byte, ignoreDou
 		lenArray, nRead := binary.Uvarint(data)
 		data = data[nRead:]
 		b = append(b, '[')
-		for i := uint64(0); i < lenArray; i++ {
+		for i := range lenArray {
 			if i > 0 {
 				b = append(b, ',')
 			}

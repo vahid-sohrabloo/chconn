@@ -23,7 +23,7 @@ func NewMap[K comparable, V any](
 			keyColumn:     keyColumn,
 			valueColumn:   valueColumn,
 			offsetColumn:  New[uint64](),
-			mapChconnType: "column.Map[" + reflect.TypeOf((*K)(nil)).Elem().String() + ", " + reflect.TypeOf((*V)(nil)).Elem().String() + "]",
+			mapChconnType: "column.Map[" + reflect.TypeFor[K]().String() + ", " + reflect.TypeFor[V]().String() + "]",
 		},
 	}
 	a.resetHook = func() {

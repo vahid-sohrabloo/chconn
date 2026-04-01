@@ -109,9 +109,9 @@ func TestTuple(t *testing.T) {
 	var colLCNullableArrayStringInsert [][]*string
 	var colLCNullableArrayIntInsert [][]*int64
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
 			val2String := fmt.Sprintf("string %d", i+1)
@@ -623,9 +623,9 @@ func TestGeo(t *testing.T) {
 	var polygonInsert [][][]types.Point
 	var multiPolygonInsert [][][][]types.Point
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			pointValue := types.Point{
 				Col1: float64(i),
 				Col2: float64(i + 1),

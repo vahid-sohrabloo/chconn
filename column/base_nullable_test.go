@@ -53,9 +53,9 @@ func TestNullableAsNormal(t *testing.T) {
 	var colInsert []int64
 	var colArrayInsert [][]int64
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			val := int64(i + 1)
 			blockID.Append(uint8(insertN))
 			colNullable.Append(val)

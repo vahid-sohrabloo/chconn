@@ -130,9 +130,9 @@ func TestTuples(t *testing.T) {
 	var col5Insert []Tuple5
 	var col5ArrayInsert [][]Tuple5
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			col1.Append(int64(i))
 			col1Insert = append(col1Insert, int64(i))
 			col1Array.Append([]int64{int64(i), int64(i + 1)})

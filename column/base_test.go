@@ -742,9 +742,9 @@ func testColumn[T column.BaseType](
 	colLCNullable.SetWriteBufferSize(10)
 	colArrayLC.SetWriteBufferSize(10)
 	colArrayLCNullable.SetWriteBufferSize(10)
-	for insertN := 0; insertN < 2; insertN++ {
+	for insertN := range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			blockID.Append(uint8(insertN))
 			val := firstVal(i * (insertN + 1))
 			val2 := secondVal(i * (insertN + 1))
@@ -1024,7 +1024,7 @@ func testColumn[T column.BaseType](
 	require.NoError(t, err)
 
 	rowNum := 10
-	for i := 0; i < rowNum; i++ {
+	for i := range rowNum {
 		blockID := 2
 		val := firstVal(i * 3)
 		val2 := secondVal(i * 3)

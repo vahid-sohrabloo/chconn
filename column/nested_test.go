@@ -57,9 +57,9 @@ func TestNestedNoFlattened(t *testing.T) {
 	var col1Insert [][]Col1Type
 	var col2Insert [][]Col2Type
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
 			val2String := fmt.Sprintf("string %d", i+1)

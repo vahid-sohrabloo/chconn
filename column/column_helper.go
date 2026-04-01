@@ -131,7 +131,7 @@ func (c *column) preHookAppend() {
 // todo find a more efficient way
 func (c *column) preHookAppendMulti(n int) {
 	if c.hasVariantParent {
-		for i := 0; i < n; i++ {
+		for range n {
 			c.variantParent.AppendDiscriminators(c.LocationInParent)
 		}
 	}

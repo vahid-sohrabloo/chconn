@@ -81,7 +81,7 @@ func BenchmarkTestChconnInsert10M(b *testing.B) {
 	idColumns := column.New[uint64]()
 	idColumns.SetWriteBufferSize(rowsInBlock)
 	for n := 0; n < b.N; n++ {
-		for y := 0; y < rowsInBlock; y++ {
+		for range rowsInBlock {
 			idColumns.Append(1)
 		}
 		err := c.Insert(ctx, "INSERT INTO test_insert_chconn VALUES", idColumns)

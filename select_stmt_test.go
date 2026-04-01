@@ -356,3 +356,62 @@ func TestSelectProgressError(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectStmtIter(t *testing.T) {
+	t.Parallel()
+	conn := getConnection(t)
+
+	col1 := column.New[uint64]()
+
+	stmt, err := conn.Select(context.Background(), "SELECT number FROM system.numbers LIMIT 100", col1)
+	require.NoError(t, err)
+
+	var totalRows int
+	for rowsInBlock, err := range stmt.Iter() {
+		require.NoError(t, err)
+		require.Greater(t, rowsInBlock, 0)
+		for i := range rowsInBlock {
+			_ = col1.Row(i)
+		}
+		totalRows += rowsInBlock
+	}
+	assert.Equal(t, 100, totalRows)
+}
+
+func TestSelectStmtRowIter(t *testing.T) {
+	t.Parallel()
+	conn := getConnection(t)
+
+	col1 := column.New[uint64]()
+
+	stmt, err := conn.Select(context.Background(), "SELECT number FROM system.numbers LIMIT 100", col1)
+	require.NoError(t, err)
+
+	var count int
+	for i, err := range stmt.RowIter() {
+		require.NoError(t, err)
+		_ = col1.Row(i)
+		count++
+	}
+	assert.Equal(t, 100, count)
+}
+
+func TestSelectStmtRowIterBreak(t *testing.T) {
+	t.Parallel()
+	conn := getConnection(t)
+
+	col1 := column.New[uint64]()
+
+	stmt, err := conn.Select(context.Background(), "SELECT number FROM system.numbers LIMIT 1000", col1)
+	require.NoError(t, err)
+
+	var count int
+	for _, err := range stmt.RowIter() {
+		require.NoError(t, err)
+		count++
+		if count >= 5 {
+			break
+		}
+	}
+	assert.Equal(t, 5, count)
+}

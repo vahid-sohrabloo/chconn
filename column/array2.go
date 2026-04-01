@@ -14,7 +14,7 @@ type Array2[T any] struct {
 
 // NewArray create a new array column of Array(Array(T)) ClickHouse data type
 func NewArray2[T any](array *Array[T]) *Array2[T] {
-	rtype := reflect.TypeOf((*T)(nil)).Elem()
+	rtype := reflect.TypeFor[T]()
 	a := &Array2[T]{
 		rtype: rtype,
 		ArrayBase: ArrayBase{

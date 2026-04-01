@@ -19,6 +19,7 @@ linters:
     - staticcheck
     - unconvert
     - unused
+    - modernize
     - whitespace
   settings:
     gosec:

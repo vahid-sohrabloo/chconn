@@ -15,14 +15,15 @@ type Array3Nullable[T any] struct {
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
 func NewArray3Nullable[T any](dataColumn *Array2Nullable[T]) *Array3Nullable[T] {
+	rtype := reflect.TypeFor[T]()
 	a := &Array3Nullable[T]{
 		dataColumn: dataColumn,
 		Array3: Array3[T]{
-			rtype: reflect.TypeOf((*T)(nil)).Elem(),
+			rtype: rtype,
 			ArrayBase: ArrayBase{
 				dataColumn:      dataColumn,
 				offsetColumn:    New[uint64](),
-				arrayChconnType: "column.Array3Nullable[" + reflect.TypeOf((*T)(nil)).Elem().String() + "]",
+				arrayChconnType: "column.Array3Nullable[" + rtype.String() + "]",
 			},
 		},
 	}

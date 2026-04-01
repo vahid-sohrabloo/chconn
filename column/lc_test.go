@@ -46,7 +46,7 @@ func TestLcIndicator16(t *testing.T) {
 	var colInsert []int64
 
 	rows := int(^uint8(0)) + 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)
@@ -117,7 +117,7 @@ func TestLcIndicator32(t *testing.T) {
 	var colInsert []int64
 
 	rows := int(^uint16(0)) + 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)
