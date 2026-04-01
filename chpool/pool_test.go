@@ -679,29 +679,26 @@ func TestPoolRow(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// Test expected pool behavior
-	rows, err := pool.Query(
-		ctx,
-		"select toUInt64(number), toUInt64(number) * 2 from system.numbers where number > 0 limit {n: UInt32}",
+	type row struct {
+		Number  uint64
+		Doubled uint64
+	}
+
+	var actualResults []row
+	for r, err := range chconn.QueryIter[row](ctx, pool,
+		"select toUInt64(number) as number, toUInt64(number) * 2 as doubled from system.numbers where number > 0 limit {n: UInt32}",
 		chconn.IntParameter("n", 3),
-	)
-	require.NoError(t, err)
+	) {
+		require.NoError(t, err)
+		actualResults = append(actualResults, r)
+	}
 
-	var actualResults []any
-
-	var a, b uint64
-	err = chconn.ForEachRow(rows, []any{&a, &b}, func() error {
-		actualResults = append(actualResults, []any{a, b})
-		return nil
-	})
-	require.NoError(t, err)
-
-	expectedResults := []any{
-		[]any{uint64(1), uint64(2)},
-		[]any{uint64(2), uint64(4)},
-		[]any{uint64(3), uint64(6)},
+	expectedResults := []row{
+		{1, 2},
+		{2, 4},
+		{3, 6},
 	}
 	require.Equal(t, expectedResults, actualResults)
-	require.NoError(t, rows.Err())
 }
 
 type testRowScanner struct {
