@@ -1,0 +1,227 @@
+package main
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestChTypeToGo_Primitives covers all primitive scalar types.
+func TestChTypeToGo_Primitives(t *testing.T) {
+	cases := []struct {
+		chType string
+		want   string
+	}{
+		{"Int8", "int8"},
+		{"Int16", "int16"},
+		{"Int32", "int32"},
+		{"Int64", "int64"},
+		{"UInt8", "uint8"},
+		{"UInt16", "uint16"},
+		{"UInt32", "uint32"},
+		{"UInt64", "uint64"},
+		{"Float32", "float32"},
+		{"Float64", "float64"},
+		{"String", "string"},
+		{"Bool", "bool"},
+		{"UUID", "types.UUID"},
+		{"IPv4", "types.IPv4"},
+		{"IPv6", "types.IPv6"},
+		{"Int128", "types.Int128"},
+		{"Int256", "types.Int256"},
+		{"UInt128", "types.Uint128"},
+		{"UInt256", "types.Uint256"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.chType, func(t *testing.T) {
+			info, err := chTypeToGo(tc.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.goType)
+			assert.False(t, info.isEnum)
+		})
+	}
+}
+
+// TestChTypeToGo_DateTime covers date and time types with and without timeAsUint.
+func TestChTypeToGo_DateTime(t *testing.T) {
+	cases := []struct {
+		chType     string
+		timeAsUint bool
+		want       string
+	}{
+		// timeAsUint = false — all resolve to time.Time
+		{"Date", false, "time.Time"},
+		{"Date32", false, "time.Time"},
+		{"DateTime", false, "time.Time"},
+		{"DateTime64(3)", false, "time.Time"},
+		{"DateTime('UTC')", false, "time.Time"},
+		{"DateTime('America/New_York')", false, "time.Time"},
+
+		// timeAsUint = true — resolve to underlying integer type
+		{"Date", true, "uint16"},
+		{"Date32", true, "int32"},
+		{"DateTime", true, "uint32"},
+		{"DateTime64(3)", true, "int64"},
+		{"DateTime('UTC')", true, "uint32"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		name := tc.chType
+		if tc.timeAsUint {
+			name += "/timeAsUint"
+		}
+		t.Run(name, func(t *testing.T) {
+			info, err := chTypeToGo(tc.chType, tc.timeAsUint)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.goType)
+		})
+	}
+}
+
+// TestChTypeToGo_Wrappers covers Nullable, LowCardinality, and Array wrappers.
+func TestChTypeToGo_Wrappers(t *testing.T) {
+	t.Run("Nullable(Int64)", func(t *testing.T) {
+		info, err := chTypeToGo("Nullable(Int64)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "*int64", info.goType)
+	})
+
+	t.Run("Nullable(String)", func(t *testing.T) {
+		info, err := chTypeToGo("Nullable(String)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "*string", info.goType)
+	})
+
+	t.Run("LowCardinality(String)", func(t *testing.T) {
+		info, err := chTypeToGo("LowCardinality(String)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "string", info.goType)
+	})
+
+	t.Run("Array(UInt16)", func(t *testing.T) {
+		info, err := chTypeToGo("Array(UInt16)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "[]uint16", info.goType)
+	})
+
+	t.Run("Array(Array(String))", func(t *testing.T) {
+		info, err := chTypeToGo("Array(Array(String))", false)
+		require.NoError(t, err)
+		assert.Equal(t, "[][]string", info.goType)
+	})
+
+	t.Run("Nullable(DateTime)", func(t *testing.T) {
+		info, err := chTypeToGo("Nullable(DateTime)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "*time.Time", info.goType)
+	})
+}
+
+// TestChTypeToGo_FixedString covers FixedString(N) → [N]byte.
+func TestChTypeToGo_FixedString(t *testing.T) {
+	cases := []struct {
+		chType string
+		want   string
+	}{
+		{"FixedString(2)", "[2]byte"},
+		{"FixedString(16)", "[16]byte"},
+		{"FixedString(32)", "[32]byte"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.chType, func(t *testing.T) {
+			info, err := chTypeToGo(tc.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.goType)
+		})
+	}
+}
+
+// TestChTypeToGo_SimpleAggregateFunction covers SimpleAggregateFunction unwrapping.
+func TestChTypeToGo_SimpleAggregateFunction(t *testing.T) {
+	t.Run("sum,Nullable(Int64)", func(t *testing.T) {
+		info, err := chTypeToGo("SimpleAggregateFunction(sum, Nullable(Int64))", false)
+		require.NoError(t, err)
+		assert.Equal(t, "*int64", info.goType)
+	})
+
+	t.Run("max,Float32", func(t *testing.T) {
+		info, err := chTypeToGo("SimpleAggregateFunction(max, Float32)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "float32", info.goType)
+	})
+
+	t.Run("anyLast,String", func(t *testing.T) {
+		info, err := chTypeToGo("SimpleAggregateFunction(anyLast, String)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "string", info.goType)
+	})
+}
+
+// TestChTypeToGo_Map covers Map(K, V) including nested LowCardinality wrappers.
+func TestChTypeToGo_Map(t *testing.T) {
+	t.Run("Map(String,String)", func(t *testing.T) {
+		info, err := chTypeToGo("Map(String, String)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "map[string]string", info.goType)
+	})
+
+	t.Run("Map(LowCardinality(String),LowCardinality(String))", func(t *testing.T) {
+		info, err := chTypeToGo("Map(LowCardinality(String), LowCardinality(String))", false)
+		require.NoError(t, err)
+		assert.Equal(t, "map[string]string", info.goType)
+	})
+
+	t.Run("Map(String,UInt64)", func(t *testing.T) {
+		info, err := chTypeToGo("Map(String, UInt64)", false)
+		require.NoError(t, err)
+		assert.Equal(t, "map[string]uint64", info.goType)
+	})
+}
+
+// TestChTypeToGo_Enum covers Enum8 and Enum16 parsing.
+func TestChTypeToGo_Enum(t *testing.T) {
+	t.Run("Enum8", func(t *testing.T) {
+		chType := "Enum8('prebid' = 1, 'dynamicAllocation' = 2)"
+		info, err := chTypeToGo(chType, false)
+		require.NoError(t, err)
+		assert.Equal(t, "int8", info.goType)
+		assert.True(t, info.isEnum)
+		assert.Equal(t, map[string]int{"prebid": 1, "dynamicAllocation": 2}, info.enumValues)
+	})
+
+	t.Run("Enum16", func(t *testing.T) {
+		chType := "Enum16('a' = 100, 'b' = 200, 'c' = 300)"
+		info, err := chTypeToGo(chType, false)
+		require.NoError(t, err)
+		assert.Equal(t, "int16", info.goType)
+		assert.True(t, info.isEnum)
+		assert.Equal(t, map[string]int{"a": 100, "b": 200, "c": 300}, info.enumValues)
+	})
+
+	t.Run("Enum8 negative values", func(t *testing.T) {
+		chType := "Enum8('neg' = -1, 'zero' = 0, 'pos' = 1)"
+		info, err := chTypeToGo(chType, false)
+		require.NoError(t, err)
+		assert.Equal(t, "int8", info.goType)
+		assert.True(t, info.isEnum)
+		assert.Equal(t, map[string]int{"neg": -1, "zero": 0, "pos": 1}, info.enumValues)
+	})
+}
+
+// TestChTypeToGo_Errors verifies that unknown types produce an error.
+func TestChTypeToGo_Errors(t *testing.T) {
+	_, err := chTypeToGo("UnknownType", false)
+	assert.Error(t, err)
+
+	_, err = chTypeToGo("FixedString(0)", false)
+	assert.Error(t, err)
+
+	_, err = chTypeToGo("FixedString(abc)", false)
+	assert.Error(t, err)
+}
