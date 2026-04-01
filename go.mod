@@ -2,7 +2,7 @@ module github.com/vahid-sohrabloo/chconn/v3
 
 go 1.25.0
 
-toolchain go1.24.1
+tool github.com/vahid-sohrabloo/chconn/v3/cmd/chgen
 
 require (
 	github.com/go-faster/city v1.0.1

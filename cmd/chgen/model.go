@@ -139,7 +139,7 @@ func fetchColumnsFromSQL(sqlFile string) ([]columnSchema, error) {
 // parseTabSeparated parses tab-separated output of (name, type) pairs.
 func parseTabSeparated(output string) ([]columnSchema, error) {
 	var cols []columnSchema
-	for _, line := range strings.Split(strings.TrimRight(output, "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimRight(output, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
