@@ -50,6 +50,12 @@ type AllTypesColumns struct {
 	ColMapLCStr     *column.Map[string, string]
 	ColEnum8        *column.Base[AllTypesEvent]
 	ColEnum16       *column.Base[AllTypesSource]
+	ColDecimal32    *column.Base[types.Decimal32]
+	ColDecimal64    *column.Base[types.Decimal64]
+	ColDecimal128   *column.Base[types.Decimal128]
+	ColDecimal256   *column.Base[types.Decimal256]
+	ColDecimalPS    *column.Base[types.Decimal64]
+	ColJSON         *column.JSON
 	ColInt128       *column.Base[types.Int128]
 	ColInt256       *column.Base[types.Int256]
 	ColUint128      *column.Base[types.Uint128]
@@ -97,6 +103,12 @@ func NewAllTypesColumns() *AllTypesColumns {
 		ColMapLCStr:     column.NewMap[string, string](column.NewString().LowCardinality(), column.NewString().LowCardinality()),
 		ColEnum8:        column.New[AllTypesEvent](),
 		ColEnum16:       column.New[AllTypesSource](),
+		ColDecimal32:    column.New[types.Decimal32](),
+		ColDecimal64:    column.New[types.Decimal64](),
+		ColDecimal128:   column.New[types.Decimal128](),
+		ColDecimal256:   column.New[types.Decimal256](),
+		ColDecimalPS:    column.New[types.Decimal64](),
+		ColJSON:         column.NewJSON(),
 		ColInt128:       column.New[types.Int128](),
 		ColInt256:       column.New[types.Int256](),
 		ColUint128:      column.New[types.Uint128](),
@@ -140,6 +152,12 @@ func NewAllTypesColumns() *AllTypesColumns {
 	t.ColMapLCStr.SetName([]byte("col_map_lc_str"))
 	t.ColEnum8.SetName([]byte("col_enum8"))
 	t.ColEnum16.SetName([]byte("col_enum16"))
+	t.ColDecimal32.SetName([]byte("col_decimal32"))
+	t.ColDecimal64.SetName([]byte("col_decimal64"))
+	t.ColDecimal128.SetName([]byte("col_decimal128"))
+	t.ColDecimal256.SetName([]byte("col_decimal256"))
+	t.ColDecimalPS.SetName([]byte("col_decimal_ps"))
+	t.ColJSON.SetName([]byte("col_json"))
 	t.ColInt128.SetName([]byte("col_int128"))
 	t.ColInt256.SetName([]byte("col_int256"))
 	t.ColUint128.SetName([]byte("col_uint128"))
@@ -190,6 +208,12 @@ func (t *AllTypesColumns) Columns() []column.ColumnCore {
 		t.ColMapLCStr,
 		t.ColEnum8,
 		t.ColEnum16,
+		t.ColDecimal32,
+		t.ColDecimal64,
+		t.ColDecimal128,
+		t.ColDecimal256,
+		t.ColDecimalPS,
+		t.ColJSON,
 		t.ColInt128,
 		t.ColInt256,
 		t.ColUint128,
@@ -237,6 +261,12 @@ func (t *AllTypesColumns) Write(m *AllTypes) {
 	t.ColMapLCStr.Append(m.ColMapLCStr)
 	t.ColEnum8.Append(m.ColEnum8)
 	t.ColEnum16.Append(m.ColEnum16)
+	t.ColDecimal32.Append(m.ColDecimal32)
+	t.ColDecimal64.Append(m.ColDecimal64)
+	t.ColDecimal128.Append(m.ColDecimal128)
+	t.ColDecimal256.Append(m.ColDecimal256)
+	t.ColDecimalPS.Append(m.ColDecimalPS)
+	t.ColJSON.Append(m.ColJSON)
 	t.ColInt128.Append(m.ColInt128)
 	t.ColInt256.Append(m.ColInt256)
 	t.ColUint128.Append(m.ColUint128)
@@ -284,6 +314,12 @@ func (t *AllTypesColumns) Read(row int) AllTypes {
 		ColMapLCStr:     t.ColMapLCStr.Row(row),
 		ColEnum8:        t.ColEnum8.Row(row),
 		ColEnum16:       t.ColEnum16.Row(row),
+		ColDecimal32:    t.ColDecimal32.Row(row),
+		ColDecimal64:    t.ColDecimal64.Row(row),
+		ColDecimal128:   t.ColDecimal128.Row(row),
+		ColDecimal256:   t.ColDecimal256.Row(row),
+		ColDecimalPS:    t.ColDecimalPS.Row(row),
+		ColJSON:         t.ColJSON.Row(row),
 		ColInt128:       t.ColInt128.Row(row),
 		ColInt256:       t.ColInt256.Row(row),
 		ColUint128:      t.ColUint128.Row(row),
@@ -331,6 +367,12 @@ func (t *AllTypesColumns) SetWriteBufferSize(n int) {
 	t.ColMapLCStr.SetWriteBufferSize(n)
 	t.ColEnum8.SetWriteBufferSize(n)
 	t.ColEnum16.SetWriteBufferSize(n)
+	t.ColDecimal32.SetWriteBufferSize(n)
+	t.ColDecimal64.SetWriteBufferSize(n)
+	t.ColDecimal128.SetWriteBufferSize(n)
+	t.ColDecimal256.SetWriteBufferSize(n)
+	t.ColDecimalPS.SetWriteBufferSize(n)
+	t.ColJSON.SetWriteBufferSize(n)
 	t.ColInt128.SetWriteBufferSize(n)
 	t.ColInt256.SetWriteBufferSize(n)
 	t.ColUint128.SetWriteBufferSize(n)
@@ -377,6 +419,12 @@ func (t *AllTypesColumns) Reset() {
 	t.ColMapLCStr.Reset()
 	t.ColEnum8.Reset()
 	t.ColEnum16.Reset()
+	t.ColDecimal32.Reset()
+	t.ColDecimal64.Reset()
+	t.ColDecimal128.Reset()
+	t.ColDecimal256.Reset()
+	t.ColDecimalPS.Reset()
+	t.ColJSON.Reset()
 	t.ColInt128.Reset()
 	t.ColInt256.Reset()
 	t.ColUint128.Reset()

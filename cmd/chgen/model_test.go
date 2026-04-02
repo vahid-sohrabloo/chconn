@@ -99,6 +99,11 @@ func TestGenerateModel_Snapshot(t *testing.T) {
 		{Name: "col_float", Type: "Float64"},
 		{Name: "col_bool", Type: "Bool"},
 		{Name: "viewed_at", Type: "DateTime64(3)"},
+		{Name: "price", Type: "Decimal32(3)"},
+		{Name: "amount", Type: "Decimal64(6)"},
+		{Name: "big_amount", Type: "Decimal(38, 10)"},
+		{Name: "doc", Type: "JSON"},
+		{Name: "nested_data", Type: "Tuple(String, Int64)"},
 	}
 
 	outFile := filepath.Join(t.TempDir(), "model_output.go")

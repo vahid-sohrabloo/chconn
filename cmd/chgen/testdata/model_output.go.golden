@@ -5,6 +5,7 @@
 package testpkg
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/vahid-sohrabloo/chconn/v3/types"
@@ -34,4 +35,9 @@ type Events struct {
 	ColFloat    float64           `db:"col_float" chtype:"Float64"`
 	ColBool     bool              `db:"col_bool" chtype:"Bool"`
 	ViewedAt    time.Time         `db:"viewed_at" chtype:"DateTime64(3)"`
+	Price       types.Decimal32   `db:"price" chtype:"Decimal32(3)"`
+	Amount      types.Decimal64   `db:"amount" chtype:"Decimal64(6)"`
+	BigAmount   types.Decimal128  `db:"big_amount" chtype:"Decimal(38, 10)"`
+	Doc         json.RawMessage   `db:"doc" chtype:"JSON"`
+	NestedData  any               `db:"nested_data" chtype:"Tuple(String, Int64)"`
 }

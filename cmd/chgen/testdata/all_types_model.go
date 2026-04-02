@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/vahid-sohrabloo/chconn/v3/types"
@@ -81,6 +82,16 @@ type AllTypes struct {
 	// Enum
 	ColEnum8  AllTypesEvent  `db:"col_enum8" chtype:"Enum8('impression' = 1, 'pageview' = 2)"`
 	ColEnum16 AllTypesSource `db:"col_enum16" chtype:"Enum16('prebid' = 1, 'server' = 2)"`
+
+	// Decimals
+	ColDecimal32  types.Decimal32  `db:"col_decimal32" chtype:"Decimal32(3)"`
+	ColDecimal64  types.Decimal64  `db:"col_decimal64" chtype:"Decimal64(6)"`
+	ColDecimal128 types.Decimal128 `db:"col_decimal128" chtype:"Decimal128(18)"`
+	ColDecimal256 types.Decimal256 `db:"col_decimal256" chtype:"Decimal256(38)"`
+	ColDecimalPS  types.Decimal64  `db:"col_decimal_ps" chtype:"Decimal(18, 6)"`
+
+	// JSON
+	ColJSON json.RawMessage `db:"col_json" chtype:"JSON"`
 
 	// Big numbers
 	ColInt128  types.Int128  `db:"col_int128" chtype:"Int128"`
