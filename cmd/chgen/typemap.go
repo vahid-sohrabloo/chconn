@@ -83,11 +83,11 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 
 	if strings.HasPrefix(chType, "Decimal(") && strings.HasSuffix(chType, ")") {
 		args := chType[len("Decimal(") : len(chType)-1]
-		comma := strings.Index(args, ",")
-		if comma < 0 {
+		precStr, _, ok := strings.Cut(args, ",")
+		if !ok {
 			return goTypeInfo{}, fmt.Errorf("invalid Decimal type: %q", chType)
 		}
-		precStr := strings.TrimSpace(args[:comma])
+		precStr = strings.TrimSpace(precStr)
 		prec, err := strconv.Atoi(precStr)
 		if err != nil {
 			return goTypeInfo{}, fmt.Errorf("invalid Decimal precision: %q", chType)

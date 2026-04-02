@@ -430,11 +430,11 @@ func decimalPSToGoType(chType string) (string, bool) {
 		return "", false
 	}
 	args := chType[len("Decimal(") : len(chType)-1]
-	comma := strings.Index(args, ",")
-	if comma < 0 {
+	precStr, _, ok := strings.Cut(args, ",")
+	if !ok {
 		return "", false
 	}
-	precStr := strings.TrimSpace(args[:comma])
+	precStr = strings.TrimSpace(precStr)
 	prec, err := strconv.Atoi(precStr)
 	if err != nil {
 		return "", false

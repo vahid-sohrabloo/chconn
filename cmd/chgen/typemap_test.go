@@ -249,7 +249,6 @@ func TestChTypeToGo_Decimal(t *testing.T) {
 		{"Decimal(76, 20)", "types.Decimal256"},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.chType, func(t *testing.T) {
 			result, err := chTypeToGo(tt.chType, false)
 			require.NoError(t, err)
