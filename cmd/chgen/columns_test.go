@@ -50,4 +50,6 @@ func TestColumnsGenerate_SkipsUntaggedFields(t *testing.T) {
 	require.NotContains(t, content, "IgnoredDbDash")
 	require.NotContains(t, content, "IgnoredNoChtype")
 	require.NotContains(t, content, "IgnoredPrivate")
+	require.NotContains(t, content, "ColTuple")
+	require.NotContains(t, content, "ColNested")
 }

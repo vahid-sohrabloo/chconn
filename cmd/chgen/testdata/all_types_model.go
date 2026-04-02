@@ -99,6 +99,10 @@ type AllTypes struct {
 	ColUint128 types.Uint128 `db:"col_uint128" chtype:"UInt128"`
 	ColUint256 types.Uint256 `db:"col_uint256" chtype:"UInt256"`
 
+	// Tuple and Nested — mapped to any, should be skipped by columns generator
+	ColTuple  any `db:"col_tuple" chtype:"Tuple(String, Int64)"`
+	ColNested any `db:"col_nested" chtype:"Nested(name String, value Int64)"`
+
 	// Fields to skip
 	IgnoredNoTag    int                 // no tags at all
 	IgnoredNoDb     int                 `chtype:"UInt32"`        // chtype but no db
