@@ -265,6 +265,25 @@ func baseColMapping(goType string, chType string) (colInfo, error) {
 		}, nil
 	}
 
+	// Tuple/Nested: mapped to any — not directly constructible by chgen.
+	// Users must define the column manually.
+	if goType == "any" {
+		return colInfo{}, fmt.Errorf("Go type %q (from Tuple/Nested) requires manual column definition", goType)
+	}
+
+	// JSON type: json.RawMessage maps to *column.JSON
+	if goType == "json.RawMessage" {
+		if chType != "JSON" && !strings.HasPrefix(chType, "JSON(") {
+			return colInfo{}, fmt.Errorf("incompatible: Go type %q cannot map to chtype %q", goType, chType)
+		}
+		return colInfo{
+			fieldType:    "*column.JSON",
+			constructor:  "column.NewJSON()",
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+
 	// FixedString: [N]byte
 	if m := fixedStringRe.FindStringSubmatch(goType); m != nil {
 		n, _ := strconv.Atoi(m[1])
@@ -296,6 +315,23 @@ func baseColMapping(goType string, chType string) (colInfo, error) {
 	if strings.HasPrefix(chType, "Decimal32(") || strings.HasPrefix(chType, "Decimal64(") ||
 		strings.HasPrefix(chType, "Decimal128(") || strings.HasPrefix(chType, "Decimal256(") {
 		expected, ok := chTypeToGoScalar(chType)
+		if !ok {
+			return colInfo{}, fmt.Errorf("unsupported chtype %q", chType)
+		}
+		if goType != expected {
+			return colInfo{}, fmt.Errorf("incompatible: Go type %q cannot map to chtype %q (expected %s)", goType, chType, expected)
+		}
+		return colInfo{
+			fieldType:    fmt.Sprintf("*column.Base[%s]", goType),
+			constructor:  fmt.Sprintf("column.New[%s]()", goType),
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+
+	// Decimal(P, S) — precision determines the Go type
+	if strings.HasPrefix(chType, "Decimal(") && strings.HasSuffix(chType, ")") {
+		expected, ok := decimalPSToGoType(chType)
 		if !ok {
 			return colInfo{}, fmt.Errorf("unsupported chtype %q", chType)
 		}
@@ -385,4 +421,34 @@ func chTypeToGoScalar(chType string) (string, bool) {
 		return "types.Decimal256", true
 	}
 	return "", false
+}
+
+// decimalPSToGoType maps a Decimal(P, S) chtype to the corresponding Go type
+// based on the precision value.
+func decimalPSToGoType(chType string) (string, bool) {
+	if !strings.HasPrefix(chType, "Decimal(") || !strings.HasSuffix(chType, ")") {
+		return "", false
+	}
+	args := chType[len("Decimal(") : len(chType)-1]
+	comma := strings.Index(args, ",")
+	if comma < 0 {
+		return "", false
+	}
+	precStr := strings.TrimSpace(args[:comma])
+	prec, err := strconv.Atoi(precStr)
+	if err != nil {
+		return "", false
+	}
+	switch {
+	case prec <= 9:
+		return "types.Decimal32", true
+	case prec <= 18:
+		return "types.Decimal64", true
+	case prec <= 38:
+		return "types.Decimal128", true
+	case prec <= 76:
+		return "types.Decimal256", true
+	default:
+		return "", false
+	}
 }

@@ -225,3 +225,56 @@ func TestChTypeToGo_Errors(t *testing.T) {
 	_, err = chTypeToGo("FixedString(abc)", false)
 	assert.Error(t, err)
 }
+
+// TestChTypeToGo_Decimal covers Decimal32/64/128/256 with scale parameter and Decimal(P,S).
+func TestChTypeToGo_Decimal(t *testing.T) {
+	tests := []struct {
+		chType string
+		goType string
+	}{
+		// Short forms with scale
+		{"Decimal32(3)", "types.Decimal32"},
+		{"Decimal64(6)", "types.Decimal64"},
+		{"Decimal128(18)", "types.Decimal128"},
+		{"Decimal256(38)", "types.Decimal256"},
+		// Bare forms (no scale)
+		{"Decimal32", "types.Decimal32"},
+		{"Decimal64", "types.Decimal64"},
+		{"Decimal128", "types.Decimal128"},
+		{"Decimal256", "types.Decimal256"},
+		// Decimal(P,S) — precision-based dispatch
+		{"Decimal(9, 3)", "types.Decimal32"},
+		{"Decimal(18, 6)", "types.Decimal64"},
+		{"Decimal(38, 10)", "types.Decimal128"},
+		{"Decimal(76, 20)", "types.Decimal256"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.chType, func(t *testing.T) {
+			result, err := chTypeToGo(tt.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tt.goType, result.goType)
+		})
+	}
+}
+
+// TestChTypeToGo_JSON verifies that JSON maps to json.RawMessage.
+func TestChTypeToGo_JSON(t *testing.T) {
+	result, err := chTypeToGo("JSON", false)
+	require.NoError(t, err)
+	assert.Equal(t, "json.RawMessage", result.goType)
+}
+
+// TestChTypeToGo_Tuple verifies that Tuple(...) maps to any.
+func TestChTypeToGo_Tuple(t *testing.T) {
+	result, err := chTypeToGo("Tuple(String, Int64)", false)
+	require.NoError(t, err)
+	assert.Equal(t, "any", result.goType)
+}
+
+// TestChTypeToGo_Nested verifies that Nested(...) maps to any.
+func TestChTypeToGo_Nested(t *testing.T) {
+	result, err := chTypeToGo("Nested(name String, value Int64)", false)
+	require.NoError(t, err)
+	assert.Equal(t, "any", result.goType)
+}

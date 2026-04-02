@@ -248,3 +248,66 @@ func TestColMapping_Invalid(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestColMapping_Decimal covers Decimal32/64/128/256 with their chtype variants.
+func TestColMapping_Decimal(t *testing.T) {
+	cases := []struct {
+		goType    string
+		chType    string
+		wantField string
+		wantCtor  string
+	}{
+		{"types.Decimal32", "Decimal32(3)", "*column.Base[types.Decimal32]", "column.New[types.Decimal32]()"},
+		{"types.Decimal64", "Decimal64(6)", "*column.Base[types.Decimal64]", "column.New[types.Decimal64]()"},
+		{"types.Decimal128", "Decimal128(18)", "*column.Base[types.Decimal128]", "column.New[types.Decimal128]()"},
+		{"types.Decimal256", "Decimal256(38)", "*column.Base[types.Decimal256]", "column.New[types.Decimal256]()"},
+		// Decimal(P,S) forms — goType determined by precision
+		{"types.Decimal128", "Decimal(38, 10)", "*column.Base[types.Decimal128]", "column.New[types.Decimal128]()"},
+		// Bare forms (no scale parameter)
+		{"types.Decimal128", "Decimal128", "*column.Base[types.Decimal128]", "column.New[types.Decimal128]()"},
+		{"types.Decimal256", "Decimal256", "*column.Base[types.Decimal256]", "column.New[types.Decimal256]()"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.goType+"/"+tc.chType, func(t *testing.T) {
+			info, err := colMapping(tc.goType, tc.chType)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantField, info.fieldType)
+			assert.Equal(t, tc.wantCtor, info.constructor)
+			assert.Equal(t, "Append", info.appendMethod)
+			assert.Equal(t, "Row", info.rowMethod)
+		})
+	}
+}
+
+// TestColMapping_JSON covers json.RawMessage/JSON mapping.
+func TestColMapping_JSON(t *testing.T) {
+	t.Run("json.RawMessage/JSON", func(t *testing.T) {
+		info, err := colMapping("json.RawMessage", "JSON")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.JSON", info.fieldType)
+		assert.Equal(t, "column.NewJSON()", info.constructor)
+		assert.Equal(t, "Append", info.appendMethod)
+		assert.Equal(t, "Row", info.rowMethod)
+	})
+
+	t.Run("json.RawMessage/JSON(a String)", func(t *testing.T) {
+		info, err := colMapping("json.RawMessage", "JSON(a String, max_dynamic_paths=16)")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.JSON", info.fieldType)
+		assert.Equal(t, "column.NewJSON()", info.constructor)
+	})
+
+	t.Run("json.RawMessage/String incompatible", func(t *testing.T) {
+		_, err := colMapping("json.RawMessage", "String")
+		require.Error(t, err)
+	})
+}
+
+// TestColMapping_Tuple verifies that any/Tuple returns an error directing users to define manually.
+func TestColMapping_Tuple(t *testing.T) {
+	_, err := colMapping("any", "Tuple(String, Int64)")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "manual column definition")
+}

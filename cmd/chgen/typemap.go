@@ -79,6 +79,60 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		return goTypeInfo{goType: fmt.Sprintf("map[%s]%s", keyInfo.goType, valInfo.goType)}, nil
 	}
 
+	// --- Decimal(P, S) — precision determines the underlying type ---
+
+	if strings.HasPrefix(chType, "Decimal(") && strings.HasSuffix(chType, ")") {
+		args := chType[len("Decimal(") : len(chType)-1]
+		comma := strings.Index(args, ",")
+		if comma < 0 {
+			return goTypeInfo{}, fmt.Errorf("invalid Decimal type: %q", chType)
+		}
+		precStr := strings.TrimSpace(args[:comma])
+		prec, err := strconv.Atoi(precStr)
+		if err != nil {
+			return goTypeInfo{}, fmt.Errorf("invalid Decimal precision: %q", chType)
+		}
+		switch {
+		case prec <= 9:
+			return goTypeInfo{goType: "types.Decimal32"}, nil
+		case prec <= 18:
+			return goTypeInfo{goType: "types.Decimal64"}, nil
+		case prec <= 38:
+			return goTypeInfo{goType: "types.Decimal128"}, nil
+		case prec <= 76:
+			return goTypeInfo{goType: "types.Decimal256"}, nil
+		default:
+			return goTypeInfo{}, fmt.Errorf("Decimal precision %d exceeds max 76", prec)
+		}
+	}
+
+	// --- Decimal32(S), Decimal64(S), Decimal128(S), Decimal256(S) ---
+
+	if strings.HasPrefix(chType, "Decimal32(") {
+		return goTypeInfo{goType: "types.Decimal32"}, nil
+	}
+	if strings.HasPrefix(chType, "Decimal64(") {
+		return goTypeInfo{goType: "types.Decimal64"}, nil
+	}
+	if strings.HasPrefix(chType, "Decimal128(") {
+		return goTypeInfo{goType: "types.Decimal128"}, nil
+	}
+	if strings.HasPrefix(chType, "Decimal256(") {
+		return goTypeInfo{goType: "types.Decimal256"}, nil
+	}
+
+	// --- Tuple(...) — map to any; requires manual struct definition ---
+
+	if strings.HasPrefix(chType, "Tuple(") {
+		return goTypeInfo{goType: "any"}, nil
+	}
+
+	// --- Nested(...) — equivalent to Array(Tuple(...)); map to any ---
+
+	if strings.HasPrefix(chType, "Nested(") {
+		return goTypeInfo{goType: "any"}, nil
+	}
+
 	// --- FixedString(N) ---
 
 	if strings.HasPrefix(chType, "FixedString(") && strings.HasSuffix(chType, ")") {
@@ -157,10 +211,16 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		return goTypeInfo{goType: "types.Uint128"}, nil
 	case "UInt256":
 		return goTypeInfo{goType: "types.Uint256"}, nil
+	case "Decimal32":
+		return goTypeInfo{goType: "types.Decimal32"}, nil
+	case "Decimal64":
+		return goTypeInfo{goType: "types.Decimal64"}, nil
 	case "Decimal128":
 		return goTypeInfo{goType: "types.Decimal128"}, nil
 	case "Decimal256":
 		return goTypeInfo{goType: "types.Decimal256"}, nil
+	case "JSON":
+		return goTypeInfo{goType: "json.RawMessage"}, nil
 	case "Date":
 		if timeAsUint {
 			return goTypeInfo{goType: "uint16"}, nil
