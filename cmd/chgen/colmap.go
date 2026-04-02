@@ -73,8 +73,11 @@ func colMapping(goType string, chType string) (colInfo, error) {
 		ci.constructor = inner.constructor + ".Nullable()"
 		// Determine fieldType based on inner
 		switch {
-		case strings.HasPrefix(inner.fieldType, "*column.String"):
-			ci.fieldType = "*column.StringNullable"
+		case inner.fieldType == "*column.String":
+			ci.fieldType = "*column.StringNullable[string]"
+		case strings.HasPrefix(inner.fieldType, "*column.StringBase["):
+			strParam := inner.fieldType[len("*column.StringBase[") : len(inner.fieldType)-1]
+			ci.fieldType = fmt.Sprintf("*column.StringNullable[%s]", strParam)
 		case strings.HasPrefix(inner.fieldType, "*column.Date["):
 			// e.g. *column.Date[types.DateTime] -> *column.DateNullable[types.DateTime]
 			dateParam := inner.fieldType[len("*column.Date[") : len(inner.fieldType)-1]

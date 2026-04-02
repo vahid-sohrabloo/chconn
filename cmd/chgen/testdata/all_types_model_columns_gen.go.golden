@@ -35,7 +35,7 @@ type AllTypesColumns struct {
 	ColLCString     *column.LowCardinality[string]
 	ColLCFixed      *column.LowCardinality[[2]byte]
 	ColNullInt64    *column.BaseNullable[int64]
-	ColNullString   *column.StringNullable
+	ColNullString   *column.StringNullable[string]
 	ColNullFloat32  *column.BaseNullable[float32]
 	ColSAFMax       *column.Base[float32]
 	ColSAFNullable  *column.BaseNullable[int64]
