@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+// tupleSubCol describes a sub-column within a Tuple or Nested field.
+type tupleSubCol struct {
+	fieldName  string  // Go struct field name (e.g., "City")
+	colVarName string  // generated variable name (e.g., "addressCityCol")
+	dbName     string  // CH column name from the db tag
+	col        colInfo // column info for this sub-field
+}
+
 // colInfo describes the column type and constructor for a given Go field + chtype.
 type colInfo struct {
 	fieldType        string // e.g. "*column.Base[uint64]"
@@ -15,6 +23,10 @@ type colInfo struct {
 	needsStrictFalse bool
 	appendMethod     string // "Append" or "AppendP"
 	rowMethod        string // "Row" or "RowP"
+	isTuple          bool
+	isNested         bool
+	subColumns       []tupleSubCol // sub-column info for Tuple/Nested
+	goType           string        // the Go struct type name (for Tuple: "Address", for Nested: "Phone")
 }
 
 // fixedStringRe matches [N]byte Go types.
@@ -94,6 +106,33 @@ func colMapping(goType string, chType string) (colInfo, error) {
 			constructor:  inner.constructor + ".Array()",
 			appendMethod: "Append",
 			rowMethod:    "Row",
+		}, nil
+	}
+
+	// Handle Tuple wrapper: goType is a struct name (not a known scalar).
+	if strings.HasPrefix(chType, "Tuple(") && strings.HasSuffix(chType, ")") {
+		return colInfo{
+			fieldType:    "*column.Tuple",
+			constructor:  "", // filled in by columns.go after resolving sub-columns
+			appendMethod: "",
+			rowMethod:    "",
+			isTuple:      true,
+			goType:       goType,
+		}, nil
+	}
+
+	// Handle Nested wrapper: goType is []StructName.
+	if strings.HasPrefix(chType, "Nested(") && strings.HasSuffix(chType, ")") {
+		if !strings.HasPrefix(goType, "[]") {
+			return colInfo{}, fmt.Errorf("incompatible: Go type %q is not a slice for Nested chtype %q", goType, chType)
+		}
+		return colInfo{
+			fieldType:    "*column.ArrayBase",
+			constructor:  "", // filled in by columns.go after resolving sub-columns
+			appendMethod: "",
+			rowMethod:    "",
+			isNested:     true,
+			goType:       goType[2:], // strip the []
 		}, nil
 	}
 

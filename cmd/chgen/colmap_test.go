@@ -305,9 +305,26 @@ func TestColMapping_JSON(t *testing.T) {
 	})
 }
 
-// TestColMapping_Tuple verifies that any/Tuple returns an error directing users to define manually.
+// TestColMapping_Tuple verifies that Tuple and Nested chtypes are recognized.
 func TestColMapping_Tuple(t *testing.T) {
-	_, err := colMapping("any", "Tuple(String, Int64)")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "manual column definition")
+	t.Run("struct/Tuple", func(t *testing.T) {
+		info, err := colMapping("Address", "Tuple(city String, zip_code Int32)")
+		require.NoError(t, err)
+		assert.True(t, info.isTuple)
+		assert.Equal(t, "*column.Tuple", info.fieldType)
+		assert.Equal(t, "Address", info.goType)
+	})
+
+	t.Run("slice/Nested", func(t *testing.T) {
+		info, err := colMapping("[]Phone", "Nested(number String, type Int8)")
+		require.NoError(t, err)
+		assert.True(t, info.isNested)
+		assert.Equal(t, "*column.ArrayBase", info.fieldType)
+		assert.Equal(t, "Phone", info.goType)
+	})
+
+	t.Run("non-slice/Nested error", func(t *testing.T) {
+		_, err := colMapping("Phone", "Nested(number String, type Int8)")
+		require.Error(t, err)
+	})
 }

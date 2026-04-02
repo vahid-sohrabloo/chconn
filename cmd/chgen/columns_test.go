@@ -34,6 +34,19 @@ func TestColumnsGenerate_AllTypesWithIter(t *testing.T) {
 	testSnapshot(t, "testdata/all_types_model_columns_iter_gen.go.golden", string(got))
 }
 
+func TestColumnsGenerate_Tuple(t *testing.T) {
+	tmpDir := t.TempDir()
+	outFile := filepath.Join(tmpDir, "tuple_model_columns_gen.go")
+
+	err := generateColumns("testdata/tuple_model.go", outFile, false)
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+
+	testSnapshot(t, "testdata/tuple_model_columns_gen.go.golden", string(got))
+}
+
 func TestColumnsGenerate_SkipsUntaggedFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	outFile := filepath.Join(tmpDir, "out.go")
