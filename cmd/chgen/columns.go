@@ -171,12 +171,12 @@ func parseTupleOrNestedArgs(chType string) map[string]string {
 			inner = inner[comma+1:]
 		}
 		// Each part is "name Type" — split on first space
-		spaceIdx := strings.IndexByte(part, ' ')
-		if spaceIdx < 0 {
+		name, typ, ok := strings.Cut(part, " ")
+		if !ok {
 			continue
 		}
-		name := strings.TrimSpace(part[:spaceIdx])
-		typ := strings.TrimSpace(part[spaceIdx+1:])
+		name = strings.TrimSpace(name)
+		typ = strings.TrimSpace(typ)
 		result[name] = typ
 	}
 	return result
