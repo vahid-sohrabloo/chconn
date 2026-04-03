@@ -353,6 +353,14 @@ func generateColumns(inputFile, outFile string, withIter bool) error {
 	return nil
 }
 
+func columnNamesList(s structInfo) string {
+	var names []string
+	for _, f := range s.Fields {
+		names = append(names, f.DBName)
+	}
+	return strings.Join(names, ", ")
+}
+
 func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	name := s.Name
 	colsName := name + "Columns"
@@ -513,6 +521,18 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	for _, f := range s.Fields {
 		fmt.Fprintf(buf, "\tt.%s.Reset()\n", f.Name)
 	}
+	fmt.Fprintf(buf, "}\n\n")
+
+	// ColumnNames() method
+	fmt.Fprintf(buf, "// ColumnNames returns a comma-separated list of column names for use in SELECT queries.\n")
+	fmt.Fprintf(buf, "func (t *%s) ColumnNames() string {\n", colsName)
+	fmt.Fprintf(buf, "\treturn %q\n", columnNamesList(s))
+	fmt.Fprintf(buf, "}\n\n")
+
+	// InsertQuery() method
+	fmt.Fprintf(buf, "// InsertQuery returns the INSERT INTO query for the given table.\n")
+	fmt.Fprintf(buf, "func (t *%s) InsertQuery(table string) string {\n", colsName)
+	fmt.Fprintf(buf, "\treturn \"INSERT INTO \" + table + \" (%s) VALUES\"\n", columnNamesList(s))
 	fmt.Fprintf(buf, "}\n\n")
 
 	// Iter() method (optional)

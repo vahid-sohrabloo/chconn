@@ -170,3 +170,13 @@ func (t *TestModelColumns) Reset() {
 	t.Status.Reset()
 	t.UUID.Reset()
 }
+
+// ColumnNames returns a comma-separated list of column names for use in SELECT queries.
+func (t *TestModelColumns) ColumnNames() string {
+	return "id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid"
+}
+
+// InsertQuery returns the INSERT INTO query for the given table.
+func (t *TestModelColumns) InsertQuery(table string) string {
+	return "INSERT INTO " + table + " (id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid) VALUES"
+}

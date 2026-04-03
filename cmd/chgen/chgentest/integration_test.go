@@ -104,7 +104,7 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	cols := NewTestModelColumns()
 	cols.Write(&inputFull)
 	cols.Write(&inputNullNil)
-	err = conn.Insert(ctx, "INSERT INTO test_chgen VALUES", cols.Columns()...)
+	err = conn.Insert(ctx, cols.InsertQuery("test_chgen"), cols.Columns()...)
 	require.NoError(t, err)
 
 	// SELECT
@@ -209,7 +209,7 @@ func TestIntegration_SelectMultipleBlocks(t *testing.T) {
 			UUID:        types.UUID{},
 		})
 	}
-	err = conn.Insert(ctx, "INSERT INTO test_chgen_blocks VALUES", cols.Columns()...)
+	err = conn.Insert(ctx, cols.InsertQuery("test_chgen_blocks"), cols.Columns()...)
 	require.NoError(t, err)
 
 	// Read back and count

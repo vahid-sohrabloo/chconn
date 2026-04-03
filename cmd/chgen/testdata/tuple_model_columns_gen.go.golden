@@ -55,6 +55,16 @@ func (t *TupleAddressColumns) Reset() {
 	t.ZipCode.Reset()
 }
 
+// ColumnNames returns a comma-separated list of column names for use in SELECT queries.
+func (t *TupleAddressColumns) ColumnNames() string {
+	return "city, zip_code"
+}
+
+// InsertQuery returns the INSERT INTO query for the given table.
+func (t *TupleAddressColumns) InsertQuery(table string) string {
+	return "INSERT INTO " + table + " (city, zip_code) VALUES"
+}
+
 // TuplePhoneColumns holds the columns for reading/writing TuplePhone rows.
 type TuplePhoneColumns struct {
 	Number *column.String
@@ -104,6 +114,16 @@ func (t *TuplePhoneColumns) SetWriteBufferSize(n int) {
 func (t *TuplePhoneColumns) Reset() {
 	t.Number.Reset()
 	t.Type.Reset()
+}
+
+// ColumnNames returns a comma-separated list of column names for use in SELECT queries.
+func (t *TuplePhoneColumns) ColumnNames() string {
+	return "number, type"
+}
+
+// InsertQuery returns the INSERT INTO query for the given table.
+func (t *TuplePhoneColumns) InsertQuery(table string) string {
+	return "INSERT INTO " + table + " (number, type) VALUES"
 }
 
 // TupleModelColumns holds the columns for reading/writing TupleModel rows.
@@ -178,4 +198,14 @@ func (t *TupleModelColumns) Reset() {
 	t.Name.Reset()
 	t.Address.Reset()
 	t.Phones.Reset()
+}
+
+// ColumnNames returns a comma-separated list of column names for use in SELECT queries.
+func (t *TupleModelColumns) ColumnNames() string {
+	return "name, address, phones"
+}
+
+// InsertQuery returns the INSERT INTO query for the given table.
+func (t *TupleModelColumns) InsertQuery(table string) string {
+	return "INSERT INTO " + table + " (name, address, phones) VALUES"
 }

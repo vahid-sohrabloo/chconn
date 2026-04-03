@@ -427,3 +427,13 @@ func (t *AllTypesColumns) Reset() {
 	t.ColUint128.Reset()
 	t.ColUint256.Reset()
 }
+
+// ColumnNames returns a comma-separated list of column names for use in SELECT queries.
+func (t *AllTypesColumns) ColumnNames() string {
+	return "col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256"
+}
+
+// InsertQuery returns the INSERT INTO query for the given table.
+func (t *AllTypesColumns) InsertQuery(table string) string {
+	return "INSERT INTO " + table + " (col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256) VALUES"
+}
