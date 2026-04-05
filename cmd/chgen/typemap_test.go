@@ -35,7 +35,6 @@ func TestChTypeToGo_Primitives(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.chType, func(t *testing.T) {
 			info, err := chTypeToGo(tc.chType, false)
 			require.NoError(t, err)
@@ -133,7 +132,6 @@ func TestChTypeToGo_FixedString(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.chType, func(t *testing.T) {
 			info, err := chTypeToGo(tc.chType, false)
 			require.NoError(t, err)
@@ -226,7 +224,6 @@ func TestChTypeToGo_Geo(t *testing.T) {
 		{"MultiPolygon", "[][][]types.Point"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.chType, func(t *testing.T) {
 			info, err := chTypeToGo(tc.chType, false)
 			require.NoError(t, err)
@@ -247,7 +244,6 @@ func TestChTypeToGo_NullableDateTime(t *testing.T) {
 		{"Nullable(DateTime64(3))", "*time.Time"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.chType, func(t *testing.T) {
 			info, err := chTypeToGo(tc.chType, false)
 			require.NoError(t, err)
