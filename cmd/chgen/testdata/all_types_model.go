@@ -99,6 +99,32 @@ type AllTypes struct {
 	ColUint128 types.Uint128 `db:"col_uint128" chtype:"UInt128"`
 	ColUint256 types.Uint256 `db:"col_uint256" chtype:"UInt256"`
 
+	// Geo types
+	ColPoint        types.Point      `db:"col_point" chtype:"Point"`
+	ColRing         []types.Point    `db:"col_ring" chtype:"Ring"`
+	ColPolygon      [][]types.Point  `db:"col_polygon" chtype:"Polygon"`
+	ColMultiPolygon [][][]types.Point `db:"col_multi_polygon" chtype:"MultiPolygon"`
+
+	// Nullable DateTime
+	ColNullDateTime   *time.Time `db:"col_null_datetime" chtype:"Nullable(DateTime)"`
+	ColNullDate       *time.Time `db:"col_null_date" chtype:"Nullable(Date)"`
+	ColNullDate32     *time.Time `db:"col_null_date32" chtype:"Nullable(Date32)"`
+	ColNullDateTime64 *time.Time `db:"col_null_datetime64" chtype:"Nullable(DateTime64(3))"`
+
+	// Array of Nullable
+	ColArrayNullInt64  []*int64  `db:"col_array_null_int64" chtype:"Array(Nullable(Int64))"`
+	ColArrayNullString []*string `db:"col_array_null_string" chtype:"Array(Nullable(String))"`
+
+	// Nested Arrays (Array of Array)
+	ColArray2Str [][]string `db:"col_array2_str" chtype:"Array(Array(String))"`
+	ColArray2Int [][]int64  `db:"col_array2_int" chtype:"Array(Array(Int64))"`
+
+	// LowCardinality Nullable
+	ColLCNullString *string `db:"col_lc_null_string" chtype:"LowCardinality(Nullable(String))"`
+
+	// Map with Nullable value
+	ColMapNullVal map[string]*int64 `db:"col_map_null_val" chtype:"Map(String, Nullable(Int64))"`
+
 	// Tuple and Nested — mapped to any, should be skipped by columns generator
 	ColTuple  any `db:"col_tuple" chtype:"Tuple(String, Int64)"`
 	ColNested any `db:"col_nested" chtype:"Nested(name String, value Int64)"`

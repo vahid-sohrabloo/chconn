@@ -9,43 +9,55 @@ import (
 
 // TestModelColumns holds the columns for reading/writing TestModel rows.
 type TestModelColumns struct {
-	ID          *column.Base[uint64]
-	Name        *column.String
-	Score       *column.Base[float64]
-	Active      *column.Base[bool]
-	SmallNum    *column.Base[int8]
-	Category    *column.LowCardinality[string]
-	NullScore   *column.BaseNullable[int64]
-	NullName    *column.StringNullable[string]
-	CreatedAt   *column.Date[types.DateTime]
-	UpdatedAt   *column.Base[uint32]
-	CountryCode *column.Base[[2]byte]
-	LangCode    *column.LowCardinality[[2]byte]
-	Tags        *column.Array[string]
-	Metadata    *column.Map[string, string]
-	Status      *column.Base[TestModelStatus]
-	UUID        *column.Base[types.UUID]
+	ID             *column.Base[uint64]
+	Name           *column.String
+	Score          *column.Base[float64]
+	Active         *column.Base[bool]
+	SmallNum       *column.Base[int8]
+	Category       *column.LowCardinality[string]
+	NullScore      *column.BaseNullable[int64]
+	NullName       *column.StringNullable[string]
+	CreatedAt      *column.Date[types.DateTime]
+	UpdatedAt      *column.Base[uint32]
+	CountryCode    *column.Base[[2]byte]
+	LangCode       *column.LowCardinality[[2]byte]
+	Tags           *column.Array[string]
+	Metadata       *column.Map[string, string]
+	Status         *column.Base[TestModelStatus]
+	UUID           *column.Base[types.UUID]
+	Location       *column.Tuple2[types.Point, float64, float64]
+	DeletedAt      *column.DateNullable[types.DateTime]
+	OptionalScores *column.ArrayNullable[int64]
+	TagGroups      *column.Array2[string]
+	NullCategory   *column.LowCardinalityNullable[string]
+	OptionalMeta   *column.MapNullable[string, int64]
 }
 
 // NewTestModelColumns creates a new TestModelColumns with all columns initialized.
 func NewTestModelColumns() *TestModelColumns {
 	t := &TestModelColumns{
-		ID:          column.New[uint64](),
-		Name:        column.NewString(),
-		Score:       column.New[float64](),
-		Active:      column.New[bool](),
-		SmallNum:    column.New[int8](),
-		Category:    column.NewString().LowCardinality(),
-		NullScore:   column.New[int64]().Nullable(),
-		NullName:    column.NewString().Nullable(),
-		CreatedAt:   column.NewDate[types.DateTime](),
-		UpdatedAt:   column.New[uint32](),
-		CountryCode: column.New[[2]byte](),
-		LangCode:    column.New[[2]byte]().LowCardinality(),
-		Tags:        column.NewString().Array(),
-		Metadata:    column.NewMap[string, string](column.NewString(), column.NewString()),
-		Status:      column.New[TestModelStatus](),
-		UUID:        column.New[types.UUID](),
+		ID:             column.New[uint64](),
+		Name:           column.NewString(),
+		Score:          column.New[float64](),
+		Active:         column.New[bool](),
+		SmallNum:       column.New[int8](),
+		Category:       column.NewString().LowCardinality(),
+		NullScore:      column.New[int64]().Nullable(),
+		NullName:       column.NewString().Nullable(),
+		CreatedAt:      column.NewDate[types.DateTime](),
+		UpdatedAt:      column.New[uint32](),
+		CountryCode:    column.New[[2]byte](),
+		LangCode:       column.New[[2]byte]().LowCardinality(),
+		Tags:           column.NewString().Array(),
+		Metadata:       column.NewMap[string, string](column.NewString(), column.NewString()),
+		Status:         column.New[TestModelStatus](),
+		UUID:           column.New[types.UUID](),
+		Location:       column.NewPoint(),
+		DeletedAt:      column.NewDate[types.DateTime]().Nullable(),
+		OptionalScores: column.New[int64]().Nullable().Array(),
+		TagGroups:      column.NewString().Array().Array(),
+		NullCategory:   column.NewString().LowCardinality().Nullable(),
+		OptionalMeta:   column.NewMapNullable[string, int64](column.NewString(), column.New[int64]().Nullable()),
 	}
 	t.ID.SetName([]byte("id"))
 	t.Name.SetName([]byte("name"))
@@ -63,6 +75,12 @@ func NewTestModelColumns() *TestModelColumns {
 	t.Metadata.SetName([]byte("metadata"))
 	t.Status.SetName([]byte("status"))
 	t.UUID.SetName([]byte("uuid"))
+	t.Location.SetName([]byte("location"))
+	t.DeletedAt.SetName([]byte("deleted_at"))
+	t.OptionalScores.SetName([]byte("optional_scores"))
+	t.TagGroups.SetName([]byte("tag_groups"))
+	t.NullCategory.SetName([]byte("null_category"))
+	t.OptionalMeta.SetName([]byte("optional_meta"))
 	t.UpdatedAt.SetStrict(false)
 	return t
 }
@@ -86,6 +104,12 @@ func (t *TestModelColumns) Columns() []column.ColumnCore {
 		t.Metadata,
 		t.Status,
 		t.UUID,
+		t.Location,
+		t.DeletedAt,
+		t.OptionalScores,
+		t.TagGroups,
+		t.NullCategory,
+		t.OptionalMeta,
 	}
 }
 
@@ -107,27 +131,39 @@ func (t *TestModelColumns) Write(m *TestModel) {
 	t.Metadata.Append(m.Metadata)
 	t.Status.Append(m.Status)
 	t.UUID.Append(m.UUID)
+	t.Location.Append(m.Location)
+	t.DeletedAt.AppendP(m.DeletedAt)
+	t.OptionalScores.AppendP(m.OptionalScores)
+	t.TagGroups.Append(m.TagGroups)
+	t.NullCategory.AppendP(m.NullCategory)
+	t.OptionalMeta.AppendP(m.OptionalMeta)
 }
 
 // Read reads a single row at index row from all columns.
 func (t *TestModelColumns) Read(row int) TestModel {
 	return TestModel{
-		ID:          t.ID.Row(row),
-		Name:        t.Name.Row(row),
-		Score:       t.Score.Row(row),
-		Active:      t.Active.Row(row),
-		SmallNum:    t.SmallNum.Row(row),
-		Category:    t.Category.Row(row),
-		NullScore:   t.NullScore.RowP(row),
-		NullName:    t.NullName.RowP(row),
-		CreatedAt:   t.CreatedAt.Row(row),
-		UpdatedAt:   t.UpdatedAt.Row(row),
-		CountryCode: t.CountryCode.Row(row),
-		LangCode:    t.LangCode.Row(row),
-		Tags:        t.Tags.Row(row),
-		Metadata:    t.Metadata.Row(row),
-		Status:      t.Status.Row(row),
-		UUID:        t.UUID.Row(row),
+		ID:             t.ID.Row(row),
+		Name:           t.Name.Row(row),
+		Score:          t.Score.Row(row),
+		Active:         t.Active.Row(row),
+		SmallNum:       t.SmallNum.Row(row),
+		Category:       t.Category.Row(row),
+		NullScore:      t.NullScore.RowP(row),
+		NullName:       t.NullName.RowP(row),
+		CreatedAt:      t.CreatedAt.Row(row),
+		UpdatedAt:      t.UpdatedAt.Row(row),
+		CountryCode:    t.CountryCode.Row(row),
+		LangCode:       t.LangCode.Row(row),
+		Tags:           t.Tags.Row(row),
+		Metadata:       t.Metadata.Row(row),
+		Status:         t.Status.Row(row),
+		UUID:           t.UUID.Row(row),
+		Location:       t.Location.Row(row),
+		DeletedAt:      t.DeletedAt.RowP(row),
+		OptionalScores: t.OptionalScores.RowP(row),
+		TagGroups:      t.TagGroups.Row(row),
+		NullCategory:   t.NullCategory.RowP(row),
+		OptionalMeta:   t.OptionalMeta.RowP(row),
 	}
 }
 
@@ -149,6 +185,12 @@ func (t *TestModelColumns) SetWriteBufferSize(n int) {
 	t.Metadata.SetWriteBufferSize(n)
 	t.Status.SetWriteBufferSize(n)
 	t.UUID.SetWriteBufferSize(n)
+	t.Location.SetWriteBufferSize(n)
+	t.DeletedAt.SetWriteBufferSize(n)
+	t.OptionalScores.SetWriteBufferSize(n)
+	t.TagGroups.SetWriteBufferSize(n)
+	t.NullCategory.SetWriteBufferSize(n)
+	t.OptionalMeta.SetWriteBufferSize(n)
 }
 
 // Reset resets all columns to empty.
@@ -169,14 +211,20 @@ func (t *TestModelColumns) Reset() {
 	t.Metadata.Reset()
 	t.Status.Reset()
 	t.UUID.Reset()
+	t.Location.Reset()
+	t.DeletedAt.Reset()
+	t.OptionalScores.Reset()
+	t.TagGroups.Reset()
+	t.NullCategory.Reset()
+	t.OptionalMeta.Reset()
 }
 
 // ColumnNames returns a comma-separated list of column names for use in SELECT queries.
 func (t *TestModelColumns) ColumnNames() string {
-	return "id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid"
+	return "id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid, location, deleted_at, optional_scores, tag_groups, null_category, optional_meta"
 }
 
 // InsertQuery returns the INSERT INTO query for the given table.
 func (t *TestModelColumns) InsertQuery(table string) string {
-	return "INSERT INTO " + table + " (id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid) VALUES"
+	return "INSERT INTO " + table + " (id, name, score, active, small_num, category, null_score, null_name, created_at, updated_at, country_code, lang_code, tags, metadata, status, uuid, location, deleted_at, optional_scores, tag_groups, null_category, optional_meta) VALUES"
 }

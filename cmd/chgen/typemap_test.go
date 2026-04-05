@@ -214,6 +214,76 @@ func TestChTypeToGo_Enum(t *testing.T) {
 	})
 }
 
+// TestChTypeToGo_Geo covers Point, Ring, Polygon, MultiPolygon types.
+func TestChTypeToGo_Geo(t *testing.T) {
+	cases := []struct {
+		chType string
+		want   string
+	}{
+		{"Point", "types.Point"},
+		{"Ring", "[]types.Point"},
+		{"Polygon", "[][]types.Point"},
+		{"MultiPolygon", "[][][]types.Point"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.chType, func(t *testing.T) {
+			info, err := chTypeToGo(tc.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.goType)
+		})
+	}
+}
+
+// TestChTypeToGo_NullableDateTime verifies Nullable(DateTime) → *time.Time.
+func TestChTypeToGo_NullableDateTime(t *testing.T) {
+	cases := []struct {
+		chType string
+		want   string
+	}{
+		{"Nullable(DateTime)", "*time.Time"},
+		{"Nullable(Date)", "*time.Time"},
+		{"Nullable(Date32)", "*time.Time"},
+		{"Nullable(DateTime64(3))", "*time.Time"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.chType, func(t *testing.T) {
+			info, err := chTypeToGo(tc.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.goType)
+		})
+	}
+}
+
+// TestChTypeToGo_ArrayNullable verifies Array(Nullable(T)) → []*T.
+func TestChTypeToGo_ArrayNullable(t *testing.T) {
+	info, err := chTypeToGo("Array(Nullable(Int64))", false)
+	require.NoError(t, err)
+	assert.Equal(t, "[]*int64", info.goType)
+}
+
+// TestChTypeToGo_NestedArray verifies Array(Array(T)) → [][]T.
+func TestChTypeToGo_NestedArray(t *testing.T) {
+	info, err := chTypeToGo("Array(Array(String))", false)
+	require.NoError(t, err)
+	assert.Equal(t, "[][]string", info.goType)
+}
+
+// TestChTypeToGo_LCNullable verifies LowCardinality(Nullable(String)) → *string.
+func TestChTypeToGo_LCNullable(t *testing.T) {
+	info, err := chTypeToGo("LowCardinality(Nullable(String))", false)
+	require.NoError(t, err)
+	assert.Equal(t, "*string", info.goType)
+}
+
+// TestChTypeToGo_MapNullable verifies Map(String, Nullable(Int64)) → map[string]*int64.
+func TestChTypeToGo_MapNullable(t *testing.T) {
+	info, err := chTypeToGo("Map(String, Nullable(Int64))", false)
+	require.NoError(t, err)
+	assert.Equal(t, "map[string]*int64", info.goType)
+}
+
 // TestChTypeToGo_Errors verifies that unknown types produce an error.
 func TestChTypeToGo_Errors(t *testing.T) {
 	_, err := chTypeToGo("UnknownType", false)

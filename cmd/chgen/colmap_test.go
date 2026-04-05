@@ -305,6 +305,145 @@ func TestColMapping_JSON(t *testing.T) {
 	})
 }
 
+// TestColMapping_Point covers Point, Ring, Polygon, MultiPolygon geo types.
+func TestColMapping_Point(t *testing.T) {
+	t.Run("types.Point/Point", func(t *testing.T) {
+		info, err := colMapping("types.Point", "Point")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Tuple2[types.Point, float64, float64]", info.fieldType)
+		assert.Equal(t, "column.NewPoint()", info.constructor)
+		assert.Equal(t, "Append", info.appendMethod)
+		assert.Equal(t, "Row", info.rowMethod)
+	})
+
+	t.Run("[]types.Point/Ring", func(t *testing.T) {
+		info, err := colMapping("[]types.Point", "Ring")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array[types.Point]", info.fieldType)
+		assert.Equal(t, "column.NewPoint().Array()", info.constructor)
+	})
+
+	t.Run("[][]types.Point/Polygon", func(t *testing.T) {
+		info, err := colMapping("[][]types.Point", "Polygon")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array2[types.Point]", info.fieldType)
+		assert.Equal(t, "column.NewPoint().Array().Array()", info.constructor)
+	})
+
+	t.Run("[][][]types.Point/MultiPolygon", func(t *testing.T) {
+		info, err := colMapping("[][][]types.Point", "MultiPolygon")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array3[types.Point]", info.fieldType)
+		assert.Equal(t, "column.NewPoint().Array().Array().Array()", info.constructor)
+	})
+}
+
+// TestColMapping_NullableDateTime covers *time.Time/Nullable(DateTime) etc.
+func TestColMapping_NullableDateTime(t *testing.T) {
+	t.Run("*time.Time/Nullable(DateTime)", func(t *testing.T) {
+		info, err := colMapping("*time.Time", "Nullable(DateTime)")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.DateNullable[types.DateTime]", info.fieldType)
+		assert.Equal(t, "column.NewDate[types.DateTime]().Nullable()", info.constructor)
+		assert.True(t, info.isNullable)
+		assert.Equal(t, "AppendP", info.appendMethod)
+		assert.Equal(t, "RowP", info.rowMethod)
+	})
+
+	t.Run("*time.Time/Nullable(Date)", func(t *testing.T) {
+		info, err := colMapping("*time.Time", "Nullable(Date)")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.DateNullable[types.Date]", info.fieldType)
+		assert.Equal(t, "column.NewDate[types.Date]().Nullable()", info.constructor)
+	})
+
+	t.Run("*time.Time/Nullable(Date32)", func(t *testing.T) {
+		info, err := colMapping("*time.Time", "Nullable(Date32)")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.DateNullable[types.Date32]", info.fieldType)
+		assert.Equal(t, "column.NewDate[types.Date32]().Nullable()", info.constructor)
+	})
+
+	t.Run("*time.Time/Nullable(DateTime64(3))", func(t *testing.T) {
+		info, err := colMapping("*time.Time", "Nullable(DateTime64(3))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.DateNullable[types.DateTime64]", info.fieldType)
+		assert.Equal(t, "column.NewDate[types.DateTime64]().Nullable()", info.constructor)
+	})
+}
+
+// TestColMapping_ArrayNullable covers []*int64/Array(Nullable(Int64)).
+func TestColMapping_ArrayNullable(t *testing.T) {
+	t.Run("[]*int64/Array(Nullable(Int64))", func(t *testing.T) {
+		info, err := colMapping("[]*int64", "Array(Nullable(Int64))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.ArrayNullable[int64]", info.fieldType)
+		assert.Equal(t, "column.New[int64]().Nullable().Array()", info.constructor)
+		assert.Equal(t, "AppendP", info.appendMethod)
+		assert.Equal(t, "RowP", info.rowMethod)
+	})
+
+	t.Run("[]*string/Array(Nullable(String))", func(t *testing.T) {
+		info, err := colMapping("[]*string", "Array(Nullable(String))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.ArrayNullable[string]", info.fieldType)
+		assert.Equal(t, "column.NewString().Nullable().Array()", info.constructor)
+		assert.Equal(t, "AppendP", info.appendMethod)
+		assert.Equal(t, "RowP", info.rowMethod)
+	})
+}
+
+// TestColMapping_NestedArray covers [][]string/Array(Array(String)).
+func TestColMapping_NestedArray(t *testing.T) {
+	t.Run("[][]string/Array(Array(String))", func(t *testing.T) {
+		info, err := colMapping("[][]string", "Array(Array(String))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array2[string]", info.fieldType)
+		assert.Equal(t, "column.NewString().Array().Array()", info.constructor)
+		assert.Equal(t, "Append", info.appendMethod)
+		assert.Equal(t, "Row", info.rowMethod)
+	})
+
+	t.Run("[][]int64/Array(Array(Int64))", func(t *testing.T) {
+		info, err := colMapping("[][]int64", "Array(Array(Int64))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array2[int64]", info.fieldType)
+		assert.Equal(t, "column.New[int64]().Array().Array()", info.constructor)
+	})
+
+	t.Run("[][][]int64/Array(Array(Array(Int64)))", func(t *testing.T) {
+		info, err := colMapping("[][][]int64", "Array(Array(Array(Int64)))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Array3[int64]", info.fieldType)
+		assert.Equal(t, "column.New[int64]().Array().Array().Array()", info.constructor)
+	})
+}
+
+// TestColMapping_LCNullable covers *string/LowCardinality(Nullable(String)).
+func TestColMapping_LCNullable(t *testing.T) {
+	t.Run("*string/LowCardinality(Nullable(String))", func(t *testing.T) {
+		info, err := colMapping("*string", "LowCardinality(Nullable(String))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.LowCardinalityNullable[string]", info.fieldType)
+		assert.Equal(t, "column.NewString().LowCardinality().Nullable()", info.constructor)
+		assert.True(t, info.isNullable)
+		assert.Equal(t, "AppendP", info.appendMethod)
+		assert.Equal(t, "RowP", info.rowMethod)
+	})
+}
+
+// TestColMapping_MapNullable covers map[string]*int64/Map(String, Nullable(Int64)).
+func TestColMapping_MapNullable(t *testing.T) {
+	t.Run("map[string]*int64/Map(String,Nullable(Int64))", func(t *testing.T) {
+		info, err := colMapping("map[string]*int64", "Map(String, Nullable(Int64))")
+		require.NoError(t, err)
+		assert.Equal(t, "*column.MapNullable[string, int64]", info.fieldType)
+		assert.Equal(t, "column.NewMapNullable[string, int64](column.NewString(), column.New[int64]().Nullable())", info.constructor)
+		assert.Equal(t, "AppendP", info.appendMethod)
+		assert.Equal(t, "RowP", info.rowMethod)
+	})
+}
+
 // TestColMapping_Tuple verifies that Tuple and Nested chtypes are recognized.
 func TestColMapping_Tuple(t *testing.T) {
 	t.Run("struct/Tuple", func(t *testing.T) {

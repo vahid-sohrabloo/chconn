@@ -12,107 +12,135 @@ import (
 
 // AllTypesColumns holds the columns for reading/writing AllTypes rows.
 type AllTypesColumns struct {
-	ColInt8         *column.Base[int8]
-	ColInt16        *column.Base[int16]
-	ColInt32        *column.Base[int32]
-	ColInt64        *column.Base[int64]
-	ColUint8        *column.Base[uint8]
-	ColUint16       *column.Base[uint16]
-	ColUint32       *column.Base[uint32]
-	ColUint64       *column.Base[uint64]
-	ColFloat32      *column.Base[float32]
-	ColFloat64      *column.Base[float64]
-	ColBool         *column.Base[bool]
-	ColString       *column.String
-	ColDate         *column.Date[types.Date]
-	ColDate32       *column.Date[types.Date32]
-	ColDateTime     *column.Date[types.DateTime]
-	ColDateTime64   *column.Date[types.DateTime64]
-	ColDateUint     *column.Base[uint16]
-	ColDateTimeUint *column.Base[uint32]
-	ColUUID         *column.Base[types.UUID]
-	ColIPv4         *column.Base[types.IPv4]
-	ColIPv6         *column.Base[types.IPv6]
-	ColFixed2       *column.Base[[2]byte]
-	ColFixed16      *column.Base[[16]byte]
-	ColLCString     *column.LowCardinality[string]
-	ColLCFixed      *column.LowCardinality[[2]byte]
-	ColNullInt64    *column.BaseNullable[int64]
-	ColNullString   *column.StringNullable[string]
-	ColNullFloat32  *column.BaseNullable[float32]
-	ColSAFMax       *column.Base[float32]
-	ColSAFNullable  *column.BaseNullable[int64]
-	ColArrayUint16  *column.Array[uint16]
-	ColArrayString  *column.Array[string]
-	ColArrayLCStr   *column.Array[string]
-	ColArrayInt64   *column.Array[int64]
-	ColMapStrStr    *column.Map[string, string]
-	ColMapLCStr     *column.Map[string, string]
-	ColEnum8        *column.Base[AllTypesEvent]
-	ColEnum16       *column.Base[AllTypesSource]
-	ColDecimal32    *column.Base[types.Decimal32]
-	ColDecimal64    *column.Base[types.Decimal64]
-	ColDecimal128   *column.Base[types.Decimal128]
-	ColDecimal256   *column.Base[types.Decimal256]
-	ColDecimalPS    *column.Base[types.Decimal64]
-	ColJSON         *column.JSON
-	ColInt128       *column.Base[types.Int128]
-	ColInt256       *column.Base[types.Int256]
-	ColUint128      *column.Base[types.Uint128]
-	ColUint256      *column.Base[types.Uint256]
+	ColInt8            *column.Base[int8]
+	ColInt16           *column.Base[int16]
+	ColInt32           *column.Base[int32]
+	ColInt64           *column.Base[int64]
+	ColUint8           *column.Base[uint8]
+	ColUint16          *column.Base[uint16]
+	ColUint32          *column.Base[uint32]
+	ColUint64          *column.Base[uint64]
+	ColFloat32         *column.Base[float32]
+	ColFloat64         *column.Base[float64]
+	ColBool            *column.Base[bool]
+	ColString          *column.String
+	ColDate            *column.Date[types.Date]
+	ColDate32          *column.Date[types.Date32]
+	ColDateTime        *column.Date[types.DateTime]
+	ColDateTime64      *column.Date[types.DateTime64]
+	ColDateUint        *column.Base[uint16]
+	ColDateTimeUint    *column.Base[uint32]
+	ColUUID            *column.Base[types.UUID]
+	ColIPv4            *column.Base[types.IPv4]
+	ColIPv6            *column.Base[types.IPv6]
+	ColFixed2          *column.Base[[2]byte]
+	ColFixed16         *column.Base[[16]byte]
+	ColLCString        *column.LowCardinality[string]
+	ColLCFixed         *column.LowCardinality[[2]byte]
+	ColNullInt64       *column.BaseNullable[int64]
+	ColNullString      *column.StringNullable[string]
+	ColNullFloat32     *column.BaseNullable[float32]
+	ColSAFMax          *column.Base[float32]
+	ColSAFNullable     *column.BaseNullable[int64]
+	ColArrayUint16     *column.Array[uint16]
+	ColArrayString     *column.Array[string]
+	ColArrayLCStr      *column.Array[string]
+	ColArrayInt64      *column.Array[int64]
+	ColMapStrStr       *column.Map[string, string]
+	ColMapLCStr        *column.Map[string, string]
+	ColEnum8           *column.Base[AllTypesEvent]
+	ColEnum16          *column.Base[AllTypesSource]
+	ColDecimal32       *column.Base[types.Decimal32]
+	ColDecimal64       *column.Base[types.Decimal64]
+	ColDecimal128      *column.Base[types.Decimal128]
+	ColDecimal256      *column.Base[types.Decimal256]
+	ColDecimalPS       *column.Base[types.Decimal64]
+	ColJSON            *column.JSON
+	ColInt128          *column.Base[types.Int128]
+	ColInt256          *column.Base[types.Int256]
+	ColUint128         *column.Base[types.Uint128]
+	ColUint256         *column.Base[types.Uint256]
+	ColPoint           *column.Tuple2[types.Point, float64, float64]
+	ColRing            *column.Array[types.Point]
+	ColPolygon         *column.Array2[types.Point]
+	ColMultiPolygon    *column.Array3[types.Point]
+	ColNullDateTime    *column.DateNullable[types.DateTime]
+	ColNullDate        *column.DateNullable[types.Date]
+	ColNullDate32      *column.DateNullable[types.Date32]
+	ColNullDateTime64  *column.DateNullable[types.DateTime64]
+	ColArrayNullInt64  *column.ArrayNullable[int64]
+	ColArrayNullString *column.ArrayNullable[string]
+	ColArray2Str       *column.Array2[string]
+	ColArray2Int       *column.Array2[int64]
+	ColLCNullString    *column.LowCardinalityNullable[string]
+	ColMapNullVal      *column.MapNullable[string, int64]
 }
 
 // NewAllTypesColumns creates a new AllTypesColumns with all columns initialized.
 func NewAllTypesColumns() *AllTypesColumns {
 	t := &AllTypesColumns{
-		ColInt8:         column.New[int8](),
-		ColInt16:        column.New[int16](),
-		ColInt32:        column.New[int32](),
-		ColInt64:        column.New[int64](),
-		ColUint8:        column.New[uint8](),
-		ColUint16:       column.New[uint16](),
-		ColUint32:       column.New[uint32](),
-		ColUint64:       column.New[uint64](),
-		ColFloat32:      column.New[float32](),
-		ColFloat64:      column.New[float64](),
-		ColBool:         column.New[bool](),
-		ColString:       column.NewString(),
-		ColDate:         column.NewDate[types.Date](),
-		ColDate32:       column.NewDate[types.Date32](),
-		ColDateTime:     column.NewDate[types.DateTime](),
-		ColDateTime64:   column.NewDate[types.DateTime64](),
-		ColDateUint:     column.New[uint16](),
-		ColDateTimeUint: column.New[uint32](),
-		ColUUID:         column.New[types.UUID](),
-		ColIPv4:         column.New[types.IPv4](),
-		ColIPv6:         column.New[types.IPv6](),
-		ColFixed2:       column.New[[2]byte](),
-		ColFixed16:      column.New[[16]byte](),
-		ColLCString:     column.NewString().LowCardinality(),
-		ColLCFixed:      column.New[[2]byte]().LowCardinality(),
-		ColNullInt64:    column.New[int64]().Nullable(),
-		ColNullString:   column.NewString().Nullable(),
-		ColNullFloat32:  column.New[float32]().Nullable(),
-		ColSAFMax:       column.New[float32](),
-		ColSAFNullable:  column.New[int64]().Nullable(),
-		ColArrayUint16:  column.New[uint16]().Array(),
-		ColArrayString:  column.NewString().Array(),
-		ColArrayLCStr:   column.NewString().LowCardinality().Array(),
-		ColArrayInt64:   column.New[int64]().Array(),
-		ColMapStrStr:    column.NewMap[string, string](column.NewString(), column.NewString()),
-		ColMapLCStr:     column.NewMap[string, string](column.NewString().LowCardinality(), column.NewString().LowCardinality()),
-		ColEnum8:        column.New[AllTypesEvent](),
-		ColEnum16:       column.New[AllTypesSource](),
-		ColDecimal32:    column.New[types.Decimal32](),
-		ColDecimal64:    column.New[types.Decimal64](),
-		ColDecimal128:   column.New[types.Decimal128](),
-		ColDecimal256:   column.New[types.Decimal256](),
-		ColDecimalPS:    column.New[types.Decimal64](),
-		ColJSON:         column.NewJSON(),
-		ColInt128:       column.New[types.Int128](),
-		ColInt256:       column.New[types.Int256](),
-		ColUint128:      column.New[types.Uint128](),
-		ColUint256:      column.New[types.Uint256](),
+		ColInt8:            column.New[int8](),
+		ColInt16:           column.New[int16](),
+		ColInt32:           column.New[int32](),
+		ColInt64:           column.New[int64](),
+		ColUint8:           column.New[uint8](),
+		ColUint16:          column.New[uint16](),
+		ColUint32:          column.New[uint32](),
+		ColUint64:          column.New[uint64](),
+		ColFloat32:         column.New[float32](),
+		ColFloat64:         column.New[float64](),
+		ColBool:            column.New[bool](),
+		ColString:          column.NewString(),
+		ColDate:            column.NewDate[types.Date](),
+		ColDate32:          column.NewDate[types.Date32](),
+		ColDateTime:        column.NewDate[types.DateTime](),
+		ColDateTime64:      column.NewDate[types.DateTime64](),
+		ColDateUint:        column.New[uint16](),
+		ColDateTimeUint:    column.New[uint32](),
+		ColUUID:            column.New[types.UUID](),
+		ColIPv4:            column.New[types.IPv4](),
+		ColIPv6:            column.New[types.IPv6](),
+		ColFixed2:          column.New[[2]byte](),
+		ColFixed16:         column.New[[16]byte](),
+		ColLCString:        column.NewString().LowCardinality(),
+		ColLCFixed:         column.New[[2]byte]().LowCardinality(),
+		ColNullInt64:       column.New[int64]().Nullable(),
+		ColNullString:      column.NewString().Nullable(),
+		ColNullFloat32:     column.New[float32]().Nullable(),
+		ColSAFMax:          column.New[float32](),
+		ColSAFNullable:     column.New[int64]().Nullable(),
+		ColArrayUint16:     column.New[uint16]().Array(),
+		ColArrayString:     column.NewString().Array(),
+		ColArrayLCStr:      column.NewString().LowCardinality().Array(),
+		ColArrayInt64:      column.New[int64]().Array(),
+		ColMapStrStr:       column.NewMap[string, string](column.NewString(), column.NewString()),
+		ColMapLCStr:        column.NewMap[string, string](column.NewString().LowCardinality(), column.NewString().LowCardinality()),
+		ColEnum8:           column.New[AllTypesEvent](),
+		ColEnum16:          column.New[AllTypesSource](),
+		ColDecimal32:       column.New[types.Decimal32](),
+		ColDecimal64:       column.New[types.Decimal64](),
+		ColDecimal128:      column.New[types.Decimal128](),
+		ColDecimal256:      column.New[types.Decimal256](),
+		ColDecimalPS:       column.New[types.Decimal64](),
+		ColJSON:            column.NewJSON(),
+		ColInt128:          column.New[types.Int128](),
+		ColInt256:          column.New[types.Int256](),
+		ColUint128:         column.New[types.Uint128](),
+		ColUint256:         column.New[types.Uint256](),
+		ColPoint:           column.NewPoint(),
+		ColRing:            column.NewPoint().Array(),
+		ColPolygon:         column.NewPoint().Array().Array(),
+		ColMultiPolygon:    column.NewPoint().Array().Array().Array(),
+		ColNullDateTime:    column.NewDate[types.DateTime]().Nullable(),
+		ColNullDate:        column.NewDate[types.Date]().Nullable(),
+		ColNullDate32:      column.NewDate[types.Date32]().Nullable(),
+		ColNullDateTime64:  column.NewDate[types.DateTime64]().Nullable(),
+		ColArrayNullInt64:  column.New[int64]().Nullable().Array(),
+		ColArrayNullString: column.NewString().Nullable().Array(),
+		ColArray2Str:       column.NewString().Array().Array(),
+		ColArray2Int:       column.New[int64]().Array().Array(),
+		ColLCNullString:    column.NewString().LowCardinality().Nullable(),
+		ColMapNullVal:      column.NewMapNullable[string, int64](column.NewString(), column.New[int64]().Nullable()),
 	}
 	t.ColInt8.SetName([]byte("col_int8"))
 	t.ColInt16.SetName([]byte("col_int16"))
@@ -162,6 +190,20 @@ func NewAllTypesColumns() *AllTypesColumns {
 	t.ColInt256.SetName([]byte("col_int256"))
 	t.ColUint128.SetName([]byte("col_uint128"))
 	t.ColUint256.SetName([]byte("col_uint256"))
+	t.ColPoint.SetName([]byte("col_point"))
+	t.ColRing.SetName([]byte("col_ring"))
+	t.ColPolygon.SetName([]byte("col_polygon"))
+	t.ColMultiPolygon.SetName([]byte("col_multi_polygon"))
+	t.ColNullDateTime.SetName([]byte("col_null_datetime"))
+	t.ColNullDate.SetName([]byte("col_null_date"))
+	t.ColNullDate32.SetName([]byte("col_null_date32"))
+	t.ColNullDateTime64.SetName([]byte("col_null_datetime64"))
+	t.ColArrayNullInt64.SetName([]byte("col_array_null_int64"))
+	t.ColArrayNullString.SetName([]byte("col_array_null_string"))
+	t.ColArray2Str.SetName([]byte("col_array2_str"))
+	t.ColArray2Int.SetName([]byte("col_array2_int"))
+	t.ColLCNullString.SetName([]byte("col_lc_null_string"))
+	t.ColMapNullVal.SetName([]byte("col_map_null_val"))
 	t.ColDateUint.SetStrict(false)
 	t.ColDateTimeUint.SetStrict(false)
 	return t
@@ -218,6 +260,20 @@ func (t *AllTypesColumns) Columns() []column.ColumnCore {
 		t.ColInt256,
 		t.ColUint128,
 		t.ColUint256,
+		t.ColPoint,
+		t.ColRing,
+		t.ColPolygon,
+		t.ColMultiPolygon,
+		t.ColNullDateTime,
+		t.ColNullDate,
+		t.ColNullDate32,
+		t.ColNullDateTime64,
+		t.ColArrayNullInt64,
+		t.ColArrayNullString,
+		t.ColArray2Str,
+		t.ColArray2Int,
+		t.ColLCNullString,
+		t.ColMapNullVal,
 	}
 }
 
@@ -271,59 +327,87 @@ func (t *AllTypesColumns) Write(m *AllTypes) {
 	t.ColInt256.Append(m.ColInt256)
 	t.ColUint128.Append(m.ColUint128)
 	t.ColUint256.Append(m.ColUint256)
+	t.ColPoint.Append(m.ColPoint)
+	t.ColRing.Append(m.ColRing)
+	t.ColPolygon.Append(m.ColPolygon)
+	t.ColMultiPolygon.Append(m.ColMultiPolygon)
+	t.ColNullDateTime.AppendP(m.ColNullDateTime)
+	t.ColNullDate.AppendP(m.ColNullDate)
+	t.ColNullDate32.AppendP(m.ColNullDate32)
+	t.ColNullDateTime64.AppendP(m.ColNullDateTime64)
+	t.ColArrayNullInt64.AppendP(m.ColArrayNullInt64)
+	t.ColArrayNullString.AppendP(m.ColArrayNullString)
+	t.ColArray2Str.Append(m.ColArray2Str)
+	t.ColArray2Int.Append(m.ColArray2Int)
+	t.ColLCNullString.AppendP(m.ColLCNullString)
+	t.ColMapNullVal.AppendP(m.ColMapNullVal)
 }
 
 // Read reads a single row at index row from all columns.
 func (t *AllTypesColumns) Read(row int) AllTypes {
 	return AllTypes{
-		ColInt8:         t.ColInt8.Row(row),
-		ColInt16:        t.ColInt16.Row(row),
-		ColInt32:        t.ColInt32.Row(row),
-		ColInt64:        t.ColInt64.Row(row),
-		ColUint8:        t.ColUint8.Row(row),
-		ColUint16:       t.ColUint16.Row(row),
-		ColUint32:       t.ColUint32.Row(row),
-		ColUint64:       t.ColUint64.Row(row),
-		ColFloat32:      t.ColFloat32.Row(row),
-		ColFloat64:      t.ColFloat64.Row(row),
-		ColBool:         t.ColBool.Row(row),
-		ColString:       t.ColString.Row(row),
-		ColDate:         t.ColDate.Row(row),
-		ColDate32:       t.ColDate32.Row(row),
-		ColDateTime:     t.ColDateTime.Row(row),
-		ColDateTime64:   t.ColDateTime64.Row(row),
-		ColDateUint:     t.ColDateUint.Row(row),
-		ColDateTimeUint: t.ColDateTimeUint.Row(row),
-		ColUUID:         t.ColUUID.Row(row),
-		ColIPv4:         t.ColIPv4.Row(row),
-		ColIPv6:         t.ColIPv6.Row(row),
-		ColFixed2:       t.ColFixed2.Row(row),
-		ColFixed16:      t.ColFixed16.Row(row),
-		ColLCString:     t.ColLCString.Row(row),
-		ColLCFixed:      t.ColLCFixed.Row(row),
-		ColNullInt64:    t.ColNullInt64.RowP(row),
-		ColNullString:   t.ColNullString.RowP(row),
-		ColNullFloat32:  t.ColNullFloat32.RowP(row),
-		ColSAFMax:       t.ColSAFMax.Row(row),
-		ColSAFNullable:  t.ColSAFNullable.RowP(row),
-		ColArrayUint16:  t.ColArrayUint16.Row(row),
-		ColArrayString:  t.ColArrayString.Row(row),
-		ColArrayLCStr:   t.ColArrayLCStr.Row(row),
-		ColArrayInt64:   t.ColArrayInt64.Row(row),
-		ColMapStrStr:    t.ColMapStrStr.Row(row),
-		ColMapLCStr:     t.ColMapLCStr.Row(row),
-		ColEnum8:        t.ColEnum8.Row(row),
-		ColEnum16:       t.ColEnum16.Row(row),
-		ColDecimal32:    t.ColDecimal32.Row(row),
-		ColDecimal64:    t.ColDecimal64.Row(row),
-		ColDecimal128:   t.ColDecimal128.Row(row),
-		ColDecimal256:   t.ColDecimal256.Row(row),
-		ColDecimalPS:    t.ColDecimalPS.Row(row),
-		ColJSON:         t.ColJSON.Row(row),
-		ColInt128:       t.ColInt128.Row(row),
-		ColInt256:       t.ColInt256.Row(row),
-		ColUint128:      t.ColUint128.Row(row),
-		ColUint256:      t.ColUint256.Row(row),
+		ColInt8:            t.ColInt8.Row(row),
+		ColInt16:           t.ColInt16.Row(row),
+		ColInt32:           t.ColInt32.Row(row),
+		ColInt64:           t.ColInt64.Row(row),
+		ColUint8:           t.ColUint8.Row(row),
+		ColUint16:          t.ColUint16.Row(row),
+		ColUint32:          t.ColUint32.Row(row),
+		ColUint64:          t.ColUint64.Row(row),
+		ColFloat32:         t.ColFloat32.Row(row),
+		ColFloat64:         t.ColFloat64.Row(row),
+		ColBool:            t.ColBool.Row(row),
+		ColString:          t.ColString.Row(row),
+		ColDate:            t.ColDate.Row(row),
+		ColDate32:          t.ColDate32.Row(row),
+		ColDateTime:        t.ColDateTime.Row(row),
+		ColDateTime64:      t.ColDateTime64.Row(row),
+		ColDateUint:        t.ColDateUint.Row(row),
+		ColDateTimeUint:    t.ColDateTimeUint.Row(row),
+		ColUUID:            t.ColUUID.Row(row),
+		ColIPv4:            t.ColIPv4.Row(row),
+		ColIPv6:            t.ColIPv6.Row(row),
+		ColFixed2:          t.ColFixed2.Row(row),
+		ColFixed16:         t.ColFixed16.Row(row),
+		ColLCString:        t.ColLCString.Row(row),
+		ColLCFixed:         t.ColLCFixed.Row(row),
+		ColNullInt64:       t.ColNullInt64.RowP(row),
+		ColNullString:      t.ColNullString.RowP(row),
+		ColNullFloat32:     t.ColNullFloat32.RowP(row),
+		ColSAFMax:          t.ColSAFMax.Row(row),
+		ColSAFNullable:     t.ColSAFNullable.RowP(row),
+		ColArrayUint16:     t.ColArrayUint16.Row(row),
+		ColArrayString:     t.ColArrayString.Row(row),
+		ColArrayLCStr:      t.ColArrayLCStr.Row(row),
+		ColArrayInt64:      t.ColArrayInt64.Row(row),
+		ColMapStrStr:       t.ColMapStrStr.Row(row),
+		ColMapLCStr:        t.ColMapLCStr.Row(row),
+		ColEnum8:           t.ColEnum8.Row(row),
+		ColEnum16:          t.ColEnum16.Row(row),
+		ColDecimal32:       t.ColDecimal32.Row(row),
+		ColDecimal64:       t.ColDecimal64.Row(row),
+		ColDecimal128:      t.ColDecimal128.Row(row),
+		ColDecimal256:      t.ColDecimal256.Row(row),
+		ColDecimalPS:       t.ColDecimalPS.Row(row),
+		ColJSON:            t.ColJSON.Row(row),
+		ColInt128:          t.ColInt128.Row(row),
+		ColInt256:          t.ColInt256.Row(row),
+		ColUint128:         t.ColUint128.Row(row),
+		ColUint256:         t.ColUint256.Row(row),
+		ColPoint:           t.ColPoint.Row(row),
+		ColRing:            t.ColRing.Row(row),
+		ColPolygon:         t.ColPolygon.Row(row),
+		ColMultiPolygon:    t.ColMultiPolygon.Row(row),
+		ColNullDateTime:    t.ColNullDateTime.RowP(row),
+		ColNullDate:        t.ColNullDate.RowP(row),
+		ColNullDate32:      t.ColNullDate32.RowP(row),
+		ColNullDateTime64:  t.ColNullDateTime64.RowP(row),
+		ColArrayNullInt64:  t.ColArrayNullInt64.RowP(row),
+		ColArrayNullString: t.ColArrayNullString.RowP(row),
+		ColArray2Str:       t.ColArray2Str.Row(row),
+		ColArray2Int:       t.ColArray2Int.Row(row),
+		ColLCNullString:    t.ColLCNullString.RowP(row),
+		ColMapNullVal:      t.ColMapNullVal.RowP(row),
 	}
 }
 
@@ -377,6 +461,20 @@ func (t *AllTypesColumns) SetWriteBufferSize(n int) {
 	t.ColInt256.SetWriteBufferSize(n)
 	t.ColUint128.SetWriteBufferSize(n)
 	t.ColUint256.SetWriteBufferSize(n)
+	t.ColPoint.SetWriteBufferSize(n)
+	t.ColRing.SetWriteBufferSize(n)
+	t.ColPolygon.SetWriteBufferSize(n)
+	t.ColMultiPolygon.SetWriteBufferSize(n)
+	t.ColNullDateTime.SetWriteBufferSize(n)
+	t.ColNullDate.SetWriteBufferSize(n)
+	t.ColNullDate32.SetWriteBufferSize(n)
+	t.ColNullDateTime64.SetWriteBufferSize(n)
+	t.ColArrayNullInt64.SetWriteBufferSize(n)
+	t.ColArrayNullString.SetWriteBufferSize(n)
+	t.ColArray2Str.SetWriteBufferSize(n)
+	t.ColArray2Int.SetWriteBufferSize(n)
+	t.ColLCNullString.SetWriteBufferSize(n)
+	t.ColMapNullVal.SetWriteBufferSize(n)
 }
 
 // Reset resets all columns to empty.
@@ -429,16 +527,30 @@ func (t *AllTypesColumns) Reset() {
 	t.ColInt256.Reset()
 	t.ColUint128.Reset()
 	t.ColUint256.Reset()
+	t.ColPoint.Reset()
+	t.ColRing.Reset()
+	t.ColPolygon.Reset()
+	t.ColMultiPolygon.Reset()
+	t.ColNullDateTime.Reset()
+	t.ColNullDate.Reset()
+	t.ColNullDate32.Reset()
+	t.ColNullDateTime64.Reset()
+	t.ColArrayNullInt64.Reset()
+	t.ColArrayNullString.Reset()
+	t.ColArray2Str.Reset()
+	t.ColArray2Int.Reset()
+	t.ColLCNullString.Reset()
+	t.ColMapNullVal.Reset()
 }
 
 // ColumnNames returns a comma-separated list of column names for use in SELECT queries.
 func (t *AllTypesColumns) ColumnNames() string {
-	return "col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256"
+	return "col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val"
 }
 
 // InsertQuery returns the INSERT INTO query for the given table.
 func (t *AllTypesColumns) InsertQuery(table string) string {
-	return "INSERT INTO " + table + " (col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256) VALUES"
+	return "INSERT INTO " + table + " (col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val) VALUES"
 }
 
 // Iter returns an iterator over AllTypes rows from a SelectStmt.

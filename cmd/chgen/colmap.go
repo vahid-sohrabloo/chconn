@@ -104,6 +104,37 @@ func colMapping(goType string, chType string) (colInfo, error) {
 		if err != nil {
 			return colInfo{}, err
 		}
+		// Array(Nullable(T)): inner is nullable → ArrayNullable
+		if inner.isNullable {
+			// innerGoType is *T, strip the * to get T
+			elemType := innerGoType[1:]
+			return colInfo{
+				fieldType:    fmt.Sprintf("*column.ArrayNullable[%s]", elemType),
+				constructor:  inner.constructor + ".Array()",
+				appendMethod: "AppendP",
+				rowMethod:    "RowP",
+			}, nil
+		}
+		// Array(Array(T)): inner is Array → Array2
+		if strings.HasPrefix(inner.fieldType, "*column.Array[") {
+			elemType := inner.fieldType[len("*column.Array[") : len(inner.fieldType)-1]
+			return colInfo{
+				fieldType:    fmt.Sprintf("*column.Array2[%s]", elemType),
+				constructor:  inner.constructor + ".Array()",
+				appendMethod: "Append",
+				rowMethod:    "Row",
+			}, nil
+		}
+		// Array(Array2(T)): inner is Array2 → Array3
+		if strings.HasPrefix(inner.fieldType, "*column.Array2[") {
+			elemType := inner.fieldType[len("*column.Array2[") : len(inner.fieldType)-1]
+			return colInfo{
+				fieldType:    fmt.Sprintf("*column.Array3[%s]", elemType),
+				constructor:  inner.constructor + ".Array()",
+				appendMethod: "Append",
+				rowMethod:    "Row",
+			}, nil
+		}
 		return colInfo{
 			fieldType:    fmt.Sprintf("*column.Array[%s]", innerGoType),
 			constructor:  inner.constructor + ".Array()",
@@ -139,6 +170,40 @@ func colMapping(goType string, chType string) (colInfo, error) {
 		}, nil
 	}
 
+	// Handle geo types: Point, Ring, Polygon, MultiPolygon.
+	if goType == "types.Point" && chType == "Point" {
+		return colInfo{
+			fieldType:    "*column.Tuple2[types.Point, float64, float64]",
+			constructor:  "column.NewPoint()",
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+	if goType == "[]types.Point" && chType == "Ring" {
+		return colInfo{
+			fieldType:    "*column.Array[types.Point]",
+			constructor:  "column.NewPoint().Array()",
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+	if goType == "[][]types.Point" && chType == "Polygon" {
+		return colInfo{
+			fieldType:    "*column.Array2[types.Point]",
+			constructor:  "column.NewPoint().Array().Array()",
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+	if goType == "[][][]types.Point" && chType == "MultiPolygon" {
+		return colInfo{
+			fieldType:    "*column.Array3[types.Point]",
+			constructor:  "column.NewPoint().Array().Array().Array()",
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+
 	// Handle Map wrapper: goType must be map[K]V.
 	if strings.HasPrefix(chType, "Map(") && strings.HasSuffix(chType, ")") {
 		if !strings.HasPrefix(goType, "map[") {
@@ -166,6 +231,17 @@ func colMapping(goType string, chType string) (colInfo, error) {
 		if err != nil {
 			return colInfo{}, fmt.Errorf("Map value: %w", err)
 		}
+		// Map(K, Nullable(V)): value is nullable → MapNullable
+		if valInfo.isNullable {
+			// valGoType is *V, strip the * to get V
+			innerValGoType := valGoType[1:]
+			return colInfo{
+				fieldType:    fmt.Sprintf("*column.MapNullable[%s, %s]", keyGoType, innerValGoType),
+				constructor:  fmt.Sprintf("column.NewMapNullable[%s, %s](%s, %s)", keyGoType, innerValGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)),
+				appendMethod: "AppendP",
+				rowMethod:    "RowP",
+			}, nil
+		}
 		return colInfo{
 			fieldType:    fmt.Sprintf("*column.Map[%s, %s]", keyGoType, valGoType),
 			constructor:  fmt.Sprintf("column.NewMap[%s, %s](%s, %s)", keyGoType, valGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)),
@@ -179,6 +255,26 @@ func colMapping(goType string, chType string) (colInfo, error) {
 	if strings.HasPrefix(chType, "LowCardinality(") && strings.HasSuffix(chType, ")") {
 		isLC = true
 		chType = chType[len("LowCardinality(") : len(chType)-1]
+	}
+
+	// LowCardinality(Nullable(T)): strip LC, detect Nullable, build LCNullable chain.
+	if isLC && strings.HasPrefix(chType, "Nullable(") && strings.HasSuffix(chType, ")") {
+		if !strings.HasPrefix(goType, "*") {
+			return colInfo{}, fmt.Errorf("incompatible: Go type %q is not a pointer for LowCardinality(Nullable(...)) chtype", goType)
+		}
+		innerGoType := goType[1:]
+		innerChType := chType[len("Nullable(") : len(chType)-1]
+		inner, err := baseColMapping(innerGoType, innerChType)
+		if err != nil {
+			return colInfo{}, err
+		}
+		return colInfo{
+			fieldType:    fmt.Sprintf("*column.LowCardinalityNullable[%s]", innerGoType),
+			constructor:  inner.constructor + ".LowCardinality().Nullable()",
+			isNullable:   true,
+			appendMethod: "AppendP",
+			rowMethod:    "RowP",
+		}, nil
 	}
 
 	// Now handle the base types.

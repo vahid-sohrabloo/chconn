@@ -54,4 +54,22 @@ type TestModel struct {
 
 	// UUID
 	UUID types.UUID `db:"uuid" chtype:"UUID"`
+
+	// Geo types
+	Location types.Point `db:"location" chtype:"Point"`
+
+	// Nullable DateTime
+	DeletedAt *time.Time `db:"deleted_at" chtype:"Nullable(DateTime)"`
+
+	// Array of Nullable
+	OptionalScores []*int64 `db:"optional_scores" chtype:"Array(Nullable(Int64))"`
+
+	// Nested Array
+	TagGroups [][]string `db:"tag_groups" chtype:"Array(Array(String))"`
+
+	// LowCardinality Nullable
+	NullCategory *string `db:"null_category" chtype:"LowCardinality(Nullable(String))"`
+
+	// Map with Nullable value
+	OptionalMeta map[string]*int64 `db:"optional_meta" chtype:"Map(String, Nullable(Int64))"`
 }

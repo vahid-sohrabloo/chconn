@@ -170,6 +170,19 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		return goTypeInfo{goType: "time.Time"}, nil
 	}
 
+	// --- Geo types ---
+
+	switch chType {
+	case "Point":
+		return goTypeInfo{goType: "types.Point"}, nil
+	case "Ring":
+		return goTypeInfo{goType: "[]types.Point"}, nil
+	case "Polygon":
+		return goTypeInfo{goType: "[][]types.Point"}, nil
+	case "MultiPolygon":
+		return goTypeInfo{goType: "[][][]types.Point"}, nil
+	}
+
 	// --- Primitives and plain date/time ---
 
 	switch chType {
