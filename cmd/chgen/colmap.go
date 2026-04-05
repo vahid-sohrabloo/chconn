@@ -544,6 +544,10 @@ func chTypeToGoScalar(chType string) (string, bool) {
 		return "types.Decimal128", true
 	case "Decimal256":
 		return "types.Decimal256", true
+	case "BFloat16":
+		return "types.BFloat16", true
+	case "Time":
+		return "types.ChTime", true
 	}
 	// Decimal with scale parameter
 	if strings.HasPrefix(chType, "Decimal32(") {

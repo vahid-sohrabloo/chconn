@@ -372,6 +372,43 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 		c := New[types.IPv6]().Elem(arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
+	case string(chType) == "BFloat16":
+		c := New[types.BFloat16]().Elem(arrayLevel, nullable, lc)
+		c.SetType(chType)
+		return c, nil
+	case string(chType) == "Time":
+		c := New[types.ChTime]().Elem(arrayLevel, nullable, lc)
+		c.SetType(chType)
+		return c, nil
+	case string(chType) == "Point":
+		var c ColumnCore = NewPoint()
+		if arrayLevel > 0 {
+			c = NewPoint().Array()
+		}
+		c.SetType(chType)
+		return c, nil
+	case string(chType) == "Ring":
+		c := NewPoint().Array()
+		if arrayLevel > 0 {
+			c2 := c.Array()
+			c2.SetType(chType)
+			return c2, nil
+		}
+		c.SetType(chType)
+		return c, nil
+	case string(chType) == "Polygon":
+		c := NewPoint().Array().Array()
+		if arrayLevel > 0 {
+			c2 := c.Array()
+			c2.SetType(chType)
+			return c2, nil
+		}
+		c.SetType(chType)
+		return c, nil
+	case string(chType) == "MultiPolygon":
+		c := NewPoint().Array().Array().Array()
+		c.SetType(chType)
+		return c, nil
 
 	case helper.IsNullable(chType):
 		c, err := ColumnByType(chType[helper.LenNullableStr:len(chType)-1], arrayLevel, true, lc, serverTimeZone)

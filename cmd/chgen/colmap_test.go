@@ -467,3 +467,19 @@ func TestColMapping_Tuple(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestColMapping_BFloat16 verifies that types.BFloat16/BFloat16 maps to Base[types.BFloat16].
+func TestColMapping_BFloat16(t *testing.T) {
+	result, err := colMapping("types.BFloat16", "BFloat16")
+	require.NoError(t, err)
+	assert.Equal(t, "*column.Base[types.BFloat16]", result.fieldType)
+	assert.Equal(t, "column.New[types.BFloat16]()", result.constructor)
+}
+
+// TestColMapping_ChTime verifies that types.ChTime/Time maps to Base[types.ChTime].
+func TestColMapping_ChTime(t *testing.T) {
+	result, err := colMapping("types.ChTime", "Time")
+	require.NoError(t, err)
+	assert.Equal(t, "*column.Base[types.ChTime]", result.fieldType)
+	assert.Equal(t, "column.New[types.ChTime]()", result.constructor)
+}

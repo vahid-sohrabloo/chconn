@@ -53,4 +53,5 @@ const (
 	BinaryTypeIndexNested                  BinaryTypeIndex = 0x2F
 	BinaryTypeIndexJSON                    BinaryTypeIndex = 0x30
 	BinaryTypeIndexBFloat16                BinaryTypeIndex = 0x31
+	BinaryTypeIndexTime                    BinaryTypeIndex = 0x32
 )

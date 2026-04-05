@@ -234,6 +234,10 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		return goTypeInfo{goType: "types.Decimal256"}, nil
 	case "JSON":
 		return goTypeInfo{goType: "json.RawMessage"}, nil
+	case "BFloat16":
+		return goTypeInfo{goType: "types.BFloat16"}, nil
+	case "Time":
+		return goTypeInfo{goType: "types.ChTime"}, nil
 	case "Date":
 		if timeAsUint {
 			return goTypeInfo{goType: "uint16"}, nil

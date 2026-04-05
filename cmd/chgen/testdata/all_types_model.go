@@ -93,6 +93,10 @@ type AllTypes struct {
 	// JSON
 	ColJSON json.RawMessage `db:"col_json" chtype:"JSON"`
 
+	// BFloat16 and Time
+	ColBFloat16 types.BFloat16 `db:"col_bfloat16" chtype:"BFloat16"`
+	ColTime     types.ChTime   `db:"col_time" chtype:"Time"`
+
 	// Big numbers
 	ColInt128  types.Int128  `db:"col_int128" chtype:"Int128"`
 	ColInt256  types.Int256  `db:"col_int256" chtype:"Int256"`

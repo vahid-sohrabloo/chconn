@@ -343,3 +343,17 @@ func TestChTypeToGo_Nested(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "any", result.goType)
 }
+
+// TestChTypeToGo_BFloat16 verifies that BFloat16 maps to types.BFloat16.
+func TestChTypeToGo_BFloat16(t *testing.T) {
+	result, err := chTypeToGo("BFloat16", false)
+	require.NoError(t, err)
+	assert.Equal(t, "types.BFloat16", result.goType)
+}
+
+// TestChTypeToGo_Time verifies that Time maps to types.ChTime.
+func TestChTypeToGo_Time(t *testing.T) {
+	result, err := chTypeToGo("Time", false)
+	require.NoError(t, err)
+	assert.Equal(t, "types.ChTime", result.goType)
+}
