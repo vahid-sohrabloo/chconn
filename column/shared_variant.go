@@ -137,6 +137,8 @@ func (c *SharedVariant) readValue(btype binaryBaseType, data []byte) (any, []byt
 		return math.Float32frombits(uint32(bits) << 16), data[2:]
 	case helper.BinaryTypeIndexTime:
 		return int32(binary.LittleEndian.Uint32(data)), data[4:]
+	case helper.BinaryTypeIndexTime64:
+		return int64(binary.LittleEndian.Uint64(data)), data[8:]
 	case helper.BinaryTypeIndexString:
 		return string(data), data[len(data):]
 	case helper.BinaryTypeIndexBool:
@@ -227,6 +229,8 @@ func (c *SharedVariant) valueToJSON(btype binaryBaseType, data []byte, ignoreDou
 		return strconv.AppendFloat(b, float64(f), 'f', -1, 32), data[2:]
 	case helper.BinaryTypeIndexTime:
 		return strconv.AppendInt(b, int64(int32(binary.LittleEndian.Uint32(data))), 10), data[4:]
+	case helper.BinaryTypeIndexTime64:
+		return strconv.AppendInt(b, int64(binary.LittleEndian.Uint64(data)), 10), data[8:]
 	case helper.BinaryTypeIndexString:
 		return helper.AppendJSONSting(b, ignoreDoubleQuotes, data), data[len(data):]
 	case helper.BinaryTypeIndexBool:

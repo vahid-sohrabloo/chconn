@@ -96,6 +96,7 @@ type AllTypes struct {
 	// BFloat16 and Time
 	ColBFloat16 types.BFloat16 `db:"col_bfloat16" chtype:"BFloat16"`
 	ColTime     types.ChTime   `db:"col_time" chtype:"Time"`
+	ColTime64   types.ChTime64 `db:"col_time64" chtype:"Time64(3)"`
 
 	// Big numbers
 	ColInt128  types.Int128  `db:"col_int128" chtype:"Int128"`

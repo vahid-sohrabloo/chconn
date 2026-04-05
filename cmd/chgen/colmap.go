@@ -562,6 +562,9 @@ func chTypeToGoScalar(chType string) (string, bool) {
 	if strings.HasPrefix(chType, "Decimal256(") {
 		return "types.Decimal256", true
 	}
+	if strings.HasPrefix(chType, "Time64(") {
+		return "types.ChTime64", true
+	}
 	return "", false
 }
 

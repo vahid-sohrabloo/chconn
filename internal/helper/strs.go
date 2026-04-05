@@ -57,6 +57,8 @@ const (
 	DateTimeStrLen        = len(DateTimeStr)
 	DateTime64Str         = "DateTime64("
 	DateTime64StrLen      = len(DateTime64Str)
+	Time64Str             = "Time64("
+	Time64StrLen          = len(Time64Str)
 	DecimalStr            = "Decimal("
 	DecimalStrLen         = len(DecimalStr)
 	FixedStringStr        = "FixedString("

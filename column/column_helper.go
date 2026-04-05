@@ -380,6 +380,10 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 		c := New[types.ChTime]().Elem(arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
+	case helper.IsTime64(chType):
+		c := New[types.ChTime64]().Elem(arrayLevel, nullable, lc)
+		c.SetType(chType)
+		return c, nil
 	case string(chType) == "Point":
 		var c ColumnCore = NewPoint()
 		if arrayLevel > 0 {

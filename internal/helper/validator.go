@@ -44,6 +44,10 @@ func IsDateTime64(chType []byte) bool {
 	return len(chType) > DateTime64StrLen && (string(chType[:DateTime64StrLen]) == DateTime64Str)
 }
 
+func IsTime64(chType []byte) bool {
+	return len(chType) > Time64StrLen && (string(chType[:Time64StrLen]) == Time64Str)
+}
+
 func IsFixedString(chType []byte) bool {
 	return len(chType) > FixedStringStrLen && (string(chType[:FixedStringStrLen]) == FixedStringStr)
 }

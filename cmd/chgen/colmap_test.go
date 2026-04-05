@@ -483,3 +483,10 @@ func TestColMapping_ChTime(t *testing.T) {
 	assert.Equal(t, "*column.Base[types.ChTime]", result.fieldType)
 	assert.Equal(t, "column.New[types.ChTime]()", result.constructor)
 }
+
+func TestColMapping_ChTime64(t *testing.T) {
+	result, err := colMapping("types.ChTime64", "Time64(3)")
+	require.NoError(t, err)
+	assert.Equal(t, "*column.Base[types.ChTime64]", result.fieldType)
+	assert.Equal(t, "column.New[types.ChTime64]()", result.constructor)
+}

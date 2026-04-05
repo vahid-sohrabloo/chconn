@@ -121,6 +121,12 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		return goTypeInfo{goType: "types.Decimal256"}, nil
 	}
 
+	// --- Time64(precision) ---
+
+	if strings.HasPrefix(chType, "Time64(") {
+		return goTypeInfo{goType: "types.ChTime64"}, nil
+	}
+
 	// --- Tuple(...) — map to any; requires manual struct definition ---
 
 	if strings.HasPrefix(chType, "Tuple(") {

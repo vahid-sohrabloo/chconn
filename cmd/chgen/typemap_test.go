@@ -357,3 +357,23 @@ func TestChTypeToGo_Time(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "types.ChTime", result.goType)
 }
+
+// TestChTypeToGo_Time64 verifies that Time64(N) maps to types.ChTime64.
+func TestChTypeToGo_Time64(t *testing.T) {
+	tests := []struct {
+		chType string
+		goType string
+	}{
+		{"Time64(0)", "types.ChTime64"},
+		{"Time64(3)", "types.ChTime64"},
+		{"Time64(6)", "types.ChTime64"},
+		{"Time64(9)", "types.ChTime64"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.chType, func(t *testing.T) {
+			result, err := chTypeToGo(tt.chType, false)
+			require.NoError(t, err)
+			assert.Equal(t, tt.goType, result.goType)
+		})
+	}
+}
