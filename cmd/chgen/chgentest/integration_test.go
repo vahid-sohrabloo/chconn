@@ -43,7 +43,13 @@ const createTableSQL = `CREATE TABLE IF NOT EXISTS test_chgen (
 	tags Array(String),
 	metadata Map(String, String),
 	status Enum8('active' = 1, 'inactive' = 2),
-	uuid UUID
+	uuid UUID,
+	location Point,
+	deleted_at Nullable(DateTime),
+	optional_scores Array(Nullable(Int64)),
+	tag_groups Array(Array(String)),
+	null_category LowCardinality(Nullable(String)),
+	optional_meta Map(String, Nullable(Int64))
 ) ENGINE = Memory`
 
 func TestIntegration_InsertAndSelect(t *testing.T) {
@@ -62,42 +68,55 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	testUUID := types.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
+	deletedAt := now.Add(-time.Hour)
 	inputFull := TestModel{
-		ID:          42,
-		Name:        "hello",
-		Score:       3.14,
-		Active:      true,
-		SmallNum:    -7,
-		Category:    "test",
-		NullScore:   ptr(int64(123)),
-		NullName:    ptr("world"),
-		CreatedAt:   now,
-		UpdatedAt:   uint32(now.Unix()),
-		CountryCode: [2]byte{'U', 'S'},
-		LangCode:    [2]byte{'e', 'n'},
-		Tags:        []string{"go", "clickhouse"},
-		Metadata:    map[string]string{"key": "value"},
-		Status:      TestModelStatusActive,
-		UUID:        testUUID,
+		ID:             42,
+		Name:           "hello",
+		Score:          3.14,
+		Active:         true,
+		SmallNum:       -7,
+		Category:       "test",
+		NullScore:      ptr(int64(123)),
+		NullName:       ptr("world"),
+		CreatedAt:      now,
+		UpdatedAt:      uint32(now.Unix()),
+		CountryCode:    [2]byte{'U', 'S'},
+		LangCode:       [2]byte{'e', 'n'},
+		Tags:           []string{"go", "clickhouse"},
+		Metadata:       map[string]string{"key": "value"},
+		Status:         TestModelStatusActive,
+		UUID:           testUUID,
+		Location:       types.Point{Col1: 1.5, Col2: 2.5},
+		DeletedAt:      &deletedAt,
+		OptionalScores: []*int64{ptr(int64(10)), nil, ptr(int64(30))},
+		TagGroups:      [][]string{{"a", "b"}, {"c"}},
+		NullCategory:   ptr("special"),
+		OptionalMeta:   map[string]*int64{"x": ptr(int64(1)), "y": nil},
 	}
 
 	inputNullNil := TestModel{
-		ID:          43,
-		Name:        "nil_test",
-		Score:       0,
-		Active:      false,
-		SmallNum:    0,
-		Category:    "",
-		NullScore:   nil,
-		NullName:    nil,
-		CreatedAt:   now,
-		UpdatedAt:   uint32(now.Unix()),
-		CountryCode: [2]byte{0, 0},
-		LangCode:    [2]byte{0, 0},
-		Tags:        nil,
-		Metadata:    nil,
-		Status:      TestModelStatusInactive,
-		UUID:        types.UUID{},
+		ID:             43,
+		Name:           "nil_test",
+		Score:          0,
+		Active:         false,
+		SmallNum:       0,
+		Category:       "",
+		NullScore:      nil,
+		NullName:       nil,
+		CreatedAt:      now,
+		UpdatedAt:      uint32(now.Unix()),
+		CountryCode:    [2]byte{0, 0},
+		LangCode:       [2]byte{0, 0},
+		Tags:           nil,
+		Metadata:       nil,
+		Status:         TestModelStatusInactive,
+		UUID:           types.UUID{},
+		Location:       types.Point{},
+		DeletedAt:      nil,
+		OptionalScores: nil,
+		TagGroups:      nil,
+		NullCategory:   nil,
+		OptionalMeta:   nil,
 	}
 
 	// INSERT
@@ -138,6 +157,12 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	assert.Equal(t, map[string]string{"key": "value"}, r.Metadata)
 	assert.Equal(t, TestModelStatusActive, r.Status)
 	assert.Equal(t, testUUID, r.UUID)
+	assert.Equal(t, types.Point{Col1: 1.5, Col2: 2.5}, r.Location)
+	assert.Equal(t, deletedAt.Unix(), r.DeletedAt.Unix())
+	assert.Equal(t, []*int64{ptr(int64(10)), nil, ptr(int64(30))}, r.OptionalScores)
+	assert.Equal(t, [][]string{{"a", "b"}, {"c"}}, r.TagGroups)
+	assert.Equal(t, ptr("special"), r.NullCategory)
+	assert.Equal(t, map[string]*int64{"x": ptr(int64(1)), "y": nil}, r.OptionalMeta)
 
 	// Verify second row (null values)
 	r2 := results[1]
@@ -146,9 +171,15 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	assert.Nil(t, r2.NullScore)
 	assert.Nil(t, r2.NullName)
 	assert.Equal(t, TestModelStatusInactive, r2.Status)
+	assert.Equal(t, types.Point{}, r2.Location)
+	assert.Nil(t, r2.DeletedAt)
+	assert.Nil(t, r2.NullCategory)
 	// Empty arrays/maps may come back as nil from ClickHouse
 	assert.True(t, len(r2.Tags) == 0, "expected empty or nil tags")
 	assert.True(t, len(r2.Metadata) == 0, "expected empty or nil metadata")
+	assert.True(t, len(r2.OptionalScores) == 0, "expected empty or nil optional_scores")
+	assert.True(t, len(r2.TagGroups) == 0, "expected empty or nil tag_groups")
+	assert.True(t, len(r2.OptionalMeta) == 0, "expected empty or nil optional_meta")
 }
 
 const createBlocksTableSQL = `CREATE TABLE IF NOT EXISTS test_chgen_blocks (
@@ -167,7 +198,13 @@ const createBlocksTableSQL = `CREATE TABLE IF NOT EXISTS test_chgen_blocks (
 	tags Array(String),
 	metadata Map(String, String),
 	status Enum8('active' = 1, 'inactive' = 2),
-	uuid UUID
+	uuid UUID,
+	location Point,
+	deleted_at Nullable(DateTime),
+	optional_scores Array(Nullable(Int64)),
+	tag_groups Array(Array(String)),
+	null_category LowCardinality(Nullable(String)),
+	optional_meta Map(String, Nullable(Int64))
 ) ENGINE = Memory`
 
 func TestIntegration_SelectMultipleBlocks(t *testing.T) {
@@ -190,23 +227,33 @@ func TestIntegration_SelectMultipleBlocks(t *testing.T) {
 	cols := NewTestModelColumns()
 	cols.SetWriteBufferSize(rowCount)
 	for i := range rowCount {
+		var nullCat *string
+		if i%3 == 0 {
+			nullCat = ptr("cat")
+		}
 		cols.Write(&TestModel{
-			ID:          uint64(i),
-			Name:        "row",
-			Score:       float64(i),
-			Active:      i%2 == 0,
-			SmallNum:    int8(i % 100),
-			Category:    "bulk",
-			NullScore:   ptr(int64(i)),
-			NullName:    nil,
-			CreatedAt:   now,
-			UpdatedAt:   uint32(now.Unix()),
-			CountryCode: [2]byte{'U', 'S'},
-			LangCode:    [2]byte{'e', 'n'},
-			Tags:        nil,
-			Metadata:    nil,
-			Status:      TestModelStatusActive,
-			UUID:        types.UUID{},
+			ID:             uint64(i),
+			Name:           "row",
+			Score:          float64(i),
+			Active:         i%2 == 0,
+			SmallNum:       int8(i % 100),
+			Category:       "bulk",
+			NullScore:      ptr(int64(i)),
+			NullName:       nil,
+			CreatedAt:      now,
+			UpdatedAt:      uint32(now.Unix()),
+			CountryCode:    [2]byte{'U', 'S'},
+			LangCode:       [2]byte{'e', 'n'},
+			Tags:           nil,
+			Metadata:       nil,
+			Status:         TestModelStatusActive,
+			UUID:           types.UUID{},
+			Location:       types.Point{},
+			DeletedAt:      nil,
+			OptionalScores: nil,
+			TagGroups:      nil,
+			NullCategory:   nullCat,
+			OptionalMeta:   nil,
 		})
 	}
 	err = conn.Insert(ctx, cols.InsertQuery("test_chgen_blocks"), cols.Columns()...)

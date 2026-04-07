@@ -191,6 +191,7 @@ func (c *LowCardinalityNullable[T]) AppendP(v *T) {
 	c.preHookAppend()
 	if v == nil {
 		c.keys = append(c.keys, 0)
+		c.numRow++
 		return
 	}
 	key, ok := c.dict[*v]
