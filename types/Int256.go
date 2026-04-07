@@ -28,6 +28,7 @@ type Int256 struct {
 	Hi Int128  // upper 128-bit half
 }
 
+// Int256From128 converts an [Int128] to an [Int256] with proper sign extension.
 func Int256From128(v Int128) Int256 {
 	var hi Int128
 	if v.Hi < 0 {

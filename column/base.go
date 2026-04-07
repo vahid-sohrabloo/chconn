@@ -14,6 +14,9 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
+// BaseType is a type constraint for all fixed-size ClickHouse column types.
+// It includes Go primitive types and chconn's large numeric types (Int128, Int256, etc.),
+// as well as fixed-size byte arrays up to [74]byte for FixedString columns.
 type BaseType interface {
 	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64 | ~bool |
 		types.Int128 | types.Int256 | types.Uint128 | types.Uint256 | types.Decimal128 | types.Decimal256 |
@@ -114,6 +117,8 @@ func (c *Base[T]) canAppend(value any) bool {
 	return reflect.ValueOf(value).Kind() == c.kind
 }
 
+// AppendAny appends a value of any type to the column, using reflection if needed.
+// Returns an error if the value cannot be converted to the column's type.
 func (c *Base[T]) AppendAny(value any) error {
 	if v, ok := value.(T); ok {
 		c.Append(v)
@@ -147,6 +152,7 @@ func (c *Base[T]) Remove(n int) {
 	c.numRow = len(c.values)
 }
 
+// Delete removes rows in the range [start, end) from the column.
 func (c *Base[T]) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
@@ -313,6 +319,7 @@ func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	return c
 }
 
+// FullType returns the full ClickHouse type string including the column name if set.
 func (c *Base[T]) FullType() string {
 	chType := string(c.columnHeader.ChType)
 	if chType == "" {
@@ -498,7 +505,7 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			return append(b, "null"...)
 		}
 		return strconv.AppendFloat(b, *(*float64)(unsafe.Pointer(&val)), 'f', -1, 64)
-		// todo more types
+		// TODO: support more types
 	default:
 		if val, ok := any(val).(appender); ok {
 			if !ignoreDoubleQuotes {
@@ -540,7 +547,7 @@ func (c *Base[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
 			return b
 		}
 
-		// todo
+		// TODO: support remaining types
 		panic("not support")
 	}
 }

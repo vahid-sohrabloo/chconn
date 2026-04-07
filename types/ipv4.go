@@ -11,6 +11,8 @@ func (ip IPv4) NetIP() netip.Addr {
 	return netip.AddrFrom4([4]byte{ip[3], ip[2], ip[1], ip[0]})
 }
 
+// IPv4FromAddr converts a [netip.Addr] to a ClickHouse [IPv4] value.
+// The byte order is reversed to match ClickHouse's little-endian storage.
 func IPv4FromAddr(ipAddr netip.Addr) IPv4 {
 	ip := ipAddr.As4()
 	return IPv4{ip[3], ip[2], ip[1], ip[0]}

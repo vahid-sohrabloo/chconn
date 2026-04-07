@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// ErrInvalidType is returned when the Go column type does not match the expected ClickHouse type.
 type ErrInvalidType struct {
 	chType     string
 	goToChType string
@@ -22,6 +23,7 @@ func isInvalidType(err error) bool {
 	return ok
 }
 
+// ErrScanType is returned when a column value cannot be scanned into the given destination type.
 type ErrScanType struct {
 	destType   string
 	columnType string

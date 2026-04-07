@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -193,7 +194,7 @@ func (c *Variant) Data() []any {
 
 // Read reads all the data in current block and append to the input.
 func (c *Variant) Read(value []any) []any {
-	// todo grow cap as needed
+	value = slices.Grow(value, c.NumRow())
 	for i := 0; i < c.NumRow(); i++ {
 		value = append(value, c.Row(i))
 	}
@@ -396,30 +397,120 @@ func (c *Variant) Remove(n int) {
 }
 
 func (c *Variant) Delete(start, end int) {
-	if start < 0 || end < 0 || start >= c.NumRow() || end >= c.NumRow() {
+	if c.NumRow() == 0 || start >= c.NumRow() {
 		return
 	}
-	if start > end {
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+	if start >= end {
 		return
 	}
 
-	// todo needs to be complete
+	c.deleteRows(func(row int) bool {
+		return row >= start && row < end
+	})
 }
 
 func (c *Variant) DeleteFunc(del func(row int) bool) {
-	// todo needs to be complete
+	if c.NumRow() == 0 {
+		return
+	}
+	c.deleteRows(del)
+}
+
+// deleteRows removes rows matching the del predicate from discriminators and sub-columns.
+func (c *Variant) deleteRows(del func(row int) bool) {
+	// Track which sub-column rows to delete
+	var subDeletes [256][]bool
+	for i := range c.columns {
+		subDeletes[i] = make([]bool, c.columns[i].NumRow())
+	}
+
+	keepIndex := 0
+	var subRowIndex [256]int
+	for row := 0; row < c.NumRow(); row++ {
+		disc := c.discriminators.values[row]
+		if del(row) {
+			if disc == 255 {
+				c.totalNils--
+			} else {
+				subDeletes[disc][subRowIndex[disc]] = true
+				subRowIndex[disc]++
+			}
+			continue
+		}
+		if disc != 255 {
+			subRowIndex[disc]++
+		}
+		c.discriminators.values[keepIndex] = disc
+		keepIndex++
+	}
+
+	// Trim discriminators
+	clear(c.discriminators.values[keepIndex:])
+	c.discriminators.values = c.discriminators.values[:keepIndex]
+	c.discriminators.numRow = keepIndex
+
+	// Delete rows from each sub-column
+	for i, col := range c.columns {
+		col.DeleteFunc(func(row int) bool {
+			return subDeletes[i][row]
+		})
+	}
+
+	// Rebuild discriminatorsIndexPos
+	if cap(c.discriminatorsIndexPos) < keepIndex {
+		c.discriminatorsIndexPos = make([]int, keepIndex)
+	} else {
+		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:keepIndex]
+	}
+	var subRowCount [256]int
+	for i := 0; i < keepIndex; i++ {
+		disc := c.discriminators.values[i]
+		if disc != 255 {
+			c.discriminatorsIndexPos[i] = subRowCount[disc]
+			subRowCount[disc]++
+		}
+	}
 }
 
 func (c *Variant) startBatchDelete() {
-	// TODO: needs to complete
+	c.discriminators.startBatchDelete()
+	for _, col := range c.columns {
+		col.startBatchDelete()
+	}
 }
 
 func (c *Variant) batchDeleteKeep(start, end int) {
-	// TODO: needs to complete
+	c.discriminators.batchDeleteKeep(start, end)
+	// Sub-column batch delete is handled in endBatchDelete since we need
+	// to map parent rows to sub-column rows.
 }
 
 func (c *Variant) endBatchDelete() {
-	// TODO: needs to complete
+	c.discriminators.endBatchDelete()
+
+	// After discriminators are compacted, rebuild sub-column data and index positions.
+	// Since the batch delete API only tracks which parent rows to keep,
+	// we need to rebuild using deleteRows pattern on the compacted discriminators.
+	var subRowCount [256]int
+	if cap(c.discriminatorsIndexPos) < c.discriminators.numRow {
+		c.discriminatorsIndexPos = make([]int, c.discriminators.numRow)
+	} else {
+		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:c.discriminators.numRow]
+	}
+	for i := 0; i < c.discriminators.numRow; i++ {
+		disc := c.discriminators.values[i]
+		if disc != 255 {
+			c.discriminatorsIndexPos[i] = subRowCount[disc]
+			subRowCount[disc]++
+		}
+	}
+
+	for _, col := range c.columns {
+		col.endBatchDelete()
+	}
 }
 
 func (c *Variant) FullType() string {

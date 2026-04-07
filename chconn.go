@@ -730,6 +730,8 @@ func (ch *conn) processTableColumns() {
 
 var emptyQueryOptions = &QueryOptions{}
 
+// QueryOptions configures per-query behavior including query ID, settings, parameters,
+// and callbacks for progress, profile, and profile event notifications.
 type QueryOptions struct {
 	QueryID        string
 	Settings       Settings
@@ -872,10 +874,12 @@ func (ch *conn) ServerInfo() *shared.ServerInfo {
 	return ch.serverInfo
 }
 
+// NewWriter creates a new Writer for encoding ClickHouse native protocol data.
 func NewWriter() *readerwriter.Writer {
 	return readerwriter.NewWriter()
 }
 
+// NewReader creates a new Reader for decoding ClickHouse native protocol data from r.
 func NewReader(r io.Reader) *readerwriter.Reader {
 	return readerwriter.NewReader(r)
 }

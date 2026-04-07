@@ -67,11 +67,14 @@ var byteChstructType = map[int]string{
 	32: "Int256|UInt256|Decimal256",
 }
 
+// SetStrict enables or disables strict type checking when setting the column header.
+// When strict, the Go type must exactly match the ClickHouse type; otherwise only the byte size must match.
 func (c *Base[T]) SetStrict(strict bool) *Base[T] {
 	c.strict = strict
 	return c
 }
 
+// SetColumnHeader sets the column metadata and validates that the ClickHouse type is compatible with the Go type.
 func (c *Base[T]) SetColumnHeader(ch ColumnHeader) error {
 	c.columnHeader = ch
 	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
@@ -123,6 +126,7 @@ func (c *Base[T]) SetColumnHeader(ch ColumnHeader) error {
 	}
 }
 
+// ValidateInsert validates the column data before inserting into ClickHouse.
 func (c *Base[T]) ValidateInsert() error {
 	return nil
 }
@@ -241,7 +245,7 @@ func (c *Base[T]) checkFixedString(chType []byte) (bool, error) {
 		if err != nil {
 			return true, fmt.Errorf("invalid size: %s", err)
 		}
-		// todo check strict mode
+		// TODO: check strict mode
 		if c.size != size {
 			return true, &ErrInvalidType{
 				chType:     string(c.columnHeader.ChType),
@@ -255,7 +259,7 @@ func (c *Base[T]) checkFixedString(chType []byte) (bool, error) {
 }
 
 func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
-	// todo handle strict mode
+	// TODO: handle strict mode
 	if helper.IsDecimal(chType) {
 		parts := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
 		if len(parts) != 2 {

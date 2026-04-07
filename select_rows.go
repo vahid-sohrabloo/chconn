@@ -146,6 +146,7 @@ func (r *baseRows) Next() bool {
 	return true
 }
 
+// ScanArgError is returned when a column value cannot be scanned into the destination argument.
 type ScanArgError struct {
 	ColumnIndex int
 	Err         error

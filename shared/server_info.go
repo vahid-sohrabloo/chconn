@@ -16,6 +16,7 @@ type ServerInfo struct {
 	Timezone           string
 	PasswordPatterns   []ServerInfoPasswordRules
 }
+// ServerInfoPasswordRules contains a regex pattern and message for server-side password validation.
 type ServerInfoPasswordRules struct {
 	Pattern string
 	Message string
@@ -33,6 +34,7 @@ func (srv *ServerInfo) String() string {
 	)
 }
 
+// EmptyServerInfo returns a [ServerInfo] with zero values and the local timezone.
 func EmptyServerInfo() *ServerInfo {
 	return &ServerInfo{
 		Name:               "",

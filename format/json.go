@@ -5,6 +5,8 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
+// JSON exports ClickHouse query results as JSON.
+// It processes column data row by row and calls onData with the serialized JSON bytes.
 type JSON struct {
 	out        []byte
 	FlushEvery int
@@ -22,6 +24,7 @@ func NewJSON(flushEvery int, onData func([]byte, []column.ColumnCore)) *JSON {
 	}
 }
 
+// Read reads all rows from the select statement and serializes them as a JSON object array.
 func (j *JSON) Read(stmt chconn.SelectStmt) error {
 	var addCommaColumn bool
 	var addCommaRows bool
@@ -67,6 +70,7 @@ func (j *JSON) Read(stmt chconn.SelectStmt) error {
 	return nil
 }
 
+// ReadCompact reads all rows and serializes them as compact JSON arrays (no column names).
 func (j *JSON) ReadCompact(stmt chconn.SelectStmt) error {
 	var addCommaColumn bool
 	var addCommaRows bool
@@ -109,6 +113,7 @@ func (j *JSON) ReadCompact(stmt chconn.SelectStmt) error {
 	return nil
 }
 
+// ReadEachRow reads all rows and calls onData for each individual row as a JSON object.
 func (j *JSON) ReadEachRow(stmt chconn.SelectStmt) error {
 	var addCommaColumn bool
 	j.out = j.out[:0]

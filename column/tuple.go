@@ -12,6 +12,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
+// TupleStruct is the interface for typed tuple columns that map to a Go struct.
 type TupleStruct[T any] interface {
 	Column[T]
 	Array() *Array[T]

@@ -14,6 +14,9 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
+// ColumnCore is the base interface that all column types implement.
+// It provides low-level operations for reading, writing, and manipulating column data
+// used by the ClickHouse native protocol.
 type ColumnCore interface {
 	ReadRaw(num int) error
 	ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error
@@ -48,6 +51,8 @@ type ColumnCore interface {
 	writeBinaryDataTo(w *readerwriter.Writer)
 }
 
+// Column is a generic interface for typed ClickHouse columns.
+// It extends [ColumnCore] with type-safe data access methods for reading and appending values.
 type Column[T any] interface {
 	ColumnCore
 	Data() []T
@@ -57,6 +62,8 @@ type Column[T any] interface {
 	AppendMulti(...T)
 }
 
+// NullableColumn extends [Column] with nullable value support.
+// It wraps values as pointers where nil represents a ClickHouse NULL.
 type NullableColumn[T any] interface {
 	Column[T]
 	DataP() []*T
@@ -78,6 +85,7 @@ type column struct {
 	sparseIndexes    []uint64
 }
 
+// ColumnHeader holds the metadata for a column as received from the ClickHouse server.
 type ColumnHeader struct {
 	ChType   []byte
 	Name     []byte
@@ -128,7 +136,7 @@ func (c *column) preHookAppend() {
 	}
 }
 
-// todo find a more efficient way
+// TODO: find a more efficient way
 func (c *column) preHookAppendMulti(n int) {
 	if c.hasVariantParent {
 		for range n {
@@ -196,14 +204,15 @@ func type2Column(rtype reflect.Type, arrayLevel int, nullable bool) (ColumnCore,
 		return type2Column(rtype.Elem(), arrayLevel+1, false)
 	case reflect.Ptr:
 		return type2Column(rtype.Elem(), arrayLevel, true)
-	// todo for other types like map struct ....
+	// TODO: support map and struct types
 	default:
-		// todo return error
 		return nil, fmt.Errorf("unsupported type: %s", rtype.Kind())
 	}
 }
 
 //nolint:funlen,gocyclo
+// ColumnByType creates a [ColumnCore] from a ClickHouse type string.
+// It handles all built-in types including Array, Nullable, LowCardinality, Map, Tuple, and Variant.
 func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZone string) (ColumnCore, error) {
 	switch {
 	case string(chType) == "Bool":

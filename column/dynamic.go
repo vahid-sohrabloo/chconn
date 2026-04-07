@@ -12,7 +12,7 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
-// Variant is a column of Variant(T1,T2,.....,Tn) ClickHouse data type
+// Dynamic represents a ClickHouse Dynamic column type that can hold values of different types at runtime.
 type Dynamic struct {
 	column
 	variant              *Variant
@@ -24,10 +24,21 @@ type Dynamic struct {
 	sharedVariant *SharedVariant
 }
 
-// NewVariant create a new Variant of Variant(T1,T2,.....,Tn) ClickHouse data type
+// NewDynamic creates a new Dynamic column that can hold values of different types at runtime.
 func NewDynamic(columns ...ColumnCore) *Dynamic {
 	if len(columns) > 0 {
-		// TODO: check duplicate columns. its not allowed to have duplicate columns types
+		// Check for duplicate column types
+		seen := make(map[string]struct{}, len(columns))
+		for _, col := range columns {
+			if _, ok := col.(*SharedVariant); ok {
+				continue
+			}
+			ft := col.FullType()
+			if _, exists := seen[ft]; exists {
+				panic("Dynamic column has duplicate column type: " + ft)
+			}
+			seen[ft] = struct{}{}
+		}
 
 		sharedIndex := slices.IndexFunc(columns, func(c ColumnCore) bool {
 			_, ok := c.(*SharedVariant)
@@ -329,9 +340,18 @@ func (c *Dynamic) HeaderWriter(w *readerwriter.Writer) {
 //
 // its equal to data = data[:n]
 func (c *Dynamic) Remove(n int) {
-	if !c.withDynamicColumn {
-		// TODO: needs to remove from columns
+	if c.withDynamicColumn {
+		// Count how many rows to keep per sub-column (entries before index n)
+		keepCount := make(map[ColumnCore]int, len(c.columnsAppend))
+		for _, d := range c.discriminatorsAppend[:n] {
+			if d != nil {
+				keepCount[d]++
+			}
+		}
 		c.discriminatorsAppend = c.discriminatorsAppend[:n]
+		for _, col := range c.columnsAppend {
+			col.Remove(keepCount[col])
+		}
 		return
 	}
 	c.variant.Remove(n)
@@ -341,27 +361,88 @@ func (c *Dynamic) Delete(start, end int) {
 	if c.NumRow() == 0 || c.NumRow() <= start {
 		return
 	}
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
+	if start >= end {
+		return
+	}
 
-	_ = end // TODO: needs to complete
+	if c.withDynamicColumn {
+		c.dynamicDeleteRows(func(row int) bool {
+			return row >= start && row < end
+		})
+		return
+	}
+	c.variant.Delete(start, end)
 }
 
 func (c *Dynamic) DeleteFunc(del func(row int) bool) {
 	if c.NumRow() == 0 {
 		return
 	}
-	// TODO: needs to complete
+	if c.withDynamicColumn {
+		c.dynamicDeleteRows(del)
+		return
+	}
+	c.variant.DeleteFunc(del)
+}
+
+// dynamicDeleteRows removes rows matching del from the dynamic column path (withDynamicColumn=true).
+func (c *Dynamic) dynamicDeleteRows(del func(row int) bool) {
+	// Track which sub-column rows to delete
+	subDeletes := make(map[ColumnCore][]bool, len(c.columnsAppend))
+	for _, col := range c.columnsAppend {
+		subDeletes[col] = make([]bool, col.NumRow())
+	}
+
+	keepIndex := 0
+	subRowIndex := make(map[ColumnCore]int, len(c.columnsAppend))
+	for row := 0; row < len(c.discriminatorsAppend); row++ {
+		col := c.discriminatorsAppend[row]
+		if del(row) {
+			if col != nil {
+				subDeletes[col][subRowIndex[col]] = true
+				subRowIndex[col]++
+			}
+			continue
+		}
+		if col != nil {
+			subRowIndex[col]++
+		}
+		c.discriminatorsAppend[keepIndex] = col
+		keepIndex++
+	}
+
+	c.discriminatorsAppend = c.discriminatorsAppend[:keepIndex]
+
+	// Delete rows from each sub-column
+	for col, dels := range subDeletes {
+		col.DeleteFunc(func(row int) bool {
+			return dels[row]
+		})
+	}
 }
 
 func (c *Dynamic) startBatchDelete() {
-	// TODO: needs to complete
+	if c.withDynamicColumn {
+		return
+	}
+	c.variant.startBatchDelete()
 }
 
 func (c *Dynamic) batchDeleteKeep(start, end int) {
-	// TODO: needs to complete
+	if c.withDynamicColumn {
+		return
+	}
+	c.variant.batchDeleteKeep(start, end)
 }
 
 func (c *Dynamic) endBatchDelete() {
-	// TODO: needs to complete
+	if c.withDynamicColumn {
+		return
+	}
+	c.variant.endBatchDelete()
 }
 
 func (c *Dynamic) FullType() string {

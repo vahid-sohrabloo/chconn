@@ -55,8 +55,10 @@ type Parameters struct {
 	params []Setting
 }
 
+// Parameter is a function that returns a [Setting] for use in parameterized queries.
 type Parameter func() Setting
 
+// NewParameters creates a new [Parameters] from the given parameter functions.
 func NewParameters(input ...Parameter) *Parameters {
 	params := make([]Setting, len(input))
 	for i, p := range input {
@@ -261,6 +263,7 @@ func skipSettings(r *readerwriter.Reader) error {
 	}
 }
 
+// Params returns the underlying list of settings for the parameters.
 func (p *Parameters) Params() []Setting {
 	return p.params
 }

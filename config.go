@@ -33,8 +33,14 @@ const (
 	CompressZSTD     CompressMethod = 0x90
 )
 
+// AfterConnectFunc is called after a new connection is established. It can be used
+// to run setup queries or validate the connection before it is used.
 type AfterConnectFunc func(ctx context.Context, chConn Conn) error
+
+// ValidateConnectFunc is called to validate a connection before it is returned from the pool.
 type ValidateConnectFunc func(ctx context.Context, chConn Conn) error
+
+// GetSSLPasswordFunc is called to obtain the password for an encrypted SSL client certificate.
 type GetSSLPasswordFunc func(ctx context.Context) string
 
 // OnErrorFunc is called when a server error is received. It can be used to control whether the connection

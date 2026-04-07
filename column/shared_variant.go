@@ -19,6 +19,7 @@ type SharedVariant struct {
 	StringBase[string]
 }
 
+// NewSharedVariant creates a new [SharedVariant] column for use inside [Dynamic] columns.
 func NewSharedVariant() *SharedVariant {
 	return &SharedVariant{}
 }

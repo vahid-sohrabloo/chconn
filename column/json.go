@@ -28,6 +28,9 @@ const (
 	jsonUnsetSerializationVersion     = ^uint64(0)
 )
 
+// JSON represents a ClickHouse JSON column type.
+// It supports multiple serialization formats (object, string, flattened)
+// with typed paths, dynamic paths, and shared data.
 type JSON struct {
 	column
 
@@ -48,6 +51,7 @@ type JSON struct {
 	rows                 int
 }
 
+// NewJSON creates a new JSON column.
 func NewJSON() *JSON {
 	return &JSON{
 		typedPathIndex:       make(map[string]int),

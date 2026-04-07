@@ -1,5 +1,7 @@
 package chconn
 
+// ChErrorType represents a ClickHouse server error code.
+// See the ClickHouse source code for the full list of error codes.
 type ChErrorType int32
 
 const (

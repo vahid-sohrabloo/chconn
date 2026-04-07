@@ -7,7 +7,8 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
-// two bytes as the number of days since 1970-01-01 (unsigned).
+// Date represents a ClickHouse Date value as the number of days since 1970-01-01 (unsigned).
+// It is stored as two bytes (uint16).
 type Date uint16
 
 func (d Date) GetCHType() string {
@@ -20,6 +21,8 @@ func (d Date) WriteBinaryDataTo(w *readerwriter.Writer) {
 
 const minDate32 = int32(-25567) // 1900-01-01 00:00:00 +0000 UTC
 
+// Date32 represents a ClickHouse Date32 value as the number of days since 1970-01-01 (signed).
+// It supports a wider range than [Date], from 1900-01-01 to 2299-12-31.
 type Date32 int32
 
 func (d Date32) GetCHType() string {
@@ -30,6 +33,7 @@ func (d Date32) WriteBinaryDataTo(w *readerwriter.Writer) {
 	w.Uint8(uint8(helper.BinaryTypeIndexDate32))
 }
 
+// DateTime represents a ClickHouse DateTime value as Unix epoch seconds (uint32).
 type DateTime uint32
 
 func (d DateTime) GetCHType() string {
@@ -37,12 +41,14 @@ func (d DateTime) GetCHType() string {
 }
 
 func (d DateTime) WriteBinaryDataTo(w *readerwriter.Writer) {
-	// todo need precision
+	// TODO: need precision
 	w.Uint8(uint8(helper.BinaryTypeIndexDateTimeUTC))
 }
 
 const minDateTime64 = int64(-2208988800) // 1900-01-01 00:00:00 +0000 UTC
 
+// DateTime64 represents a ClickHouse DateTime64 value with sub-second precision.
+// The value is stored as int64 ticks, where the tick resolution depends on precision (0–9).
 type DateTime64 int64
 
 func (d DateTime64) GetCHType() string {
@@ -50,12 +56,14 @@ func (d DateTime64) GetCHType() string {
 }
 
 func (d DateTime64) WriteBinaryDataTo(w *readerwriter.Writer) {
-	// todo need precision
+	// TODO: need precision
 	w.Uint8(uint8(helper.BinaryTypeIndexDateTime64UTC))
 }
 
 const daySeconds = 24 * 60 * 60
 
+// TimeToDate converts a [time.Time] to a ClickHouse [Date] value.
+// Returns 0 for times before the Unix epoch.
 func TimeToDate(t time.Time) Date {
 	if t.Unix() <= 0 {
 		return 0
@@ -130,6 +138,8 @@ func (d Date32) Append(b []byte, loc *time.Location, precision int) []byte {
 	return b
 }
 
+// TimeToDate32 converts a [time.Time] to a ClickHouse [Date32] value.
+// Values before 1900-01-01 are clamped to the minimum Date32.
 func TimeToDate32(t time.Time) Date32 {
 	_, offset := t.Zone()
 	d := int32((t.Unix() + int64(offset)) / daySeconds)
@@ -140,6 +150,8 @@ func TimeToDate32(t time.Time) Date32 {
 	return Date32(d)
 }
 
+// TimeToDateTime converts a [time.Time] to a ClickHouse [DateTime] value.
+// Returns 0 for times before the Unix epoch.
 func TimeToDateTime(t time.Time) DateTime {
 	if t.Unix() <= 0 {
 		return 0
@@ -156,7 +168,7 @@ func (d DateTime) ToTime(loc *time.Location, precision int) time.Time {
 }
 
 func (d DateTime) Append(b []byte, loc *time.Location, precision int) []byte {
-	// todo find optimized way like golang RFC3339
+	// TODO: find optimized way like golang RFC3339
 	return d.ToTime(loc, precision).AppendFormat(b, "2006-01-02 15:04:05")
 }
 
@@ -173,6 +185,8 @@ var precisionFactor = [...]int64{
 	1,
 }
 
+// TimeToDateTime64 converts a [time.Time] to a ClickHouse [DateTime64] value with the given precision.
+// Values before 1900-01-01 are clamped to the minimum DateTime64.
 func TimeToDateTime64(t time.Time, precision int) DateTime64 {
 	if t.Unix() <= minDateTime64 {
 		return DateTime64(minDateTime64)
@@ -193,6 +207,6 @@ func (d DateTime64) ToTime(loc *time.Location, precision int) time.Time {
 }
 
 func (d DateTime64) Append(b []byte, loc *time.Location, precision int) []byte {
-	// todo find optimized way like golang RFC3339
+	// TODO: find optimized way like golang RFC3339
 	return d.ToTime(loc, precision).AppendFormat(b, "2006-01-02 15:04:05.000000000")
 }
