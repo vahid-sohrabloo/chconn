@@ -11,7 +11,8 @@ import (
 //
 // NOTE: only use for select query
 //
-// it can return nil for query that doesn't return block.
+// For queries that return no block (e.g. SYSTEM commands, DDL), the returned
+// SelectStmt is already closed and Next() will return false immediately.
 func (ch *conn) Select(ctx context.Context, query string, columns ...column.ColumnCore) (SelectStmt, error) {
 	return ch.SelectWithOption(ctx, query, nil, columns...)
 }
@@ -20,7 +21,8 @@ func (ch *conn) Select(ctx context.Context, query string, columns ...column.Colu
 //
 // NOTE: only use for select query
 //
-// it can return nil for query that doesn't return block.
+// For queries that return no block (e.g. SYSTEM commands, DDL), the returned
+// SelectStmt is already closed and Next() will return false immediately.
 func (ch *conn) SelectWithOption(
 	ctx context.Context,
 	query string,
@@ -78,7 +80,7 @@ func (ch *conn) SelectWithOption(
 		s.finishSelect = true
 		s.columnsForRead = nil
 		s.Close()
-		return nil, nil
+		return s, nil
 	}
 	if block, ok := res.(*block); ok {
 		if block.NumRows == 0 {

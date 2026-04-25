@@ -37,7 +37,11 @@ func (ch *conn) QueryWithOption(ctx context.Context, sql string, queryOption *Qu
 	}
 	queryOption.Parameters = NewParameters(args...)
 	stmt, err := ch.SelectWithOption(ctx, sql, queryOption)
-	rows.selectStmt = stmt.(*selectStmt)
+	if s, ok := stmt.(*selectStmt); ok {
+		rows.selectStmt = s
+	} else {
+		rows.selectStmt = &selectStmt{conn: ch, ctx: ctx, queryOptions: queryOption, closed: true, finishSelect: true}
+	}
 
 	return rows, err
 }
