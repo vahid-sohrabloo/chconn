@@ -10,6 +10,8 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
+const maxColumns = 1 << 20
+
 // NativeWriter writes columns in ClickHouse Native binary format to an io.Writer.
 type NativeWriter struct {
 	w            io.Writer
@@ -145,6 +147,10 @@ func (n *NativeReader) ReadBlock(r io.Reader, serverInfo *shared.ServerInfo) ([]
 		return nil, fmt.Errorf("native: read num columns: %w", err)
 	}
 
+	if numColumns > maxColumns {
+		return nil, fmt.Errorf("native: implausible column count %d", numColumns)
+	}
+
 	numRows, err := reader.Uvarint()
 	if err != nil {
 		return nil, fmt.Errorf("native: read num rows: %w", err)
@@ -202,6 +208,10 @@ func (n *NativeReader) ReadBlockInto(r io.Reader, serverInfo *shared.ServerInfo,
 	numColumns, err := reader.Uvarint()
 	if err != nil {
 		return fmt.Errorf("native: read num columns: %w", err)
+	}
+
+	if numColumns > maxColumns {
+		return fmt.Errorf("native: implausible column count %d", numColumns)
 	}
 
 	if int(numColumns) != len(columns) {
