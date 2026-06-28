@@ -589,7 +589,7 @@ func (c *StringBase[T]) writeBinaryDataTo(w *readerwriter.Writer) {
 func (c *StringBase[T]) ReadFromBytes(num int, data []byte) (int, error) {
 	c.Reset()
 	off := 0
-	for i := 0; i < num; i++ {
+	for i := range num {
 		l, n := binary.Uvarint(data[off:])
 		if n <= 0 {
 			return 0, fmt.Errorf("string column %q: bad length varint at row %d", c.columnHeader.Name, i)

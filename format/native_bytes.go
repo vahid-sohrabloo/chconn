@@ -42,7 +42,7 @@ func (br *BytesReader) ReadBlock() (int, []column.ColumnCore, error) {
 	}
 
 	cols := make([]column.ColumnCore, 0, numCols)
-	for i := uint64(0); i < numCols; i++ {
+	for range numCols {
 		name, err := br.bstring()
 		if err != nil {
 			return 0, nil, err
