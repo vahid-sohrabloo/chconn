@@ -197,7 +197,7 @@ func (c *SharedVariant) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byt
 	return b
 }
 
-//nolint:gocyclo,gocritic
+//nolint:gocyclo,gocritic,funlen
 func (c *SharedVariant) valueToJSON(btype binaryBaseType, data []byte, ignoreDoubleQuotes bool, b []byte) ([]byte, []byte) {
 	switch btype.bType {
 	case helper.BinaryTypeIndexNothing:

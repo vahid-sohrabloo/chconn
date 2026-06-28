@@ -415,7 +415,7 @@ func (c *MapBase) SetColumnHeader(ch ColumnHeader) error {
 	}
 
 	if len(columnsMap) != 2 {
-		//nolint:goerr113
+		//nolint:err113
 		return fmt.Errorf("columns number is not equal to map columns number: %d != %d", len(columnsMap), 2)
 	}
 

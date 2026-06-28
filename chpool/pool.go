@@ -428,7 +428,7 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, fmt.Errorf("cannot parse pool_max_conns: %w", err)
 		}
 		if n < 1 {
-			//nolint:goerr113
+			//nolint:err113
 			return nil, fmt.Errorf("pool_max_conns too small: %d", n)
 		}
 		config.MaxConns = int32(n)

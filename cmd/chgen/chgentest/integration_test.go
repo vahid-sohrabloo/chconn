@@ -62,7 +62,7 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	err = conn.Exec(ctx, createTableSQL)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		conn.Exec(ctx, "DROP TABLE IF EXISTS test_chgen") //nolint:errcheck
+		conn.Exec(ctx, "DROP TABLE IF EXISTS test_chgen")
 	})
 
 	now := time.Now().UTC().Truncate(time.Second)
@@ -217,7 +217,7 @@ func TestIntegration_SelectMultipleBlocks(t *testing.T) {
 	err = conn.Exec(ctx, createBlocksTableSQL)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		conn.Exec(ctx, "DROP TABLE IF EXISTS test_chgen_blocks") //nolint:errcheck
+		conn.Exec(ctx, "DROP TABLE IF EXISTS test_chgen_blocks")
 	})
 
 	const rowCount = 1000

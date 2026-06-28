@@ -16,6 +16,7 @@ type ServerInfo struct {
 	Timezone           string
 	PasswordPatterns   []ServerInfoPasswordRules
 }
+
 // ServerInfoPasswordRules contains a regex pattern and message for server-side password validation.
 type ServerInfoPasswordRules struct {
 	Pattern string
