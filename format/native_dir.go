@@ -113,6 +113,9 @@ func readDirMeta(dir string) (rowCount int, metas []ColumnMeta, err error) {
 		if err != nil {
 			return 0, nil, fmt.Errorf("native: column[%d] file: %w", i, err)
 		}
+		if !validDirColumnFile(fileName) {
+			return 0, nil, fmt.Errorf("native: column[%d] invalid file name %q", i, fileName)
+		}
 		metas[i] = ColumnMeta{Index: i, Name: name, Type: chType, file: fileName}
 	}
 	return int(rc), metas, nil
@@ -138,6 +141,17 @@ func readBoundedString(r io.Reader, maxLen int) (string, error) {
 	return string(buf), nil
 }
 
+// validDirColumnFile reports whether name is a safe, plain column file name
+// confined to the dataset directory (no path separators, no traversal, correct
+// suffix). It guards against crafted metadata pointing OpenColumn outside dir.
+func validDirColumnFile(name string) bool {
+	if name == "" || filepath.IsAbs(name) || filepath.Base(name) != name ||
+		strings.ContainsAny(name, `/\`+"\x00") || !strings.HasSuffix(name, dirFileSuffix) {
+		return false
+	}
+	return true
+}
+
 // WriteDir writes each column to its own single-column Native file:
 // col_<NNNNNN>__<name>.native. Files are self-describing and individually readable.
 // A metadata sidecar (metadata.bin) is written after all column files succeed,
@@ -148,10 +162,17 @@ func readBoundedString(r io.Reader, maxLen int) (string, error) {
 // On any error, already-written files are removed (best-effort) before
 // returning, so a failed WriteDir does not leave a half-populated directory.
 func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
+	rowCount := 0
+	if len(cols) > 0 {
+		rowCount = cols[0].NumRow()
+	}
 	seen := make(map[string]struct{}, len(cols))
 	for _, col := range cols {
 		if len(col.Type()) == 0 {
 			return fmt.Errorf("native: column %q has no type; call SetType before writing", col.Name())
+		}
+		if col.NumRow() != rowCount {
+			return fmt.Errorf("native: column %q has %d rows, want %d", col.Name(), col.NumRow(), rowCount)
 		}
 		name := string(col.Name())
 		if _, dup := seen[name]; dup {
@@ -160,6 +181,14 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 		seen[name] = struct{}{}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	// Refuse to overwrite an existing dataset in place: a mid-write failure could
+	// leave stale metadata pointing at replaced/removed column files. Callers that
+	// want to regenerate should write to a fresh directory.
+	if _, err := os.Stat(filepath.Join(dir, dirMetaFile)); err == nil {
+		return fmt.Errorf("native: %s already contains a dataset (%s); write to a fresh directory", dir, dirMetaFile)
+	} else if !os.IsNotExist(err) {
 		return err
 	}
 
@@ -214,10 +243,6 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 		return firstErr
 	}
 
-	rowCount := 0
-	if len(cols) > 0 {
-		rowCount = cols[0].NumRow()
-	}
 	if err := writeDirMeta(dir, metas, rowCount); err != nil {
 		for _, p := range written {
 			os.Remove(p)

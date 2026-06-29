@@ -1,6 +1,7 @@
 package format
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,5 +62,41 @@ func TestOpenDirCorruptMetadata(t *testing.T) {
 	}
 	if _, err := OpenDir(dir); err == nil {
 		t.Fatal("expected error opening dir with truncated metadata")
+	}
+}
+
+func TestOpenDirRejectsUnsafeFileName(t *testing.T) {
+	dir := t.TempDir()
+	var buf []byte
+	buf = append(buf, "CNDM1"...)
+	buf = binary.AppendUvarint(buf, 1) // rowCount
+	buf = binary.AppendUvarint(buf, 1) // numColumns
+	put := func(s string) { buf = binary.AppendUvarint(buf, uint64(len(s))); buf = append(buf, s...) }
+	put("v")                       // name
+	put("Float64")                 // type
+	put("../../etc/passwd.native") // malicious file mapping
+	if err := os.WriteFile(filepath.Join(dir, "metadata.bin"), buf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := OpenDir(dir); err == nil {
+		t.Fatal("expected OpenDir to reject unsafe column file name")
+	}
+}
+
+func TestWriteDirRowCountMismatch(t *testing.T) {
+	a := floatCol("a", 1, 2, 3)
+	b := floatCol("b", 1, 2) // fewer rows
+	if err := WriteDir(t.TempDir(), []column.ColumnCore{a, b}); err == nil {
+		t.Fatal("expected row-count mismatch error from WriteDir")
+	}
+}
+
+func TestWriteDirRefusesOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteDir(dir, []column.ColumnCore{floatCol("v", 1, 2)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteDir(dir, []column.ColumnCore{floatCol("v", 3, 4)}); err == nil {
+		t.Fatal("expected WriteDir to refuse overwriting an existing dataset")
 	}
 }
