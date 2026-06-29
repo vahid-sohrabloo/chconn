@@ -155,10 +155,12 @@ func (fr *FileReader) ReadBlock() (int, []column.ColumnCore, error) {
 		if err != nil {
 			return 0, nil, err
 		}
-		cols, err = fr.nr.ReadBlock(bytes.NewReader(plain), nil)
+		var nRows int
+		nRows, cols, _, err = readBlockFromBytes(plain, nil)
 		if err != nil {
 			return 0, nil, err
 		}
+		return nRows, cols, nil
 	}
 	numRows := 0
 	if len(cols) > 0 {
@@ -186,7 +188,7 @@ func (fr *FileReader) ReadBlockInto(cols ...column.ColumnCore) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if err := fr.nr.ReadBlockInto(bytes.NewReader(plain), nil, cols...); err != nil {
+		if _, _, _, err := readBlockFromBytes(plain, cols); err != nil {
 			return 0, err
 		}
 	}

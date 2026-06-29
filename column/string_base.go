@@ -591,6 +591,9 @@ func (c *StringBase[T]) ReadFromBytes(num int, data []byte) (int, error) {
 		return 0, fmt.Errorf("string column %q: ReadFromBytes: num must be >= 0, got %d", c.columnHeader.Name, num)
 	}
 	c.Reset()
+	// Preallocate pos to num: avoids the log2(n) append growth + memmove on a
+	// fresh column, and reuses existing capacity when the column is reused.
+	c.pos = helper.ResetSlice(c.pos, num, false)
 	off := 0
 	for i := range num {
 		l, n := binary.Uvarint(data[off:])
@@ -602,7 +605,7 @@ func (c *StringBase[T]) ReadFromBytes(num int, data []byte) (int, error) {
 			return 0, fmt.Errorf("string column %q: value length %d overflows buffer at row %d", c.columnHeader.Name, l, i)
 		}
 		end := off + int(l)
-		c.pos = append(c.pos, stringPos{start: off, end: end})
+		c.pos[i] = stringPos{start: off, end: end}
 		off = end
 	}
 	c.vals = data[:off:off] // cap==len so any later append reallocates (never writes into the alias)
