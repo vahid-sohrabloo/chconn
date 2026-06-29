@@ -116,3 +116,10 @@ func TestStringReadFromBytes_BadVarint(t *testing.T) {
 		t.Fatal("expected bad-varint error on empty buffer, got nil")
 	}
 }
+
+func TestStringReadFromBytes_NegativeCount(t *testing.T) {
+	c := NewString()
+	if _, err := c.ReadFromBytes(-1, []byte{}); err == nil {
+		t.Fatal("expected error for negative num, got nil")
+	}
+}

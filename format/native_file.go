@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
@@ -58,11 +59,12 @@ func WriteFile(path string, cols []column.ColumnCore, opts ...Option) error {
 		}
 	}
 	cfg := resolve(opts)
-	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	tmp := f.Name()
 	fail := func(err error) error {
 		f.Close()
 		os.Remove(tmp)

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
@@ -62,6 +63,9 @@ func (br *BytesReader) ReadBlock() (int, []column.ColumnCore, error) {
 				name, chType)
 		}
 		col.SetName(append([]byte(nil), name...))
+		if numRows > uint64(math.MaxInt) {
+			return 0, nil, fmt.Errorf("native: row count %d exceeds int range", numRows)
+		}
 		consumed, err := zc.ReadFromBytes(int(numRows), br.data[br.off:])
 		if err != nil {
 			return 0, nil, fmt.Errorf("native: zero-copy read %q: %w", name, err)

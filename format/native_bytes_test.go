@@ -94,6 +94,22 @@ func TestBytesReaderHugeRowCountErrors(t *testing.T) {
 	}
 }
 
+func TestBytesReaderRowCountExceedsIntRange(t *testing.T) {
+	// uint64(math.MaxInt)+1 cannot fit in int on any platform; the guard must fire.
+	numRows := uint64(math.MaxInt) + 1
+	var b []byte
+	b = binary.AppendUvarint(b, 1)       // num_columns
+	b = binary.AppendUvarint(b, numRows) // num_rows exceeds int range
+	b = binary.AppendUvarint(b, uint64(len("v")))
+	b = append(b, "v"...)
+	b = binary.AppendUvarint(b, uint64(len("Float64")))
+	b = append(b, "Float64"...)
+	_, _, err := OpenBytes(b).ReadBlock()
+	if err == nil {
+		t.Fatal("expected error for row count exceeding int range, got nil")
+	}
+}
+
 func TestBytesReaderHugeColCountErrors(t *testing.T) {
 	var b []byte
 	b = binary.AppendUvarint(b, uint64(1)<<40) // num_columns absurd

@@ -53,9 +53,14 @@ func lz4Codec() *Codec {
 		},
 		Decompress: func(dst, src []byte) ([]byte, error) {
 			r := lz4.NewReader(bytes.NewReader(src))
+			limit := int64(cap(dst))
 			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, r); err != nil {
+			n, err := io.Copy(&buf, io.LimitReader(r, limit+1))
+			if err != nil {
 				return nil, err
+			}
+			if n > limit {
+				return nil, fmt.Errorf("native: lz4 decompressed size exceeds declared %d bytes", limit)
 			}
 			return append(dst, buf.Bytes()...), nil
 		},
@@ -91,6 +96,9 @@ func readCompressedHeader(r io.Reader, wantName string) error {
 	nameLen, err := readUvarint(r)
 	if err != nil {
 		return fmt.Errorf("native: read codec name length: %w", err)
+	}
+	if nameLen > 255 {
+		return fmt.Errorf("native: codec name length %d exceeds 255", nameLen)
 	}
 	name := make([]byte, nameLen)
 	if _, err := io.ReadFull(r, name); err != nil {
@@ -168,6 +176,9 @@ func readUvarint(r io.Reader) (uint64, error) {
 				return x, fmt.Errorf("native: uvarint overflows uint64")
 			}
 			return x | uint64(b)<<s, nil
+		}
+		if i >= 9 {
+			return x, fmt.Errorf("native: uvarint overflows uint64")
 		}
 		x |= uint64(b&0x7f) << s
 		s += 7

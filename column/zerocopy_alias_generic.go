@@ -17,6 +17,10 @@ var zeroCopyLittleEndian = func() bool {
 // readFromBytesAlias copies into an aligned heap slice (avoiding unaligned loads
 // on non-amd64/arm64 arches) and byte-swaps per element on big-endian CPUs.
 func (c *Base[T]) readFromBytesAlias(num int, data []byte) {
+	if num == 0 {
+		c.values = nil
+		return
+	}
 	c.values = helper.ResetSlice(c.values, num, true)
 	dst := helper.ConvertToByte(c.values, c.size)
 	copy(dst, data)

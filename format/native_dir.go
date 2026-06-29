@@ -32,10 +32,16 @@ const dirFileSuffix = ".native"
 // On any error, already-written column files are removed (best-effort) before
 // returning, so a failed WriteDir does not leave a half-populated directory.
 func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
+	seen := make(map[string]struct{}, len(cols))
 	for _, col := range cols {
 		if len(col.Type()) == 0 {
 			return fmt.Errorf("native: column %q has no type; call SetType before writing", col.Name())
 		}
+		name := string(col.Name())
+		if _, dup := seen[name]; dup {
+			return fmt.Errorf("native: duplicate column name %q", name)
+		}
+		seen[name] = struct{}{}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err

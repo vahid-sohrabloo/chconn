@@ -587,6 +587,9 @@ func (c *StringBase[T]) writeBinaryDataTo(w *readerwriter.Writer) {
 // ReadFromBytes implements ZeroCopyColumn by aliasing data and indexing each
 // value's varint length prefix. The column becomes read-only; data must outlive it.
 func (c *StringBase[T]) ReadFromBytes(num int, data []byte) (int, error) {
+	if num < 0 {
+		return 0, fmt.Errorf("string column %q: ReadFromBytes: num must be >= 0, got %d", c.columnHeader.Name, num)
+	}
 	c.Reset()
 	off := 0
 	for i := range num {

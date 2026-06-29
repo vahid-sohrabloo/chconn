@@ -226,3 +226,11 @@ func TestWriteDirEmpty(t *testing.T) {
 		t.Fatalf("WriteDir empty: %v", err)
 	}
 }
+
+func TestWriteDirDuplicateName(t *testing.T) {
+	a := floatCol("dup", 1, 2)
+	b := floatCol("dup", 3, 4)
+	if err := WriteDir(t.TempDir(), []column.ColumnCore{a, b}); err == nil {
+		t.Fatal("expected duplicate column name error from WriteDir")
+	}
+}
