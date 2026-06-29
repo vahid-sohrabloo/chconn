@@ -158,6 +158,94 @@ func TestCodecNameMismatch(t *testing.T) {
 	}
 }
 
+// TestCompressedFileNonZeroCopyColumn verifies that compressed reads handle a mix
+// of ZeroCopy columns (Float64, String — aliased) and non-ZeroCopy columns
+// (LowCardinality(String) — streamed via the fallback path) correctly.
+func TestCompressedFileNonZeroCopyColumn(t *testing.T) {
+	lcCol := column.NewString().LowCardinality()
+	lcCol.SetName([]byte("category"))
+	lcCol.SetType([]byte("LowCardinality(String)"))
+	lcCol.Append("foo")
+	lcCol.Append("bar")
+	lcCol.Append("foo") // repeated value exercises dictionary deduplication
+
+	path := filepath.Join(t.TempDir(), "mixed.native.zst")
+	cols := []column.ColumnCore{
+		floatCol("cpm", 1.5, 2.5, 3.5),
+		strCol("bidder", "a", "bb", "ccc"),
+		lcCol,
+	}
+	if err := WriteFile(path, cols, WithZSTD()); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	fr, err := OpenFile(path, WithZSTD())
+	if err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	defer fr.Close()
+
+	n, got, err := fr.ReadBlock()
+	if err != nil {
+		t.Fatalf("ReadBlock: %v", err)
+	}
+	if n != 3 || len(got) != 3 {
+		t.Fatalf("got numRows=%d cols=%d, want 3,3", n, len(got))
+	}
+
+	// Float64 column — alias path
+	if got[0].(*column.Base[float64]).Row(0) != 1.5 || got[0].(*column.Base[float64]).Row(2) != 3.5 {
+		t.Fatal("float column mismatch")
+	}
+	// String column — alias path
+	if got[1].(*column.String).Row(1) != "bb" {
+		t.Fatal("string column mismatch")
+	}
+	// LowCardinality(String) — streaming fallback path
+	lcGot, ok := got[2].(column.Column[string])
+	if !ok {
+		t.Fatalf("expected Column[string] for LowCardinality, got %T", got[2])
+	}
+	if lcGot.Row(0) != "foo" || lcGot.Row(1) != "bar" || lcGot.Row(2) != "foo" {
+		t.Fatalf("LC column: got %q, %q, %q; want foo, bar, foo",
+			lcGot.Row(0), lcGot.Row(1), lcGot.Row(2))
+	}
+}
+
+// TestCompressedDirNonZeroCopyColumn exercises the OpenColumn → ReadBlock path
+// with a non-ZeroCopy column type under compression.
+func TestCompressedDirNonZeroCopyColumn(t *testing.T) {
+	lcCol := column.NewString().LowCardinality()
+	lcCol.SetName([]byte("tag"))
+	lcCol.SetType([]byte("LowCardinality(String)"))
+	lcCol.Append("x")
+	lcCol.Append("y")
+	lcCol.Append("x")
+
+	dir := t.TempDir()
+	if err := WriteDir(dir, []column.ColumnCore{lcCol}, WithZSTD()); err != nil {
+		t.Fatalf("WriteDir: %v", err)
+	}
+
+	dr, err := OpenDir(dir, WithZSTD())
+	if err != nil {
+		t.Fatalf("OpenDir: %v", err)
+	}
+	defer dr.Close()
+
+	col, err := dr.OpenColumn("tag")
+	if err != nil {
+		t.Fatalf("OpenColumn: %v", err)
+	}
+	lc, ok := col.(column.Column[string])
+	if !ok {
+		t.Fatalf("expected Column[string], got %T", col)
+	}
+	if lc.NumRow() != 3 || lc.Row(0) != "x" || lc.Row(1) != "y" || lc.Row(2) != "x" {
+		t.Fatalf("unexpected LC data: rows=%d [%q,%q,%q]", lc.NumRow(), lc.Row(0), lc.Row(1), lc.Row(2))
+	}
+}
+
 func TestDirCompressedRequiresCodec(t *testing.T) {
 	dir := t.TempDir()
 	if err := WriteDir(dir, []column.ColumnCore{floatCol("v", 1, 2, 3)}, WithZSTD()); err != nil {

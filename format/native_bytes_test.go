@@ -36,11 +36,14 @@ func TestBytesReaderZeroCopy(t *testing.T) {
 	}
 }
 
-// A column type without zero-copy support must produce a clear error.
-func TestBytesReaderRejectsNonZeroCopy(t *testing.T) {
+// Columns without ZeroCopyColumn support (Nullable, LowCardinality, etc.) must
+// now fall back to a streaming read and succeed rather than returning an error.
+func TestBytesReaderNonZeroCopyFallback(t *testing.T) {
 	c := column.New[uint64]().Nullable()
 	c.SetName([]byte("n"))
 	c.SetType([]byte("Nullable(UInt64)"))
+	v := uint64(42)
+	c.AppendP(&v)
 	c.AppendP(nil)
 	var buf bytes.Buffer
 	nw := NewNativeWriter(&buf)
@@ -48,8 +51,22 @@ func TestBytesReaderRejectsNonZeroCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	br := OpenBytes(buf.Bytes())
-	if _, _, err := br.ReadBlock(); err == nil {
-		t.Fatal("expected error for non-zero-copy column, got nil")
+	numRows, cols, err := br.ReadBlock()
+	if err != nil {
+		t.Fatalf("ReadBlock: %v", err)
+	}
+	if numRows != 2 || len(cols) != 1 {
+		t.Fatalf("got numRows=%d cols=%d, want 2,1", numRows, len(cols))
+	}
+	got, ok := cols[0].(column.NullableColumn[uint64])
+	if !ok {
+		t.Fatalf("expected NullableColumn[uint64], got %T", cols[0])
+	}
+	if p := got.RowP(0); p == nil || *p != 42 {
+		t.Fatalf("row 0: got %v, want 42", p)
+	}
+	if got.RowP(1) != nil {
+		t.Fatal("row 1: expected nil, got non-nil")
 	}
 }
 
