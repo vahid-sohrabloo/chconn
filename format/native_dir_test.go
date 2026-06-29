@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
@@ -68,18 +69,19 @@ func TestOpenDirCorruptMetadata(t *testing.T) {
 func TestOpenDirRejectsUnsafeFileName(t *testing.T) {
 	dir := t.TempDir()
 	var buf []byte
-	buf = append(buf, "CNDM1"...)
+	buf = append(buf, dirMagic...)
 	buf = binary.AppendUvarint(buf, 1) // rowCount
 	buf = binary.AppendUvarint(buf, 1) // numColumns
 	put := func(s string) { buf = binary.AppendUvarint(buf, uint64(len(s))); buf = append(buf, s...) }
 	put("v")                       // name
 	put("Float64")                 // type
 	put("../../etc/passwd.native") // malicious file mapping
-	if err := os.WriteFile(filepath.Join(dir, "metadata.bin"), buf, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, dirMetaFile), buf, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := OpenDir(dir); err == nil {
-		t.Fatal("expected OpenDir to reject unsafe column file name")
+	// Assert it specifically hit the unsafe-filename guard (not bad magic / missing file).
+	if _, err := OpenDir(dir); err == nil || !strings.Contains(err.Error(), "invalid file name") {
+		t.Fatalf("expected invalid file name error, got %v", err)
 	}
 }
 
