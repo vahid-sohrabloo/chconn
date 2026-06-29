@@ -163,8 +163,18 @@ func TestDirCompressedRequiresCodec(t *testing.T) {
 	if err := WriteDir(dir, []column.ColumnCore{floatCol("v", 1, 2, 3)}, WithZSTD()); err != nil {
 		t.Fatal(err)
 	}
-	// OpenDir reads each file's header; without the codec it must fail, not silently succeed.
-	if _, err := OpenDir(dir); err == nil {
-		t.Fatal("expected OpenDir without codec to fail on compressed dir")
+	// OpenDir reads the uncompressed sidecar only, so it succeeds without a codec.
+	dr, err := OpenDir(dir)
+	if err != nil {
+		t.Fatalf("OpenDir without codec should succeed (reads uncompressed sidecar): %v", err)
+	}
+	defer dr.Close()
+	// OpenColumn without codec must fail because the column data file is compressed.
+	if _, err := dr.OpenColumn("v"); err == nil {
+		t.Fatal("expected OpenColumn without codec to fail on compressed column data")
+	}
+	// OpenColumn with the correct codec must succeed.
+	if _, err := dr.OpenColumn("v", WithZSTD()); err != nil {
+		t.Fatalf("OpenColumn with codec: %v", err)
 	}
 }

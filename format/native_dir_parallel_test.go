@@ -222,8 +222,20 @@ func TestWriteDirParallelCompressed(t *testing.T) {
 }
 
 func TestWriteDirEmpty(t *testing.T) {
-	if err := WriteDir(t.TempDir(), nil); err != nil {
+	dir := t.TempDir()
+	if err := WriteDir(dir, nil); err != nil {
 		t.Fatalf("WriteDir empty: %v", err)
+	}
+	dr, err := OpenDir(dir)
+	if err != nil {
+		t.Fatalf("OpenDir on empty dir: %v", err)
+	}
+	defer dr.Close()
+	if dr.RowCount() != 0 {
+		t.Fatalf("RowCount = %d, want 0", dr.RowCount())
+	}
+	if len(dr.Columns()) != 0 {
+		t.Fatalf("Columns = %d, want 0", len(dr.Columns()))
 	}
 }
 

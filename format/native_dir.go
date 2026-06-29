@@ -1,17 +1,15 @@
 package format
 
 import (
-	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
-	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // ColumnMeta describes a column discovered in a dir-mode dataset.
@@ -23,13 +21,131 @@ type ColumnMeta struct {
 }
 
 const dirFileSuffix = ".native"
+const dirMetaFile = "metadata.bin"
+const dirMagic = "CNDM1"
+
+// writeDirMeta writes an uncompressed sidecar file <dir>/metadata.bin with
+// the dataset schema and file mapping. Format:
+//
+//	magic    5 bytes "CNDM1"
+//	uvarint  rowCount
+//	uvarint  numColumns
+//	repeated numColumns:
+//	  uvarint+bytes  name
+//	  uvarint+bytes  chType
+//	  uvarint+bytes  fileName
+//
+// The write is atomic: a temp file is renamed into place on success.
+func writeDirMeta(dir string, metas []ColumnMeta, rowCount int) error {
+	var buf []byte
+	buf = append(buf, dirMagic...)
+	buf = binary.AppendUvarint(buf, uint64(rowCount))
+	buf = binary.AppendUvarint(buf, uint64(len(metas)))
+	for _, m := range metas {
+		buf = binary.AppendUvarint(buf, uint64(len(m.Name)))
+		buf = append(buf, m.Name...)
+		buf = binary.AppendUvarint(buf, uint64(len(m.Type)))
+		buf = append(buf, m.Type...)
+		buf = binary.AppendUvarint(buf, uint64(len(m.file)))
+		buf = append(buf, m.file...)
+	}
+
+	dst := filepath.Join(dir, dirMetaFile)
+	f, err := os.CreateTemp(dir, "."+dirMetaFile+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	if _, err := f.Write(buf); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dst)
+}
+
+// readDirMeta reads the uncompressed sidecar file <dir>/metadata.bin.
+// Returns rowCount, ordered column metas, or an error if the file is missing
+// or corrupt. Bounds: numColumns <= 1<<20, each string field <= 4096 bytes.
+func readDirMeta(dir string) (rowCount int, metas []ColumnMeta, err error) {
+	f, err := os.Open(filepath.Join(dir, dirMetaFile))
+	if err != nil {
+		return 0, nil, err
+	}
+	defer f.Close()
+
+	var magic [5]byte
+	if _, err := io.ReadFull(f, magic[:]); err != nil {
+		return 0, nil, fmt.Errorf("native: read dir metadata magic: %w", err)
+	}
+	if string(magic[:]) != dirMagic {
+		return 0, nil, fmt.Errorf("native: not a chconn dir metadata file (bad magic %v)", magic)
+	}
+
+	rc, err := readUvarint(f)
+	if err != nil {
+		return 0, nil, fmt.Errorf("native: read dir metadata rowCount: %w", err)
+	}
+
+	numCols, err := readUvarint(f)
+	if err != nil {
+		return 0, nil, fmt.Errorf("native: read dir metadata numColumns: %w", err)
+	}
+	if numCols > 1<<20 {
+		return 0, nil, fmt.Errorf("native: dir metadata numColumns %d exceeds limit 1<<20", numCols)
+	}
+
+	metas = make([]ColumnMeta, numCols)
+	for i := range metas {
+		name, err := readBoundedString(f, 4096)
+		if err != nil {
+			return 0, nil, fmt.Errorf("native: column[%d] name: %w", i, err)
+		}
+		chType, err := readBoundedString(f, 4096)
+		if err != nil {
+			return 0, nil, fmt.Errorf("native: column[%d] type: %w", i, err)
+		}
+		fileName, err := readBoundedString(f, 4096)
+		if err != nil {
+			return 0, nil, fmt.Errorf("native: column[%d] file: %w", i, err)
+		}
+		metas[i] = ColumnMeta{Index: i, Name: name, Type: chType, file: fileName}
+	}
+	return int(rc), metas, nil
+}
+
+// readBoundedString reads a uvarint-length-prefixed string from r, rejecting
+// strings longer than maxLen bytes.
+func readBoundedString(r io.Reader, maxLen int) (string, error) {
+	l, err := readUvarint(r)
+	if err != nil {
+		return "", err
+	}
+	if l > uint64(maxLen) {
+		return "", fmt.Errorf("string length %d exceeds limit %d", l, maxLen)
+	}
+	if l == 0 {
+		return "", nil
+	}
+	buf := make([]byte, l)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
 
 // WriteDir writes each column to its own single-column Native file:
 // col_<NNNNNN>__<name>.native. Files are self-describing and individually readable.
+// A metadata sidecar (metadata.bin) is written after all column files succeed,
+// recording the schema without requiring decompression on OpenDir.
 // Pass WithZSTD()/WithLZ4()/WithCodec() to compress each column file.
 // Pass WithConcurrency(n) to control the number of parallel write workers
 // (default: runtime.NumCPU()).
-// On any error, already-written column files are removed (best-effort) before
+// On any error, already-written files are removed (best-effort) before
 // returning, so a failed WriteDir does not leave a half-populated directory.
 func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 	seen := make(map[string]struct{}, len(cols))
@@ -59,7 +175,9 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 		written  []string
 	)
 
-	sem := make(chan struct{}, workers)
+	metas := make([]ColumnMeta, len(cols))
+
+	sem := make(chan struct{}, max(workers, 1))
 	var wg sync.WaitGroup
 
 	for i, col := range cols {
@@ -82,6 +200,7 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 					firstErr = fmt.Errorf("native: write column %q: %w", name, err)
 				}
 			} else {
+				metas[i] = ColumnMeta{Index: i, Name: name, Type: string(col.Type()), file: fn}
 				written = append(written, path)
 			}
 		}()
@@ -93,6 +212,17 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 			os.Remove(p)
 		}
 		return firstErr
+	}
+
+	rowCount := 0
+	if len(cols) > 0 {
+		rowCount = cols[0].NumRow()
+	}
+	if err := writeDirMeta(dir, metas, rowCount); err != nil {
+		for _, p := range written {
+			os.Remove(p)
+		}
+		return fmt.Errorf("native: write dir metadata: %w", err)
 	}
 	return nil
 }
@@ -106,35 +236,22 @@ type DirReader struct {
 	rowCount int
 }
 
-// OpenDir scans dir for single-column Native files and reads each file's header
-// to learn name/type/row-count. It does NOT read column data.
-// Pass WithZSTD()/WithLZ4()/WithCodec() if the directory was written with compression.
+// OpenDir reads the uncompressed metadata sidecar from dir to learn the
+// dataset schema (column names, types, file mapping, row count). It does NOT
+// read or decompress any column data. The sidecar must have been written by
+// WriteDir; dirs without metadata.bin are rejected.
 func OpenDir(dir string, opts ...Option) (*DirReader, error) {
-	entries, err := os.ReadDir(dir)
+	rowCount, metas, err := readDirMeta(dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("native: open dir %s: %w", dir, err)
 	}
-	files := make([]string, 0)
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), dirFileSuffix) {
-			files = append(files, e.Name())
-		}
+	dr := &DirReader{
+		dir:      dir,
+		opts:     opts,
+		byName:   make(map[string]ColumnMeta, len(metas)),
+		rowCount: rowCount,
 	}
-	sort.Strings(files) // col_000000__, col_000001__, ... — gives stable column order
-
-	dr := &DirReader{dir: dir, opts: opts, byName: map[string]ColumnMeta{}}
-	for idx, fn := range files {
-		meta, rows, err := readDirFileHeader(filepath.Join(dir, fn), opts)
-		if err != nil {
-			return nil, fmt.Errorf("native: scan %s: %w", fn, err)
-		}
-		meta.Index = idx
-		meta.file = fn
-		if idx == 0 {
-			dr.rowCount = rows
-		} else if rows != dr.rowCount {
-			return nil, fmt.Errorf("native: %s has %d rows, expected %d", fn, rows, dr.rowCount)
-		}
+	for _, meta := range metas {
 		if _, exists := dr.byName[meta.Name]; exists {
 			return nil, fmt.Errorf("native: duplicate column name %q in %s", meta.Name, dir)
 		}
@@ -142,49 +259,6 @@ func OpenDir(dir string, opts ...Option) (*DirReader, error) {
 		dr.byName[meta.Name] = meta
 	}
 	return dr, nil
-}
-
-// readDirFileHeader reads only the block preamble (numCols, numRows) and the
-// first column's name+type from path. No column data is read.
-func readDirFileHeader(path string, opts []Option) (ColumnMeta, int, error) {
-	cfg := resolve(opts)
-	f, err := os.Open(path)
-	if err != nil {
-		return ColumnMeta{}, 0, err
-	}
-	defer f.Close()
-	var rd io.Reader = f
-	if cfg.codec != nil {
-		if err := readCompressedHeader(f, cfg.codec.Name); err != nil {
-			return ColumnMeta{}, 0, err
-		}
-		plain, err := readCompressedUnit(f, cfg.codec)
-		if err != nil {
-			return ColumnMeta{}, 0, err
-		}
-		rd = bytes.NewReader(plain)
-	}
-	r := readerwriter.NewReader(rd)
-	numCols, err := r.Uvarint()
-	if err != nil {
-		return ColumnMeta{}, 0, fmt.Errorf("read num_columns: %w", err)
-	}
-	if numCols != 1 {
-		return ColumnMeta{}, 0, fmt.Errorf("expected 1 column per dir file, got %d", numCols)
-	}
-	numRows, err := r.Uvarint()
-	if err != nil {
-		return ColumnMeta{}, 0, fmt.Errorf("read num_rows: %w", err)
-	}
-	name, err := r.ByteString()
-	if err != nil {
-		return ColumnMeta{}, 0, fmt.Errorf("read column name: %w", err)
-	}
-	chType, err := r.ByteString()
-	if err != nil {
-		return ColumnMeta{}, 0, fmt.Errorf("read column type: %w", err)
-	}
-	return ColumnMeta{Name: string(name), Type: string(chType)}, int(numRows), nil
 }
 
 // Columns returns metadata for every column, in file order.
@@ -236,7 +310,7 @@ func (dr *DirReader) OpenColumns(names []string, opts ...Option) ([]column.Colum
 
 	results := make([]result, len(names))
 
-	sem := make(chan struct{}, workers)
+	sem := make(chan struct{}, max(workers, 1))
 	var wg sync.WaitGroup
 
 	for i, name := range names {

@@ -1,6 +1,8 @@
 package format
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
@@ -40,5 +42,24 @@ func TestWriteDirAndSelectiveRead(t *testing.T) {
 
 	if _, err := dr.OpenColumn("nope"); err == nil {
 		t.Fatal("expected error for missing column")
+	}
+}
+
+// TestOpenDirMissingMetadata verifies that OpenDir fails when no metadata.bin exists.
+func TestOpenDirMissingMetadata(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := OpenDir(dir); err == nil {
+		t.Fatal("expected error opening dir without metadata.bin")
+	}
+}
+
+func TestOpenDirCorruptMetadata(t *testing.T) {
+	dir := t.TempDir()
+	// Valid magic, then truncated (EOF before rowCount) — must error, not panic.
+	if err := os.WriteFile(filepath.Join(dir, "metadata.bin"), []byte("CNDM1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := OpenDir(dir); err == nil {
+		t.Fatal("expected error opening dir with truncated metadata")
 	}
 }
