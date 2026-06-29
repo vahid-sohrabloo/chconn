@@ -14,8 +14,9 @@ const (
 	TestModelStatusInactive TestModelStatus = 2
 )
 
-//go:generate go tool chgen columns --input model.go
 // TestModel is a representative model with common ClickHouse column types.
+//
+//go:generate go tool chgen columns --input model.go
 type TestModel struct {
 	// Primitives
 	ID       uint64  `db:"id" chtype:"UInt64"`

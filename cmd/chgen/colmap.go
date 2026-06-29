@@ -34,7 +34,7 @@ var fixedStringRe = regexp.MustCompile(`^\[(\d+)\]byte$`)
 
 // colMapping maps a Go field type + ClickHouse type tag to the correct
 // chconn column constructor info.
-func colMapping(goType string, chType string) (colInfo, error) {
+func colMapping(goType string, chType string) (colInfo, error) { //nolint:gocyclo,funlen,gocritic
 	goType = strings.TrimSpace(goType)
 	chType = strings.TrimSpace(chType)
 
@@ -225,11 +225,11 @@ func colMapping(goType string, chType string) (colInfo, error) {
 
 		keyInfo, err := colMapping(keyGoType, keyChType)
 		if err != nil {
-			return colInfo{}, fmt.Errorf("Map key: %w", err)
+			return colInfo{}, fmt.Errorf("map key: %w", err)
 		}
 		valInfo, err := colMapping(valGoType, valChType)
 		if err != nil {
-			return colInfo{}, fmt.Errorf("Map value: %w", err)
+			return colInfo{}, fmt.Errorf("map value: %w", err)
 		}
 		// Map(K, Nullable(V)): value is nullable → MapNullable
 		if valInfo.isNullable {
@@ -237,14 +237,14 @@ func colMapping(goType string, chType string) (colInfo, error) {
 			innerValGoType := valGoType[1:]
 			return colInfo{
 				fieldType:    fmt.Sprintf("*column.MapNullable[%s, %s]", keyGoType, innerValGoType),
-				constructor:  fmt.Sprintf("column.NewMapNullable[%s, %s](%s, %s)", keyGoType, innerValGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)),
+				constructor:  fmt.Sprintf("column.NewMapNullable[%s, %s](%s, %s)", keyGoType, innerValGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)), //nolint:lll
 				appendMethod: "AppendP",
 				rowMethod:    "RowP",
 			}, nil
 		}
 		return colInfo{
 			fieldType:    fmt.Sprintf("*column.Map[%s, %s]", keyGoType, valGoType),
-			constructor:  fmt.Sprintf("column.NewMap[%s, %s](%s, %s)", keyGoType, valGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)),
+			constructor:  fmt.Sprintf("column.NewMap[%s, %s](%s, %s)", keyGoType, valGoType, innerConstructor(keyInfo.constructor), innerConstructor(valInfo.constructor)), //nolint:lll
 			appendMethod: "Append",
 			rowMethod:    "Row",
 		}, nil
@@ -286,7 +286,7 @@ func colMapping(goType string, chType string) (colInfo, error) {
 	// Apply LowCardinality wrapper if needed.
 	if isLC {
 		ci.fieldType = fmt.Sprintf("*column.LowCardinality[%s]", goType)
-		ci.constructor = ci.constructor + ".LowCardinality()"
+		ci.constructor += ".LowCardinality()"
 	}
 
 	return ci, nil
@@ -300,7 +300,7 @@ func innerConstructor(c string) string {
 }
 
 // parseMapGoType parses "map[K]V" and returns K and V as strings.
-func parseMapGoType(goType string) (string, string, error) {
+func parseMapGoType(goType string) (string, string, error) { //nolint:gocritic
 	if !strings.HasPrefix(goType, "map[") {
 		return "", "", fmt.Errorf("not a map type")
 	}
@@ -324,7 +324,7 @@ func parseMapGoType(goType string) (string, string, error) {
 }
 
 // baseColMapping handles scalar types (no Nullable/Array/Map wrappers).
-func baseColMapping(goType string, chType string) (colInfo, error) {
+func baseColMapping(goType string, chType string) (colInfo, error) { //nolint:gocyclo,funlen,gocritic
 	// Special case: string
 	if goType == "string" {
 		if chType == "String" {
@@ -406,7 +406,7 @@ func baseColMapping(goType string, chType string) (colInfo, error) {
 	// Tuple/Nested: mapped to any — not directly constructible by chgen.
 	// Users must define the column manually.
 	if goType == "any" {
-		return colInfo{}, fmt.Errorf("Go type %q (from Tuple/Nested) requires manual column definition", goType)
+		return colInfo{}, fmt.Errorf("go type %q (from Tuple/Nested) requires manual column definition", goType)
 	}
 
 	// JSON type: json.RawMessage maps to *column.JSON
@@ -501,8 +501,8 @@ func baseColMapping(goType string, chType string) (colInfo, error) {
 }
 
 // chTypeToGoScalar returns the canonical Go type for a scalar ClickHouse type,
-// and a boolean indicating whether the chtype is recognised.
-func chTypeToGoScalar(chType string) (string, bool) {
+// and a boolean indicating whether the chtype is recognized.
+func chTypeToGoScalar(chType string) (string, bool) { //nolint:gocyclo
 	switch chType {
 	case "Int8":
 		return "int8", true

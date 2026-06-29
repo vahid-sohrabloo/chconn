@@ -105,9 +105,9 @@ type AllTypes struct {
 	ColUint256 types.Uint256 `db:"col_uint256" chtype:"UInt256"`
 
 	// Geo types
-	ColPoint        types.Point      `db:"col_point" chtype:"Point"`
-	ColRing         []types.Point    `db:"col_ring" chtype:"Ring"`
-	ColPolygon      [][]types.Point  `db:"col_polygon" chtype:"Polygon"`
+	ColPoint        types.Point       `db:"col_point" chtype:"Point"`
+	ColRing         []types.Point     `db:"col_ring" chtype:"Ring"`
+	ColPolygon      [][]types.Point   `db:"col_polygon" chtype:"Polygon"`
 	ColMultiPolygon [][][]types.Point `db:"col_multi_polygon" chtype:"MultiPolygon"`
 
 	// Nullable DateTime

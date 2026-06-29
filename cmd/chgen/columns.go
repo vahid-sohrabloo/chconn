@@ -200,7 +200,7 @@ func resolveTupleSubColumns(pkg *packages.Package, fset *token.FileSet, parentFi
 
 	prefix := lowerFirst(parentFieldName)
 	var subs []tupleSubCol
-	for _, sf := range subFields {
+	for _, sf := range subFields { //nolint:gocritic
 		if _, ok := chArgs[sf.DBName]; !ok {
 			continue // sub-field not in the chtype definition
 		}
@@ -219,7 +219,7 @@ func resolveTupleSubColumns(pkg *packages.Package, fset *token.FileSet, parentFi
 }
 
 // generateColumns parses inputFile, finds tagged structs, and writes generated code to outFile.
-func generateColumns(inputFile, outFile string, withIter bool) error {
+func generateColumns(inputFile, outFile string, withIter bool) error { //nolint:gocyclo
 	absInput, err := filepath.Abs(inputFile)
 	if err != nil {
 		return fmt.Errorf("resolving input path: %w", err)
@@ -347,7 +347,7 @@ func generateColumns(inputFile, outFile string, withIter bool) error {
 		formatted = buf.Bytes()
 	}
 
-	if err := os.WriteFile(outFile, formatted, 0o644); err != nil {
+	if err := os.WriteFile(outFile, formatted, 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("writing output: %w", err)
 	}
 	return nil
@@ -355,23 +355,23 @@ func generateColumns(inputFile, outFile string, withIter bool) error {
 
 func columnNamesList(s structInfo) string {
 	var names []string
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		names = append(names, f.DBName)
 	}
 	return strings.Join(names, ", ")
 }
 
-func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
+func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) { //nolint:gocyclo,funlen
 	name := s.Name
 	colsName := name + "Columns"
 
 	// Struct definition
 	fmt.Fprintf(buf, "// %s holds the columns for reading/writing %s rows.\n", colsName, name)
 	fmt.Fprintf(buf, "type %s struct {\n", colsName)
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		if f.Col.isTuple || f.Col.isNested {
 			// Sub-column fields (unexported)
-			for _, sub := range f.Col.subColumns {
+			for _, sub := range f.Col.subColumns { //nolint:gocritic
 				fmt.Fprintf(buf, "\t%s %s\n", sub.colVarName, sub.col.fieldType)
 			}
 			// Exported Tuple/Nested field
@@ -384,7 +384,7 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 
 	// Check if any field is Tuple/Nested
 	hasTupleOrNested := false
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		if f.Col.isTuple || f.Col.isNested {
 			hasTupleOrNested = true
 			break
@@ -398,13 +398,13 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	if hasTupleOrNested {
 		// Use assignment style when Tuple/Nested fields exist
 		fmt.Fprintf(buf, "\tt := &%s{}\n", colsName)
-		for _, f := range s.Fields {
+		for _, f := range s.Fields { //nolint:gocritic
 			if f.Col.isTuple {
-				for _, sub := range f.Col.subColumns {
+				for _, sub := range f.Col.subColumns { //nolint:gocritic
 					fmt.Fprintf(buf, "\tt.%s = %s\n", sub.colVarName, sub.col.constructor)
 				}
 				fmt.Fprintf(buf, "\tt.%s = column.NewTuple(", f.Name)
-				for i, sub := range f.Col.subColumns {
+				for i, sub := range f.Col.subColumns { //nolint:gocritic
 					if i > 0 {
 						buf.WriteString(", ")
 					}
@@ -412,11 +412,11 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 				}
 				buf.WriteString(")\n")
 			} else if f.Col.isNested {
-				for _, sub := range f.Col.subColumns {
+				for _, sub := range f.Col.subColumns { //nolint:gocritic
 					fmt.Fprintf(buf, "\tt.%s = %s\n", sub.colVarName, sub.col.constructor)
 				}
 				fmt.Fprintf(buf, "\tt.%s = column.NewNested(", f.Name)
-				for i, sub := range f.Col.subColumns {
+				for i, sub := range f.Col.subColumns { //nolint:gocritic
 					if i > 0 {
 						buf.WriteString(", ")
 					}
@@ -428,23 +428,23 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 			}
 		}
 		// SetName calls
-		for _, f := range s.Fields {
+		for _, f := range s.Fields { //nolint:gocritic
 			fmt.Fprintf(buf, "\tt.%s.SetName([]byte(%q))\n", f.Name, f.DBName)
 		}
 	} else {
 		// Use struct literal style (backward compatible)
 		fmt.Fprintf(buf, "\tt := &%s{\n", colsName)
-		for _, f := range s.Fields {
+		for _, f := range s.Fields { //nolint:gocritic
 			fmt.Fprintf(buf, "\t\t%s: %s,\n", f.Name, f.Col.constructor)
 		}
 		fmt.Fprintf(buf, "\t}\n")
 		// SetName calls
-		for _, f := range s.Fields {
+		for _, f := range s.Fields { //nolint:gocritic
 			fmt.Fprintf(buf, "\tt.%s.SetName([]byte(%q))\n", f.Name, f.DBName)
 		}
 	}
 	// SetStrict(false) calls
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		if f.Col.needsStrictFalse {
 			fmt.Fprintf(buf, "\tt.%s.SetStrict(false)\n", f.Name)
 		}
@@ -456,7 +456,7 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	fmt.Fprintf(buf, "// Columns returns the list of ColumnCore for use with SelectStmt.\n")
 	fmt.Fprintf(buf, "func (t *%s) Columns() []column.ColumnCore {\n", colsName)
 	fmt.Fprintf(buf, "\treturn []column.ColumnCore{\n")
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		fmt.Fprintf(buf, "\t\tt.%s,\n", f.Name)
 	}
 	fmt.Fprintf(buf, "\t}\n")
@@ -465,17 +465,17 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	// Write() method
 	fmt.Fprintf(buf, "// Write appends a single %s row to all columns.\n", name)
 	fmt.Fprintf(buf, "func (t *%s) Write(m *%s) {\n", colsName, name)
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		if f.Col.isTuple {
 			// Write sub-columns from struct fields
-			for _, sub := range f.Col.subColumns {
+			for _, sub := range f.Col.subColumns { //nolint:gocritic
 				fmt.Fprintf(buf, "\tt.%s.%s(m.%s.%s)\n", sub.colVarName, sub.col.appendMethod, f.Name, sub.fieldName)
 			}
 		} else if f.Col.isNested {
 			// Write nested: AppendLen + loop
 			fmt.Fprintf(buf, "\tt.%s.AppendLen(len(m.%s))\n", f.Name, f.Name)
 			fmt.Fprintf(buf, "\tfor _, v := range m.%s {\n", f.Name)
-			for _, sub := range f.Col.subColumns {
+			for _, sub := range f.Col.subColumns { //nolint:gocritic
 				fmt.Fprintf(buf, "\t\tt.%s.%s(v.%s)\n", sub.colVarName, sub.col.appendMethod, sub.fieldName)
 			}
 			fmt.Fprintf(buf, "\t}\n")
@@ -489,11 +489,11 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	fmt.Fprintf(buf, "// Read reads a single row at index row from all columns.\n")
 	fmt.Fprintf(buf, "func (t *%s) Read(row int) %s {\n", colsName, name)
 	fmt.Fprintf(buf, "\treturn %s{\n", name)
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		if f.Col.isTuple {
 			// Reconstruct struct from sub-columns
 			fmt.Fprintf(buf, "\t\t%s: %s{\n", f.Name, f.Col.goType)
-			for _, sub := range f.Col.subColumns {
+			for _, sub := range f.Col.subColumns { //nolint:gocritic
 				fmt.Fprintf(buf, "\t\t\t%s: t.%s.%s(row),\n", sub.fieldName, sub.colVarName, sub.col.rowMethod)
 			}
 			fmt.Fprintf(buf, "\t\t},\n")
@@ -510,7 +510,7 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	// SetWriteBufferSize() method — only call on Tuple/ArrayBase (delegates to sub-columns)
 	fmt.Fprintf(buf, "// SetWriteBufferSize sets the write buffer size on all columns.\n")
 	fmt.Fprintf(buf, "func (t *%s) SetWriteBufferSize(n int) {\n", colsName)
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		fmt.Fprintf(buf, "\tt.%s.SetWriteBufferSize(n)\n", f.Name)
 	}
 	fmt.Fprintf(buf, "}\n\n")
@@ -518,7 +518,7 @@ func writeColumnsStruct(buf *bytes.Buffer, s structInfo, withIter bool) {
 	// Reset() method — only call on Tuple/ArrayBase (delegates to sub-columns)
 	fmt.Fprintf(buf, "// Reset resets all columns to empty.\n")
 	fmt.Fprintf(buf, "func (t *%s) Reset() {\n", colsName)
-	for _, f := range s.Fields {
+	for _, f := range s.Fields { //nolint:gocritic
 		fmt.Fprintf(buf, "\tt.%s.Reset()\n", f.Name)
 	}
 	fmt.Fprintf(buf, "}\n\n")

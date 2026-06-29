@@ -11,22 +11,21 @@ import (
 // TestColMapping_Primitives covers uint64/UInt64, int32/Int32, float32/Float32, bool/UInt8, int8/Int8.
 func TestColMapping_Primitives(t *testing.T) {
 	cases := []struct {
-		goType      string
-		chType      string
-		wantField   string
-		wantCtor    string
+		goType    string
+		chType    string
+		wantField string
+		wantCtor  string
 	}{
 		{"uint64", "UInt64", "*column.Base[uint64]", "column.New[uint64]()"},
 		{"int32", "Int32", "*column.Base[int32]", "column.New[int32]()"},
 		{"float32", "Float32", "*column.Base[float32]", "column.New[float32]()"},
-		{"bool", "UInt8", "", ""},   // bool maps to Bool, not UInt8 — expect error
+		{"bool", "UInt8", "", ""}, // bool maps to Bool, not UInt8 — expect error
 		{"int8", "Int8", "*column.Base[int8]", "column.New[int8]()"},
 		{"uint8", "UInt8", "*column.Base[uint8]", "column.New[uint8]()"},
 		{"bool", "Bool", "*column.Base[bool]", "column.New[bool]()"},
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.goType+"/"+tc.chType, func(t *testing.T) {
 			info, err := colMapping(tc.goType, tc.chType)
 			if tc.wantField == "" {
@@ -269,7 +268,6 @@ func TestColMapping_Decimal(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.goType+"/"+tc.chType, func(t *testing.T) {
 			info, err := colMapping(tc.goType, tc.chType)
 			require.NoError(t, err)

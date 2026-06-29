@@ -198,7 +198,7 @@ func splitCamel(s string) []string {
 }
 
 // generateModel generates the Go struct file from column definitions.
-func generateModel(cfg modelConfig, columns []columnSchema) error {
+func generateModel(cfg modelConfig, columns []columnSchema) error { //nolint:gocritic
 	// Determine package name
 	pkg := cfg.pkg
 	if pkg == "" {
@@ -311,7 +311,7 @@ func generateModel(cfg modelConfig, columns []columnSchema) error {
 	if err := os.MkdirAll(filepath.Dir(cfg.out), 0o755); err != nil {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
-	if err := os.WriteFile(cfg.out, formatted, 0o644); err != nil {
+	if err := os.WriteFile(cfg.out, formatted, 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("writing output: %w", err)
 	}
 	return nil

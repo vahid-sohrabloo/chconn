@@ -60,10 +60,10 @@ const (
 	// Columns' description for default values calculation
 	serverTableColumns = 11
 	// list of unique parts ids.
-	//nolint:deadcode,unused,varcheck
+	//nolint:unused
 	serverPartUUIDs = 12
 	// String (UUID) describes a request for which next task is needed
-	//nolint:deadcode,unused,varcheck
+	//nolint:unused
 	serverReadTaskRequest = 13
 	// System logs of query execution
 	serverLog = 10

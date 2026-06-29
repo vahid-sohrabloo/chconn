@@ -9,10 +9,10 @@ import (
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
-// ReadAll read all value in this block and append to the input slice
 func (c *Base[T]) readBufferHook() {
-	for i := 0; i < c.totalByte; i += c.size {
-		reverseBuffer(c.b[i : i+c.size])
+	dst := helper.ConvertToByte(c.values, c.size)
+	for i := 0; i < len(dst); i += c.size {
+		reverseBuffer(dst[i : i+c.size])
 	}
 }
 

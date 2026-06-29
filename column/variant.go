@@ -259,7 +259,7 @@ func (c *Variant) SetColumnHeader(ch ColumnHeader) error {
 		return fmt.Errorf("Variant invalid types %w", err)
 	}
 	if len(columnsVariant) != len(c.columns) {
-		//nolint:goerr113
+		//nolint:err113
 		return fmt.Errorf("columns number for %s (%s) is not equal to Variant columns number: %d != %d",
 			string(c.columnHeader.Name),
 			string(c.Type()),

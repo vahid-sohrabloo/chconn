@@ -210,9 +210,10 @@ func type2Column(rtype reflect.Type, arrayLevel int, nullable bool) (ColumnCore,
 	}
 }
 
-//nolint:funlen,gocyclo
 // ColumnByType creates a [ColumnCore] from a ClickHouse type string.
 // It handles all built-in types including Array, Nullable, LowCardinality, Map, Tuple, and Variant.
+//
+//nolint:funlen,gocyclo
 func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZone string) (ColumnCore, error) {
 	switch {
 	case string(chType) == "Bool":

@@ -583,3 +583,29 @@ func (c *StringBase[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byt
 func (c *StringBase[T]) writeBinaryDataTo(w *readerwriter.Writer) {
 	w.Uint8(uint8(helper.BinaryTypeIndexString))
 }
+
+// ReadFromBytes implements ZeroCopyColumn by aliasing data and indexing each
+// value's varint length prefix. The column becomes read-only; data must outlive it.
+func (c *StringBase[T]) ReadFromBytes(num int, data []byte) (int, error) {
+	if num < 0 {
+		return 0, fmt.Errorf("string column %q: ReadFromBytes: num must be >= 0, got %d", c.columnHeader.Name, num)
+	}
+	c.Reset()
+	off := 0
+	for i := range num {
+		l, n := binary.Uvarint(data[off:])
+		if n <= 0 {
+			return 0, fmt.Errorf("string column %q: bad length varint at row %d", c.columnHeader.Name, i)
+		}
+		off += n
+		if l > uint64(len(data)-off) {
+			return 0, fmt.Errorf("string column %q: value length %d overflows buffer at row %d", c.columnHeader.Name, l, i)
+		}
+		end := off + int(l)
+		c.pos = append(c.pos, stringPos{start: off, end: end})
+		off = end
+	}
+	c.vals = data[:off:off] // cap==len so any later append reallocates (never writes into the alias)
+	c.numRow = num
+	return off, nil
+}

@@ -262,7 +262,7 @@ func (c *Tuple) SetColumnHeader(ch ColumnHeader) error {
 		c.isEmpty = true
 	}
 	if len(columnsTuple) != len(c.columns) {
-		//nolint:goerr113
+		//nolint:err113
 		return fmt.Errorf("columns number for %s (%s) is not equal to tuple columns number: %d != %d",
 			string(c.columnHeader.Name),
 			string(c.Type()),

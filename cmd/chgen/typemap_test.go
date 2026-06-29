@@ -68,7 +68,6 @@ func TestChTypeToGo_DateTime(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		name := tc.chType
 		if tc.timeAsUint {
 			name += "/timeAsUint"

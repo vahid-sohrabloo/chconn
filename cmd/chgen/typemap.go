@@ -20,7 +20,7 @@ var enumValueRe = regexp.MustCompile(`'([^']+)'\s*=\s*(-?\d+)`)
 // chTypeToGo converts a ClickHouse type string to Go type information.
 // If timeAsUint is true, date/time types are mapped to their underlying
 // integer type instead of time.Time.
-func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
+func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) { //nolint:gocyclo,funlen
 	chType = strings.TrimSpace(chType)
 
 	// --- Wrappers that delegate recursively ---
@@ -70,11 +70,11 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		valStr := strings.TrimSpace(args[comma+1:])
 		keyInfo, err := chTypeToGo(keyStr, timeAsUint)
 		if err != nil {
-			return goTypeInfo{}, fmt.Errorf("Map key: %w", err)
+			return goTypeInfo{}, fmt.Errorf("map key: %w", err)
 		}
 		valInfo, err := chTypeToGo(valStr, timeAsUint)
 		if err != nil {
-			return goTypeInfo{}, fmt.Errorf("Map value: %w", err)
+			return goTypeInfo{}, fmt.Errorf("map value: %w", err)
 		}
 		return goTypeInfo{goType: fmt.Sprintf("map[%s]%s", keyInfo.goType, valInfo.goType)}, nil
 	}
@@ -102,7 +102,7 @@ func chTypeToGo(chType string, timeAsUint bool) (goTypeInfo, error) {
 		case prec <= 76:
 			return goTypeInfo{goType: "types.Decimal256"}, nil
 		default:
-			return goTypeInfo{}, fmt.Errorf("Decimal precision %d exceeds max 76", prec)
+			return goTypeInfo{}, fmt.Errorf("decimal precision %d exceeds max 76", prec)
 		}
 	}
 
