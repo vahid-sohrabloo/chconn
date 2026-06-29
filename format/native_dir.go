@@ -1,14 +1,15 @@
 package format
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
-	lz4 "github.com/pierrec/lz4/v4"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
@@ -25,7 +26,9 @@ const dirFileSuffix = ".native"
 
 // WriteDir writes each column to its own single-column Native file:
 // col_<NNNNNN>__<name>.native. Files are self-describing and individually readable.
-// Pass WithLZ4() to compress each column file.
+// Pass WithZSTD()/WithLZ4()/WithCodec() to compress each column file.
+// Pass WithConcurrency(n) to control the number of parallel write workers
+// (default: runtime.NumCPU()).
 // On any error, already-written column files are removed (best-effort) before
 // returning, so a failed WriteDir does not leave a half-populated directory.
 func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
@@ -37,18 +40,53 @@ func WriteDir(dir string, cols []column.ColumnCore, opts ...Option) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	var written []string
+
+	cfg := resolve(opts)
+	workers := cfg.workers()
+	if workers > len(cols) && len(cols) > 0 {
+		workers = len(cols)
+	}
+
+	var (
+		mu       sync.Mutex
+		firstErr error
+		written  []string
+	)
+
+	sem := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+
 	for i, col := range cols {
-		name := string(col.Name())
-		fn := fmt.Sprintf("col_%06d__%s%s", i, sanitize(name), dirFileSuffix)
-		path := filepath.Join(dir, fn)
-		if err := WriteFile(path, []column.ColumnCore{col}, opts...); err != nil {
-			for _, p := range written {
-				os.Remove(p)
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			name := string(col.Name())
+			fn := fmt.Sprintf("col_%06d__%s%s", i, sanitize(name), dirFileSuffix)
+			path := filepath.Join(dir, fn)
+
+			err := WriteFile(path, []column.ColumnCore{col}, opts...)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if firstErr == nil {
+					firstErr = fmt.Errorf("native: write column %q: %w", name, err)
+				}
+			} else {
+				written = append(written, path)
 			}
-			return fmt.Errorf("native: write column %q: %w", name, err)
+		}()
+	}
+	wg.Wait()
+
+	if firstErr != nil {
+		for _, p := range written {
+			os.Remove(p)
 		}
-		written = append(written, path)
+		return firstErr
 	}
 	return nil
 }
@@ -64,7 +102,7 @@ type DirReader struct {
 
 // OpenDir scans dir for single-column Native files and reads each file's header
 // to learn name/type/row-count. It does NOT read column data.
-// Pass WithLZ4() if the directory was written with compression.
+// Pass WithZSTD()/WithLZ4()/WithCodec() if the directory was written with compression.
 func OpenDir(dir string, opts ...Option) (*DirReader, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -110,8 +148,15 @@ func readDirFileHeader(path string, opts []Option) (ColumnMeta, int, error) {
 	}
 	defer f.Close()
 	var rd io.Reader = f
-	if cfg.lz4 {
-		rd = lz4.NewReader(f)
+	if cfg.codec != nil {
+		if err := readCompressedHeader(f, cfg.codec.Name); err != nil {
+			return ColumnMeta{}, 0, err
+		}
+		plain, err := readCompressedUnit(f, cfg.codec)
+		if err != nil {
+			return ColumnMeta{}, 0, err
+		}
+		rd = bytes.NewReader(plain)
 	}
 	r := readerwriter.NewReader(rd)
 	numCols, err := r.Uvarint()
@@ -143,7 +188,7 @@ func (dr *DirReader) Columns() []ColumnMeta { return dr.cols }
 func (dr *DirReader) RowCount() int { return dr.rowCount }
 
 // OpenColumn reads ONLY the named column's file and returns its column.
-// The DirReader's own options (e.g. WithLZ4) are applied automatically; any
+// The DirReader's own options (e.g. WithZSTD()/WithLZ4()/WithCodec()) are applied automatically; any
 // opts passed here are appended and may augment or override them.
 func (dr *DirReader) OpenColumn(name string, opts ...Option) (column.ColumnCore, error) {
 	meta, ok := dr.byName[name]
@@ -164,6 +209,51 @@ func (dr *DirReader) OpenColumn(name string, opts ...Option) (column.ColumnCore,
 		return nil, fmt.Errorf("native: column file for %q has no columns", name)
 	}
 	return cols[0], nil
+}
+
+// OpenColumns reads the named columns concurrently (workers from the options
+// OpenDir was created with) and returns them in the same order as names.
+// Each column is read from its own file, so reads are independent.
+// Any opts are passed through to each OpenColumn call and may augment or
+// override the DirReader's own options.
+func (dr *DirReader) OpenColumns(names []string, opts ...Option) ([]column.ColumnCore, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	workers := min(resolve(dr.opts).workers(), len(names))
+
+	type result struct {
+		col column.ColumnCore
+		err error
+	}
+
+	results := make([]result, len(names))
+
+	sem := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+
+	for i, name := range names {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			col, err := dr.OpenColumn(name, opts...)
+			results[i].col = col
+			results[i].err = err
+		}()
+	}
+	wg.Wait()
+
+	out := make([]column.ColumnCore, len(names))
+	for i, r := range results {
+		if r.err != nil {
+			return nil, r.err
+		}
+		out[i] = r.col
+	}
+	return out, nil
 }
 
 // Close is a no-op (per-column files are opened and closed on demand).
