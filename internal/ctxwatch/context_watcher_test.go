@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/ctxwatch"
 )
 
 func TestContextWatcherContextCancelled(t *testing.T) {
@@ -50,12 +50,10 @@ func TestContextWatcherUnwatchdBeforeContextCancelled(t *testing.T) {
 func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cw.Watch(ctx)
 
-	ctx2, cancel2 := context.WithCancel(context.Background())
-	defer cancel2()
+	ctx2 := t.Context()
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
@@ -63,8 +61,7 @@ func TestContextWatcherUnwatchWhenNotWatchingIsSafe(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 	cw.Unwatch() // unwatch when not / never watching
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	cw.Watch(ctx)
 	cw.Unwatch()
 	cw.Unwatch() // double unwatch
@@ -85,18 +82,18 @@ func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
 
 //nolint:govet
 func TestContextWatcherStress(t *testing.T) {
-	var cancelFuncCalls int64
-	var cleanupFuncCalls int64
+	var cancelFuncCalls atomic.Int64
+	var cleanupFuncCalls atomic.Int64
 
 	cw := ctxwatch.NewContextWatcher(func() {
-		atomic.AddInt64(&cancelFuncCalls, 1)
+		cancelFuncCalls.Add(1)
 	}, func() {
-		atomic.AddInt64(&cleanupFuncCalls, 1)
+		cleanupFuncCalls.Add(1)
 	})
 
 	cycleCount := 100000
 
-	for i := 0; i < cycleCount; i++ {
+	for i := range cycleCount {
 		//nolint:govet
 		ctx, cancel := context.WithCancel(context.Background())
 		cw.Watch(ctx)
@@ -116,8 +113,8 @@ func TestContextWatcherStress(t *testing.T) {
 		}
 	}
 
-	actualCancelFuncCalls := atomic.LoadInt64(&cancelFuncCalls)
-	actualCleanupFuncCalls := atomic.LoadInt64(&cleanupFuncCalls)
+	actualCancelFuncCalls := cancelFuncCalls.Load()
+	actualCleanupFuncCalls := cleanupFuncCalls.Load()
 
 	if actualCancelFuncCalls == 0 {
 		t.Fatal("actualCancelFuncCalls == 0")
@@ -156,8 +153,7 @@ func BenchmarkContextWatcherCancelled(b *testing.B) {
 func BenchmarkContextWatcherCancellable(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := b.Context()
 
 	for i := 0; i < b.N; i++ {
 		cw.Watch(ctx)

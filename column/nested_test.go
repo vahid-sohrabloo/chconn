@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestNestedNoFlattened(t *testing.T) {
@@ -57,9 +57,9 @@ func TestNestedNoFlattened(t *testing.T) {
 	var col1Insert [][]Col1Type
 	var col2Insert [][]Col2Type
 
-	for insertN := 0; insertN < 2; insertN++ {
+	for range 2 {
 		rows := 10
-		for i := 0; i < rows; i++ {
+		for i := range rows {
 			valString := fmt.Sprintf("string %d", i)
 			valInt := int64(i)
 			val2String := fmt.Sprintf("string %d", i+1)
@@ -151,11 +151,11 @@ func TestNestedNoFlattened(t *testing.T) {
 
 	assert.Len(t, autoColumns, 2)
 
-	assert.Equal(t, column.NewTuple(column.New[int64](), column.NewString()).Array().ColumnType(), autoColumns[0].ColumnType())
+	assert.Equal(t, "col1 Array(Tuple(ol1_n1  Int64, ol2_n1  String))",
+		autoColumns[0].FullType())
 	assert.Equal(t,
-		column.NewTuple(column.New[int64](),
-			column.NewTuple(column.New[int64](), column.NewString()).Array()).Array().
-			ColumnType(), autoColumns[1].ColumnType())
+		"col2 Array(Tuple(ol1_n2  Int64, ol2_n2  Array(Tuple(ol1_n2_n1  Int64, ol2_n2_n2  String))))",
+		autoColumns[1].FullType())
 
 	for selectStmt.Next() {
 	}

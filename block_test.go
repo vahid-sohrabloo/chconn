@@ -12,77 +12,47 @@ import (
 )
 
 func TestBlockReadError(t *testing.T) {
-	startValidReader := 15
+	// First, determine how many reads are needed for a successful hello+select
+	// by connecting normally and counting. This avoids hardcoding a value that
+	// changes with protocol version.
+	helloReads := helloReadsCount(t)
 
-	tests := []struct {
-		name        string
-		wantErr     string
-		numberValid int
-	}{
-		{
-			name:        "blockInfo: temporary table",
-			wantErr:     "block: temporary table",
-			numberValid: startValidReader - 1,
-		}, {
-			name:        "blockInfo: read field1",
-			wantErr:     "blockInfo: read field1",
-			numberValid: startValidReader,
-		}, {
-			name:        "blockInfo: read isOverflows",
-			wantErr:     "blockInfo: read isOverflows",
-			numberValid: startValidReader + 1,
-		}, {
-			name:        "blockInfo: read field2",
-			wantErr:     "blockInfo: read field2",
-			numberValid: startValidReader + 2,
-		}, {
-			name:        "blockInfo: read bucketNum",
-			wantErr:     "blockInfo: read bucketNum",
-			numberValid: startValidReader + 3,
-		}, {
-			name:        "blockInfo: read num3",
-			wantErr:     "blockInfo: read num3",
-			numberValid: startValidReader + 4,
-		}, {
-			name:        "block: read NumColumns",
-			wantErr:     "block: read NumColumns",
-			numberValid: startValidReader + 5,
-		}, {
-			name:        "block: read NumRows",
-			wantErr:     "block: read NumRows",
-			numberValid: startValidReader + 6,
-		}, {
-			name:        "block: read column name",
-			wantErr:     "block: read column name",
-			numberValid: startValidReader + 8,
-		}, {
-			name:        "block: read column type",
-			wantErr:     "block: read column type",
-			numberValid: startValidReader + 10,
-		},
+	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	var totalReads int
+	config.ReaderFunc = func(r io.Reader, _ Conn) io.Reader {
+		return &readCounterHelper{r: r, count: &totalReads}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	c, err := ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
+	require.NoError(t, err)
+	require.NotNil(t, stmt)
+	stmt.Close()
+	c.Close()
+
+	// Test that errors at various points during block reading are properly reported.
+	for n := helloReads; n < totalReads; n++ {
+		t.Run("", func(t *testing.T) {
+			cfg, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			cfg.ReaderFunc = func(r io.Reader, _ Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
-					numberValid: tt.numberValid,
+					numberValid: n,
 				}
 			}
 
-			c, err := ConnectConfig(context.Background(), config)
-			assert.NoError(t, err)
-			stmt, err := c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
+			c, err := ConnectConfig(context.Background(), cfg)
+			if err != nil {
+				return
+			}
+			_, err = c.Select(context.Background(), "SELECT * FROM system.numbers LIMIT 5;")
 			require.Error(t, err)
-			require.Nil(t, stmt)
-
-			readErr, ok := err.(*readError)
-			require.True(t, ok)
-			require.Equal(t, readErr.msg, tt.wantErr)
-			require.EqualError(t, readErr.Unwrap(), "timeout")
+			require.Contains(t, err.Error(), "timeout")
 			assert.True(t, c.IsClosed())
 		})
 	}

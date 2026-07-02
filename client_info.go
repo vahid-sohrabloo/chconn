@@ -3,7 +3,7 @@ package chconn
 import (
 	"os/user"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 // ClientInfo Information about client for query.
@@ -72,6 +72,15 @@ func (c *ClientInfo) write(ch *conn) {
 		ch.writer.Uvarint(0) // count_participating_replicas
 		ch.writer.Uvarint(0) // number_of_current_replica
 	}
+
+	if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithQueryAndLineNumbers {
+		ch.writer.String("") // initial_query_obfuscated
+		ch.writer.Uvarint(0) // initial_line_number
+	}
+
+	if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithJWTInInterserver {
+		ch.writer.String("") // jwt — not used by external clients
+	}
 }
 
 func (c *ClientInfo) fillOSUserHostNameAndVersionInfo() {
@@ -80,8 +89,8 @@ func (c *ClientInfo) fillOSUserHostNameAndVersionInfo() {
 		c.OSUser = u.Username
 	}
 
-	c.ClientVersionMajor = dbmsVersionMajor
-	c.ClientVersionMinor = dbmsVersionMinor
-	c.ClientVersionPatch = dbmsVersionPatch
-	c.ClientRevision = dbmsVersionRevision
+	c.ClientVersionMajor = clientVersionMajor
+	c.ClientVersionMinor = clientVersionMinor
+	c.ClientVersionPatch = clientVersionPatch
+	c.ClientRevision = helper.ClientTCPVersion
 }

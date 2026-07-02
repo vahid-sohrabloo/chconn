@@ -6,6 +6,26 @@ const (
 	PointStr    = "Point"
 )
 
+const (
+	VariantStr    = "Variant("
+	LenVariantStr = len(VariantStr)
+)
+
+const (
+	DynamicStr    = "Dynamic"
+	LenDynamicStr = len(DynamicStr)
+)
+
+const (
+	JSONStr    = "JSON"
+	LenJSONStr = len(JSONStr)
+)
+
+const (
+	SharedVariantStr    = "SharedVariant"
+	LenSharedVariantStr = len(SharedVariantStr)
+)
+
 var PointMainTypeStr = []byte("Tuple(Float64, Float64)")
 
 const PolygonStr = "Polygon"
@@ -37,6 +57,8 @@ const (
 	DateTimeStrLen        = len(DateTimeStr)
 	DateTime64Str         = "DateTime64("
 	DateTime64StrLen      = len(DateTime64Str)
+	Time64Str             = "Time64("
+	Time64StrLen          = len(Time64Str)
 	DecimalStr            = "Decimal("
 	DecimalStrLen         = len(DecimalStr)
 	FixedStringStr        = "FixedString("
@@ -68,4 +90,8 @@ const (
 
 const (
 	StringStr = "String"
+)
+
+const (
+	NothingStr = "Nothing"
 )

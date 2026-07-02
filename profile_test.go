@@ -3,19 +3,18 @@ package chconn
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 func TestProfileReadError(t *testing.T) {
-	startValidReader := 43
+	startValidReader := helloReadsCount(t) + 28 // 28 = reads after hello for the SELECT response up to profile
 	config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 	require.NoError(t, err)
 	c, err := ConnectConfig(context.Background(), config)
@@ -65,7 +64,7 @@ func TestProfileReadError(t *testing.T) {
 				tt.numberValid++
 			}
 
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -83,7 +82,6 @@ func TestProfileReadError(t *testing.T) {
 			require.Error(t, stmt.Err())
 			readErr, ok := stmt.Err().(*readError)
 			require.True(t, ok)
-			fmt.Println("readErr.msg:", readErr.msg)
 			require.Equal(t, tt.wantErr, readErr.msg)
 			require.EqualError(t, readErr.Unwrap(), "timeout")
 			assert.True(t, c.IsClosed())

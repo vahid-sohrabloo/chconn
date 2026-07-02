@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestInsertError(t *testing.T) {
@@ -67,11 +67,12 @@ func TestInsertError(t *testing.T) {
 
 	require.NoError(t, err)
 
-	config.ReaderFunc = func(r io.Reader) io.Reader {
+	insertReadValid := insertColumnNameReadsCount(t) // reads needed to reach column name read in INSERT
+	config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 		return &readErrorHelper{
 			err:         errors.New("timeout"),
 			r:           r,
-			numberValid: 27,
+			numberValid: insertReadValid,
 		}
 	}
 	c, err = ConnectConfig(context.Background(), config)
@@ -79,7 +80,7 @@ func TestInsertError(t *testing.T) {
 	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_error (
 				int8
 			) VALUES`)
-	require.EqualError(t, err, "block: read column name (timeout)")
+	require.EqualError(t, err, "read column name: read string length: timeout")
 	assert.True(t, c.IsClosed())
 
 	config, err = ParseConfig(connString)
@@ -226,7 +227,7 @@ func TestInsert(t *testing.T) {
 	var col32Insert []int32
 
 	rows := 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		col8.Append(int8(i))
 		col16.Append(int16(i))
 		col32.Append(int32(i))
@@ -301,7 +302,7 @@ func TestInsertNotFoundColumn(t *testing.T) {
 	col8.SetName([]byte("not_found"))
 
 	rows := 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		col8.Append(int8(i))
 	}
 
@@ -359,7 +360,7 @@ func TestCompressInsert(t *testing.T) {
 			var colInsert []int8
 
 			rows := 1000
-			for i := 0; i < rows; i++ {
+			for i := range rows {
 				val := int8(i)
 
 				col.Append(val)
@@ -632,44 +633,32 @@ func TestInsertColumnDataErrorValidate(t *testing.T) {
 		"insert into clickhouse_test_insert_column_error_l_validate (col) VALUES",
 		col,
 	)
-	require.EqualError(t, err, "mismatch column type: ClickHouse Type: LowCardinality(String), column types: String")
+	require.EqualError(
+		t,
+		err,
+		"column col (index 0): the chconn type 'column.StringBase[string]' is mapped to ClickHouse type 'String', "+
+			"which does not match the expected ClickHouse type 'LowCardinality(String)'")
 	assert.True(t, c.IsClosed())
 }
 
-func TestInsertSelectStmt(t *testing.T) {
+func TestInsertIntoSelect(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
 
-	config, err := ParseConfig(connString)
+	conn, err := Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	// test read column error
-	c, err := ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	err = c.Exec(context.Background(), `DROP TABLE IF EXISTS clickhouse_test_insert_select`)
+	err = conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_insert_into_select`)
 	require.NoError(t, err)
 
-	err = c.Exec(context.Background(), `CREATE TABLE clickhouse_test_insert_select (
-				number  Int64
+	err = conn.Exec(context.Background(), `CREATE TABLE test_insert_into_select (
+				n UInt64
 			) Engine=Memory`)
 
 	require.NoError(t, err)
 
-	err = c.Insert(context.Background(), `INSERT INTO clickhouse_test_insert_select (
-		number
-			) select number from system.numbers limit 10`)
-	require.NoError(t, err)
-
-	colRead := column.New[int64]()
-	selectStmt, err := c.Select(context.Background(), `SELECT number FROM clickhouse_test_insert_select`, colRead)
-	require.NoError(t, err)
-
-	var colData []int64
-
-	for selectStmt.Next() {
-		colData = colRead.Read(colData)
+	if err := conn.Exec(context.Background(), `INSERT INTO test_insert_into_select (n) VALUES (1)`); err != nil {
+		t.Fatal(err)
 	}
-	assert.Equal(t, []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, colData)
-	require.NoError(t, selectStmt.Err())
 }

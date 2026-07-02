@@ -1,5 +1,14 @@
 package column
 
+import (
+	"database/sql"
+	"fmt"
+	"reflect"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+)
+
 // LowCardinalityNullable for LowCardinality(Nullable(T)) ClickHouse DataTypes
 type LowCardinalityNullable[T comparable] struct {
 	LowCardinality[T]
@@ -17,11 +26,25 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 	l := &LowCardinalityNullable[T]{
 		LowCardinality: LowCardinality[T]{
 			nullable:   true,
-			dict:       make(map[T]int),
+			dict:       make(map[T]uint32),
 			dictColumn: dictColumn,
+			rtype:      reflect.TypeFor[T](),
 		},
 	}
 	return l
+}
+
+// SetWriteBufferSize set write buffer (number of rows)
+// this buffer only used for writing.
+// By setting this buffer, you will avoid allocating the memory several times.
+func (c *LowCardinalityNullable[T]) SetWriteBufferSize(row int) {
+	if cap(c.keys) < row {
+		c.keys = make([]uint32, 0, row)
+	}
+	c.dictColumn.SetWriteBufferSize(row)
+	c.dictColumn.Reset()
+	var empty T
+	c.dictColumn.Append(empty)
 }
 
 // Data get all nullable data in current block as a slice.
@@ -29,11 +52,11 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 // NOTE: the return slice only valid in current block, if you want to use it after, you should copy it. or use Read
 func (c *LowCardinalityNullable[T]) DataP() []*T {
 	result := make([]*T, c.NumRow())
-	for i, k := range c.readedKeys {
+	for i, k := range c.keys {
 		if k == 0 {
 			result[i] = nil
 		} else {
-			val := c.readedDict[k]
+			val := c.readDict[k]
 			result[i] = &val
 		}
 	}
@@ -42,11 +65,11 @@ func (c *LowCardinalityNullable[T]) DataP() []*T {
 
 // Read reads all nullable data in current block and append to the input.
 func (c *LowCardinalityNullable[T]) ReadP(value []*T) []*T {
-	for _, k := range c.readedKeys {
+	for _, k := range c.keys {
 		if k == 0 {
 			value = append(value, nil)
 		} else {
-			val := c.readedDict[k]
+			val := c.readDict[k]
 			value = append(value, &val)
 		}
 	}
@@ -56,21 +79,97 @@ func (c *LowCardinalityNullable[T]) ReadP(value []*T) []*T {
 // Row return nullable value of given row
 // NOTE: Row number start from zero
 func (c *LowCardinalityNullable[T]) RowP(row int) *T {
-	if c.readedKeys[row] == 0 {
+	if c.keys[row] == 0 {
 		return nil
 	}
-	val := c.readedDict[c.readedKeys[row]]
+	val := c.readDict[c.keys[row]]
 	return &val
 }
 
+// RowAny return the value of given row.
+// NOTE: Row number start from zero
+func (c *LowCardinalityNullable[T]) RowAny(row int) any {
+	return c.RowP(row)
+}
+
+// RowIsNil return true if value of given row is null
+// NOTE: Row number start from zero
+func (c *LowCardinalityNullable[T]) RowIsNil(row int) bool {
+	return c.keys[row] == 0
+}
+
+func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
+	switch d := dest.(type) {
+	case *T:
+		*d = c.Row(row)
+		return nil
+	case **T:
+		*d = c.RowP(row)
+		return nil
+	case *any:
+		*d = c.Row(row)
+		return nil
+	case sql.Scanner:
+		return d.Scan(c.Row(row))
+	}
+
+	return ErrScanType{
+		destType:   reflect.TypeOf(dest).String(),
+		columnType: "**" + c.rtype.String(),
+	}
+}
+
 // Append value for insert
-func (c *LowCardinalityNullable[T]) Append(v ...T) {
+func (c *LowCardinalityNullable[T]) Append(v T) {
+	c.preHookAppend()
+	key, ok := c.dict[v]
+	if !ok {
+		key = uint32(len(c.dict))
+		c.dictColumn.Append(v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
+	}
+	c.keys = append(c.keys, key+1)
+	c.numRow++
+}
+
+func (c *LowCardinalityNullable[T]) canAppend(value any) bool {
+	switch value.(type) {
+	case *T, T, nil:
+		return true
+	}
+	return false
+}
+
+func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
+	switch v := value.(type) {
+	case nil:
+		c.AppendNil()
+
+		return nil
+	case T:
+		c.Append(v)
+
+		return nil
+	//nolint:gocritic // to ignore caseOrder
+	case *T:
+		c.AppendP(v)
+		return nil
+	}
+
+	return fmt.Errorf("can't convert %T to %T", value, c)
+}
+
+// AppendMulti value for insert
+func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		key, ok := c.dict[v]
 		if !ok {
-			key = len(c.dict)
-			c.dict[v] = key
+			key = uint32(len(c.dict))
 			c.dictColumn.Append(v)
+			// we are not using the main input as a map key. possible its using some unsafe strings
+			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
 		c.keys = append(c.keys, key+1)
 	}
@@ -80,14 +179,38 @@ func (c *LowCardinalityNullable[T]) Append(v ...T) {
 
 // Append nil value for insert
 func (c *LowCardinalityNullable[T]) AppendNil() {
+	c.preHookAppend()
 	c.keys = append(c.keys, 0)
 	c.numRow++
 }
 
-// Append nullable value for insert
+// AppendP nullable value for insert
 //
 // as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
-func (c *LowCardinalityNullable[T]) AppendP(v ...*T) {
+func (c *LowCardinalityNullable[T]) AppendP(v *T) {
+	c.preHookAppend()
+	if v == nil {
+		c.keys = append(c.keys, 0)
+		c.numRow++
+		return
+	}
+	key, ok := c.dict[*v]
+	if !ok {
+		key = uint32(len(c.dict))
+		c.dictColumn.Append(*v)
+		// we are not using the main input as a map key. possible its using some unsafe strings
+		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
+	}
+	c.keys = append(c.keys, key+1)
+
+	c.numRow++
+}
+
+// AppendMultiP nullable value for insert
+//
+// as an alternative (for better performance), you can use `Append` and `AppendNil` to insert a value
+func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
+	c.preHookAppendMulti(len(v))
 	for _, v := range v {
 		if v == nil {
 			c.keys = append(c.keys, 0)
@@ -95,9 +218,10 @@ func (c *LowCardinalityNullable[T]) AppendP(v ...*T) {
 		}
 		key, ok := c.dict[*v]
 		if !ok {
-			key = len(c.dict)
-			c.dict[*v] = key
+			key = uint32(len(c.dict))
 			c.dictColumn.Append(*v)
+			// we are not using the main input as a map key. possible its using some unsafe strings
+			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
 		}
 		c.keys = append(c.keys, key+1)
 	}
@@ -122,9 +246,23 @@ func (c *LowCardinalityNullable[T]) Reset() {
 	c.dictColumn.Append(empty)
 }
 
-func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnBasic {
+func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		return c.Array().elem(arrayLevel - 1)
 	}
 	return c
+}
+
+func (c *LowCardinalityNullable[T]) ToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {
+	k := c.keys[row]
+	if k == 0 {
+		return append(b, "null"...)
+	}
+	return c.dictColumn.ToJSON(int(k), ignoreDoubleQuotes, b)
+}
+
+func (c *LowCardinalityNullable[T]) writeBinaryDataTo(w *readerwriter.Writer) {
+	w.Uint8(uint8(helper.BinaryTypeIndexLowCardinality))
+	w.Uint8(uint8(helper.BinaryTypeIndexNullable))
+	c.dictColumn.writeBinaryDataTo(w)
 }

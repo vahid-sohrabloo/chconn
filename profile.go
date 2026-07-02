@@ -1,5 +1,7 @@
 package chconn
 
+import "github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+
 // Profile detail of profile select query
 type Profile struct {
 	Rows                      uint64
@@ -8,6 +10,8 @@ type Profile struct {
 	RowsBeforeLimit           uint64
 	AppliedLimit              uint8
 	CalculatedRowsBeforeLimit uint8
+	AppliedAggregation        uint8
+	RowsBeforeAggregation     uint64
 }
 
 func newProfile() *Profile {
@@ -33,6 +37,15 @@ func (p *Profile) read(ch *conn) (err error) {
 	}
 	if p.CalculatedRowsBeforeLimit, err = ch.reader.ReadByte(); err != nil {
 		return &readError{"profile: read CalculatedRowsBeforeLimit", err}
+	}
+
+	if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithRowsBeforeAggregation {
+		if p.AppliedAggregation, err = ch.reader.ReadByte(); err != nil {
+			return &readError{"profile: read AppliedAggregation", err}
+		}
+		if p.RowsBeforeAggregation, err = ch.reader.Uvarint(); err != nil {
+			return &readError{"profile: read RowsBeforeAggregation", err}
+		}
 	}
 	return nil
 }

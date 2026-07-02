@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 )
 
 var chColumnByteSize = map[string]int{
@@ -33,7 +33,32 @@ var chColumnByteSize = map[string]int{
 	"IPv6":       16,
 }
 
-var byteChColumnType = map[int]string{
+var goTypeToChType = map[string]string{
+	"bool":             "Bool",
+	"int8":             "Int8",
+	"int16":            "Int16",
+	"int32":            "Int32",
+	"int64":            "Int64",
+	"types.Int128":     "Int128",
+	"types.Int256":     "Int256",
+	"uint8":            "UInt8",
+	"uint16":           "UInt16",
+	"uint32":           "UInt32",
+	"uint64":           "UInt64",
+	"types.Uint128":    "UInt128",
+	"types.Uint256":    "UInt256",
+	"float32":          "Float32",
+	"float64":          "Float64",
+	"types.Date":       "Date",
+	"types.Date32":     "Date32",
+	"types.DateTime":   "DateTime",
+	"types.DateTime64": "DateTime64",
+	"types.UUID":       "UUID",
+	"types.IPv4":       "IPv4",
+	"types.IPv6":       "IPv6",
+}
+
+var byteChstructType = map[int]string{
 	1:  "Int8|UInt8|Enum8",
 	2:  "Int16|UInt16|Enum16|Date",
 	4:  "Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
@@ -42,12 +67,32 @@ var byteChColumnType = map[int]string{
 	32: "Int256|UInt256|Decimal256",
 }
 
-func (c *Base[T]) Validate() error {
-	chType := helper.FilterSimpleAggregate(c.chType)
+// SetStrict enables or disables strict type checking when setting the column header.
+// When strict, the Go type must exactly match the ClickHouse type; otherwise only the byte size must match.
+func (c *Base[T]) SetStrict(strict bool) *Base[T] {
+	c.strict = strict
+	return c
+}
+
+// SetColumnHeader sets the column metadata and validates that the ClickHouse type is compatible with the Go type.
+func (c *Base[T]) SetColumnHeader(ch ColumnHeader) error {
+	c.columnHeader = ch
+	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
+
 	if byteSize, ok := chColumnByteSize[string(chType)]; ok {
-		if byteSize != c.size {
+		if c.strict {
+			if goTypeToChType[c.kind.String()] != string(chType) && goTypeToChType[c.rtype.String()] != string(chType) {
+				return &ErrInvalidType{
+					chType:     string(c.columnHeader.ChType),
+					goToChType: c.structType(),
+					chconnType: c.chconnType(),
+				}
+			}
+		} else if byteSize != c.size {
 			return &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		return nil
@@ -56,12 +101,7 @@ func (c *Base[T]) Validate() error {
 	if ok, err := c.checkEnum8(chType); ok {
 		return err
 	}
-
 	if ok, err := c.checkEnum16(chType); ok {
-		return err
-	}
-
-	if ok, err := c.checkDateTime(chType); ok {
 		return err
 	}
 
@@ -80,15 +120,35 @@ func (c *Base[T]) Validate() error {
 	}
 
 	return &ErrInvalidType{
-		column: c,
+		chType:     string(c.columnHeader.ChType),
+		goToChType: c.structType(),
+		chconnType: c.chconnType(),
 	}
+}
+
+// ValidateInsert validates the column data before inserting into ClickHouse.
+func (c *Base[T]) ValidateInsert() error {
+	return nil
 }
 
 func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 	if helper.IsEnum8(chType) {
-		if c.size != Uint8Size {
+		c.isEnum8 = true
+		if c.strict {
+			if c.kind.String() != "int8" {
+				return true, &ErrInvalidType{
+					chType:     string(c.columnHeader.ChType),
+					goToChType: c.structType(),
+					chconnType: c.chconnType(),
+				}
+			}
+			return true, nil
+		}
+		if c.size != Int8Size {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		return true, nil
@@ -98,9 +158,22 @@ func (c *Base[T]) checkEnum8(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 	if helper.IsEnum16(chType) {
-		if c.size != Uint16Size {
+		c.isEnum16 = true
+		if c.strict {
+			if c.kind.String() != "int16" {
+				return true, &ErrInvalidType{
+					chType:     string(c.columnHeader.ChType),
+					goToChType: c.structType(),
+					chconnType: c.chconnType(),
+				}
+			}
+			return true, nil
+		}
+		if c.size != Int16Size {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		return true, nil
@@ -110,12 +183,22 @@ func (c *Base[T]) checkEnum16(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 	if helper.IsDateTimeWithParam(chType) {
-		if c.size != 4 {
+		if c.strict {
+			if c.kind.String() != "uint32" {
+				return true, &ErrInvalidType{
+					chType:     string(c.columnHeader.ChType),
+					goToChType: "UInt32|DateTime",
+					chconnType: c.chconnType(),
+				}
+			}
+		} else if c.size != DateTimeSize {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
-		c.params = []interface{}{
+		c.params = []any{
 			// precision
 			0,
 			// timezone
@@ -128,13 +211,23 @@ func (c *Base[T]) checkDateTime(chType []byte) (bool, error) {
 
 func (c *Base[T]) checkDateTime64(chType []byte) (bool, error) {
 	if helper.IsDateTime64(chType) {
-		if c.size != 8 {
+		if c.strict {
+			if c.kind.String() != "int64" {
+				return true, &ErrInvalidType{
+					chType:     string(c.columnHeader.ChType),
+					goToChType: "Int64|DateTime64",
+					chconnType: c.chconnType(),
+				}
+			}
+		} else if c.size != DateTime64Size {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		parts := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
-		c.params = []interface{}{
+		c.params = []any{
 			parts[0],
 			[]byte{},
 		}
@@ -152,9 +245,12 @@ func (c *Base[T]) checkFixedString(chType []byte) (bool, error) {
 		if err != nil {
 			return true, fmt.Errorf("invalid size: %s", err)
 		}
+		// TODO: check strict mode
 		if c.size != size {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		return true, nil
@@ -163,10 +259,11 @@ func (c *Base[T]) checkFixedString(chType []byte) (bool, error) {
 }
 
 func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
+	// TODO: handle strict mode
 	if helper.IsDecimal(chType) {
 		parts := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
 		if len(parts) != 2 {
-			return true, fmt.Errorf("invalid decimal type (should have precision and scale): %s", c.chType)
+			return true, fmt.Errorf("invalid decimal type (should have precision and scale): %s", c.columnHeader.ChType)
 		}
 
 		precision, err := strconv.Atoi(string(parts[0]))
@@ -177,23 +274,29 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 		if err != nil {
 			return true, fmt.Errorf("invalid scale: %s", err)
 		}
-		c.params = []interface{}{precision, scale}
+		c.params = []any{precision, scale}
 		var size int
 		switch {
 		case precision >= 1 && precision <= 9:
+			c.decimalType = decimal32Type
 			size = 4
 		case precision >= 10 && precision <= 18:
+			c.decimalType = decimal64Type
 			size = 8
 		case precision >= 19 && precision <= 38:
+			c.decimalType = decimal128Type
 			size = 16
 		case precision >= 39 && precision <= 76:
+			c.decimalType = decimal256Type
 			size = 32
 		default:
 			return true, fmt.Errorf("invalid precision: %d. it should be between 1 and 76", precision)
 		}
 		if c.size != size {
 			return true, &ErrInvalidType{
-				column: c,
+				chType:     string(c.columnHeader.ChType),
+				goToChType: c.structType(),
+				chconnType: c.chconnType(),
 			}
 		}
 		return true, nil
@@ -201,9 +304,20 @@ func (c *Base[T]) checkDecimal(chType []byte) (bool, error) {
 	return false, nil
 }
 
-func (c *Base[T]) ColumnType() string {
-	if ok, _ := c.checkFixedString(c.chType); !ok {
-		if str, ok := byteChColumnType[c.size]; ok {
+func (c *Base[T]) chconnType() string {
+	return "column.Base[" + c.rtype.String() + "]"
+}
+
+func (c *Base[T]) structType() string {
+	if c.strict {
+		structType := goTypeToChType[c.kind.String()]
+		if structType == "" {
+			structType = goTypeToChType[c.rtype.String()]
+		}
+		return structType
+	}
+	if !helper.IsFixedString(c.columnHeader.ChType) {
+		if str, ok := byteChstructType[c.size]; ok {
 			return str
 		}
 	}

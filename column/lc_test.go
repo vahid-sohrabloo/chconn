@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
 func TestLcIndicator16(t *testing.T) {
@@ -46,7 +46,7 @@ func TestLcIndicator16(t *testing.T) {
 	var colInsert []int64
 
 	rows := int(^uint8(0)) + 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)
@@ -117,7 +117,7 @@ func TestLcIndicator32(t *testing.T) {
 	var colInsert []int64
 
 	rows := int(^uint16(0)) + 10
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		val := int64(i + 1)
 		col.Append(val)
 		colInsert = append(colInsert, val)

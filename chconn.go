@@ -11,10 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/ctxwatch"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/helper"
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/ctxwatch"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/shared"
 )
 
 const (
@@ -59,20 +60,23 @@ const (
 	// Columns' description for default values calculation
 	serverTableColumns = 11
 	// list of unique parts ids.
-	//nolint:deadcode,unused,varcheck
+	//nolint:unused
 	serverPartUUIDs = 12
 	// String (UUID) describes a request for which next task is needed
-	//nolint:deadcode,unused,varcheck
+	//nolint:unused
 	serverReadTaskRequest = 13
+	// System logs of query execution
+	serverLog = 10
 	// Packet with profile events from server
 	serverProfileEvents = 14
+	// Receive server's (session-wide) default timezone
+	serverTimezoneUpdate = 17
 )
 
 const (
-	dbmsVersionMajor    = 1
-	dbmsVersionMinor    = 0
-	dbmsVersionPatch    = 0
-	dbmsVersionRevision = 54460
+	clientVersionMajor = 1
+	clientVersionMinor = 0
+	clientVersionPatch = 0
 )
 
 type queryProcessingStage uint64
@@ -90,7 +94,7 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 type LookupFunc func(ctx context.Context, host string) (addrs []string, err error)
 
 // ReaderFunc is a function that can be used get reader for read from server
-type ReaderFunc func(io.Reader) io.Reader
+type ReaderFunc func(io.Reader, Conn) io.Reader
 
 // WriterFunc is a function that can be used to get writer to writer from server
 // Note: DO NOT use bufio.Writer, chconn doesn't support flush
@@ -107,7 +111,7 @@ type Conn interface {
 	// IsBusy reports if the connection is busy.
 	IsBusy() bool
 	// ServerInfo get Server info
-	ServerInfo() *ServerInfo
+	ServerInfo() *shared.ServerInfo
 	// Ping sends a ping to check that the connection to the server is alive.
 	Ping(ctx context.Context) error
 	// Exec executes a query without returning any rows.
@@ -125,13 +129,13 @@ type Conn interface {
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
+	Insert(ctx context.Context, query string, columns ...column.ColumnCore) error
 	// InsertWithOption executes a insert query with the query options and commit all columns data.
 	//
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	InsertWithOption(ctx context.Context, query string, queryOptions *QueryOptions, columns ...column.ColumnBasic) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *QueryOptions, columns ...column.ColumnCore) error
 	// Insert executes a insert query and return a InsertStmt.
 	//
 	// NOTE: only use for insert query
@@ -148,7 +152,7 @@ type Conn interface {
 	// Select executes a query and return select stmt.
 	//
 	// NOTE: only use for select query
-	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (SelectStmt, error)
+	Select(ctx context.Context, query string, columns ...column.ColumnCore) (SelectStmt, error)
 	// Select executes a query with the the query options and return select stmt.
 	//
 	// NOTE: only use for select query
@@ -156,10 +160,37 @@ type Conn interface {
 		ctx context.Context,
 		query string,
 		queryOptions *QueryOptions,
-		columns ...column.ColumnBasic,
+		columns ...column.ColumnCore,
 	) (SelectStmt, error)
-}
 
+	// Query sends a select query to the server and returns a Rows to read the results. Only errors encountered sending the query
+	// and initializing Rows will be returned. Err() on the returned Rows must be checked after the Rows is closed to
+	// determine if the query executed successfully.
+	//
+	// For better performance use Select instead of Query when possible. specially when you want to read al lot of data.
+	//
+	// The returned Rows must be closed before the connection can be used again. It is safe to attempt to read from the
+	// returned Rows even if an error is returned. The error will be the available in rows.Err() after rows are closed. It
+	// is allowed to ignore the error returned from Query and handle it in Rows.
+	//
+	// It is possible for a query to return one or more rows before encountering an error. In most cases the rows should be
+	// collected before processing rather than processed while receiving each row. This avoids the possibility of the
+	// application processing rows from a query that the server rejected. The CollectRows function is useful here.
+	//
+	// NOTE: Only use this function for select queries (or any other queries that return rows).
+	Query(ctx context.Context, sql string, args ...Parameter) (Rows, error)
+
+	// QueryWithOption is the same as Query but with QueryOptions
+	QueryWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) (Rows, error)
+
+	// QueryRow is a convenience wrapper over Query. Any error that occurs while
+	// querying is deferred until calling Scan on the returned Row. That Row will
+	// error with ErrNoRows if no rows are returned.
+	QueryRow(ctx context.Context, sql string, args ...Parameter) Row
+
+	// QueryRowWithOptions is the same as QueryRow but with QueryOptions
+	QueryRowWithOption(ctx context.Context, sql string, queryOption *QueryOptions, args ...Parameter) Row
+}
 type writeFlusher interface {
 	io.Writer
 	Flush() error
@@ -168,7 +199,7 @@ type writeFlusher interface {
 type conn struct {
 	conn              net.Conn          // the underlying TCP connection
 	parameterStatuses map[string]string // parameters that have been reported by the server
-	serverInfo        *ServerInfo
+	serverInfo        *shared.ServerInfo
 	clientInfo        *ClientInfo
 
 	config *Config
@@ -223,12 +254,13 @@ func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
 	ctx := octx
-	fallbackConfigs, err = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
-	if err != nil {
-		return nil, &connectError{config: config, msg: "hostname resolving error", err: err}
-	}
-
+	var lookupErrors []error
+	fallbackConfigs, lookupErrors = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
 	if len(fallbackConfigs) == 0 {
+		// If no hosts resolved, report the first lookup error if available.
+		if len(lookupErrors) > 0 {
+			return nil, &connectError{config: config, msg: "hostname resolving error", err: lookupErrors[0]}
+		}
 		return nil, &connectError{config: config, msg: "hostname resolving error", err: ErrIPNotFound}
 	}
 
@@ -275,13 +307,17 @@ func ConnectConfig(octx context.Context, config *Config) (c Conn, err error) {
 	return c, nil
 }
 
-func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, error) {
+func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, []error) {
 	var configs []*FallbackConfig
+	var errs []error
 
 	for _, fb := range fallbacks {
 		ips, err := lookupFn(ctx, fb.Host)
 		if err != nil {
-			return nil, err
+			// Skip hosts that fail to resolve instead of aborting all fallbacks.
+			// Collect errors so the caller can report them if no hosts resolve.
+			errs = append(errs, err)
+			continue
 		}
 
 		for _, ip := range ips {
@@ -289,7 +325,8 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 			if err == nil {
 				port, err := strconv.ParseUint(splitPort, 10, 16)
 				if err != nil {
-					return nil, fmt.Errorf("error parsing port (%s) from lookup: %w", splitPort, err)
+					errs = append(errs, fmt.Errorf("error parsing port (%s) from lookup: %w", splitPort, err))
+					continue
 				}
 				configs = append(configs, &FallbackConfig{
 					Host:      splitIP,
@@ -306,7 +343,7 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 		}
 	}
 
-	return configs, nil
+	return configs, errs
 }
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (Conn, error) {
@@ -354,7 +391,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.writer = readerwriter.NewWriter()
 	if config.ReaderFunc != nil {
-		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn))
+		c.reader = readerwriter.NewReader(config.ReaderFunc(c.conn, c))
 	} else {
 		c.reader = readerwriter.NewReader(bufio.NewReaderSize(c.conn, c.config.MinReadBufferSize))
 	}
@@ -369,7 +406,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		c.writerToCompress = c.writerTo
 	}
 
-	c.serverInfo = &ServerInfo{}
+	c.serverInfo = &shared.ServerInfo{}
 	err = c.hello()
 	if err != nil {
 		return nil, preferContextOverNetTimeoutError(ctx, err)
@@ -377,7 +414,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	c.sendAddendum()
 
-	c.block = newBlock()
+	c.block = newBlock(c)
 	c.profileEvent = newProfileEvent()
 	c.status = connStatusIdle
 
@@ -385,8 +422,16 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 }
 
 func (ch *conn) sendAddendum() {
-	if ch.serverInfo.Revision >= helper.DbmsMinProtocolWithQuotaKey {
+	v := ch.negotiatedVersion()
+	if v >= helper.DbmsMinProtocolWithQuotaKey {
 		ch.writer.String(ch.config.QuotaKey)
+	}
+	if v >= helper.DbmsMinProtocolVersionWithChunkedPackets {
+		ch.writer.String("notchunked") // proto_send_chunked
+		ch.writer.String("notchunked") // proto_recv_chunked
+	}
+	if v >= helper.DbmsMinRevisionWithVersionedParallelReplicas {
+		ch.writer.Uvarint(0) // parallel replicas protocol version
 	}
 }
 
@@ -405,9 +450,9 @@ func (ch *conn) RawConn() net.Conn {
 func (ch *conn) hello() error {
 	ch.writer.Uvarint(clientHello)
 	ch.writer.String(ch.config.ClientName)
-	ch.writer.Uvarint(dbmsVersionMajor)
-	ch.writer.Uvarint(dbmsVersionMinor)
-	ch.writer.Uvarint(dbmsVersionRevision)
+	ch.writer.Uvarint(clientVersionMajor)
+	ch.writer.Uvarint(clientVersionMinor)
+	ch.writer.Uvarint(helper.ClientTCPVersion)
 	ch.writer.String(ch.config.Database)
 	ch.writer.String(ch.config.User)
 	ch.writer.String(ch.config.Password)
@@ -416,7 +461,7 @@ func (ch *conn) hello() error {
 		return fmt.Errorf("write hello: %w", err)
 	}
 
-	res, err := ch.receiveAndProcessData(emptyOnProgress)
+	res, err := ch.receiveAndProcessData(emptyQueryOptions)
 	if err != nil {
 		return err
 	}
@@ -486,6 +531,11 @@ func (ch *conn) sendQueryWithOption(
 
 	ch.writer.String("")
 
+	if ch.negotiatedVersion() >= helper.DbmsMinProtocolWithInterserverExternallyGrantedRoles {
+		// externally granted roles — not used by external clients
+		ch.writer.String("")
+	}
+
 	if ch.serverInfo.Revision >= helper.DbmsMinRevisionWithInterServerSecret {
 		ch.writer.String("")
 	}
@@ -523,7 +573,7 @@ func (ch *conn) sendData(block *block, numRows int) error {
 			return &writeError{"write block info", err}
 		}
 	}
-	return block.writeHeader(ch, numRows)
+	return block.writeHeader(numRows)
 }
 
 func (ch *conn) sendEmptyBlock() error {
@@ -545,7 +595,84 @@ func (ch *conn) readTableColumn() {
 	ch.reader.String() //nolint:errcheck //no needed
 	ch.reader.String() //nolint:errcheck //no needed
 }
-func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, error) {
+
+func (ch *conn) processProfileInfo(queryOption *QueryOptions) error {
+	profile := newProfile()
+	if err := profile.read(ch); err != nil {
+		return err
+	}
+	if queryOption.OnProfile != nil {
+		queryOption.OnProfile(profile)
+	}
+	return nil
+}
+
+func (ch *conn) processProfileEvents(queryOption *QueryOptions) error {
+	// Profile events blocks (and their column data) are compressed only at >= 54481.
+	// We must keep compression disabled for both block.read() and readColumnsData()
+	// on older servers, so we manage the compress flag here rather than in
+	// readCompressibleBlock.
+	ch.block.reset()
+	oldCompress := ch.compress
+	if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+		ch.compress = false
+	}
+	defer func() { ch.compress = oldCompress }()
+
+	if err := ch.block.read(); err != nil {
+		return err
+	}
+	if err := ch.profileEvent.read(ch); err != nil {
+		return err
+	}
+	// profileEvent.read → readColumnsData has its own defer SetCompress(false).
+	if queryOption.OnProfileEvent != nil {
+		queryOption.OnProfileEvent(ch.profileEvent)
+	}
+	return nil
+}
+
+func (ch *conn) processProgress(queryOption *QueryOptions) error {
+	progress := newProgress()
+	if err := progress.read(ch); err != nil {
+		return err
+	}
+	if queryOption.OnProgress != nil {
+		queryOption.OnProgress(progress)
+	}
+	return nil
+}
+
+// readCompressibleBlock reads a log/profile-events block header only.
+// After returning, compression is reset to off regardless of the block type,
+// because log blocks have no column data to follow.
+func (ch *conn) readCompressibleBlock() error {
+	ch.block.reset()
+	oldCompress := ch.compress
+	if ch.negotiatedVersion() < helper.DbmsMinRevisionWithCompressedLogsProfileEvents {
+		ch.compress = false
+	}
+	err := ch.block.read()
+	ch.compress = oldCompress
+	// block.read() left compression active; reset it since log blocks have no
+	// subsequent column-data read.
+	ch.reader.SetCompress(false)
+	return err
+}
+func (ch *conn) handleServerException() error {
+	chErr := &ChError{}
+	if errRead := chErr.read(ch.reader); errRead != nil {
+		ch.Close()
+		return errRead
+	}
+	// Close connection by default, unless OnError callback says otherwise.
+	if ch.config.OnError == nil || ch.config.OnError(ch, chErr) {
+		ch.Close()
+	}
+	return chErr
+}
+
+func (ch *conn) receiveAndProcessData(queryOption *QueryOptions) (any, error) {
 	packet, err := ch.reader.Uvarint()
 	if err != nil {
 		return nil, &readError{"packet: read packet type", err}
@@ -553,67 +680,58 @@ func (ch *conn) receiveAndProcessData(onProgress func(*Progress)) (interface{}, 
 	switch packet {
 	case serverData, serverTotals, serverExtremes:
 		ch.block.reset()
-		err = ch.block.read(ch)
+		err = ch.block.read()
 		return ch.block, err
-	case serverProfileInfo:
-		profile := newProfile()
-
-		err = profile.read(ch)
-		return profile, err
-	case serverProgress:
-		progress := newProgress()
-		err = progress.read(ch)
-		if err == nil && onProgress != nil {
-			onProgress(progress)
-			return ch.receiveAndProcessData(onProgress)
-		}
-		return progress, err
 	case serverHello:
-		err = ch.serverInfo.read(ch.reader)
+		err = readServerInfo(ch.serverInfo, ch.reader)
 		return nil, err
 	case serverPong:
 		return &pong{}, err
 	case serverException:
-		err := &ChError{}
-		defer ch.Close()
-		if errRead := err.read(ch.reader); errRead != nil {
-			return nil, errRead
-		}
-		return nil, err
+		return nil, ch.handleServerException()
 	case serverEndOfStream:
 		return nil, nil
-
-	case serverTableColumns:
-		ch.readTableColumn()
-		return ch.receiveAndProcessData(onProgress)
-	case serverProfileEvents:
-		ch.block.reset()
-		oldCompress := ch.compress
-		defer func() {
-			ch.compress = oldCompress
-		}()
-		ch.compress = false
-		err = ch.block.read(ch)
-		if err != nil {
-			return nil, err
-		}
-		err := ch.profileEvent.read(ch)
-		if err != nil {
-			return nil, err
-		}
-		return ch.profileEvent, nil
+	default:
+		return ch.processNonDataPacket(packet, queryOption)
 	}
-	return nil, &notImplementedPacket{packet: packet}
 }
 
-var emptyOnProgress = func(*Progress) {
-
+func (ch *conn) processNonDataPacket(packet uint64, queryOption *QueryOptions) (any, error) {
+	var err error
+	switch packet {
+	case serverProfileInfo:
+		err = ch.processProfileInfo(queryOption)
+	case serverProgress:
+		err = ch.processProgress(queryOption)
+	case serverTableColumns:
+		ch.processTableColumns()
+	case serverProfileEvents:
+		err = ch.processProfileEvents(queryOption)
+	case serverLog:
+		err = ch.readCompressibleBlock()
+	case serverTimezoneUpdate:
+		ch.reader.String() //nolint:errcheck //no needed
+	default:
+		return nil, &notImplementedPacket{packet: packet}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ch.receiveAndProcessData(queryOption)
 }
 
-var emptyQueryOptions = &QueryOptions{
-	OnProgress: emptyOnProgress,
+func (ch *conn) processTableColumns() {
+	if ch.negotiatedVersion() >= helper.DbmsMinRevisionWithCompressedLogsProfileEvents && ch.compress {
+		ch.reader.SetCompress(true)
+	}
+	ch.readTableColumn()
+	ch.reader.SetCompress(false)
 }
 
+var emptyQueryOptions = &QueryOptions{}
+
+// QueryOptions configures per-query behavior including query ID, settings, parameters,
+// and callbacks for progress, profile, and profile event notifications.
 type QueryOptions struct {
 	QueryID        string
 	Settings       Settings
@@ -621,7 +739,6 @@ type QueryOptions struct {
 	OnProfile      func(*Profile)
 	OnProfileEvent func(*ProfileEvent)
 	Parameters     *Parameters
-	UseGoTime      bool
 }
 
 func (ch *conn) Exec(ctx context.Context, query string) error {
@@ -633,39 +750,136 @@ func (ch *conn) ExecWithOption(
 	query string,
 	queryOptions *QueryOptions,
 ) error {
-	err := ch.lock()
+	stmt, err := ch.SelectWithOption(ctx, query, queryOptions)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		ch.unlock()
+	if stmt != nil {
+		for stmt.Next() {
+		}
+		return stmt.Err()
+	}
+	return nil
+}
+
+func readServerInfo(srv *shared.ServerInfo, r *readerwriter.Reader) error {
+	// The server decides which fields to include based on the client's TCP version,
+	// so we must use the minimum of client and server versions when determining
+	// which fields to read.
+	return readServerInfoWithClientVersion(srv, r, helper.ClientTCPVersion)
+}
+
+func readServerInfoWithClientVersion(srv *shared.ServerInfo, r *readerwriter.Reader, clientVersion uint64) (err error) {
+	if srv.Name, err = r.String(); err != nil {
+		return &readError{"ServerInfo: could not read server name", err}
+	}
+	if srv.MajorVersion, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server major version", err}
+	}
+	if srv.MinorVersion, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server minor version", err}
+	}
+	if srv.Revision, err = r.Uvarint(); err != nil {
+		return &readError{"ServerInfo: could not read server revision", err}
+	}
+
+	// The server decides which fields to include based on the CLIENT's TCP version
+	// (what we sent in hello), not its own revision. Use min(client, server) to
+	// determine which fields the server actually sent.
+	v := min(clientVersion, srv.Revision)
+
+	// Fields are in the exact order the server's sendHello writes them.
+	if v >= helper.DbmsMinRevisionWithVersionedParallelReplicas {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read parallel replicas protocol version", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithServerTimezone {
+		if srv.Timezone, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read server timezone", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithServerDisplayName {
+		if srv.ServerDisplayName, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read server display name", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithVersionPatch {
+		if srv.ServerVersionPatch, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read server version patch", err}
+		}
+	}
+	if v >= helper.DbmsMinProtocolVersionWithChunkedPackets {
+		if _, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read proto_send_chunked_srv", err}
+		}
+		if _, err = r.String(); err != nil {
+			return &readError{"ServerInfo: could not read proto_recv_chunked_srv", err}
+		}
+	}
+	return readServerInfoExtended(srv, r, v)
+}
+
+func readServerInfoExtended(srv *shared.ServerInfo, r *readerwriter.Reader, v uint64) (err error) {
+	if v >= helper.DbmsMinProtocolVersionWithPasswordComplexityRules {
+		lenRules, err := r.Uvarint()
 		if err != nil {
-			ch.Close()
+			return &readError{"ServerInfo: could not read server password complexity rules: len", err}
 		}
-	}()
-
-	if ctx != context.Background() {
-		select {
-		case <-ctx.Done():
-			return newContextAlreadyDoneError(ctx)
-		default:
+		srv.PasswordPatterns = make([]shared.ServerInfoPasswordRules, lenRules)
+		for i := range lenRules {
+			var rule shared.ServerInfoPasswordRules
+			if rule.Pattern, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			if rule.Message, err = r.String(); err != nil {
+				return &readError{"ServerInfo: could not read server password complexity rules: pattern", err}
+			}
+			srv.PasswordPatterns[i] = rule
 		}
-		ch.contextWatcher.Watch(ctx)
-		defer ch.contextWatcher.Unwatch()
 	}
+	if v >= helper.DbmsMinRevisionWithInterserverSecretV2 {
+		if _, err = r.Uint64(); err != nil {
+			return &readError{"ServerInfo: could not read server interserver secret nonce", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithServerSettings {
+		if err = skipSettings(r); err != nil {
+			return &readError{"ServerInfo: could not read server settings", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithQueryPlanSerialization {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read query plan serialization version", err}
+		}
+	}
+	if v >= helper.DbmsMinRevisionWithVersionedClusterFunction {
+		if _, err = r.Uvarint(); err != nil {
+			return &readError{"ServerInfo: could not read cluster function protocol version", err}
+		}
+	}
+	return nil
+}
 
-	if queryOptions == nil {
-		queryOptions = emptyQueryOptions
-	}
+// negotiatedVersion returns the effective protocol version for this connection.
+// The server sends fields based on the client's advertised version, so we must
+// use min(client, server) to know which fields are actually present on the wire.
+func (ch *conn) negotiatedVersion() uint64 {
+	v := min(uint64(helper.ClientTCPVersion), ch.serverInfo.Revision)
+	return v
+}
 
-	err = ch.sendQueryWithOption(query, queryOptions.QueryID, queryOptions.Settings, queryOptions.Parameters)
-	if err != nil {
-		return preferContextOverNetTimeoutError(ctx, err)
-	}
-	if queryOptions.OnProgress == nil {
-		queryOptions.OnProgress = emptyOnProgress
-	}
+// ServerInfo get server info
+func (ch *conn) ServerInfo() *shared.ServerInfo {
+	return ch.serverInfo
+}
 
-	_, err = ch.receiveAndProcessData(queryOptions.OnProgress)
-	return preferContextOverNetTimeoutError(ctx, err)
+// NewWriter creates a new Writer for encoding ClickHouse native protocol data.
+func NewWriter() *readerwriter.Writer {
+	return readerwriter.NewWriter()
+}
+
+// NewReader creates a new Reader for decoding ClickHouse native protocol data from r.
+func NewReader(r io.Reader) *readerwriter.Reader {
+	return readerwriter.NewReader(r)
 }

@@ -2,31 +2,33 @@ package chpool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	puddle "github.com/jackc/puddle/v2"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
 )
 
-var defaultMaxConns = int32(4)
-var defaultMinConns = int32(0)
-var defaultCreateIdleTimeout = time.Second * 10
-var defaultMaxConnLifetime = time.Hour
-var defaultMaxConnIdleTime = time.Minute * 30
-var defaultHealthCheckPeriod = time.Minute
+var (
+	defaultMaxConns          = int32(4)
+	defaultMinConns          = int32(0)
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = time.Minute * 30
+	defaultHealthCheckPeriod = time.Minute
+)
 
 type connResource struct {
-	conn  chconn.Conn
-	conns []conn
+	conn       chconn.Conn
+	conns      []conn
+	poolRows   []poolRow
+	poolRowss  []poolRows
+	maxAgeTime time.Time
 }
 
 func (cr *connResource) getConn(p *pool, res *puddle.Resource[*connResource]) Conn {
@@ -43,13 +45,42 @@ func (cr *connResource) getConn(p *pool, res *puddle.Resource[*connResource]) Co
 	return c
 }
 
+func (cr *connResource) getPoolRow(c Conn, r chconn.Row) *poolRow {
+	if len(cr.poolRows) == 0 {
+		cr.poolRows = make([]poolRow, 128)
+	}
+
+	pr := &cr.poolRows[len(cr.poolRows)-1]
+	cr.poolRows = cr.poolRows[0 : len(cr.poolRows)-1]
+
+	pr.c = c
+	pr.r = r
+
+	return pr
+}
+
+func (cr *connResource) getPoolRows(c Conn, r chconn.Rows) *poolRows {
+	if len(cr.poolRowss) == 0 {
+		cr.poolRowss = make([]poolRows, 128)
+	}
+
+	pr := &cr.poolRowss[len(cr.poolRowss)-1]
+	cr.poolRowss = cr.poolRowss[0 : len(cr.poolRowss)-1]
+
+	pr.c = c
+	pr.r = r
+
+	return pr
+}
+
 // Pool is a connection pool for chconn
 type Pool interface {
 	// Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 	// to pool and closed.
 	Close()
+	// Acquire returns a connection (Conn) from the Pool
 	Acquire(ctx context.Context) (Conn, error)
-	// AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
+	// AcquireFunc acquires a Conn and calls f with that Conn. ctx will only affect the Acquire. It has no effect on the
 	// call of f. The return value is either an error acquiring the Conn or the return value of f. The Conn is
 	// automatically released after the call of f.
 	AcquireFunc(ctx context.Context, f func(Conn) error) error
@@ -71,18 +102,18 @@ type Pool interface {
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error
-	// InsertWithOption executes a insert query with the query options and commit all columns data.
+	Insert(ctx context.Context, query string, columns ...column.ColumnCore) error
+	// InsertWithOption executes a insert query with a query options and commit all columns data.
 	//
 	// If the query is successful, the columns buffer will be reset.
 	//
 	// NOTE: only use for insert query
-	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error
+	InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnCore) error
 	// Insert executes a insert query and return a InsertStmt.
 	//
 	// NOTE: only use for insert query
 	InsertStream(ctx context.Context, query string) (chconn.InsertStmt, error)
-	// InsertWithOption executes a insert query with the query options and return a InsertStmt.
+	// InsertWithOption executes a insert query with a query options and return a InsertStmt.
 	//
 	// If the query is successful, the columns buffer will be reset.
 	//
@@ -94,17 +125,46 @@ type Pool interface {
 	// Select executes a query and return select stmt.
 	//
 	// NOTE: only use for select query
-	Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error)
-	// Select executes a query with the the query options and return select stmt.
+	Select(ctx context.Context, query string, columns ...column.ColumnCore) (chconn.SelectStmt, error)
+	// Select executes a query with a query options and return select stmt.
 	//
 	// NOTE: only use for select query
 	SelectWithOption(
 		ctx context.Context,
 		query string,
 		queryOptions *chconn.QueryOptions,
-		columns ...column.ColumnBasic,
+		columns ...column.ColumnCore,
 	) (chconn.SelectStmt, error)
-	// Ping sends a ping to check that the connection to the server is alive.
+	// Query acquires a connection and executes a (select) query that returns chconn.Rows.
+	// See chconn.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
+	//
+	// If there is an error, the returned chconn.Rows will be returned in an error state.
+	// If preferred, ignore the error returned from Query and handle errors using the returned chconn.Rows.
+	//
+	Query(ctx context.Context, sql string, args ...chconn.Parameter) (chconn.Rows, error)
+	// QueryRow acquires a connection and executes a query that is expected
+	// to return at most one row (chconn.Row). Errors are deferred until chconn.Row's
+	// Scan method is called. If the query selects no rows, chconn.Row's Scan will
+	// return ErrNoRows. Otherwise, chconn.Row's Scan scans the first selected row
+	// and discards the rest. The acquired connection is returned to the Pool when
+	// chconn.Row's Scan method is called.
+	QueryRow(ctx context.Context, sql string, args ...chconn.Parameter) chconn.Row
+	// Query acquires a connection and executes a (select) query with a query options that returns chconn.Rows.
+	// See chconn.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
+	//
+	// If there is an error, the returned chconn.Rows will be returned in an error state.
+	// If preferred, ignore the error returned from Query and handle errors using the returned chconn.Rows.
+	//
+	QueryWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) (chconn.Rows, error)
+	// QueryRow acquires a connection and executes a query with a query options that is expected
+	// to return at most one row (chconn.Row). Errors are deferred until chconn.Row's
+	// Scan method is called. If the query selects no rows, chconn.Row's Scan will
+	// return ErrNoRows. Otherwise, chconn.Row's Scan scans the first selected row
+	// and discards the rest. The acquired connection is returned to the Pool when
+	// chconn.Row's Scan method is called.
+	QueryRowWithOption(ctx context.Context, sql string, queryOptions *chconn.QueryOptions, args ...chconn.Parameter) chconn.Row
+	// Ping acquires a connection from the Pool and send ping
+	// If returns without error, the database Ping is considered successful, otherwise, the error is returned.
 	Ping(ctx context.Context) error
 	// Stat returns a chpool.Stat struct with a snapshot of Pool statistics.
 	Stat() *Stat
@@ -118,31 +178,35 @@ type Pool interface {
 	Config() *Config
 }
 type pool struct {
+	newConnsCount        atomic.Int64
+	lifetimeDestroyCount atomic.Int64
+	idleDestroyCount     atomic.Int64
+
 	p                     *puddle.Pool[*connResource]
 	config                *Config
 	beforeConnect         func(context.Context, *chconn.Config) error
 	afterConnect          func(context.Context, chconn.Conn) error
 	beforeAcquire         func(context.Context, chconn.Conn) bool
 	afterRelease          func(chconn.Conn) bool
+	beforeClose           func(chconn.Conn)
+	shouldPing            func(time.Duration) bool
 	minConns              int32
 	maxConns              int32
+	minIdleConns          int32
 	maxConnLifetime       time.Duration
 	maxConnLifetimeJitter time.Duration
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
+	pingTimeout           time.Duration
 
 	healthCheckChan chan struct{}
-
-	newConnsCount        int64
-	lifetimeDestroyCount int64
-	idleDestroyCount     int64
 
 	closeOnce sync.Once
 	closeChan chan struct{}
 }
 
-// Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
-// modified. A manually initialized Config will cause ConnectConfig to panic.
+// Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
+// modified.
 type Config struct {
 	ConnConfig *chconn.Config
 
@@ -161,6 +225,9 @@ type Config struct {
 	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
 	// return the connection to the pool or false to destroy the connection.
 	AfterRelease func(chconn.Conn) bool
+
+	// BeforeClose is called right before a connection is closed and removed from the pool.
+	BeforeClose func(chconn.Conn)
 
 	// MaxConnLifetime is the duration since creation after which a connection will be automatically closed.
 	MaxConnLifetime time.Duration
@@ -183,8 +250,18 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
-	// CreateIdleTimeout is  the timeout for create idle connection
-	CreateIdleTimeout time.Duration
+	// MinIdleConns is the minimum number of idle connections in the pool. The health check will create new
+	// connections if the number of idle connections falls below this value. This is useful for reducing
+	// tail latency by always having connections ready. Default is 0 (disabled).
+	MinIdleConns int32
+
+	// PingTimeout is the timeout for health check pings. If zero, a default timeout of 5 seconds is used.
+	PingTimeout time.Duration
+
+	// ShouldPing is called when acquiring a connection from the pool that has been idle. It receives the
+	// idle duration and returns true if the connection should be pinged before use. If nil, the default
+	// behavior pings connections that have been idle for more than 1 second.
+	ShouldPing func(idleDuration time.Duration) bool
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
@@ -202,7 +279,7 @@ func (c *Config) Copy() *Config {
 // ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
-// New creates a new Pool. See ParseConfig for information on connString format.
+// New creates a new Pool. See [ParseConfig] for information on connString format.
 func New(connString string) (Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -220,18 +297,34 @@ func NewWithConfig(config *Config) (Pool, error) {
 		panic("config must be created by ParseConfig")
 	}
 
+	pingTimeout := config.PingTimeout
+	if pingTimeout <= 0 {
+		pingTimeout = 5 * time.Second
+	}
+
+	shouldPing := config.ShouldPing
+	if shouldPing == nil {
+		shouldPing = func(idleDuration time.Duration) bool {
+			return idleDuration > time.Second
+		}
+	}
+
 	p := &pool{
 		config:                config,
 		beforeConnect:         config.BeforeConnect,
 		afterConnect:          config.AfterConnect,
 		beforeAcquire:         config.BeforeAcquire,
 		afterRelease:          config.AfterRelease,
+		beforeClose:           config.BeforeClose,
+		shouldPing:            shouldPing,
 		minConns:              config.MinConns,
 		maxConns:              config.MaxConns,
+		minIdleConns:          config.MinIdleConns,
 		maxConnLifetime:       config.MaxConnLifetime,
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 		maxConnIdleTime:       config.MaxConnIdleTime,
 		healthCheckPeriod:     config.HealthCheckPeriod,
+		pingTimeout:           pingTimeout,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
 	}
@@ -240,6 +333,7 @@ func NewWithConfig(config *Config) (Pool, error) {
 	p.p, err = puddle.NewPool(
 		&puddle.Config[*connResource]{
 			Constructor: func(ctx context.Context) (*connResource, error) {
+				p.newConnsCount.Add(1)
 				connConfig := p.config.ConnConfig.Copy()
 
 				// Connection will continue in background even if Acquire is canceled. Ensure that a connect won't hang forever.
@@ -265,15 +359,22 @@ func NewWithConfig(config *Config) (Pool, error) {
 						return nil, err
 					}
 				}
+				//nolint:gosec // it's not a security issue
+				jitterSecs := rand.Float64() * config.MaxConnLifetimeJitter.Seconds()
+				maxAgeTime := time.Now().Add(config.MaxConnLifetime).Add(time.Duration(jitterSecs) * time.Second)
 
 				cr := &connResource{
-					conn:  c,
-					conns: make([]conn, 64),
+					conn:       c,
+					conns:      make([]conn, 64),
+					maxAgeTime: maxAgeTime,
 				}
 
 				return cr, nil
 			},
 			Destructor: func(value *connResource) {
+				if p.beforeClose != nil {
+					p.beforeClose(value.conn)
+				}
 				value.conn.Close()
 			},
 			MaxSize: config.MaxConns,
@@ -292,16 +393,15 @@ func NewWithConfig(config *Config) (Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString. It parses connString with the same behavior as chconn.ParseConfig with the
+// ParseConfig builds a Config from connString. It parses connString with the same behavior as [chconn.ParseConfig] with the
 // addition of the following variables:
 //
-// pool_max_conns: integer greater than 0
-// pool_min_conns: integer 0 or greater
-// pool_max_conn_lifetime: duration string
-// pool_max_conn_idle_time: duration string
-// pool_health_check_period: duration string
-// pool_max_conn_lifetime_jitter: duration string
-// pool_create_idle_timeout: duration string
+//   - pool_max_conns: integer greater than 0
+//   - pool_min_conns: integer 0 or greater
+//   - pool_max_conn_lifetime: duration string
+//   - pool_max_conn_idle_time: duration string
+//   - pool_health_check_period: duration string
+//   - pool_max_conn_lifetime_jitter: duration string
 //
 // See Config for definitions of these arguments.
 //
@@ -328,7 +428,7 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, fmt.Errorf("cannot parse pool_max_conns: %w", err)
 		}
 		if n < 1 {
-			//nolint:goerr113
+			//nolint:err113
 			return nil, fmt.Errorf("pool_max_conns too small: %d", n)
 		}
 		config.MaxConns = int32(n)
@@ -392,15 +492,22 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConnLifetimeJitter = d
 	}
 
-	if s, ok := config.ConnConfig.RuntimeParams["pool_create_idle_timeout"]; ok {
-		delete(config.ConnConfig.RuntimeParams, "pool_create_idle_timeout")
+	if s, ok := config.ConnConfig.RuntimeParams["pool_min_idle_conns"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_min_idle_conns")
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse pool_min_idle_conns: %w", err)
+		}
+		config.MinIdleConns = int32(n)
+	}
+
+	if s, ok := config.ConnConfig.RuntimeParams["pool_ping_timeout"]; ok {
+		delete(config.ConnConfig.RuntimeParams, "pool_ping_timeout")
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid pool_create_idle_timeout: %w", err)
+			return nil, fmt.Errorf("invalid pool_ping_timeout: %w", err)
 		}
-		config.CreateIdleTimeout = d
-	} else {
-		config.CreateIdleTimeout = defaultCreateIdleTimeout
+		config.PingTimeout = d
 	}
 
 	return config, nil
@@ -416,18 +523,7 @@ func (p *pool) Close() {
 }
 
 func (p *pool) isExpired(res *puddle.Resource[*connResource]) bool {
-	now := time.Now()
-	// Small optimization to avoid rand. If it's over lifetime AND jitter, immediately
-	// return true.
-	if now.Sub(res.CreationTime()) > p.maxConnLifetime+p.maxConnLifetimeJitter {
-		return true
-	}
-	if p.maxConnLifetimeJitter == 0 {
-		return false
-	}
-	//nolint:gosec // rand is not used for security purposes
-	jitterSecs := rand.Float64() * p.maxConnLifetimeJitter.Seconds()
-	return now.Sub(res.CreationTime()) > p.maxConnLifetime+(time.Duration(jitterSecs)*time.Second)
+	return time.Now().After(res.Value().maxAgeTime)
 }
 
 func (p *pool) triggerHealthCheck() {
@@ -465,6 +561,9 @@ func (p *pool) checkHealth() {
 			// Should we log this error somewhere?
 			break
 		}
+		if err := p.checkMinIdleConns(); err != nil {
+			break
+		}
 		if !p.checkConnsHealth() {
 			// Since we didn't destroy any connections we can stop looping
 			break
@@ -488,13 +587,13 @@ func (p *pool) checkConnsHealth() bool {
 	for _, res := range resources {
 		// We're okay going under minConns if the lifetime is up
 		if p.isExpired(res) && totalConns >= p.minConns {
-			atomic.AddInt64(&p.lifetimeDestroyCount, 1)
+			p.lifetimeDestroyCount.Add(1)
 			res.Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
 			totalConns--
 		} else if res.IdleDuration() > p.maxConnIdleTime && totalConns > p.minConns {
-			atomic.AddInt64(&p.idleDestroyCount, 1)
+			p.idleDestroyCount.Add(1)
 			res.Destroy()
 			destroyed = true
 			// Since Destroy is async we manually decrement totalConns.
@@ -517,22 +616,36 @@ func (p *pool) checkMinConns() error {
 	return nil
 }
 
+func (p *pool) checkMinIdleConns() error {
+	if p.minIdleConns <= 0 {
+		return nil
+	}
+	toCreate := p.minIdleConns - p.Stat().IdleConns()
+	if toCreate > 0 {
+		return p.createIdleResources(int(toCreate))
+	}
+	return nil
+}
+
 func (p *pool) createIdleResources(targetResources int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), p.config.CreateIdleTimeout)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	errs := make(chan error, targetResources)
 
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		go func() {
-			atomic.AddInt64(&p.newConnsCount, 1)
 			err := p.p.CreateResource(ctx)
+			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
+			if err == puddle.ErrNotAvailable {
+				err = nil
+			}
 			errs <- err
 		}()
 	}
 
 	var firstError error
-	for i := 0; i < targetResources; i++ {
+	for range targetResources {
 		err := <-errs
 		if err != nil && firstError == nil {
 			cancel()
@@ -553,8 +666,10 @@ func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 
 		cr := res.Value()
 
-		if res.IdleDuration() > time.Second {
-			err := cr.conn.Ping(ctx)
+		if p.shouldPing(res.IdleDuration()) {
+			pingCtx, cancel := context.WithTimeout(ctx, p.pingTimeout)
+			err := cr.conn.Ping(pingCtx)
+			cancel()
 			if err != nil {
 				res.Destroy()
 				continue
@@ -569,8 +684,8 @@ func (p *pool) Acquire(ctx context.Context) (Conn, error) {
 	}
 }
 
-// AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
-// call of f. The return value is either an error acquiring the *Conn or the return value of f. The *Conn is
+// AcquireFunc acquires a Conn and calls f with that Conn. ctx will only affect the Acquire. It has no effect on the
+// call of f. The return value is either an error acquiring the Conn or the return value of f. The Conn is
 // automatically released after the call of f.
 func (p *pool) AcquireFunc(ctx context.Context, f func(Conn) error) error {
 	conn, err := p.Acquire(ctx)
@@ -615,12 +730,15 @@ func (p *pool) Config() *Config { return p.config.Copy() }
 func (p *pool) Stat() *Stat {
 	return &Stat{
 		s:                    p.p.Stat(),
-		newConnsCount:        atomic.LoadInt64(&p.newConnsCount),
-		lifetimeDestroyCount: atomic.LoadInt64(&p.lifetimeDestroyCount),
-		idleDestroyCount:     atomic.LoadInt64(&p.idleDestroyCount),
+		newConnsCount:        p.newConnsCount.Load(),
+		lifetimeDestroyCount: p.lifetimeDestroyCount.Load(),
+		idleDestroyCount:     p.idleDestroyCount.Load(),
 	}
 }
 
+// Exec acquires a connection from the Pool and executes the given SQL.
+// SQL can be either a prepared statement name or an SQL string.
+// The acquired connection is returned to the pool when the Exec function returns.
 func (p *pool) Exec(ctx context.Context, query string) error {
 	return p.ExecWithOption(ctx, query, nil)
 }
@@ -630,21 +748,80 @@ func (p *pool) ExecWithOption(
 	query string,
 	queryOptions *chconn.QueryOptions,
 ) error {
-	for {
-		c, err := p.Acquire(ctx)
-		if err != nil {
-			return err
-		}
-		err = c.ExecWithOption(ctx, query, queryOptions)
-		c.Release()
-		if errors.Is(err, syscall.EPIPE) {
-			continue
-		}
+	c, err := p.Acquire(ctx)
+	if err != nil {
 		return err
 	}
+	err = c.ExecWithOption(ctx, query, queryOptions)
+	c.Release()
+	return err
 }
 
-func (p *pool) Select(ctx context.Context, query string, columns ...column.ColumnBasic) (chconn.SelectStmt, error) {
+// Query acquires a connection and executes a query that returns chconn.Rows.
+// See chconn.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
+//
+// For better performance use Select instead of Query when possible. specially when you want to read al lot of data.
+//
+// If there is an error, the returned chconn.Rows will be returned in an error state.
+// If preferred, ignore the error returned from Query and handle errors using the returned chconn.Rows.
+func (p *pool) Query(ctx context.Context, sql string, args ...chconn.Parameter) (chconn.Rows, error) {
+	return p.QueryWithOption(ctx, sql, nil, args...)
+}
+
+// QueryRow acquires a connection and executes a query that is expected
+// to return at most one row (chconn.Row). Errors are deferred until chconn.Row's
+// Scan method is called. If the query selects no rows, chconn.Row's Scan will
+// return ErrNoRows. Otherwise, chconn.Row's Scan scans the first selected row
+// and discards the rest. The acquired connection is returned to the Pool when
+// chconn.Row's Scan method is called.
+func (p *pool) QueryRow(ctx context.Context, sql string, args ...chconn.Parameter) chconn.Row {
+	return p.QueryRowWithOption(ctx, sql, nil, args...)
+}
+
+// Query acquires a connection and executes a query with a query option that returns chconn.Rows.
+// See chconn.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
+//
+// For better performance use Select instead of Query when possible. specially when you want to read al lot of data.
+//
+// If there is an error, the returned chconn.Rows will be returned in an error state.
+// If preferred, ignore the error returned from Query and handle errors using the returned chconn.Rows.
+func (p *pool) QueryWithOption(
+	ctx context.Context,
+	sql string,
+	queryOption *chconn.QueryOptions,
+	args ...chconn.Parameter,
+) (chconn.Rows, error) {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return errRows{err: err}, err
+	}
+
+	rows, err := c.QueryWithOption(ctx, sql, queryOption, args...)
+	if err != nil {
+		c.Release()
+		return errRows{err: err}, err
+	}
+
+	return c.getPoolRows(rows), nil
+}
+
+// QueryRow acquires a connection and executes a query with a query option that is expected
+// to return at most one row (chconn.Row). Errors are deferred until chconn.Row's
+// Scan method is called. If the query selects no rows, chconn.Row's Scan will
+// return ErrNoRows. Otherwise, chconn.Row's Scan scans the first selected row
+// and discards the rest. The acquired connection is returned to the Pool when
+// chconn.Row's Scan method is called.
+func (p *pool) QueryRowWithOption(ctx context.Context, sql string, queryOption *chconn.QueryOptions, args ...chconn.Parameter) chconn.Row {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return errRow{err: err}
+	}
+
+	row := c.QueryRowWithOption(ctx, sql, queryOption, args...)
+	return c.getPoolRow(row)
+}
+
+func (p *pool) Select(ctx context.Context, query string, columns ...column.ColumnCore) (chconn.SelectStmt, error) {
 	return p.SelectWithOption(ctx, query, nil, columns...)
 }
 
@@ -652,44 +829,34 @@ func (p *pool) SelectWithOption(
 	ctx context.Context,
 	query string,
 	queryOptions *chconn.QueryOptions,
-	columns ...column.ColumnBasic,
+	columns ...column.ColumnCore,
 ) (chconn.SelectStmt, error) {
-	for {
-		c, err := p.Acquire(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		s, err := c.SelectWithOption(ctx, query, queryOptions, columns...)
-		if err != nil {
-			c.Release()
-			if errors.Is(err, syscall.EPIPE) {
-				continue
-			}
-			return nil, err
-		}
-		return s, nil
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return nil, err
 	}
+
+	s, err := c.SelectWithOption(ctx, query, queryOptions, columns...)
+	if err != nil {
+		c.Release()
+		return nil, err
+	}
+	return s, nil
 }
 
-func (p *pool) Insert(ctx context.Context, query string, columns ...column.ColumnBasic) error {
+func (p *pool) Insert(ctx context.Context, query string, columns ...column.ColumnCore) error {
 	return p.InsertWithOption(ctx, query, nil, columns...)
 }
 
-func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnBasic) error {
-	for {
-		c, err := p.Acquire(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = c.InsertWithOption(ctx, query, queryOptions, columns...)
-		c.Release()
-		if err != nil && errors.Is(err, syscall.EPIPE) {
-			continue
-		}
+func (p *pool) InsertWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions, columns ...column.ColumnCore) error {
+	c, err := p.Acquire(ctx)
+	if err != nil {
 		return err
 	}
+
+	err = c.InsertWithOption(ctx, query, queryOptions, columns...)
+	c.Release()
+	return err
 }
 
 func (p *pool) InsertStream(ctx context.Context, query string) (chconn.InsertStmt, error) {
@@ -697,37 +864,27 @@ func (p *pool) InsertStream(ctx context.Context, query string) (chconn.InsertStm
 }
 
 func (p *pool) InsertStreamWithOption(ctx context.Context, query string, queryOptions *chconn.QueryOptions) (chconn.InsertStmt, error) {
-	for {
-		c, err := p.Acquire(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		s, err := c.InsertStreamWithOption(ctx, query, queryOptions)
-		if err != nil {
-			c.Release()
-			if errors.Is(err, syscall.EPIPE) {
-				continue
-			}
-			return nil, err
-		}
-		return s, nil
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return nil, err
 	}
+
+	s, err := c.InsertStreamWithOption(ctx, query, queryOptions)
+	if err != nil {
+		c.Release()
+		return nil, err
+	}
+	return s, nil
 }
 
 // Ping acquires a connection from the Pool and send ping
 // If returns without error, the database Ping is considered successful, otherwise, the error is returned.
 func (p *pool) Ping(ctx context.Context) error {
-	for {
-		c, err := p.Acquire(ctx)
-		if err != nil {
-			return err
-		}
-		err = c.Ping(ctx)
-		c.Release()
-		if errors.Is(err, syscall.EPIPE) {
-			continue
-		}
+	c, err := p.Acquire(ctx)
+	if err != nil {
 		return err
 	}
+	err = c.Ping(ctx)
+	c.Release()
+	return err
 }

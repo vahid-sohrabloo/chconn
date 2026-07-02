@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 )
 
 // Setting is a setting for the clickhouse query.
@@ -55,8 +55,10 @@ type Parameters struct {
 	params []Setting
 }
 
+// Parameter is a function that returns a [Setting] for use in parameterized queries.
 type Parameter func() Setting
 
+// NewParameters creates a new [Parameters] from the given parameter functions.
 func NewParameters(input ...Parameter) *Parameters {
 	params := make([]Setting, len(input))
 	for i, p := range input {
@@ -238,6 +240,30 @@ func StringSliceParameter(name string, v []string) Parameter {
 	}
 }
 
+// skipSettings reads and discards a settings block from the reader.
+// Settings are serialized as repeated (name, flags, value) tuples,
+// terminated by an empty name string.
+func skipSettings(r *readerwriter.Reader) error {
+	for {
+		name, err := r.String()
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return nil
+		}
+		// skip flags (uint8)
+		if _, err := r.ReadByte(); err != nil {
+			return err
+		}
+		// skip value (string)
+		if _, err := r.String(); err != nil {
+			return err
+		}
+	}
+}
+
+// Params returns the underlying list of settings for the parameters.
 func (p *Parameters) Params() []Setting {
 	return p.params
 }

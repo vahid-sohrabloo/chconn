@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vahid-sohrabloo/chconn/v2"
-	"github.com/vahid-sohrabloo/chconn/v2/column"
-	"github.com/vahid-sohrabloo/chconn/v2/types"
+	"github.com/vahid-sohrabloo/chconn/v3"
+	"github.com/vahid-sohrabloo/chconn/v3/column"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestInsertColumnLowCardinalityError(t *testing.T) {
@@ -97,8 +98,74 @@ func TestInsertColumnLowCardinalityError(t *testing.T) {
 	}
 }
 
+// selectColumnReadStart returns the number of reads needed before the first
+// column header read in stmt.Next(). This avoids hardcoded read counts
+// that break when the protocol version changes.
+func selectColumnReadStart(t *testing.T) int {
+	t.Helper()
+	config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+
+	var count int
+	config.ReaderFunc = func(r io.Reader, _ chconn.Conn) io.Reader {
+		return &readCounterHelper{r: r, count: &count}
+	}
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	col := column.New[uint64]()
+	stmt, err := c.Select(context.Background(),
+		"SELECT number FROM system.numbers LIMIT 1", col)
+	require.NoError(t, err)
+	// readsBeforeNext is the count right before stmt.Next() starts reading column headers
+	readsBeforeNext := count
+	for stmt.Next() {
+	}
+	require.NoError(t, stmt.Err())
+	c.Close()
+
+	// Find the exact read position within stmt.Next() that produces "read column name"
+	for n := readsBeforeNext; n < readsBeforeNext+20; n++ {
+		cfg, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
+		require.NoError(t, err)
+		cfg.ReaderFunc = func(r io.Reader, _ chconn.Conn) io.Reader {
+			return &readErrorHelper{
+				err:         errors.New("timeout"),
+				r:           r,
+				numberValid: n,
+			}
+		}
+		c, err := chconn.ConnectConfig(context.Background(), cfg)
+		if err != nil {
+			continue
+		}
+		col := column.New[uint64]()
+		stmt, err := c.Select(context.Background(),
+			"SELECT number FROM system.numbers LIMIT 1", col)
+		if err != nil {
+			continue
+		}
+		stmt.Next()
+		if stmt.Err() != nil && strings.Contains(stmt.Err().Error(), "read column name: read string length: timeout") {
+			return n
+		}
+	}
+	t.Fatal("could not find selectColumnReadStart")
+	return 0
+}
+
+type readCounterHelper struct {
+	r     io.Reader
+	count *int
+}
+
+func (r *readCounterHelper) Read(p []byte) (int, error) {
+	*r.count++
+	return r.r.Read(p)
+}
+
 func TestSelectReadLCError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -107,67 +174,67 @@ func TestSelectReadLCError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "error reading keys serialization version",
-			wantErr:     "read column header: error reading keys serialization version: timeout",
+			wantErr:     "read column header \"t\": error reading keys serialization version: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "error reading serialization type",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading serialization type: timeout",
+			wantErr:     "read data \"t\": error reading serialization type: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "error reading dictionary size",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary size: timeout",
+			wantErr:     "read data \"t\": error reading dictionary size: timeout",
 			numberValid: startValidReader + 7,
 		},
 		{
 			name:        "error reading dictionary",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 8,
 		},
 		{
 			name:        "error reading string len",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string len: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string len: timeout",
 			numberValid: startValidReader + 9,
 		},
 		{
 			name:        "error reading string",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading dictionary: error read string: timeout",
+			wantErr:     "read data \"t\": error reading dictionary: error read string: timeout",
 			numberValid: startValidReader + 10,
 		},
 		{
 			name:        "error reading indices size",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices size: timeout",
+			wantErr:     "read data \"t\": error reading indices size: timeout",
 			numberValid: startValidReader + 11,
 		},
 		{
 			name:        "error reading indices",
-			wantErr:     "read data \"toLowCardinality(toString(number))\": error reading indices: read data: timeout",
+			wantErr:     "read data \"t\": error reading indices: read data: timeout",
 			numberValid: startValidReader + 12,
 		},
 	}
@@ -175,7 +242,7 @@ func TestSelectReadLCError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -186,7 +253,7 @@ func TestSelectReadLCError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.NewString().LC()
-			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(toString(number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT toLowCardinality(toString(number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -257,7 +324,7 @@ func TestInsertColumnArrayError(t *testing.T) {
 }
 
 func TestSelectReadArrayError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -266,37 +333,37 @@ func TestSelectReadArrayError(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(number, number)\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(number, number)\": array: read data column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -304,7 +371,7 @@ func TestSelectReadArrayError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -315,7 +382,7 @@ func TestSelectReadArrayError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(number,number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(number,number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -391,7 +458,7 @@ func TestInsertColumnArrayNullable(t *testing.T) {
 }
 
 func TestSelectReadArrayNullableError(t *testing.T) {
-	startValidReader := 39
+	startValidReader := selectColumnReadStart(t) + 3 // +3 to skip column name reads, start at column type
 
 	tests := []struct {
 		name        string
@@ -400,22 +467,22 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(toNullable(number))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(toNullable(number))\": array: read data column: read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"t\": array: read data column: read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 3,
 		},
 	}
@@ -423,7 +490,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -434,7 +501,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Nullable().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(toNullable(number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -444,7 +511,7 @@ func TestSelectReadArrayNullableError(t *testing.T) {
 }
 
 func TestSelectReadNullableError(t *testing.T) {
-	startValidReader := 39
+	startValidReader := selectColumnReadStart(t) + 3 // +3 to skip column name reads, start at column type
 
 	tests := []struct {
 		name        string
@@ -453,17 +520,17 @@ func TestSelectReadNullableError(t *testing.T) {
 	}{
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read nullable data",
-			wantErr:     "read data \"toNullable(number)\": read nullable data: read nullable data: timeout",
+			wantErr:     "read data \"t\": read nullable data: read nullable data: timeout",
 			numberValid: startValidReader + 2,
 		},
 	}
@@ -471,7 +538,7 @@ func TestSelectReadNullableError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -482,7 +549,7 @@ func TestSelectReadNullableError(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Nullable()
-			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT toNullable(number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -553,7 +620,7 @@ func TestInsertColumnArray2Error(t *testing.T) {
 }
 
 func TestSelectReadArray2Error(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -562,37 +629,37 @@ func TestSelectReadArray2Error(t *testing.T) {
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(array(number, number))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(array(number, number))\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -600,7 +667,7 @@ func TestSelectReadArray2Error(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -611,7 +678,7 @@ func TestSelectReadArray2Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(number,number)) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -681,7 +748,7 @@ func TestInsertColumnArray3Error(t *testing.T) {
 }
 
 func TestSelectReadArray3Error(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
@@ -689,38 +756,38 @@ func TestSelectReadArray3Error(t *testing.T) {
 		numberValid int
 	}{
 		{
-			name:        "read column header: read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			name:        "read column header \"\": read column name length",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
-			name:        "read column header: read column name",
-			wantErr:     "read column header: read column name: timeout",
+			name:        "read column header \"\": read column name",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
-			name:        "read column header: read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			name:        "read column header \"t\": read column type length",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
-			name:        "read column header: read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			name:        "read column header \"t\": read column type error",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
 			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
+			wantErr:     "read column header \"t\": read custom serialization: timeout",
 			numberValid: startValidReader + 4,
 		},
 		{
 			name:        "read offset error",
-			wantErr:     "read data \"array(array(array(number, number)))\": array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read data column",
-			wantErr:     "read data \"array(array(array(number, number)))\": array: read data column: array: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": array: read data column: array: read offset column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 	}
@@ -728,7 +795,7 @@ func TestSelectReadArray3Error(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -739,7 +806,7 @@ func TestSelectReadArray3Error(t *testing.T) {
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
 			col := column.New[uint64]().Array().Array().Array()
-			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT array(array(array(number,number))) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -811,49 +878,36 @@ func TestInsertColumnTupleError(t *testing.T) {
 }
 
 func TestSelectReadTupleError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
 		wantErr     string
 		numberValid int
-		lc          bool
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
-			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
-			numberValid: startValidReader + 4,
-			lc:          true,
-		},
-		{
-			name:        "read sub column header",
-			wantErr:     "read column header: tuple: read column header index 0: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 5,
-			lc:          true,
-		},
-		{
 			name:        "read column index 2",
-			wantErr:     "read data \"tuple(1)\": tuple: read column index 0: read data: timeout",
+			wantErr:     "read data \"t\": tuple: read column index 0: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 	}
@@ -861,7 +915,7 @@ func TestSelectReadTupleError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -871,16 +925,10 @@ func TestSelectReadTupleError(t *testing.T) {
 
 			c, err := chconn.ConnectConfig(context.Background(), config)
 			assert.NoError(t, err)
-			// we can't use tupp[le(toLowCardinality('1')) so we use this tricky way
-			// https://github.com/ClickHouse/ClickHouse/issues/39109
-			var col column.ColumnBasic
-			if tt.lc {
-				col = column.New[uint64]().LC()
-			} else {
-				col = column.New[uint8]()
-			}
+			col := column.New[uint8]()
+
 			colTuple := column.NewTuple(col)
-			stmt, err := c.Select(context.Background(), "SELECT tuple(1);", colTuple)
+			stmt, err := c.Select(context.Background(), "SELECT tuple(1) as t;", colTuple)
 			require.NoError(t, err)
 			stmt.Next()
 			assert.EqualError(t, stmt.Err(), tt.wantErr)
@@ -961,65 +1009,46 @@ func TestInsertColumnMapError(t *testing.T) {
 }
 
 func TestSelectReadMapError(t *testing.T) {
-	startValidReader := 36
+	startValidReader := selectColumnReadStart(t)
 
 	tests := []struct {
 		name        string
 		wantErr     string
 		numberValid int
-		lc          bool
 	}{
 		{
 			name:        "read column name length",
-			wantErr:     "read column header: read column name length: timeout",
+			wantErr:     "read column header \"\": read column name: read string length: timeout",
 			numberValid: startValidReader,
 		},
 		{
 			name:        "read column name",
-			wantErr:     "read column header: read column name: timeout",
+			wantErr:     "read column header \"\": read column name: read string: timeout",
 			numberValid: startValidReader + 1,
 		},
 		{
 			name:        "read column type length",
-			wantErr:     "read column header: read column type length: timeout",
+			wantErr:     "read column header \"t\": read column type: read string length: timeout",
 			numberValid: startValidReader + 2,
 		},
 		{
 			name:        "read column type error",
-			wantErr:     "read column header: read column type: timeout",
+			wantErr:     "read column header \"t\": read column type: read string: timeout",
 			numberValid: startValidReader + 3,
 		},
 		{
-			name:        "read custom serialization",
-			wantErr:     "read column header: read custom serialization: timeout",
-			numberValid: startValidReader + 4,
-			lc:          true,
-		},
-		{
-			name:        "read value header",
-			wantErr:     "read column header: map: read key header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 5,
-			lc:          true,
-		},
-		{
-			name:        "read value header",
-			wantErr:     "read column header: map: read value header: error reading keys serialization version: timeout",
-			numberValid: startValidReader + 6,
-			lc:          true,
-		},
-		{
 			name:        "read offset error",
-			wantErr:     "read data \"map(number, number)\": map: read offset column: read data: timeout",
+			wantErr:     "read data \"t\": map: read offset column: read data: timeout",
 			numberValid: startValidReader + 5,
 		},
 		{
 			name:        "read key column",
-			wantErr:     "read data \"map(number, number)\": map: read key column: read data: timeout",
+			wantErr:     "read data \"t\": map: read key column: read data: timeout",
 			numberValid: startValidReader + 6,
 		},
 		{
 			name:        "read value column",
-			wantErr:     "read data \"map(number, number)\": map: read value column: read data: timeout",
+			wantErr:     "read data \"t\": map: read value column: read data: timeout",
 			numberValid: startValidReader + 7,
 		},
 	}
@@ -1027,7 +1056,7 @@ func TestSelectReadMapError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := chconn.ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c chconn.Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -1039,15 +1068,12 @@ func TestSelectReadMapError(t *testing.T) {
 			assert.NoError(t, err)
 			var colKey column.Column[uint64]
 			var colValue column.Column[uint64]
-			if tt.lc {
-				colKey = column.New[uint64]().LC()
-				colValue = column.New[uint64]().LC()
-			} else {
-				colKey = column.New[uint64]()
-				colValue = column.New[uint64]()
-			}
+
+			colKey = column.New[uint64]()
+			colValue = column.New[uint64]()
+
 			col := column.NewMap(colKey, colValue)
-			stmt, err := c.Select(context.Background(), "SELECT map(number,number) FROM system.numbers LIMIT 1;", col)
+			stmt, err := c.Select(context.Background(), "SELECT map(number,number) as t FROM system.numbers LIMIT 1;", col)
 			require.NoError(t, err)
 			stmt.Next()
 
@@ -1067,223 +1093,332 @@ func TestInvalidType(t *testing.T) {
 	c, err := chconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
-	require.NoError(t, err)
-
 	tests := []struct {
 		name           string
 		columnSelector string
-		wantErr        string
-		column         column.ColumnBasic
+		chType         string
+		goToChType     string
+		goType         string
+		column         column.ColumnCore
+		skip           func(chconn.Conn) bool
+		fullErr        string
 	}{
 		{
 			name:           "1 byte invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int8|UInt8|Enum8",
-			column:         column.New[int8](),
+			chType:         "UInt64",
+			goToChType:     "Int8|UInt8|Enum8",
+			goType:         "column.Base[int8]",
+			column:         column.New[int8]().SetStrict(false),
 		},
 		{
 			name:           "2 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int16|UInt16|Enum16|Date",
-			column:         column.New[int16](),
+			chType:         "UInt64",
+			goToChType:     "Int16|UInt16|Enum16|Date",
+			goType:         "column.Base[int16]",
+			column:         column.New[int16]().SetStrict(false),
 		},
 		{
 			name:           "4 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
-			column:         column.New[int32](),
+			chType:         "UInt64",
+			goType:         "column.Base[int32]",
+			goToChType:     "Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
+			column:         column.New[int32]().SetStrict(false),
 		},
 		{
 			name:           "8 bytes invalid",
 			columnSelector: "toInt32(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Int32, column types: Int64|UInt64|Float64|Decimal64|DateTime64",
-			column:         column.New[int64](),
+			chType:         "Int32",
+			goToChType:     "Int64|UInt64|Float64|Decimal64|DateTime64",
+			goType:         "column.Base[int64]",
+			column:         column.New[int64]().SetStrict(false),
 		},
 		{
 			name:           "16 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int128|UInt128|Decimal128|IPv6|UUID",
-			column:         column.New[types.Int128](),
+			chType:         "UInt64",
+			goToChType:     "Int128|UInt128|Decimal128|IPv6|UUID",
+			goType:         "column.Base[types.Int128]",
+			column:         column.New[types.Int128]().SetStrict(false),
 		},
 		{
 			name:           "32 bytes invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Int256|UInt256|Decimal256",
-			column:         column.New[types.Int256](),
+			chType:         "UInt64",
+			goToChType:     "Int256|UInt256|Decimal256",
+			goType:         "column.Base[types.Int256]",
+			column:         column.New[types.Int256]().SetStrict(false),
 		},
 		{
 			name:           "string invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: String",
+			chType:         "UInt64",
+			goToChType:     "String",
+			goType:         "column.StringBase[string]",
 			column:         column.NewString(),
 		},
 		{
 			name:           "fixed string invalid",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: T(20 bytes size)",
-			column:         column.New[[20]byte](),
+			chType:         "UInt64",
+			goToChType:     "T(20 bytes size)",
+			goType:         "column.Base[[20]uint8]",
+			column:         column.New[[20]byte]().SetStrict(false),
 		},
 		{
 			name:           "fixed string invalid size",
 			columnSelector: "toFixedString(toString(number),2)",
-			wantErr:        "mismatch column type: ClickHouse Type: FixedString(2), column types: T(20 bytes size)",
-			column:         column.New[[20]byte](),
+			chType:         "FixedString(2)",
+			goToChType:     "T(20 bytes size)",
+			goType:         "column.Base[[20]uint8]",
+			column:         column.New[[20]byte]().SetStrict(false),
 		},
 		{
 			name:           "invalid nullable",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Nullable(Int64|UInt64|Float64|Decimal64|DateTime64)",
-			column:         column.New[int64]().Nullable(),
+			chType:         "UInt64",
+			goToChType:     "Nullable(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			goType:         "column.BaseNullable[int64]",
+			column:         column.New[int64]().SetStrict(false).Nullable(),
 		},
 		{
 			name:           "invalid nullable inside",
 			columnSelector: "toNullable(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Nullable(UInt64), column types: Nullable(Int8|UInt8|Enum8)",
-			column:         column.New[int8]().Nullable(),
+			chType:         "Nullable(UInt64)",
+			goToChType:     "Nullable(Int8|UInt8|Enum8)",
+			goType:         "column.BaseNullable[int8]",
+			column:         column.New[int8]().SetStrict(false).Nullable(),
 		},
 		{
 			name:           "invalid LowCardinality",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)",
-			column:         column.New[int64]().LC(),
+			chType:         "UInt64",
+			goToChType:     "LowCardinality(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			goType:         "column.LowCardinality[int64]",
+			column:         column.New[int64]().SetStrict(false).LC(),
 		},
 		{
 			name:           "invalid LowCardinality inside",
 			columnSelector: "toLowCardinality(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: LowCardinality(UInt64), column types: LowCardinality(Int8|UInt8|Enum8)",
-			column:         column.New[int8]().LC(),
+			chType:         "LowCardinality(UInt64)",
+			goToChType:     "LowCardinality(Int8|UInt8|Enum8)",
+			goType:         "column.LowCardinality[int8]",
+			column:         column.New[int8]().SetStrict(false).LC(),
 		},
 		{
 			name:           "invalid nullable LowCardinality",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			column: column.New[int64]().Nullable().LC(),
+			chType:         "UInt64",
+			goToChType:     "LowCardinality(Nullable(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			goType:         "column.LowCardinalityNullable[int64]",
+			column:         column.New[int64]().SetStrict(false).LC().Nullable(),
 		},
 		{
 			name:           "invalid nullable LowCardinality inside",
 			columnSelector: "toLowCardinality(toNullable(number))",
-			wantErr: "mismatch column type: ClickHouse Type: LowCardinality(Nullable(UInt64)), column types: " +
-				"LowCardinality(Int8|UInt8|Enum8)",
-
-			column: column.New[int8]().LC(),
+			chType:         "LowCardinality(Nullable(UInt64))",
+			goToChType:     "LowCardinality(Int8|UInt8|Enum8)",
+			goType:         "column.LowCardinality[int8]",
+			column:         column.New[int8]().SetStrict(false).LC(),
 		},
 		{
 			name:           "invalid array",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Array(Int64|UInt64|Float64|Decimal64|DateTime64)",
-			column:         column.New[int64]().Array(),
+			chType:         "UInt64",
+			goToChType:     "Array(Int64|UInt64|Float64|Decimal64|DateTime64)",
+			goType:         "column.Array[int64]",
+			column:         column.New[int64]().SetStrict(false).Array(),
 		},
 		{
 			name:           "invalid array inside",
 			columnSelector: "array(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Int8|UInt8|Enum8)",
-			column:         column.New[int8]().Array(),
+			chType:         "Array(UInt64)",
+			goToChType:     "Array(Int8|UInt8|Enum8)",
+			goType:         "column.Array[int8]",
+			column:         column.New[int8]().SetStrict(false).Array(),
 		},
 		{
 			name:           "invalid array nullable",
 			columnSelector: "array(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Array(UInt64), column types: Array(Nullable(Int8|UInt8|Enum8))",
-			column:         column.New[int8]().Nullable().Array(),
+			chType:         "Array(UInt64)",
+			goToChType:     "Array(Nullable(Int8|UInt8|Enum8))",
+			goType:         "column.ArrayNullable[int8]",
+			column:         column.New[int8]().SetStrict(false).Nullable().Array(),
 		},
 		{
 			name:           "invalid map",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
-			column:         column.NewMap[int8, int8](column.New[int8](), column.New[int8]()),
+			chType:         "UInt64",
+			goToChType:     "Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
+			goType:         "column.Map[int8, int8]",
+			column: column.NewMap[int8, int8](
+				column.New[int8]().SetStrict(false),
+				column.New[int8]().SetStrict(false),
+			),
 		},
 		{
 			name:           "invalid map key",
 			columnSelector: "map(number,number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
-			column:         column.NewMap[int8, int8](column.New[int8](), column.New[int8]()),
+			chType:         "Map(UInt64, UInt64)",
+			goToChType:     "Map(Int8|UInt8|Enum8, Int8|UInt8|Enum8)",
+			goType:         "column.Map[int8, int8]",
+			column: column.NewMap[int8, int8](
+				column.New[int8]().SetStrict(false),
+				column.New[int8]().SetStrict(false),
+			),
 		},
 		{
 			name:           "invalid map value",
 			columnSelector: "map(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Map(UInt64, UInt64), column types: " +
-				"Map(Int64|UInt64|Float64|Decimal64|DateTime64, Int8|UInt8|Enum8)",
-			column: column.NewMap[int64, int8](column.New[int64](), column.New[int8]()),
+			chType:         "Map(UInt64, UInt64)",
+			goToChType:     "Map(Int64|UInt64|Float64|Decimal64|DateTime64, Int8|UInt8|Enum8)",
+			goType:         "column.Map[int64, int8]",
+			column: column.NewMap[int64, int8](
+				column.New[int64]().SetStrict(false),
+				column.New[int8]().SetStrict(false),
+			),
 		},
 		{
 			name:           "invalid tuple",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
-
-			column: column.NewTuple(column.New[int64](), column.New[int8]()),
+			chType:         "UInt64",
+			goToChType:     "Tuple(Int64|UInt64|Float64|Decimal64|DateTime64,Int8|UInt8|Enum8)",
+			goType:         "column.Tuple(column.Base[int64], column.Base[int8])",
+			column:         column.NewTuple(column.New[int64]().SetStrict(false), column.New[int8]().SetStrict(false)),
 		},
 		{
 			name:           "invalid tuple inside",
 			columnSelector: "tuple(number)",
-			wantErr:        "mismatch column type: ClickHouse Type: Tuple(UInt64), column types: Tuple(Int8|UInt8|Enum8)",
-			column:         column.NewTuple(column.New[int8]()),
-		},
-		{
-			name:           "invalid tuple columns",
-			columnSelector: "tuple(number)",
-			wantErr:        "columns number for tuple(number) (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
-			column:         column.NewTuple(column.New[uint64](), column.New[uint64]()),
+			chType:         "Tuple(UInt64)",
+			goToChType:     "Tuple(Int8|UInt8|Enum8)",
+			goType:         "column.Tuple(column.Base[int8])",
+			column:         column.NewTuple(column.New[int8]().SetStrict(false)),
 		},
 		{
 			name:           "date time with timezone",
 			columnSelector: "toDateTime('2010-01-01', 'America/New_York') + number",
-			wantErr: "mismatch column type: ClickHouse Type: DateTime('America/New_York'), column types: " +
-				"Int64|UInt64|Float64|Decimal64|DateTime64",
-
-			column: column.New[uint64](),
+			chType:         "DateTime('America/New_York')",
+			goToChType:     "Int64|UInt64|Float64|Decimal64|DateTime64",
+			goType:         "column.Base[uint64]",
+			column:         column.New[uint64]().SetStrict(false),
 		},
 		{
 			name:           "date time 64 with timezone",
 			columnSelector: "toDateTime64('2010-01-01', 3, 'America/New_York') + number",
-			wantErr: "mismatch column type: ClickHouse Type: DateTime64(3, 'America/New_York'), column types: " +
-				"Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
-
-			column: column.New[uint32](),
+			chType:         "DateTime64(3, 'America/New_York')",
+			goToChType:     "Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4",
+			goType:         "column.Base[uint32]",
+			column:         column.New[uint32]().SetStrict(false),
 		},
 		{
 			name:           "Decimal",
 			columnSelector: "toDecimal32(number,3)",
-			wantErr:        "mismatch column type: ClickHouse Type: Decimal(9, 3), column types: Int64|UInt64|Float64|Decimal64|DateTime64",
-			column:         column.New[uint64](),
+			chType:         "Decimal(9, 3)",
+			goToChType:     "Int64|UInt64|Float64|Decimal64|DateTime64",
+			goType:         "column.Base[uint64]",
+			column:         column.New[uint64]().SetStrict(false),
 		},
 		{
 			name:           "Array2",
 			columnSelector: "number",
-			wantErr:        "mismatch column type: ClickHouse Type: UInt64, column types: Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
-			column:         column.New[uint64]().Array().Array(),
+			chType:         "UInt64",
+			goToChType:     "Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			goType:         "column.Array2[uint64]",
+			column:         column.New[uint64]().SetStrict(false).Array().Array(),
 		},
 		{
 			name:           "Array2 inside",
 			columnSelector: "array(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types:" +
-				" Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
-
-			column: column.New[uint64]().Array().Array(),
+			chType:         "Array(UInt64)",
+			goToChType:     "Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64))",
+			goType:         "column.Array2[uint64]",
+			column:         column.New[uint64]().SetStrict(false).Array().Array(),
 		},
 		{
 			name:           "Array3",
 			columnSelector: "number",
-			wantErr: "mismatch column type: ClickHouse Type: UInt64, column types: " +
-				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-
-			column: column.New[uint64]().Array().Array().Array(),
+			chType:         "UInt64",
+			goToChType:     "Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			goType:         "column.Array3[uint64]",
+			column:         column.New[uint64]().SetStrict(false).Array().Array().Array(),
 		},
 		{
 			name:           "Array3 inside",
 			columnSelector: "array(number,number)",
-			wantErr: "mismatch column type: ClickHouse Type: Array(UInt64), column types: " +
-				"Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
-
-			column: column.New[uint64]().Array().Array().Array(),
+			chType:         "Array(UInt64)",
+			goToChType:     "Array(Array(Array(Int64|UInt64|Float64|Decimal64|DateTime64)))",
+			goType:         "column.Array3[uint64]",
+			column:         column.New[uint64]().SetStrict(false).Array().Array().Array(),
+		},
+		{
+			name:           "NothingNullable",
+			columnSelector: "NULL",
+			chType:         "Nullable(Nothing)",
+			goToChType:     "Int64|UInt64|Float64|Decimal64|DateTime64",
+			goType:         "column.Base[uint64]",
+			column:         column.New[uint64]().SetStrict(false),
+		},
+		{
+			name:           "Variant",
+			columnSelector: "number",
+			chType:         "UInt64",
+			goToChType:     "Variant(Int64|UInt64|Float64|Decimal64|DateTime64, String)",
+			goType:         "column.Variant(column.Base[int64], column.StringBase[string])",
+			column:         column.NewVariant(column.NewString(), column.New[int64]().SetStrict(false)),
+		}, {
+			name:           "Variant number column",
+			columnSelector: "number::Variant(UInt64, String, Array(UInt64)) as a",
+			fullErr:        "columns number for a (Variant(Array(UInt64), String, UInt64)) is not equal to Variant columns number: 3 != 1",
+			column:         column.NewVariant(column.NewString()),
+			skip: func(c chconn.Conn) bool {
+				return c.ServerInfo().MajorVersion < 24
+			},
+		}, {
+			name:           "Variant inside",
+			columnSelector: "number::Variant(UInt64, String) as a",
+			chType:         "Variant(String, UInt64)",
+			goToChType:     "Variant(Int32, String)",
+			goType:         "column.Variant(column.Base[int32], column.StringBase[string])",
+			fullErr: "Variant: set column header index 0: the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32', " +
+				"which does not match the expected ClickHouse type 'String'",
+			column: column.NewVariant(column.NewString(), column.New[int32]()),
+			skip: func(c chconn.Conn) bool {
+				return c.ServerInfo().MajorVersion < 24
+			},
+		},
+		{
+			name:           "Dynamic",
+			columnSelector: "number",
+			chType:         "UInt64",
+			goToChType:     "Dynamic",
+			goType:         "column.Dynamic()",
+			column:         column.NewDynamic(),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skip != nil && tt.skip(c) {
+				t.Skip("ClickHouse version does not support this test")
+			}
 			c, err = chconn.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
-			stmt, err := c.Select(context.Background(),
+			set := chconn.Settings{
+				{
+					Name:  "allow_suspicious_low_cardinality_types",
+					Value: "true",
+				},
+				{
+					Name:  "allow_experimental_variant_type",
+					Value: "1",
+				},
+			}
+			stmt, err := c.SelectWithOption(context.Background(),
 				fmt.Sprintf("SELECT %s FROM  system.numbers limit 1", tt.columnSelector),
+				&chconn.QueryOptions{
+					Settings: set,
+				},
 				tt.column,
 			)
 
@@ -1291,71 +1426,125 @@ func TestInvalidType(t *testing.T) {
 			for stmt.Next() {
 
 			}
-			require.EqualError(t, errors.Unwrap(stmt.Err()), tt.wantErr)
+			if tt.fullErr != "" {
+				require.EqualError(t, errors.Unwrap(stmt.Err()), tt.fullErr)
+			} else {
+				require.EqualError(t, errors.Unwrap(stmt.Err()),
+					fmt.Sprintf("the chconn type '%s' is mapped to ClickHouse type '%s', which does not match the expected ClickHouse type '%s'",
+						tt.goType,
+						tt.goToChType,
+						tt.chType,
+					),
+				)
+			}
 			assert.True(t, c.IsClosed())
 		})
 	}
 }
 
+func TestTupleInvalidColumnNumber(t *testing.T) {
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	config, err := chconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	c, err := chconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	stmt, err := c.Select(context.Background(),
+		"SELECT tuple(number) as t FROM  system.numbers limit 1",
+		column.NewTuple(column.New[uint64]().SetStrict(false), column.New[uint64]().SetStrict(false)),
+	)
+
+	require.NoError(t, err)
+	for stmt.Next() {
+
+	}
+	require.EqualError(t, errors.Unwrap(stmt.Err()),
+		"columns number for t (Tuple(UInt64)) is not equal to tuple columns number: 1 != 2",
+	)
+	assert.True(t, c.IsClosed())
+}
+
 func TestMapInvalidColumnNumber(t *testing.T) {
 	m := column.NewMap[uint8, uint8](column.New[uint8](), column.New[uint8]())
-	m.SetType([]byte("Map(UInt8,UInt8,UInt8)"))
-	err := m.Validate()
-	assert.Equal(t, err.Error(), "columns number is not equal to map columns number: 3 != 2")
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Map(UInt8,UInt8,UInt8)"),
+	})
+	assert.Error(t, err, "columns number is not equal to map columns number: 3 != 2")
 }
 
 func TestFixedStringInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
-	m.SetType([]byte("FixedString(a)"))
-	err := m.Validate()
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("FixedString(a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid size: strconv.Atoi: parsing \"a\": invalid syntax")
 }
 
 func TestEnum8InvalidType(t *testing.T) {
 	m := column.New[int16]()
-	m.SetType([]byte("Enum8()"))
-	err := m.Validate()
-	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum8(), column types: Int16|UInt16|Enum16|Date")
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Enum8()"),
+	})
+	assert.Equal(t,
+		err.Error(),
+		"the chconn type 'column.Base[int16]' is mapped to ClickHouse type 'Int16', which does not match the expected ClickHouse type 'Enum8()'")
 }
 func TestEnum16InvalidType(t *testing.T) {
 	m := column.New[int32]()
-	m.SetType([]byte("Enum16()"))
-	err := m.Validate()
-	assert.Equal(t, err.Error(), "mismatch column type: ClickHouse Type: Enum16(), "+
-		"column types: Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4")
+
+	assert.Equal(t,
+		m.SetStrict(false).SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("Enum16()"),
+		}).Error(),
+		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32|UInt32|Float32|Decimal32|Date32|DateTime|IPv4', "+
+			"which does not match the expected ClickHouse type 'Enum16()'")
+
+	assert.Equal(t,
+		m.SetStrict(true).SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("Enum16()"),
+		}).Error(),
+		"the chconn type 'column.Base[int32]' is mapped to ClickHouse type 'Int32', which does not match the expected ClickHouse type 'Enum16()'")
 }
 
 func TestDecimalInvalidType(t *testing.T) {
 	m := column.New[[20]byte]()
-	m.SetType([]byte("Decimal()"))
-	err := m.Validate()
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal()"),
+	})
 	assert.Equal(t, err.Error(), "invalid decimal type (should have precision and scale): Decimal()")
 
-	m.SetType([]byte("Decimal(a, a)"))
-	err = m.Validate()
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(a, a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid precision: strconv.Atoi: parsing \"a\": invalid syntax")
 
-	m.SetType([]byte("Decimal(3, a)"))
-	err = m.Validate()
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(3, a)"),
+	})
 	assert.Equal(t, err.Error(), "invalid scale: strconv.Atoi: parsing \"a\": invalid syntax")
 
-	m.SetType([]byte("Decimal(200, 3)"))
-	err = m.Validate()
+	err = m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("Decimal(200, 3)"),
+	})
 	assert.Equal(t, err.Error(), "invalid precision: 200. it should be between 1 and 76")
 }
 
 func TestInvalidDate(t *testing.T) {
 	m := column.NewDate[types.DateTime]()
-	m.SetType([]byte("DateTime('InvalidTimeZone')"))
-	err := m.Validate()
+	err := m.SetColumnHeader(column.ColumnHeader{
+		ChType: []byte("DateTime('InvalidTimeZone')"),
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, m.Location(), time.Local)
 }
 
 func TestInvalidSimpleAggregateFunction(t *testing.T) {
-	m := column.New[int]()
-	m.SetType([]byte("SimpleAggregateFunction(sum))"))
+	m := column.New[int32]()
 	assert.Panics(t, func() {
-		m.Validate()
+		m.SetColumnHeader(column.ColumnHeader{
+			ChType: []byte("SimpleAggregateFunction(sum))"),
+		})
 	})
 }

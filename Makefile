@@ -25,8 +25,8 @@ endif
 # Project variables
 
 # Dependency versions
-GOTESTSUM_VERSION = 1.8.1
-GOLANGCI_VERSION = 1.50.0
+GOTESTSUM_VERSION = 1.8.2
+GOLANGCI_VERSION = 2.11.3
 
 GOLANG_VERSION = 1.14
 
@@ -173,9 +173,9 @@ bin/golangci-lint-${GOLANGCI_VERSION}:
 
 .PHONY: lint
 lint: bin/golangci-lint ## Run linter
-	bin/golangci-lint run --deadline=20m --concurrency 1
+	bin/golangci-lint run --timeout=20m --concurrency 1
 lint-fix: bin/golangci-lint ## Run linter
-	bin/golangci-lint run --deadline=20m --concurrency 1 --fix
+	bin/golangci-lint run --timeout=20m --concurrency 1 --fix
 
 
 

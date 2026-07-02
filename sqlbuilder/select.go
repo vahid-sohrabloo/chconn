@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vahid-sohrabloo/chconn/v2"
+	"github.com/vahid-sohrabloo/chconn/v3"
 )
 
 const (
@@ -45,6 +45,7 @@ const (
 	CrossJoin      JoinOption = "CROSS"
 )
 
+// NewSelectBuilder creates a new [SelectBuilder] for constructing SELECT queries.
 func NewSelectBuilder() *SelectBuilder {
 	return &SelectBuilder{
 		limit:     -1,
@@ -76,8 +77,6 @@ type SelectBuilder struct {
 	injection *injection
 	marker    injectionMarker
 }
-
-// var _ Builder = new(SelectBuilder)
 
 // Select sets columns in SELECT.
 func Select(col ...string) *SelectBuilder {
@@ -182,6 +181,7 @@ func (sb *SelectBuilder) PreWhere(andExpr ...string) *SelectBuilder {
 	return sb
 }
 
+// Parameters adds a query parameter to the SELECT statement.
 func (sb *SelectBuilder) Parameters(p chconn.Parameter) *SelectBuilder {
 	sb.parameters = append(sb.parameters, p)
 	return sb

@@ -14,50 +14,58 @@ jobs:
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
+      CHX_TEST_TCP_CONN_STRING: 'host=localhost user=default password=chconn_ci database=default'
+      CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v2
       with:
-        version: '22.9'
+        version: '26.2'
+        password: 'chconn_ci'
 
-        
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: 1.19
+        go-version: 1.26
 
     - name: Checkout code
-      uses: actions/checkout@v3.3.0
+      uses: actions/checkout@v4.1.1
 
     - name: Test
       run: make test-cover
     - name: Send coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: coverage.out
+        token: ${{ secrets.CODECOV_TOKEN }}
+
   test:
     name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        golang-version: [1.18.5, 1.19]
-        clickhouse-version: ['22.11', '22.10', '22.9', '22.8', '22.7', '22.6', '22.5', '22.4']
+        golang-version: ['1.25', '1.26']
+        clickhouse-version: ['26.2', '25.8', '25.3', '24.8', '24.3']
     env:
       VERBOSE: 1
       GOFLAGS: -mod=readonly
+      CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
+      CHX_TEST_TCP_CONN_STRING: 'host=localhost user=default password=chconn_ci database=default'
+      CHX_TEST_HTTP_CONN_STRING: 'http://default:chconn_ci@localhost:8123'
 
     steps:
-    - uses: vahid-sohrabloo/clickhouse-action@v1
+    - uses: vahid-sohrabloo/clickhouse-action@v2
       with:
         version: '${{ matrix.clickhouse-version }}'
-        
+        password: 'chconn_ci'
+
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: 1.18.5
+        go-version: ${{ matrix.golang-version }}
 
     - name: Checkout code
-      uses: actions/checkout@v3.3.0
+      uses: actions/checkout@v4
 
     - name: Test
       run: make test

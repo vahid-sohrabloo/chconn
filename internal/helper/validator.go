@@ -44,6 +44,10 @@ func IsDateTime64(chType []byte) bool {
 	return len(chType) > DateTime64StrLen && (string(chType[:DateTime64StrLen]) == DateTime64Str)
 }
 
+func IsTime64(chType []byte) bool {
+	return len(chType) > Time64StrLen && (string(chType[:Time64StrLen]) == Time64Str)
+}
+
 func IsFixedString(chType []byte) bool {
 	return len(chType) > FixedStringStrLen && (string(chType[:FixedStringStrLen]) == FixedStringStr)
 }
@@ -58,6 +62,10 @@ func IsRing(chType []byte) bool {
 
 func IsMultiPolygon(chType []byte) bool {
 	return string(chType) == MultiPolygonStr
+}
+
+func IsNothing(chType []byte) bool {
+	return string(chType) == NothingStr
 }
 
 func IsNested(chType []byte) bool {
@@ -112,11 +120,44 @@ func IsTuple(chType []byte) bool {
 	return len(chType) > LenTupleStr && string(chType[:LenTupleStr]) == TupleStr
 }
 
+func IsVariant(chType []byte) bool {
+	return len(chType) > LenVariantStr && string(chType[:LenVariantStr]) == VariantStr
+}
+
+func IsDynamic(chType []byte) bool {
+	if len(chType) < LenDynamicStr {
+		return false
+	}
+	if string(chType[:LenDynamicStr]) != DynamicStr {
+		return false
+	}
+	if len(chType) == LenDynamicStr {
+		return true
+	}
+	return chType[LenDynamicStr] == '('
+}
+
+func IsJSON(chType []byte) bool {
+	if len(chType) < LenJSONStr {
+		return false
+	}
+	if string(chType[:LenJSONStr]) != JSONStr {
+		return false
+	}
+	if len(chType) == LenJSONStr {
+		return true
+	}
+	return chType[LenJSONStr] == '('
+}
+
 type ColumnData struct {
 	ChType, Name []byte
 }
 
 func TypesInParentheses(b []byte) ([]ColumnData, error) {
+	if len(b) == 0 {
+		return nil, nil
+	}
 	var columns []ColumnData
 	var openFunc int
 	var hasBacktick bool

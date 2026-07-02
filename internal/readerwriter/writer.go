@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"reflect"
 	"unsafe"
 )
 
@@ -30,11 +29,6 @@ func (w *Writer) Uvarint(v uint64) {
 // Int32 write Int32 value
 func (w *Writer) Int32(v int32) {
 	w.Uint32(uint32(v))
-}
-
-// Int64 write Int64 value
-func (w *Writer) Int64(v int64) {
-	w.Uint64(uint64(v))
 }
 
 // Uint8 write Uint8 value
@@ -98,8 +92,5 @@ func (w *Writer) Output() *bytes.Buffer {
 }
 
 func str2Bytes(str string) []byte {
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&str))
-	header.Len = len(str)
-	header.Cap = header.Len
-	return *(*[]byte)(unsafe.Pointer(header))
+	return unsafe.Slice(unsafe.StringData(str), len(str))
 }

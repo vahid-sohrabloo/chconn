@@ -12,7 +12,7 @@ import (
 )
 
 func TestChErrorReadError(t *testing.T) {
-	startValidReader := 14
+	startValidReader := helloReadsCount(t) + 1 // +1 for packet type read
 
 	tests := []struct {
 		name        string
@@ -45,7 +45,7 @@ func TestChErrorReadError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := ParseConfig(os.Getenv("CHX_TEST_TCP_CONN_STRING"))
 			require.NoError(t, err)
-			config.ReaderFunc = func(r io.Reader) io.Reader {
+			config.ReaderFunc = func(r io.Reader, c Conn) io.Reader {
 				return &readErrorHelper{
 					err:         errors.New("timeout"),
 					r:           r,
@@ -112,7 +112,6 @@ func TestConfigError(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.EqualError(t, tt.err, tt.expectedMsg)
