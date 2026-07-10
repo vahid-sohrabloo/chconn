@@ -24,7 +24,7 @@ jobs:
         password: 'chconn_ci'
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 1.26
 
@@ -60,7 +60,7 @@ jobs:
         password: 'chconn_ci'
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ matrix.golang-version }}
 
