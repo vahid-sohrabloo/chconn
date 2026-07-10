@@ -12,7 +12,7 @@ require (
 	github.com/klauspost/compress v1.19.0
 	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/tools v0.31.0
+	golang.org/x/tools v0.48.0
 )
 
 require (
@@ -20,8 +20,8 @@ require (
 	github.com/kelindar/simd v1.2.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/mod v0.38.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
