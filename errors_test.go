@@ -110,11 +110,55 @@ func TestConfigError(t *testing.T) {
 			err:         NewParseConfigError("clickhouse://other@host/db", "msg", nil),
 			expectedMsg: "cannot parse `clickhouse://other@host/db`: msg",
 		},
+		{
+			name:        "dsn with escaped quote in quoted password",
+			err:         NewParseConfigError(`host=host password='pass\'word secret' user=user`, "msg", nil),
+			expectedMsg: "cannot parse `host=host password=xxxxx user=user`: msg",
+		},
+		{
+			name: "cause echoing the connection string is redacted too",
+			err: NewParseConfigError(
+				"clickhouse://host:9000 password=secret",
+				"msg",
+				errors.New(`parse "clickhouse://host:9000 password=secret": invalid port`),
+			),
+			// The greedy password=[^ ]* pass also consumes the closing quote and
+			// colon; mangled punctuation is acceptable, a leaked secret is not.
+			expectedMsg: "cannot parse `clickhouse://host:9000 password=xxxxx`: msg " +
+				"(parse \"clickhouse://host:9000 password=xxxxx invalid port)",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.EqualError(t, tt.err, tt.expectedMsg)
+		})
+	}
+}
+
+// TestParseConfigErrorDoesNotLeakPassword guards against the password reaching
+// Error() through the wrapped cause, which carries the connection string
+// verbatim when the DSN fails to parse.
+func TestParseConfigErrorDoesNotLeakPassword(t *testing.T) {
+	const secret = "PLAINSECRET"
+
+	dsns := []string{
+		"clickhouse://ch01:9000 password=" + secret,
+		"clickhouse://alice:" + secret + "@host:notaport",
+		`host=ch port=notanumber user=alice password='se\'x ` + secret + `'`,
+		"host=ch port=notanumber user=alice password=" + secret,
+		"clickhouse://alice:" + secret + "@host:9000?connect_timeout=notaduration",
+		// URL passwords containing the userinfo delimiters: url.Parse rejects
+		// both, so redaction falls back to the patterns rather than redactURL.
+		"clickhouse://alice:" + secret + ":tail@host:notaport",
+		"clickhouse://alice:pa@" + secret + "@host:notaport",
+	}
+	for _, dsn := range dsns {
+		t.Run(dsn, func(t *testing.T) {
+			t.Parallel()
+			_, err := ParseConfig(dsn)
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), secret, "password leaked via Error()")
 		})
 	}
 }
