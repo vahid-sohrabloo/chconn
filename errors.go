@@ -212,7 +212,9 @@ func (e *parseConfigError) Error() string {
 	if e.err == nil {
 		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
 	}
-	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, e.err.Error())
+	// The cause echoes the connection string verbatim (a *url.Error carries it
+	// in full), so it needs the same redaction as the string itself.
+	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, redactSecrets(e.err.Error()))
 }
 
 func (e *parseConfigError) Unwrap() error {
@@ -245,19 +247,31 @@ func (e *writeError) Unwrap() error {
 	return e.err
 }
 
+var (
+	// quotedDSNPW matches a single-quoted keyword password, honoring the
+	// backslash escapes that parseDSNSettings accepts inside the quotes.
+	quotedDSNPW = regexp.MustCompile(`password='(?:[^'\\]|\\.)*'`)
+	plainDSNPW  = regexp.MustCompile(`password=[^ ]*`)
+	brokenURLPW = regexp.MustCompile(`:[^:@]+?@`)
+)
+
 func redactPW(connString string) string {
 	if strings.HasPrefix(connString, "clickhouse://") {
 		if u, err := url.Parse(connString); err == nil {
 			return redactURL(u)
 		}
 	}
-	quotedDSN := regexp.MustCompile(`password='[^']*'`)
-	connString = quotedDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
-	plainDSN := regexp.MustCompile(`password=[^ ]*`)
-	connString = plainDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
-	brokenURL := regexp.MustCompile(`:[^:@]+?@`)
-	connString = brokenURL.ReplaceAllLiteralString(connString, ":xxxxxx@")
-	return connString
+	return redactSecrets(connString)
+}
+
+// redactSecrets strips password values out of arbitrary text. It is used both
+// for connection strings that could not be parsed and for the wrapped errors
+// that quote them back.
+func redactSecrets(s string) string {
+	s = quotedDSNPW.ReplaceAllLiteralString(s, "password=xxxxx")
+	s = plainDSNPW.ReplaceAllLiteralString(s, "password=xxxxx")
+	s = brokenURLPW.ReplaceAllLiteralString(s, ":xxxxxx@")
+	return s
 }
 
 func redactURL(u *url.URL) string {
