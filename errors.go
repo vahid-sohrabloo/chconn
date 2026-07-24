@@ -252,7 +252,12 @@ var (
 	// backslash escapes that parseDSNSettings accepts inside the quotes.
 	quotedDSNPW = regexp.MustCompile(`password='(?:[^'\\]|\\.)*'`)
 	plainDSNPW  = regexp.MustCompile(`password=[^ ]*`)
-	brokenURLPW = regexp.MustCompile(`:[^:@]+?@`)
+	// brokenURLPW matches the userinfo of a URL that url.Parse rejected, so
+	// redactURL never got to handle it. The password run is greedy up to the
+	// last @ of the token: a password may itself contain : and @ (either of
+	// which is what made url.Parse fail), and stopping at the first one leaves
+	// the remainder exposed.
+	brokenURLPW = regexp.MustCompile(`(://[^/@\s:]+:)\S*@`)
 )
 
 func redactPW(connString string) string {
@@ -270,7 +275,7 @@ func redactPW(connString string) string {
 func redactSecrets(s string) string {
 	s = quotedDSNPW.ReplaceAllLiteralString(s, "password=xxxxx")
 	s = plainDSNPW.ReplaceAllLiteralString(s, "password=xxxxx")
-	s = brokenURLPW.ReplaceAllLiteralString(s, ":xxxxxx@")
+	s = brokenURLPW.ReplaceAllString(s, "${1}xxxxxx@")
 	return s
 }
 

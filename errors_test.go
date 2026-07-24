@@ -148,6 +148,10 @@ func TestParseConfigErrorDoesNotLeakPassword(t *testing.T) {
 		`host=ch port=notanumber user=alice password='se\'x ` + secret + `'`,
 		"host=ch port=notanumber user=alice password=" + secret,
 		"clickhouse://alice:" + secret + "@host:9000?connect_timeout=notaduration",
+		// URL passwords containing the userinfo delimiters: url.Parse rejects
+		// both, so redaction falls back to the patterns rather than redactURL.
+		"clickhouse://alice:" + secret + ":tail@host:notaport",
+		"clickhouse://alice:pa@" + secret + "@host:notaport",
 	}
 	for _, dsn := range dsns {
 		t.Run(dsn, func(t *testing.T) {
