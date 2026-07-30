@@ -92,9 +92,9 @@ func (s *insertStmt) Flush(ctx context.Context) error {
 // the Rows are closed automatically and it will suffice to check the result of Err.
 // Close is idempotent and does not affect the result of Err.
 func (s *insertStmt) Close() {
-	s.conn.reader.SetCompress(false)
 	if !s.closed {
 		s.closed = true
+		s.conn.reader.SetCompress(false)
 		s.conn.contextWatcher.Unwatch()
 		s.conn.unlock()
 		if s.hasError || !s.finishInsert {
