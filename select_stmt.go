@@ -245,9 +245,9 @@ func (s *selectStmt) Err() error {
 // the Select are closed automatically and it will suffice to check the result of Err.
 // Close is idempotent and does not affect the result of Err.
 func (s *selectStmt) Close() {
-	s.conn.reader.SetCompress(false)
 	if !s.closed {
 		s.closed = true
+		s.conn.reader.SetCompress(false)
 		s.conn.contextWatcher.Unwatch()
 		s.conn.unlock()
 		if s.Err() != nil || !s.finishSelect {
