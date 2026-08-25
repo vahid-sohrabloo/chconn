@@ -153,3 +153,62 @@ func TestLcIndicator32(t *testing.T) {
 	require.NoError(t, selectStmt.Err())
 	assert.Equal(t, colInsert, colData)
 }
+
+// TestLowCardinalityReuseAcrossConnections guards the reuse-across-readers bug:
+// the indices sub-column used to be cached by index width, keeping the reader it
+// was built with. A decode column reused across Selects on different pooled
+// connections then read its indices from a stale reader and returned keys
+// pointing past the freshly rebuilt dictionary -- panicking in Row with an
+// out-of-range index. ReadRaw now rebuilds the indices column with the current
+// reader every block.
+func TestLowCardinalityReuseAcrossConnections(t *testing.T) {
+	tableName := "lc_reuse_across_conns"
+
+	t.Parallel()
+
+	connString := os.Getenv("CHX_TEST_TCP_CONN_STRING")
+
+	conn1, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+	conn2, err := chconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	err = conn1.Exec(context.Background(),
+		fmt.Sprintf(`DROP TABLE IF EXISTS test_%s`, tableName))
+	require.NoError(t, err)
+	err = conn1.Exec(context.Background(), fmt.Sprintf(`CREATE TABLE test_%[1]s (
+			val LowCardinality(String)
+		) Engine=Memory`, tableName))
+	require.NoError(t, err)
+
+	col := column.NewString().LC()
+	want := []string{"a", "a", "a", "b", "b", "c"}
+	for _, v := range want {
+		col.Append(v)
+	}
+	err = conn1.Insert(context.Background(),
+		fmt.Sprintf(`INSERT INTO test_%[1]s (val) VALUES`, tableName), col)
+	require.NoError(t, err)
+
+	// One decode column, reused across two Selects on two different connections,
+	// exactly as a connection pool hands them out.
+	colRead := column.NewString().LC()
+
+	read := func(conn chconn.Conn) []string {
+		selectStmt, errSelect := conn.Select(context.Background(),
+			fmt.Sprintf(`SELECT val FROM test_%[1]s ORDER BY val`, tableName), colRead)
+		require.NoError(t, errSelect)
+		var got []string
+		for selectStmt.Next() {
+			got = colRead.Read(got)
+		}
+		require.NoError(t, selectStmt.Err())
+		return got
+	}
+
+	first := read(conn1)
+	second := read(conn2)
+
+	assert.Equal(t, want, first)
+	assert.Equal(t, first, second, "a reused column must decode identically on a second connection")
+}

@@ -304,6 +304,14 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 	if c.indices == nil || c.oldIndicesType != intType {
 		c.indices = getLCIndicate(intType, c.r)
 		c.oldIndicesType = intType
+	} else {
+		// The indices column is cached across blocks, so it still holds the
+		// reader it was built with. Reused across Selects on different pooled
+		// connections it would otherwise decode indices from a stale reader and
+		// return keys pointing past the freshly rebuilt dictionary, panicking in
+		// Row. The dictColumn is immune because ReadHeader refreshes its reader
+		// every query.
+		c.indices.setReader(c.r)
 	}
 	err = c.indices.ReadRaw(c.numRow)
 	if err != nil {

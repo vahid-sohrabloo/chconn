@@ -97,6 +97,13 @@ func (c *column) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInf
 	return nil
 }
 
+// setReader points the column at the reader for the current query. Header-less
+// internal columns (e.g. LowCardinality indices) are cached across blocks and
+// reused, so they need their reader refreshed rather than a full ReadHeader.
+func (c *column) setReader(r *readerwriter.Reader) {
+	c.r = r
+}
+
 // Name get name of the column
 func (c *column) Name() []byte {
 	return c.columnHeader.Name

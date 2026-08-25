@@ -12,6 +12,7 @@ type indicesColumnI interface {
 	WriteTo(io.Writer) (int64, error)
 	setKeys([]uint32)
 	readInt(value *[]uint32)
+	setReader(*readerwriter.Reader)
 	Remove(int)
 	Reset()
 }
