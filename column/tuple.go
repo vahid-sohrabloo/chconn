@@ -126,7 +126,7 @@ func (c *Tuple) Scan(row int, dest any) error {
 }
 
 func (c *Tuple) ScanValue(row int, dest reflect.Value) error {
-	if dest.Kind() != reflect.Ptr {
+	if dest.Kind() != reflect.Pointer {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
 	if c.isEmpty {

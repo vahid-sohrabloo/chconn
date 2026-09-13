@@ -209,7 +209,7 @@ func type2Column(rtype reflect.Type, arrayLevel int, nullable bool) (ColumnCore,
 		return NewString().Elem(arrayLevel, nullable, false), nil
 	case reflect.Slice:
 		return type2Column(rtype.Elem(), arrayLevel+1, false)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return type2Column(rtype.Elem(), arrayLevel, true)
 	// TODO: support map and struct types
 	default:
