@@ -8,8 +8,8 @@ github.com/kelindar/bitmap v1.5.5 h1:KJv3rmpEpzLVZDXztzx8tJkgqiNw3rqJiHI10EfoFzA
 github.com/kelindar/bitmap v1.5.5/go.mod h1:0SdRw+q7Yne2DomiBfZnLaXyrn3pNo7FX7LkjmWtfeg=
 github.com/kelindar/simd v1.2.0 h1:1nSnINZRchuZwjnfqM01gV04RkJg0zz62ZC4hZQRYis=
 github.com/kelindar/simd v1.2.0/go.mod h1:inq4DFudC7W8L5fhxoeZflLRNpWSs0GNx6MlWFvuvr0=
-github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
-github.com/klauspost/compress v1.19.2/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
+github.com/klauspost/compress v1.20.0 h1:a3C1ke2ohxFymNlb2HWAHjDeKCI90scRskErZkR0ezA=
+github.com/klauspost/compress v1.20.0/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
 github.com/klauspost/cpuid/v2 v2.3.0/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
 github.com/pierrec/lz4/v4 v4.1.29 h1:CDQY6qZOLI4DW0Nx6R1vRrifrCeQHnNXkMb0hZWXFjg=
