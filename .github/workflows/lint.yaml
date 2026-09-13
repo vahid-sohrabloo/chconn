@@ -16,16 +16,13 @@ jobs:
         go-version: 1.27
     - name: Checkout code
       uses: actions/checkout@v7
-    # golangci-lint has no release built with Go 1.27 yet, and it refuses to run
-    # against a module targeting a newer Go than it was built with:
-    #   "the Go language version (go1.26) used to build golangci-lint is lower
-    #    than the targeted Go version (1.27.0)"
-    # Kept non-blocking so CI stays meaningful; drop continue-on-error and bump
-    # `version` once a Go 1.27 build ships.
-    # See https://github.com/golangci/golangci-lint/issues/6643
+    # v2.13.0+ is built with Go 1.27 and can lint this module.
+    # Still non-blocking: its newer analysers (embedlit, reflecttypeassert,
+    # inline, goconst) report 20 pre-existing findings in code this PR does not
+    # touch. Drop continue-on-error once those are cleaned up separately.
     - name: golangci-lint
       continue-on-error: true
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.11.3
+        version: v2.13.2
         args: --timeout=10m
