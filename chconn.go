@@ -356,8 +356,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
 	c.conn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
+		if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 			err = &errTimeout{err: err}
 		}
 		return nil, &connectError{config: config, msg: "dial error", err: err}

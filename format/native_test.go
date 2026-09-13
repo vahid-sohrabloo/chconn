@@ -477,7 +477,7 @@ func BenchmarkNativeEncode(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		if err := writer.WriteBlock(colInt, colStr); err != nil {
 			b.Fatal(err)
 		}
@@ -512,7 +512,7 @@ func BenchmarkNativeDecode(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		r := bytes.NewReader(data)
 		if _, err := reader.ReadBlock(r, serverInfo); err != nil {
 			b.Fatal(err)

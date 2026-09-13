@@ -66,7 +66,7 @@ func BenchmarkArrayBase_DeleteFunc_1D(b *testing.B) {
 	const n = 20_000_000
 	// build a 1D array of n rows each with one element
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.StopTimer()
 		arr := column.New[uint32]().Array()
 		for i := range n {
@@ -82,7 +82,7 @@ func BenchmarkArrayBase_DeleteFunc_2D(b *testing.B) {
 	const n = 10_000_000
 	// build a 2D array of n rows each with one-element inner slice
 	data := []string{"a"}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.StopTimer()
 		arr := column.NewString().LowCardinality().Array()
 		arr.SetWriteBufferSize(n)

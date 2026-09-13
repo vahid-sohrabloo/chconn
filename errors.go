@@ -108,9 +108,7 @@ func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
-	var timeoutError net.Error
-	errors.As(err, &timeoutError)
-	if timeoutError != nil && timeoutError.Timeout() &&
+	if timeoutError, ok := errors.AsType[net.Error](err); ok && timeoutError.Timeout() &&
 		ctx.Err() != nil {
 		return &errTimeout{
 			mainError: err,

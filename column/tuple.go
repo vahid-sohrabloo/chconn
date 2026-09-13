@@ -216,13 +216,12 @@ func (c *Tuple) scanSlice(row int, val reflect.Value) error {
 }
 
 func getStructFieldValue(field reflect.Value, name string) (reflect.Value, bool) {
-	tField := field.Type()
-	for i := 0; i < tField.NumField(); i++ {
-		if tag := tField.Field(i).Tag.Get("db"); tag == name {
-			return field.Field(i), true
+	for sf, v := range field.Fields() {
+		if tag := sf.Tag.Get("db"); tag == name {
+			return v, true
 		}
-		if tag := tField.Field(i).Tag.Get("json"); tag == name {
-			return field.Field(i), true
+		if tag := sf.Tag.Get("json"); tag == name {
+			return v, true
 		}
 	}
 	sField := field.FieldByName(name)

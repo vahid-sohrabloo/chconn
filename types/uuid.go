@@ -1,7 +1,5 @@
 package types
 
-import "github.com/google/uuid"
-
 // UUID represents a ClickHouse UUID value stored in little-endian byte order.
 // Use [UUIDFromBigEndian] to convert from standard big-endian UUID bytes.
 type UUID [16]byte
@@ -25,10 +23,17 @@ func (u UUID) BigEndian() [16]byte {
 	return UUIDFromBigEndian(u)
 }
 
+const uuidHexDigits = "0123456789abcdef"
+
 func (u UUID) Append(b []byte) []byte {
-	// MarshalText never returns an error
-	ub, _ := uuid.UUID(u.BigEndian()).MarshalText()
-	return append(b, ub...)
+	be := u.BigEndian()
+	for i, v := range be {
+		if i == 4 || i == 6 || i == 8 || i == 10 {
+			b = append(b, '-')
+		}
+		b = append(b, uuidHexDigits[v>>4], uuidHexDigits[v&0x0f])
+	}
+	return b
 }
 
 func (d UUID) GetCHType() string {

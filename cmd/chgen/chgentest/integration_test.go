@@ -25,8 +25,6 @@ func getTestConnection(t testing.TB) chconn.Conn {
 	return c
 }
 
-func ptr[T any](v T) *T { return &v }
-
 const createTableSQL = `CREATE TABLE IF NOT EXISTS test_chgen (
 	id UInt64,
 	name String,
@@ -76,8 +74,8 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 		Active:         true,
 		SmallNum:       -7,
 		Category:       "test",
-		NullScore:      ptr(int64(123)),
-		NullName:       ptr("world"),
+		NullScore:      new(int64(123)),
+		NullName:       new("world"),
 		CreatedAt:      now,
 		UpdatedAt:      uint32(now.Unix()),
 		CountryCode:    [2]byte{'U', 'S'},
@@ -88,10 +86,10 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 		UUID:           testUUID,
 		Location:       types.Point{Col1: 1.5, Col2: 2.5},
 		DeletedAt:      &deletedAt,
-		OptionalScores: []*int64{ptr(int64(10)), nil, ptr(int64(30))},
+		OptionalScores: []*int64{new(int64(10)), nil, new(int64(30))},
 		TagGroups:      [][]string{{"a", "b"}, {"c"}},
-		NullCategory:   ptr("special"),
-		OptionalMeta:   map[string]*int64{"x": ptr(int64(1)), "y": nil},
+		NullCategory:   new("special"),
+		OptionalMeta:   map[string]*int64{"x": new(int64(1)), "y": nil},
 	}
 
 	inputNullNil := TestModel{
@@ -147,8 +145,8 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	assert.True(t, r.Active)
 	assert.Equal(t, int8(-7), r.SmallNum)
 	assert.Equal(t, "test", r.Category)
-	assert.Equal(t, ptr(int64(123)), r.NullScore)
-	assert.Equal(t, ptr("world"), r.NullName)
+	assert.Equal(t, new(int64(123)), r.NullScore)
+	assert.Equal(t, new("world"), r.NullName)
 	assert.Equal(t, now, r.CreatedAt.UTC())
 	assert.Equal(t, uint32(now.Unix()), r.UpdatedAt)
 	assert.Equal(t, [2]byte{'U', 'S'}, r.CountryCode)
@@ -159,10 +157,10 @@ func TestIntegration_InsertAndSelect(t *testing.T) {
 	assert.Equal(t, testUUID, r.UUID)
 	assert.Equal(t, types.Point{Col1: 1.5, Col2: 2.5}, r.Location)
 	assert.Equal(t, deletedAt.Unix(), r.DeletedAt.Unix())
-	assert.Equal(t, []*int64{ptr(int64(10)), nil, ptr(int64(30))}, r.OptionalScores)
+	assert.Equal(t, []*int64{new(int64(10)), nil, new(int64(30))}, r.OptionalScores)
 	assert.Equal(t, [][]string{{"a", "b"}, {"c"}}, r.TagGroups)
-	assert.Equal(t, ptr("special"), r.NullCategory)
-	assert.Equal(t, map[string]*int64{"x": ptr(int64(1)), "y": nil}, r.OptionalMeta)
+	assert.Equal(t, new("special"), r.NullCategory)
+	assert.Equal(t, map[string]*int64{"x": new(int64(1)), "y": nil}, r.OptionalMeta)
 
 	// Verify second row (null values)
 	r2 := results[1]
@@ -229,7 +227,7 @@ func TestIntegration_SelectMultipleBlocks(t *testing.T) {
 	for i := range rowCount {
 		var nullCat *string
 		if i%3 == 0 {
-			nullCat = ptr("cat")
+			nullCat = new("cat")
 		}
 		cols.Write(&TestModel{
 			ID:             uint64(i),
@@ -238,7 +236,7 @@ func TestIntegration_SelectMultipleBlocks(t *testing.T) {
 			Active:         i%2 == 0,
 			SmallNum:       int8(i % 100),
 			Category:       "bulk",
-			NullScore:      ptr(int64(i)),
+			NullScore:      new(int64(i)),
 			NullName:       nil,
 			CreatedAt:      now,
 			UpdatedAt:      uint32(now.Unix()),
