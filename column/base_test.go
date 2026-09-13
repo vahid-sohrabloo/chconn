@@ -3,6 +3,7 @@ package column_test
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3"
@@ -233,9 +233,9 @@ func TestIPv6(t *testing.T) {
 
 func TestUUID(t *testing.T) {
 	testColumn(t, false, false, true, "UUID", "uuid", func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	}, func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	})
 }
 
@@ -431,9 +431,9 @@ func TestIPv6WithDelete(t *testing.T) {
 
 func TestUUIDWithDelete(t *testing.T) {
 	testColumn(t, false, true, true, "UUID", "uuid", func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	}, func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	})
 }
 
@@ -629,9 +629,9 @@ func TestIPv6WithDeleteFunc(t *testing.T) {
 
 func TestUUIDWithDeleteFunc(t *testing.T) {
 	testColumn(t, true, false, true, "UUID", "uuid", func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	}, func(i int) types.UUID {
-		return types.UUIDFromBigEndian(uuid.New())
+		return types.UUIDFromBigEndian(randUUIDBigEndian())
 	})
 }
 
@@ -1566,7 +1566,7 @@ func normalizeReflectValue(v reflect.Value) reflect.Value {
 			result.Index(i).Set(normalizeReflectValue(v.Index(i)))
 		}
 		return result
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if v.IsNil() {
 			return v
 		}
@@ -1579,7 +1579,7 @@ func normalizeReflectValue(v reflect.Value) reflect.Value {
 		}
 		return normalizeReflectValue(v.Elem())
 	default:
-		if t, ok := v.Interface().(time.Time); ok {
+		if t, ok := reflect.TypeAssert[time.Time](v); ok {
 			return reflect.ValueOf(t.UTC())
 		}
 		return v
@@ -1722,4 +1722,11 @@ func TestEmptyCollection(t *testing.T) {
 	assert.Equal(t, colArrayLCNullableResult, colLCNullableArrayVal)
 
 	require.NoError(t, selectStmt.Err())
+}
+
+// randUUIDBigEndian returns a random big-endian UUID for test fixtures.
+func randUUIDBigEndian() [16]byte {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return b
 }

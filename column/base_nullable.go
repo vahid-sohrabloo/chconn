@@ -166,7 +166,7 @@ func (c *BaseNullable[T]) AppendAny(value any) error {
 
 	val := reflect.ValueOf(value)
 	valueKind := val.Kind()
-	if valueKind == reflect.Ptr {
+	if valueKind == reflect.Pointer {
 		value = reflect.ValueOf(value).Elem().Interface()
 	}
 

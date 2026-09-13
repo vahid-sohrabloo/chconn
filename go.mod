@@ -1,12 +1,11 @@
 module github.com/vahid-sohrabloo/chconn/v3
 
-go 1.25.0
+go 1.27.0
 
 tool github.com/vahid-sohrabloo/chconn/v3/cmd/chgen
 
 require (
 	github.com/go-faster/city v1.0.1
-	github.com/google/uuid v1.6.0
 	github.com/jackc/puddle/v2 v2.2.2
 	github.com/kelindar/bitmap v1.5.5
 	github.com/klauspost/compress v1.19.2

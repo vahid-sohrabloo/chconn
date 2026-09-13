@@ -16,7 +16,7 @@ func BenchmarkTestChconnSelect100MUint64(b *testing.B) {
 		b.Fatal(err)
 	}
 	colRead := column.New[uint64]()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		s, err := c.Select(ctx, "SELECT number FROM system.numbers_mt LIMIT 100000000", colRead)
 		if err != nil {
 			b.Fatal(err)
@@ -41,7 +41,7 @@ func BenchmarkTestChconnSelect1MString(b *testing.B) {
 
 	colRead := column.NewString()
 	var data [][]byte
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		s, err := c.Select(ctx, "SELECT randomString(20) FROM system.numbers_mt LIMIT 1000000", colRead)
 		if err != nil {
 			b.Fatal(err)
@@ -80,7 +80,7 @@ func BenchmarkTestChconnInsert10M(b *testing.B) {
 
 	idColumns := column.New[uint64]()
 	idColumns.SetWriteBufferSize(rowsInBlock)
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		for range rowsInBlock {
 			idColumns.Append(1)
 		}

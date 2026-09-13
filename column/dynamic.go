@@ -204,7 +204,7 @@ func (c *Dynamic) AppendAny(value any) error {
 		return nil
 	}
 	rtype := reflect.TypeOf(value)
-	if rtype.Kind() == reflect.Ptr {
+	if rtype.Kind() == reflect.Pointer {
 		rtype = rtype.Elem()
 	}
 	column, ok := c.columnsAppend[rtype]

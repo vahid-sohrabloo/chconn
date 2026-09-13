@@ -778,7 +778,7 @@ func TestJSONScanZeroFill(t *testing.T) {
 
 func BenchmarkJSONObjectAppend(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		col := column.NewJSON()
 		for j := range 10000 {
 			jv := column.NewJSONValue()
@@ -791,7 +791,7 @@ func BenchmarkJSONObjectAppend(b *testing.B) {
 
 func BenchmarkJSONStringAppend(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		col := column.NewJSON()
 		for j := range 10000 {
 			col.Append(fmt.Sprintf(`{"name":"test","value":%d}`, j))

@@ -48,6 +48,14 @@ linters:
         - style
     gocyclo:
       min-complexity: 20
+    modernize:
+      # embedlit rewrites explicit embedded-struct literals into flattened
+      # promoted keys (Go 1.27 field-selector keys). In nested columns that
+      # produces two same-named keys at different depths in one literal,
+      # resolved only by shadowing rules, which reads worse than the explicit
+      # form. Style preference, no correctness or performance impact.
+      disable:
+        - embedlit
     lll:
       line-length: 140
     misspell:
@@ -74,6 +82,12 @@ linters:
           - gosec
           - maligned
         path: _test\.go
+      # Code generators repeat Go type-name literals ("types.Decimal128",
+      # "uint32", ...) by nature; same carve-out as the older generators below.
+      # funlen/gocyclo stay enabled here -- those files use //nolint per function.
+      - linters:
+          - goconst
+        path: cmd/chgen
       - linters:
           - funlen
           - goconst

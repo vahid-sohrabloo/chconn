@@ -183,11 +183,16 @@ func (d Decimal128) Append(scale int, b []byte) []byte {
 	ten := big.NewInt(10) // Define a constant for 10
 
 	// Reduce scale and d while the least significant digit is zero
-	checkMod := new(big.Int).Set(bigInt)
-	for scale > 0 && len(checkMod.Mod(checkMod, ten).Bits()) == 0 {
+	quo, rem := new(big.Int), new(big.Int)
+	for scale > 0 {
+		// Trunc matches the Euclidean Div/Mod this replaces, because the loop
+		// only advances when the division is exact.
+		quo.Divide(bigInt, ten, rem, big.Trunc)
+		if len(rem.Bits()) != 0 {
+			break
+		}
 		scale--
-		bigInt.Div(bigInt, ten)
-		checkMod = new(big.Int).Set(bigInt)
+		bigInt.Set(quo)
 	}
 
 	// Append the integer part of d to b
@@ -222,11 +227,16 @@ func (d Decimal256) Append(scale int, b []byte) []byte {
 	ten := big.NewInt(10) // Define a constant for 10
 
 	// Reduce scale and d while the least significant digit is zero
-	checkMod := new(big.Int).Set(bigInt)
-	for scale > 0 && len(checkMod.Mod(checkMod, ten).Bits()) == 0 {
+	quo, rem := new(big.Int), new(big.Int)
+	for scale > 0 {
+		// Trunc matches the Euclidean Div/Mod this replaces, because the loop
+		// only advances when the division is exact.
+		quo.Divide(bigInt, ten, rem, big.Trunc)
+		if len(rem.Bits()) != 0 {
+			break
+		}
 		scale--
-		bigInt.Div(bigInt, ten)
-		checkMod = new(big.Int).Set(bigInt)
+		bigInt.Set(quo)
 	}
 
 	// Append the integer part of d to b

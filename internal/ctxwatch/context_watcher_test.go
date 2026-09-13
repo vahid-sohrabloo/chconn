@@ -133,7 +133,7 @@ func TestContextWatcherStress(t *testing.T) {
 func BenchmarkContextWatcherUncancellable(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cw.Watch(context.Background())
 		cw.Unwatch()
 	}
@@ -142,7 +142,7 @@ func BenchmarkContextWatcherUncancellable(b *testing.B) {
 func BenchmarkContextWatcherCancelled(b *testing.B) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cw.Watch(ctx)
 		cancel()
@@ -155,7 +155,7 @@ func BenchmarkContextWatcherCancellable(b *testing.B) {
 
 	ctx := b.Context()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cw.Watch(ctx)
 		cw.Unwatch()
 	}
