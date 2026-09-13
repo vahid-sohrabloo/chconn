@@ -17,11 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v7
     # v2.13.0+ is built with Go 1.27 and can lint this module.
-    # Still non-blocking: its newer analysers (embedlit, reflecttypeassert,
-    # inline, goconst) report 20 pre-existing findings in code this PR does not
-    # touch. Drop continue-on-error once those are cleaned up separately.
     - name: golangci-lint
-      continue-on-error: true
       uses: golangci/golangci-lint-action@v9
       with:
         version: v2.13.2

@@ -63,7 +63,7 @@ func collectStructFields(t reflect.Type, index []int, prefix string, out map[str
 }
 
 func structToJSONValue(rv reflect.Value) *JSONValue {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	info := getStructFieldInfo(rv.Type())
@@ -73,7 +73,7 @@ func structToJSONValue(rv reflect.Value) *JSONValue {
 		if fv.IsZero() {
 			continue
 		}
-		if fv.Kind() == reflect.Ptr {
+		if fv.Kind() == reflect.Pointer {
 			if fv.IsNil() {
 				continue
 			}
@@ -85,7 +85,7 @@ func structToJSONValue(rv reflect.Value) *JSONValue {
 }
 
 func (c *JSON) scanIntoStruct(row int, dest reflect.Value) error {
-	if dest.Kind() == reflect.Ptr {
+	if dest.Kind() == reflect.Pointer {
 		if dest.IsNil() {
 			dest.Set(reflect.New(dest.Type().Elem()))
 		}

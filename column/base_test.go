@@ -1566,7 +1566,7 @@ func normalizeReflectValue(v reflect.Value) reflect.Value {
 			result.Index(i).Set(normalizeReflectValue(v.Index(i)))
 		}
 		return result
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if v.IsNil() {
 			return v
 		}
@@ -1579,7 +1579,7 @@ func normalizeReflectValue(v reflect.Value) reflect.Value {
 		}
 		return normalizeReflectValue(v.Elem())
 	default:
-		if t, ok := v.Interface().(time.Time); ok {
+		if t, ok := reflect.TypeAssert[time.Time](v); ok {
 			return reflect.ValueOf(t.UTC())
 		}
 		return v

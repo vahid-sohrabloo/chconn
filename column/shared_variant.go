@@ -54,7 +54,7 @@ func (c *SharedVariant) Scan(row int, dest any) error {
 }
 
 func (c *SharedVariant) ScanValue(row int, value reflect.Value) error {
-	if value.Kind() != reflect.Ptr {
+	if value.Kind() != reflect.Pointer {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
 

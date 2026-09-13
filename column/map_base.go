@@ -248,7 +248,7 @@ func (c *MapBase) Scan(row int, dest any) error {
 }
 
 func (c *MapBase) ScanValue(row int, dest reflect.Value) error {
-	if dest.Kind() != reflect.Ptr {
+	if dest.Kind() != reflect.Pointer {
 		return fmt.Errorf("scan dest should be a pointer")
 	}
 	if dest.Elem().Kind() == reflect.Map {

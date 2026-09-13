@@ -324,7 +324,7 @@ func (c *JSON) AppendAny(v any) error {
 	default:
 		// Check for struct via reflection
 		rv := reflect.ValueOf(v)
-		if rv.Kind() == reflect.Ptr {
+		if rv.Kind() == reflect.Pointer {
 			rv = rv.Elem()
 		}
 		if rv.Kind() == reflect.Struct {
@@ -503,10 +503,10 @@ func (c *JSON) Scan(row int, dest any) error {
 		default:
 			// Try struct scan via reflection
 			rv := reflect.ValueOf(dest)
-			if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Struct {
+			if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Struct {
 				return c.scanIntoStruct(row, rv)
 			}
-			if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Map {
+			if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Map {
 				return c.scanIntoMap(row, rv.Elem())
 			}
 			return fmt.Errorf("json: unsupported scan destination %T", dest)
@@ -818,7 +818,7 @@ func (c *JSON) canAppend(value any) bool {
 	}
 
 	rv := reflect.ValueOf(value)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	if rv.Kind() == reflect.Struct {
