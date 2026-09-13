@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        golang-version: ['1.26', '1.27']
+        golang-version: ['1.27']
         clickhouse-version: ['26.2', '25.8', '25.3', '24.8', '24.3']
     env:
       VERBOSE: 1

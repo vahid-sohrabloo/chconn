@@ -1,13 +1,6 @@
 module github.com/vahid-sohrabloo/chconn/v3
 
-go 1.26.0
-
-// Go 1.26 tightened net/url.Parse to reject colons in the host, which rejects
-// chconn's multi-host connection strings ("host1:9000,host2:9000") with
-// `invalid port ... after host`. Go 1.27 narrowed the check and accepts them
-// again, so this only affects Go 1.26. Declaring go >= 1.26 opts into the
-// strict behavior, so pin it off until the floor is Go 1.27.
-godebug urlstrictcolons=0
+go 1.27.0
 
 tool github.com/vahid-sohrabloo/chconn/v3/cmd/chgen
 
