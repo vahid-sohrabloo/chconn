@@ -214,3 +214,15 @@ func TestReadBlockColumnsPassesTheType(t *testing.T) {
 		t.Fatalf("types = %q, kept %d", types, len(cols))
 	}
 }
+
+func TestReadBlockColumnsTruncatedBlock(t *testing.T) {
+	var buf bytes.Buffer
+	mixedBlock(t, NewNativeWriter(&buf), 0)
+	full := buf.Bytes()
+	for _, cut := range []int{1, 3, len(full) / 2, len(full) - 1} {
+		_, _, err := NewNativeReader().ReadBlockColumns(bytes.NewReader(full[:cut]), nil, nil)
+		if !errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			t.Fatalf("cut at %d of %d: want io.ErrUnexpectedEOF, got %v", cut, len(full), err)
+		}
+	}
+}
