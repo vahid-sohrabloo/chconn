@@ -3,6 +3,7 @@ package format
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/vahid-sohrabloo/chconn/v3"
 	"github.com/vahid-sohrabloo/chconn/v3/column"
@@ -135,6 +136,20 @@ func NewNativeReader() *NativeReader {
 // ReadBlock reads one Native block from r, returning populated columns.
 // Returns io.EOF when no more data is available.
 func (n *NativeReader) ReadBlock(r io.Reader, serverInfo *shared.ServerInfo) ([]column.ColumnCore, error) {
+	_, columns, err := n.ReadBlockColumns(r, serverInfo, nil)
+	return columns, err
+}
+
+// ReadBlockColumns reads one Native block from r like ReadBlock, but returns
+// only the columns keep accepts, and the block's row count. A nil keep accepts
+// every column. Native does not store column lengths, so a refused column is
+// still decoded, then dropped: only one refused column is held at a time.
+// Returns io.EOF when no more data is available.
+func (n *NativeReader) ReadBlockColumns(
+	r io.Reader,
+	serverInfo *shared.ServerInfo,
+	keep func(name, chType string) bool,
+) (int, []column.ColumnCore, error) {
 	if serverInfo == nil {
 		serverInfo = shared.EmptyServerInfo()
 	}
@@ -144,56 +159,61 @@ func (n *NativeReader) ReadBlock(r io.Reader, serverInfo *shared.ServerInfo) ([]
 	numColumns, err := reader.Uvarint()
 	if err != nil {
 		// If the reader is at EOF, return io.EOF
-		return nil, fmt.Errorf("native: read num columns: %w", err)
+		return 0, nil, fmt.Errorf("native: read num columns: %w", err)
 	}
 
 	if numColumns > maxColumns {
-		return nil, fmt.Errorf("native: implausible column count %d", numColumns)
+		return 0, nil, fmt.Errorf("native: implausible column count %d", numColumns)
 	}
 
 	numRows, err := reader.Uvarint()
 	if err != nil {
-		return nil, fmt.Errorf("native: read num rows: %w", err)
+		return 0, nil, fmt.Errorf("native: read num rows: %w", err)
+	}
+	if numRows > math.MaxInt {
+		return 0, nil, fmt.Errorf("native: implausible row count %d", numRows)
 	}
 
-	columns := make([]column.ColumnCore, numColumns)
-	for i := range numColumns {
+	columns := make([]column.ColumnCore, 0, numColumns)
+	for range numColumns {
 		name, err := reader.ByteString()
 		if err != nil {
-			return nil, fmt.Errorf("native: read column name: %w", err)
+			return 0, nil, fmt.Errorf("native: read column name: %w", err)
 		}
 
 		chType, err := reader.ByteString()
 		if err != nil {
-			return nil, fmt.Errorf("native: read column type: %w", err)
+			return 0, nil, fmt.Errorf("native: read column type: %w", err)
 		}
 
 		col, err := column.ColumnByType(chType, 0, false, false, serverInfo.Timezone)
 		if err != nil {
-			return nil, fmt.Errorf("native: create column %q (type %s): %w", string(name), string(chType), err)
+			return 0, nil, fmt.Errorf("native: create column %q (type %s): %w", string(name), string(chType), err)
 		}
 
 		if err := col.SetColumnHeader(column.ColumnHeader{
 			Name:   name,
 			ChType: chType,
 		}); err != nil {
-			return nil, fmt.Errorf("native: set column header %q: %w", string(name), err)
+			return 0, nil, fmt.Errorf("native: set column header %q: %w", string(name), err)
 		}
 
 		if err := col.ReadHeader(reader, serverInfo); err != nil {
-			return nil, fmt.Errorf("native: read header for column %q: %w", string(name), err)
+			return 0, nil, fmt.Errorf("native: read header for column %q: %w", string(name), err)
 		}
 
 		if numRows > 0 {
 			if err := col.ReadRaw(int(numRows)); err != nil {
-				return nil, fmt.Errorf("native: read data for column %q: %w", string(name), err)
+				return 0, nil, fmt.Errorf("native: read data for column %q: %w", string(name), err)
 			}
 		}
 
-		columns[i] = col
+		if keep == nil || keep(string(name), string(chType)) {
+			columns = append(columns, col)
+		}
 	}
 
-	return columns, nil
+	return int(numRows), columns, nil
 }
 
 // ReadBlockInto reads one block into pre-existing columns.

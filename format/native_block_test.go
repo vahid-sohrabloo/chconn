@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/vahid-sohrabloo/chconn/v3/column"
@@ -131,5 +133,84 @@ func TestNativeReaderHugeColumnCount(t *testing.T) {
 	nr := NewNativeReader()
 	if _, err := nr.ReadBlock(bytes.NewReader(b), nil); err == nil {
 		t.Fatal("expected error for implausible column count")
+	}
+}
+
+func mixedBlock(t *testing.T, w *NativeWriter, first int64) {
+	t.Helper()
+	lc := column.NewString().LowCardinality()
+	lc.SetName([]byte("lc"))
+	lc.SetType([]byte("LowCardinality(String)"))
+	n := column.New[uint64]().Nullable()
+	n.SetName([]byte("n"))
+	n.SetType([]byte("Nullable(UInt64)"))
+	arr := column.NewArray[string](column.NewString())
+	arr.SetName([]byte("arr"))
+	arr.SetType([]byte("Array(String)"))
+	m := column.NewMap[string, uint64](column.NewString(), column.New[uint64]())
+	m.SetName([]byte("m"))
+	m.SetType([]byte("Map(String, UInt64)"))
+	last := column.New[int64]()
+	last.SetName([]byte("last"))
+	last.SetType([]byte("Int64"))
+	for i := range int64(3) {
+		lc.Append([]string{"x", "y"}[i%2])
+		n.AppendP(nil)
+		arr.Append([]string{"a", "bb"}[:i%3])
+		m.Append(map[string]uint64{"k": uint64(i)})
+		last.Append(first + i)
+	}
+	if err := w.WriteBlock(floatCol("f", 1, 2, 3), strCol("s", "p", "q", "r"), lc, n, arr, m, last); err != nil {
+		t.Fatalf("WriteBlock: %v", err)
+	}
+}
+
+func TestReadBlockColumnsSkipsTheOthers(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewNativeWriter(&buf)
+	mixedBlock(t, w, 10)
+	mixedBlock(t, w, 20)
+
+	nr := NewNativeReader()
+	keepNames := func(names ...string) func(string, string) bool {
+		return func(name, _ string) bool { return slices.Contains(names, name) }
+	}
+	rows, cols, err := nr.ReadBlockColumns(&buf, nil, keepNames("s", "last"))
+	if err != nil {
+		t.Fatalf("first block: %v", err)
+	}
+	if rows != 3 || len(cols) != 2 || string(cols[0].Name()) != "s" || string(cols[1].Name()) != "last" {
+		t.Fatalf("first block: rows=%d cols=%d", rows, len(cols))
+	}
+	if got := cols[1].(*column.Base[int64]).Row(2); got != 12 {
+		t.Fatalf("last after skipped columns = %d, want 12", got)
+	}
+
+	rows, cols, err = nr.ReadBlockColumns(&buf, nil, func(string, string) bool { return false })
+	if err != nil {
+		t.Fatalf("second block: %v", err)
+	}
+	if rows != 3 || len(cols) != 0 {
+		t.Fatalf("second block: rows=%d cols=%d, want 3 rows and no columns", rows, len(cols))
+	}
+	if _, _, err := nr.ReadBlockColumns(&buf, nil, nil); !errors.Is(err, io.EOF) {
+		t.Fatalf("third read: want io.EOF, got %v", err)
+	}
+}
+
+func TestReadBlockColumnsPassesTheType(t *testing.T) {
+	var buf bytes.Buffer
+	mixedBlock(t, NewNativeWriter(&buf), 0)
+	var types []string
+	_, cols, err := NewNativeReader().ReadBlockColumns(&buf, nil, func(_, chType string) bool {
+		types = append(types, chType)
+		return chType == "Int64"
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Float64", "String", "LowCardinality(String)", "Nullable(UInt64)", "Array(String)", "Map(String, UInt64)", "Int64"}
+	if strings.Join(types, ";") != strings.Join(want, ";") || len(cols) != 1 || string(cols[0].Name()) != "last" {
+		t.Fatalf("types = %q, kept %d", types, len(cols))
 	}
 }
