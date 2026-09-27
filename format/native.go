@@ -174,7 +174,10 @@ func (n *NativeReader) ReadBlockColumns(
 		return 0, nil, fmt.Errorf("native: implausible row count %d", numRows)
 	}
 
-	columns := make([]column.ColumnCore, 0, numColumns)
+	var columns []column.ColumnCore
+	if keep == nil {
+		columns = make([]column.ColumnCore, 0, numColumns)
+	}
 	for range numColumns {
 		name, err := reader.ByteString()
 		if err != nil {
