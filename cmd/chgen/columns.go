@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"text/template"
 	"text/template/parse"
@@ -339,8 +340,9 @@ func findStruct(pkg *packages.Package, name string) (*ast.StructType, bool) {
 }
 
 // parseTupleOrNestedArgs parses the inner part of "Tuple(name Type, name2 Type2)"
-// or "Nested(name Type, name2 Type2)" and returns a map from db name to CH type.
-func parseTupleOrNestedArgs(chType string) map[string]string {
+// or "Nested(name Type, name2 Type2)" and returns a map from db name to CH type
+// plus the names in declaration order.
+func parseTupleOrNestedArgs(chType string) (byName map[string]string, order []string) {
 	// Strip outer wrapper
 	var inner string
 	if strings.HasPrefix(chType, "Tuple(") {
@@ -348,10 +350,10 @@ func parseTupleOrNestedArgs(chType string) map[string]string {
 	} else if strings.HasPrefix(chType, "Nested(") {
 		inner = chType[len("Nested(") : len(chType)-1]
 	} else {
-		return nil
+		return nil, nil
 	}
 
-	result := make(map[string]string)
+	byName = make(map[string]string)
 	// Split by top-level commas
 	for inner != "" {
 		comma := findTopLevelComma(inner)
@@ -370,20 +372,22 @@ func parseTupleOrNestedArgs(chType string) map[string]string {
 		}
 		name = strings.TrimSpace(name)
 		typ = strings.TrimSpace(typ)
-		result[name] = typ
+		byName[name] = typ
+		order = append(order, name)
 	}
-	return result
+	return byName, order
 }
 
 // resolveSubColumns resolves the element columns of a Tuple or Nested field.
 // Every tagged element field must map, and its db name must appear in the
-// chtype, and every chtype element must have a field.
+// chtype with the same type and in the same order, and every chtype element
+// must have a field.
 func (r *resolver) resolveSubColumns(f *Field) error {
 	st, ok := findStruct(r.pkg, f.TupleType)
 	if !ok {
 		return fmt.Errorf("struct %q not found in package", f.TupleType)
 	}
-	chArgs := parseTupleOrNestedArgs(f.ChType)
+	chArgs, order := parseTupleOrNestedArgs(f.ChType)
 	if chArgs == nil {
 		return fmt.Errorf("cannot parse chtype args from %q", f.ChType)
 	}
@@ -436,6 +440,13 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 		if !seen[name] {
 			return fmt.Errorf("chtype %q element %q has no field in %s", f.ChType, name, f.TupleType)
 		}
+	}
+	got := make([]string, len(f.SubColumns))
+	for i, sc := range f.SubColumns {
+		got[i] = sc.DBName
+	}
+	if !slices.Equal(got, order) {
+		return fmt.Errorf("%s fields are in order %v, chtype %q needs %v", f.TupleType, got, f.ChType, order)
 	}
 	return nil
 }

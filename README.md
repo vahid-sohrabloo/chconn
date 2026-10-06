@@ -327,6 +327,8 @@ chgen columns -input models/user.go
 `chtype` tag must map to a column, or generation fails. Fields without these tags
 (or with `db:"-"`) are ignored. Fields of type `any` or `[]any` (what `chgen model`
 emits for Tuple/Nested) are skipped with a warning until you give them a struct type.
+The fields of a Tuple/Nested element struct must match the `chtype` elements by name,
+type and order.
 
 A field type maps to a column when:
 

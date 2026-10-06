@@ -13,3 +13,9 @@ type OneElem struct {
 func multiResult(v int8) (int8, error) { return v, nil }
 
 func toString(v int8) string { return "" }
+
+// TwoElem has elements a and b.
+type TwoElem struct {
+	A string `db:"a" chtype:"String"`
+	B int8   `db:"b" chtype:"Int8"`
+}
