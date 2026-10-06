@@ -17,7 +17,9 @@ func NewTupleAddressColumns() *TupleAddressColumns {
 		ZipCode: column.New[int32](),
 	}
 	t.City.SetName([]byte("city"))
+	t.City.SetType([]byte("String"))
 	t.ZipCode.SetName([]byte("zip_code"))
+	t.ZipCode.SetType([]byte("Int32"))
 	return t
 }
 
@@ -78,7 +80,9 @@ func NewTuplePhoneColumns() *TuplePhoneColumns {
 		Type:   column.New[int8](),
 	}
 	t.Number.SetName([]byte("number"))
+	t.Number.SetType([]byte("String"))
 	t.Type.SetName([]byte("type"))
+	t.Type.SetType([]byte("Int8"))
 	return t
 }
 
@@ -148,8 +152,11 @@ func NewTupleModelColumns() *TupleModelColumns {
 	t.phonesTypeCol = column.New[int8]()
 	t.Phones = column.NewNested(t.phonesNumberCol, t.phonesTypeCol)
 	t.Name.SetName([]byte("name"))
+	t.Name.SetType([]byte("String"))
 	t.Address.SetName([]byte("address"))
+	t.Address.SetType([]byte("Tuple(city String, zip_code Int32)"))
 	t.Phones.SetName([]byte("phones"))
+	t.Phones.SetType([]byte("Nested(number String, type Int8)"))
 	return t
 }
 

@@ -319,9 +319,54 @@ chgen model -dsn "clickhouse://localhost:9000" -table users -out models/user.go
 # Generate model from SQL file
 chgen model -sql create_users.sql -out models/user.go
 
-# Generate column declarations for insert/select
-chgen columns -dsn "clickhouse://localhost:9000" -table users -out columns/user_columns.go
+# Generate columns for every struct with db+chtype tags in a file
+chgen columns -input models/user.go
 ```
+
+`chgen columns` writes `<file>_columns_gen.go`. Every field with both a `db` and a
+`chtype` tag must map to a column, or generation fails. Fields without these tags
+(or with `db:"-"`) are ignored. Fields of type `any` or `[]any` (what `chgen model`
+emits for Tuple/Nested) are skipped with a warning until you give them a struct type.
+
+A field type maps to a column when:
+
+- it matches the `chtype` directly (`uint64` → `UInt64`, `*string` → `Nullable(String)`, ...), or
+- it is a named type whose underlying type matches. chgen then casts in both
+  directions: `type Flag int8` with `chtype:"Int8"` writes `int8(m.Flag)` and reads
+  `Flag(...)`. Pointers and slices of named types (`*Flag`, `[]Flag`) are not cast;
+  use `chconv` for them, or
+- it has a `chconv` tag. `chconv:"Func"` writes `Func(m.X)` with a package-level
+  func that takes one argument; `chconv:".Method"` writes `m.X.Method()`. The
+  result type must match the `chtype`. `Read` cannot invert a conversion, so it
+  leaves these fields zero.
+
+#### Custom templates
+
+`-template file.tmpl` (repeatable) adds Go `text/template` files to the built-in
+template:
+
+- Define `extra` to add methods. It runs once per struct, after the built-in methods.
+- Define a built-in block to replace it (an empty block removes the method): `file`, `struct`, `constructor`, `columns`,
+  `write`, `read`, `setWriteBufferSize`, `reset`, `columnNames`, `insertQuery`, `iter`.
+- Two template files cannot define the same block.
+
+```
+{{define "extra" -}}
+func (t *{{.ColsName}}) NumRows() int { return t.{{(index .Fields 0).Name}}.NumRow() }
+{{- end}}
+```
+
+`file` receives `Package`, `WithIter` and `Structs`. Every other block receives one
+struct with:
+
+- `Name`, `ColsName`, `Fields`, `HasTupleOrNested`, `ColumnNames`
+- per field: `Name`, `GoType`, `DBName`, `ChType`, `FieldType`, `Constructor`,
+  `AppendMethod`, `WriteExpr`, `ReadExpr` (empty when it cannot be read back),
+  `NeedsStrictFalse`, `IsTuple`, `IsNested`, `TupleType`, `SubColumns`
+- per sub-column: `FieldName`, `ColVar`, `DBName`, `ChType`, `FieldType`,
+  `Constructor`, `AppendMethod`, `WriteExpr`, `ReadExpr`
+
+These block names and fields follow semver.
 
 ### SQL Builder
 
