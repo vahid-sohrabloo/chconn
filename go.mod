@@ -9,7 +9,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2
 	github.com/kelindar/bitmap v1.5.7
 	github.com/klauspost/compress v1.20.1
-	github.com/pierrec/lz4/v4 v4.1.32
+	github.com/pierrec/lz4/v4 v4.1.33
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/tools v0.50.0
 )
