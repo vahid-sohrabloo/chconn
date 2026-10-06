@@ -1,0 +1,6 @@
+{{define "extra" -}}
+// NumRows returns the number of rows written.
+func (t *{{.ColsName}}) NumRows() int {
+	return t.{{(index .Fields 0).Name}}.NumRow()
+}
+{{- end}}

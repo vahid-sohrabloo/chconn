@@ -1,0 +1,11 @@
+{{define "write" -}}
+// Write appends a single {{.Name}} row, skipping empty names.
+func (t *{{.ColsName}}) Write(m *{{.Name}}) {
+	if m.Name == "" {
+		return
+	}
+{{- range .Fields}}
+	t.{{.Name}}.{{.AppendMethod}}({{.WriteExpr}})
+{{- end}}
+}
+{{- end}}

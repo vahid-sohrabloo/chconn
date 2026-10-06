@@ -7,14 +7,6 @@ import (
 	"strings"
 )
 
-// tupleSubCol describes a sub-column within a Tuple or Nested field.
-type tupleSubCol struct {
-	fieldName  string  // Go struct field name (e.g., "City")
-	colVarName string  // generated variable name (e.g., "addressCityCol")
-	dbName     string  // CH column name from the db tag
-	col        colInfo // column info for this sub-field
-}
-
 // colInfo describes the column type and constructor for a given Go field + chtype.
 type colInfo struct {
 	fieldType        string // e.g. "*column.Base[uint64]"
@@ -25,8 +17,7 @@ type colInfo struct {
 	rowMethod        string // "Row" or "RowP"
 	isTuple          bool
 	isNested         bool
-	subColumns       []tupleSubCol // sub-column info for Tuple/Nested
-	goType           string        // the Go struct type name (for Tuple: "Address", for Nested: "Phone")
+	goType           string // the Go struct type name (for Tuple: "Address", for Nested: "Phone")
 }
 
 // fixedStringRe matches [N]byte Go types.
