@@ -396,8 +396,12 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 			continue
 		}
 		name := field.Names[0].Name
-		if _, ok := chArgs[tags.db]; !ok {
+		argType, ok := chArgs[tags.db]
+		if !ok {
 			return fmt.Errorf("%s.%s: db name %q is not in chtype %q", f.TupleType, name, tags.db, f.ChType)
+		}
+		if strings.ReplaceAll(argType, " ", "") != strings.ReplaceAll(tags.chType, " ", "") {
+			return fmt.Errorf("%s.%s: chtype %q does not match %q in %q", f.TupleType, name, tags.chType, argType, f.ChType)
 		}
 		m, err := r.mapField(field, tags)
 		if err != nil {
@@ -456,7 +460,7 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 		}
 		f := &Field{
 			Name:             fieldName,
-			GoType:           typeString(field.Type),
+			GoType:           types.TypeString(r.pkg.TypesInfo.TypeOf(field.Type), r.qual),
 			DBName:           tags.db,
 			ChType:           tags.chType,
 			FieldType:        m.col.fieldType,

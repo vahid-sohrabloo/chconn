@@ -75,6 +75,7 @@ func TestColumnsGenerate_Errors(t *testing.T) {
 		{"top_bad.go", "TopBad.Bad: incompatible"},
 		{"sub_bad.go", "SubBad.T: BadElem.X: incompatible"},
 		{"sub_missing.go", `SubMissing.T: OneElem.X: db name "x" is not in chtype`},
+		{"sub_type_mismatch.go", `SubTypeMismatch.T: OneElem.X: chtype "String" does not match "Int8" in "Tuple(x Int8)"`},
 		{"sub_extra.go", `SubExtra.T: chtype "Tuple(x String, z Int8)" element "z" has no field in OneElem`},
 		{"conv_unknown.go", "ConvUnknown.V: chconv: no package-level func noSuchFunc"},
 		{"conv_multi.go", "ConvMulti.V: chconv: multiResult must take 1 argument and return exactly one value"},
@@ -155,4 +156,15 @@ func TestColumnsGenerate_FromModelOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(got), "t.Id.SetName")
 	require.NotContains(t, string(got), "NestedData")
+}
+
+func TestColumnsGenerate_GoTypeFromTypeChecker(t *testing.T) {
+	outFile := filepath.Join(t.TempDir(), "out.go")
+	err := generateColumns("chgentest/conv_model.go", outFile, false, "testdata/templates/gotype.tmpl")
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "// GoType Opt: ConvOpt[int]")
+	require.Contains(t, string(got), "// GoType Byte: byte")
 }
