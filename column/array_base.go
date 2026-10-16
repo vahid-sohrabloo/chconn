@@ -49,15 +49,7 @@ func (c *ArrayBase) canAppend(value any) bool {
 		return false
 	}
 	if sliceVal.Len() == 0 {
-		elem := sliceVal.Type().Elem()
-		inner := elem
-		for inner.Kind() == reflect.Slice {
-			inner = inner.Elem()
-		}
-		if _, ok := c.dataColumn.(*Tuple); ok || inner.Kind() == reflect.Interface {
-			return true
-		}
-		return c.dataColumn.canAppend(reflect.Zero(elem).Interface())
+		return canAppendZero(c.dataColumn, sliceVal.Type().Elem())
 	}
 	for i := 0; i < sliceVal.Len(); i++ {
 		item := sliceVal.Index(i).Interface()
@@ -135,7 +127,10 @@ func (c *ArrayBase) Delete(start, end int) {
 	for i := start; i < c.offsetColumn.NumRow(); i++ {
 		c.offsetColumn.values[i] -= elementsToRemove
 	}
-	c.offset -= elementsToRemove
+	c.offset = 0
+	if n := c.offsetColumn.NumRow(); n > 0 {
+		c.offset = c.offsetColumn.values[n-1]
+	}
 }
 
 func (c *ArrayBase) DeleteFunc(del func(row int) bool) {
@@ -300,9 +295,7 @@ func (c *ArrayBase) ReadRaw(num int) error {
 	if err != nil {
 		return fmt.Errorf("array: read offset column: %w", err)
 	}
-	if num > 0 {
-		c.offset = c.offsetColumn.Row(num - 1)
-	}
+	c.offset = uint64(c.TotalRows())
 	err = c.dataColumn.ReadRaw(c.TotalRows())
 	if err != nil {
 		return fmt.Errorf("array: read data column: %w", err)

@@ -185,9 +185,17 @@ func (c *StringNullable[T]) AppendAny(value any) error {
 	case []byte:
 		c.AppendBytes(v)
 	case *string:
+		if v == nil {
+			c.AppendNil()
+			return nil
+		}
 		var tmp = T(*v)
 		c.AppendP(&tmp)
 	case *[]byte:
+		if v == nil {
+			c.AppendNil()
+			return nil
+		}
 		c.AppendBytes(*v)
 	case nil:
 		c.AppendNil()

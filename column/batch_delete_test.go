@@ -1,11 +1,14 @@
 package column
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
@@ -279,4 +282,81 @@ func TestMapCanAppendChecksMapAnyAny(t *testing.T) {
 	assert.Zero(t, ints.NumRow())
 	assert.Equal(t, 1, strs.NumRow())
 	require.NoError(t, v.ValidateInsert())
+}
+
+func TestNullableStringAppendAnyNilPointers(t *testing.T) {
+	v := NewVariant(NewString().Nullable().Array(), New[int64]())
+	require.NoError(t, v.AppendAny([]*[]byte{nil}))
+	require.NoError(t, v.AppendAny([]*string{nil}))
+	require.NoError(t, v.ValidateInsert())
+
+	c := NewString().Nullable()
+	require.NoError(t, c.AppendAny((*[]byte)(nil)))
+	require.NoError(t, c.AppendAny((*string)(nil)))
+	assert.True(t, c.RowIsNil(0))
+	assert.True(t, c.RowIsNil(1))
+}
+
+func TestArrayOfMapEmptySliceRoutesByType(t *testing.T) {
+	ints := NewMap[string, int64](NewString(), New[int64]()).Array()
+	strs := NewMap[string, string](NewString(), NewString()).Array()
+	v := NewVariant(ints, strs)
+	require.NoError(t, v.AppendAny([]map[string]string{}))
+	assert.Zero(t, ints.NumRow())
+	assert.Equal(t, 1, strs.NumRow())
+
+	assert.True(t, ints.canAppend([]map[string]int64{}))
+	assert.True(t, ints.canAppend([]map[string]any{}))
+	assert.False(t, NewMapBase(NewString(), New[int64]()).canAppend(map[string]string{}))
+	assert.True(t, NewMapBase(NewString(), New[int64]()).canAppend(map[any]any{}))
+}
+
+func TestMapDeleteAfterReadRawKeepsOffset(t *testing.T) {
+	w := NewMapBase(NewString(), New[int64]())
+	require.NoError(t, w.AppendAny(map[string]int64{"a": 1, "b": 2}))
+	require.NoError(t, w.AppendAny(map[string]int64{"c": 3}))
+	var buf bytes.Buffer
+	_, err := w.WriteTo(&buf)
+	require.NoError(t, err)
+
+	k, val := NewString(), New[int64]()
+	m := NewMapBase(k, val)
+	r := readerwriter.NewReader(&buf)
+	m.offsetColumn.r, k.r, val.r = r, r, r
+	require.NoError(t, m.ReadRaw(2))
+
+	m.Delete(0, 2)
+	require.NoError(t, m.AppendAny(map[string]int64{"z": 9}))
+	require.NoError(t, m.ValidateInsert())
+	assert.Equal(t, []uint64{1}, m.offsetColumn.Data())
+}
+
+func TestMapEmptyTupleValueCanAppend(t *testing.T) {
+	m := NewMapBase(NewString(), NewTuple(New[int64](), NewString()))
+	require.NoError(t, NewVariant(m).AppendAny(map[string][]any{}))
+	assert.Equal(t, 1, m.NumRow())
+
+	arr := NewArrayBase(NewMapBase(NewString(), NewTuple(New[int64](), NewString())))
+	assert.True(t, arr.canAppend([]map[string][]any{}))
+}
+
+func TestMapReadRawZeroRowsResetsOffset(t *testing.T) {
+	w := NewMapBase(NewString(), New[int64]())
+	require.NoError(t, w.AppendAny(map[string]int64{"a": 1, "b": 2}))
+	var buf bytes.Buffer
+	_, err := w.WriteTo(&buf)
+	require.NoError(t, err)
+
+	k, val := NewString(), New[int64]()
+	m := NewMapBase(k, val)
+	r := readerwriter.NewReader(&buf)
+	m.offsetColumn.r, k.r, val.r = r, r, r
+	require.NoError(t, m.ReadRaw(1))
+	require.NoError(t, m.ReadRaw(0))
+	require.NoError(t, m.AppendAny(map[string]int64{"z": 9}))
+	require.NoError(t, m.ValidateInsert())
+	assert.Equal(t, []uint64{1}, m.offsetColumn.Data())
+
+	m.AppendLen(5)
+	require.Error(t, m.ValidateInsert())
 }

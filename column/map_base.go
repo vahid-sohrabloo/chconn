@@ -81,6 +81,9 @@ func (c *MapBase) canAppend(value any) bool {
 	if mapVal.Kind() != reflect.Map {
 		return false
 	}
+	if mapVal.Len() == 0 {
+		return canAppendZero(c.keyColumn, mapVal.Type().Key()) && canAppendZero(c.valueColumn, mapVal.Type().Elem())
+	}
 
 	for _, key := range mapVal.MapKeys() {
 		k := key.Interface()
@@ -94,6 +97,19 @@ func (c *MapBase) canAppend(value any) bool {
 	}
 
 	return true
+}
+
+// canAppendZero reports whether c takes values of type t, judged by the zero value of t.
+// Tuples and interface types cannot be judged that way, so they are accepted.
+func canAppendZero(c ColumnCore, t reflect.Type) bool {
+	inner := t
+	for inner.Kind() == reflect.Slice {
+		inner = inner.Elem()
+	}
+	if _, ok := c.(*Tuple); ok || inner.Kind() == reflect.Interface {
+		return true
+	}
+	return c.canAppend(reflect.Zero(t).Interface())
 }
 
 func (c *MapBase) AppendAny(value any) error {
@@ -172,7 +188,10 @@ func (c *MapBase) Delete(start, end int) {
 	for i := start; i < c.offsetColumn.NumRow(); i++ {
 		c.offsetColumn.values[i] -= elementsToRemove
 	}
-	c.offset -= elementsToRemove
+	c.offset = 0
+	if n := c.offsetColumn.NumRow(); n > 0 {
+		c.offset = c.offsetColumn.values[n-1]
+	}
 }
 
 func (c *MapBase) DeleteFunc(del func(row int) bool) {
@@ -358,6 +377,7 @@ func (c *MapBase) ReadRaw(num int) error {
 	if err != nil {
 		return fmt.Errorf("map: read offset column: %w", err)
 	}
+	c.offset = uint64(c.TotalRows())
 
 	err = c.keyColumn.ReadRaw(c.TotalRows())
 	if err != nil {
@@ -458,7 +478,14 @@ func (c *MapBase) ValidateInsert() error {
 	if err := c.keyColumn.ValidateInsert(); err != nil {
 		return err
 	}
-	return c.valueColumn.ValidateInsert()
+	if err := c.valueColumn.ValidateInsert(); err != nil {
+		return err
+	}
+	if offset := uint64(c.TotalRows()); offset != uint64(c.keyColumn.NumRow()) || offset != uint64(c.valueColumn.NumRow()) {
+		return fmt.Errorf("map length is not equal to data length: %d != %d keys, %d values %s",
+			offset, c.keyColumn.NumRow(), c.valueColumn.NumRow(), c.FullType())
+	}
+	return nil
 }
 
 func (c *MapBase) chconnType() string {

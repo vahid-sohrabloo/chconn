@@ -109,23 +109,7 @@ func (c *Map[K, V]) canAppend(value any) bool {
 	case map[K]V:
 		return true
 	default:
-		mapVal := reflect.ValueOf(value)
-		if mapVal.Kind() != reflect.Map {
-			return false
-		}
-
-		for _, key := range mapVal.MapKeys() {
-			k := key.Interface()
-			if !c.keyColumn.(Column[K]).canAppend(k) {
-				return false
-			}
-			val := mapVal.MapIndex(key).Interface()
-
-			if !c.valueColumn.canAppend(val) {
-				return false
-			}
-		}
-		return true
+		return c.MapBase.canAppend(value)
 	}
 }
 
