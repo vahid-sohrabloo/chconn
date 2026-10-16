@@ -239,9 +239,6 @@ func (c *BaseNullable[T]) batchDeleteKeep(start, end int) {
 }
 
 func (c *BaseNullable[T]) endBatchDelete() {
-	if c.indexRemoveKeepIndex == 0 {
-		return
-	}
 	clear(c.values[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
 	c.values = c.values[:c.indexRemoveKeepIndex]
 	c.numRow = len(c.values)

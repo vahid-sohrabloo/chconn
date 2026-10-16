@@ -128,13 +128,9 @@ func (c *Array[T]) canAppend(value any) bool {
 }
 
 func (c *Array[T]) AppendAny(value any) error {
-	switch v := value.(type) {
-	case []T:
+	if v, ok := value.([]T); ok {
 		c.Append(v)
 		return nil
-	case []any:
-		c.AppendLen(len(v))
-		return c.dataColumn.AppendAny(v)
 	}
 
 	if reflect.ValueOf(value).Kind() == reflect.Slice {

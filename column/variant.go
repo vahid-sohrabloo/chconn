@@ -19,6 +19,8 @@ type Variant struct {
 	discriminatorsIndexPos []int
 	columns                []ColumnCore
 	totalNils              int
+	// batchSubRow[i] is the row of parent row i inside its member column, during a batch delete.
+	batchSubRow []int
 }
 
 // NewVariant create a new Variant of Variant(T1,T2,.....,Tn) ClickHouse data type
@@ -476,6 +478,14 @@ func (c *Variant) deleteRows(del func(row int) bool) {
 }
 
 func (c *Variant) startBatchDelete() {
+	c.batchSubRow = helper.ResetSlice(c.batchSubRow, c.discriminators.numRow, false)
+	var next [255]int
+	for i, d := range c.discriminators.values[:c.discriminators.numRow] {
+		if d != 255 {
+			c.batchSubRow[i] = next[d]
+			next[d]++
+		}
+	}
 	c.discriminators.startBatchDelete()
 	for _, col := range c.columns {
 		col.startBatchDelete()
@@ -483,9 +493,13 @@ func (c *Variant) startBatchDelete() {
 }
 
 func (c *Variant) batchDeleteKeep(start, end int) {
+	// Read the discriminators before compacting them: keeps only move rows down.
+	for i := start; i < end; i++ {
+		if d := c.discriminators.values[i]; d != 255 {
+			c.columns[d].batchDeleteKeep(c.batchSubRow[i], c.batchSubRow[i]+1)
+		}
+	}
 	c.discriminators.batchDeleteKeep(start, end)
-	// Sub-column batch delete is handled in endBatchDelete since we need
-	// to map parent rows to sub-column rows.
 }
 
 func (c *Variant) endBatchDelete() {
@@ -500,11 +514,14 @@ func (c *Variant) endBatchDelete() {
 	} else {
 		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:c.discriminators.numRow]
 	}
+	c.totalNils = 0
 	for i := 0; i < c.discriminators.numRow; i++ {
 		disc := c.discriminators.values[i]
 		if disc != 255 {
 			c.discriminatorsIndexPos[i] = subRowCount[disc]
 			subRowCount[disc]++
+		} else {
+			c.totalNils++
 		}
 	}
 

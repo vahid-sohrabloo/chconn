@@ -234,9 +234,6 @@ func (c *LowCardinality[T]) batchDeleteKeep(start, end int) {
 }
 
 func (c *LowCardinality[T]) endBatchDelete() {
-	if c.indexRemoveKeepIndex == 0 {
-		return
-	}
 	clear(c.keys[c.indexRemoveKeepIndex:]) // zero/nil out the obsolete elements, for GC
 	c.keys = c.keys[:c.indexRemoveKeepIndex]
 	c.numRow = len(c.keys)
