@@ -18,6 +18,28 @@ go get github.com/vahid-sohrabloo/chconn/v3
 
 Requires Go 1.27 or newer.
 
+## Breaking changes in v3.1.0
+
+v3.1.0 makes builds much smaller and faster. A package that uses chconn columns
+now compiles only the column types it uses. To get there, a few APIs changed:
+
+- **Go 1.27 is required.** `Array()`, `Nullable()`, `LC()` and `LowCardinality()`
+  are now generic methods. Calls such as `column.NewString().LowCardinality().Array()`
+  do not change.
+- **No method values for these methods.** `f := col.Nullable` does not compile.
+  Call the method, or use the constructor: `column.NewBaseNullable(col)`.
+- **These methods do not satisfy interfaces.** An interface of your own that needs
+  `Nullable()` or `Array()` no longer matches the column types.
+- **`Elem()` is removed** from the column types. It was only used inside chconn.
+- **`FixedString(N)` read with dynamic columns** (`ColumnByType`, `Query` and
+  `Rows.Scan`) is now a `*column.FixedString`, and its values are `string`, not
+  `[N]byte`. Code that type-asserts it to `*column.Base[[N]byte]`, or expects
+  `[N]byte` from `RowAny`, must change. `Scan` into `*[N]byte`, `*string` or `*[]byte`
+  still works. Typed columns from `column.New[[N]byte]()` do not change.
+- **Too-long FixedString values fail the insert.** A value longer than N makes
+  `ValidateInsert`, and so the insert, return an error. Shorter strings are padded
+  with zero bytes, as ClickHouse does.
+
 ## Quick Start
 
 ```go
