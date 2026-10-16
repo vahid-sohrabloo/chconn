@@ -115,14 +115,7 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 	if ok, err := scanIntoPointer(dest, c.RowIsNil(row), func(d any) error { return c.dictColumn.Scan(int(c.keys[row]), d) }); ok {
 		return err
 	}
-	if err := c.dictColumn.Scan(int(c.keys[row]), dest); err == nil {
-		return nil
-	}
-
-	return ErrScanType{
-		destType:   reflect.TypeOf(dest).String(),
-		columnType: "**" + c.rtype.String(),
-	}
+	return c.dictColumn.Scan(int(c.keys[row]), dest)
 }
 
 // Append value for insert
