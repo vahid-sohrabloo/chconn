@@ -82,7 +82,7 @@ func TestFixedStringReadFromBytes(t *testing.T) {
 
 	_, err = c.ReadFromBytes(3, data)
 	require.Error(t, err)
-	_, err = NewFixedString(1<<40).ReadFromBytes(1<<40, data)
+	_, err = NewFixedString(1<<20).ReadFromBytes(1<<20, data)
 	require.Error(t, err)
 	_, err = c.ReadFromBytes(-1, data)
 	require.Error(t, err)
