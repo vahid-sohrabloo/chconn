@@ -208,11 +208,11 @@ type parseConfigError struct {
 func (e *parseConfigError) Error() string {
 	connString := redactPW(e.connString)
 	if e.err == nil {
-		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
+		return fmt.Sprintf("cannot parse %#q: %s", connString, e.msg)
 	}
 	// The cause echoes the connection string verbatim (a *url.Error carries it
 	// in full), so it needs the same redaction as the string itself.
-	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, redactSecrets(e.err.Error()))
+	return fmt.Sprintf("cannot parse %#q: %s (%s)", connString, e.msg, redactSecrets(e.err.Error()))
 }
 
 func (e *parseConfigError) Unwrap() error {
