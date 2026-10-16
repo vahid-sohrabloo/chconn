@@ -49,6 +49,7 @@ type JSON struct {
 
 	serializationVersion uint64
 	rows                 int
+	rowsKept             int
 }
 
 // NewJSON creates a new JSON column.
@@ -635,21 +636,17 @@ func (c *JSON) Delete(start, end int) {
 }
 
 func (c *JSON) DeleteFunc(del func(row int) bool) {
-	if c.isStringSerialization() {
-		c.jsonStrings.DeleteFunc(del)
+	n := c.NumRow()
+	if n == 0 {
 		return
 	}
-	for _, col := range c.typedColumns {
-		col.DeleteFunc(del)
+	c.startBatchDelete()
+	for i := range n {
+		if !del(i) {
+			c.batchDeleteKeep(i, i+1)
+		}
 	}
-	for _, col := range c.dynamicColumns {
-		col.DeleteFunc(del)
-	}
-	if len(c.typedColumns) > 0 {
-		c.rows = c.typedColumns[0].NumRow()
-	} else if len(c.dynamicColumns) > 0 {
-		c.rows = c.dynamicColumns[0].NumRow()
-	}
+	c.endBatchDelete()
 }
 
 func (c *JSON) startBatchDelete() {
@@ -657,6 +654,7 @@ func (c *JSON) startBatchDelete() {
 		c.jsonStrings.startBatchDelete()
 		return
 	}
+	c.rowsKept = 0
 	for _, col := range c.typedColumns {
 		col.startBatchDelete()
 	}
@@ -670,6 +668,7 @@ func (c *JSON) batchDeleteKeep(start, end int) {
 		c.jsonStrings.batchDeleteKeep(start, end)
 		return
 	}
+	c.rowsKept += end - start
 	for _, col := range c.typedColumns {
 		col.batchDeleteKeep(start, end)
 	}
@@ -689,11 +688,7 @@ func (c *JSON) endBatchDelete() {
 	for _, col := range c.dynamicColumns {
 		col.endBatchDelete()
 	}
-	if len(c.typedColumns) > 0 {
-		c.rows = c.typedColumns[0].NumRow()
-	} else if len(c.dynamicColumns) > 0 {
-		c.rows = c.dynamicColumns[0].NumRow()
-	}
+	c.rows = c.rowsKept
 }
 
 func (c *JSON) objectToJSON(row int, ignoreDoubleQuotes bool, b []byte) []byte {

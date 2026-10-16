@@ -241,20 +241,17 @@ func (c *StringNullable[T]) Delete(start, end int) {
 }
 
 func (c *StringNullable[T]) DeleteFunc(del func(row int) bool) {
-	if c.NumRow() == 0 {
+	n := c.NumRow()
+	if n == 0 {
 		return
 	}
-	i := 0
-	for j := 0; j < len(c.values); j++ {
-		if !del(j) {
-			c.values[i] = c.values[j]
-			i++
+	c.startBatchDelete()
+	for i := range n {
+		if !del(i) {
+			c.batchDeleteKeep(i, i+1)
 		}
 	}
-	clear(c.values[i:]) // zero/nil out the obsolete elements, for GC
-	c.values = c.values[:i]
-	c.numRow = len(c.values)
-	c.dataColumn.DeleteFunc(del)
+	c.endBatchDelete()
 }
 
 func (c *StringNullable[T]) startBatchDelete() {

@@ -48,6 +48,17 @@ func (c *ArrayBase) canAppend(value any) bool {
 	if sliceVal.Kind() != reflect.Slice {
 		return false
 	}
+	if sliceVal.Len() == 0 {
+		elem := sliceVal.Type().Elem()
+		inner := elem
+		for inner.Kind() == reflect.Slice {
+			inner = inner.Elem()
+		}
+		if _, ok := c.dataColumn.(*Tuple); ok || inner.Kind() == reflect.Interface {
+			return true
+		}
+		return c.dataColumn.canAppend(reflect.Zero(elem).Interface())
+	}
 	for i := 0; i < sliceVal.Len(); i++ {
 		item := sliceVal.Index(i).Interface()
 		if !c.dataColumn.canAppend(item) {
@@ -89,6 +100,7 @@ func (c *ArrayBase) Remove(n int) {
 	if n != 0 {
 		offset = c.offsetColumn.values[n-1]
 	}
+	c.offset = offset
 	c.offsetColumn.Remove(n)
 	c.dataColumn.Remove(int(offset))
 }
@@ -123,6 +135,7 @@ func (c *ArrayBase) Delete(start, end int) {
 	for i := start; i < c.offsetColumn.NumRow(); i++ {
 		c.offsetColumn.values[i] -= elementsToRemove
 	}
+	c.offset -= elementsToRemove
 }
 
 func (c *ArrayBase) DeleteFunc(del func(row int) bool) {
@@ -141,7 +154,7 @@ func (c *ArrayBase) DeleteFunc(del func(row int) bool) {
 }
 
 func (c *ArrayBase) startBatchDelete() {
-	lenNeeded := int(uint32(c.NumRow()) >> 6)
+	lenNeeded := (c.NumRow() + 63) >> 6
 	if cap(c.bitmapDeleteKeep) < lenNeeded {
 		c.bitmapDeleteKeep = make(bitmap.Bitmap, lenNeeded)
 	} else {

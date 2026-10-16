@@ -150,10 +150,7 @@ func (c *LowCardinality[T]) SetAt(row int, v T) {
 }
 
 func (c *LowCardinality[T]) canAppend(value any) bool {
-	if v, ok := value.(T); ok {
-		return c.dictColumn.canAppend(v)
-	}
-	return false
+	return c.dictColumn.canAppend(value)
 }
 
 func (c *LowCardinality[T]) AppendAny(value any) error {

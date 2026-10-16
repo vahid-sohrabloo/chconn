@@ -105,7 +105,7 @@ func (c *Array3[T]) canAppend(value any) bool {
 		}
 		return c.dataColumn.canAppend(v[0])
 	}
-	return false
+	return c.ArrayBase.canAppend(value)
 }
 
 func (c *Array3[T]) AppendAny(value any) error {

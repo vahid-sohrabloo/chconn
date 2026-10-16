@@ -138,7 +138,7 @@ func (c *ArrayNullable[T]) canAppend(value any) bool {
 		}
 		return c.dataColumn.canAppend(zero)
 	}
-	return false
+	return c.ArrayBase.canAppend(value)
 }
 
 func (c *ArrayNullable[T]) AppendAny(value any) error {

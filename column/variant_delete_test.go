@@ -293,17 +293,26 @@ func TestDynamicBatchDelete(t *testing.T) {
 		assert.Equal(t, 2, d.NumRow())
 	})
 
-	t.Run("dynamic columns batch delete is no-op", func(t *testing.T) {
+	t.Run("dynamic columns batch delete keeps only kept rows", func(t *testing.T) {
 		d := NewDynamic()
 		require.NoError(t, d.AppendAny(int64(1)))
 		require.NoError(t, d.AppendAny("hello"))
+		require.NoError(t, d.AppendAny(int64(3)))
 
-		// Should not panic — batch delete is a no-op for dynamic columns
 		d.startBatchDelete()
 		d.batchDeleteKeep(0, 1)
+		d.batchDeleteKeep(2, 3)
 		d.endBatchDelete()
 
-		assert.Equal(t, 2, d.NumRow())
+		require.Equal(t, 2, d.NumRow())
+		require.NoError(t, d.ValidateInsert())
+		for _, col := range d.columnsAppend {
+			want := 0
+			if _, ok := col.(*Base[int64]); ok {
+				want = 2
+			}
+			assert.Equal(t, want, col.NumRow(), col.FullType())
+		}
 	})
 }
 

@@ -115,6 +115,9 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 	if ok, err := scanIntoPointer(dest, c.RowIsNil(row), func(d any) error { return c.dictColumn.Scan(int(c.keys[row]), d) }); ok {
 		return err
 	}
+	if err := c.dictColumn.Scan(int(c.keys[row]), dest); err == nil {
+		return nil
+	}
 
 	return ErrScanType{
 		destType:   reflect.TypeOf(dest).String(),
@@ -136,10 +139,15 @@ func (c *LowCardinalityNullable[T]) canAppend(value any) bool {
 		return true
 	case *T:
 		return v == nil || c.dictColumn.canAppend(*v)
-	case T:
-		return c.dictColumn.canAppend(v)
 	}
-	return false
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Pointer {
+		return c.dictColumn.canAppend(value)
+	}
+	if rv.IsNil() {
+		return c.dictColumn.canAppend(reflect.Zero(rv.Type().Elem()).Interface())
+	}
+	return c.dictColumn.canAppend(rv.Elem().Interface())
 }
 
 func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
@@ -160,6 +168,9 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 	if isNilPointer(value) {
 		c.AppendNil()
 		return nil
+	}
+	if rv := reflect.ValueOf(value); rv.Kind() == reflect.Pointer {
+		value = rv.Elem().Interface()
 	}
 	if key, err := c.dictKeyAny(value); err == nil {
 		c.preHookAppend()

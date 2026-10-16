@@ -136,7 +136,7 @@ func (c *FixedString) ScanValue(row int, value reflect.Value) error {
 			return nil
 		}
 	case reflect.Array:
-		if val.Type().Elem().Kind() == reflect.Uint8 && val.Len() == c.size {
+		if val.Type().Elem() == reflect.TypeFor[byte]() && val.Len() == c.size {
 			reflect.Copy(val, reflect.ValueOf(c.rowBytes(row)))
 			return nil
 		}
@@ -228,7 +228,7 @@ func (c *FixedString) canAppend(value any) bool {
 }
 
 func (c *FixedString) isSizedArray(v reflect.Value) bool {
-	return v.Kind() == reflect.Array && v.Type().Elem().Kind() == reflect.Uint8 && v.Len() == c.size
+	return v.Kind() == reflect.Array && v.Type().Elem() == reflect.TypeFor[byte]() && v.Len() == c.size
 }
 
 // AppendAny appends a string, []byte, a [N]byte array of the column's size, or a non-nil

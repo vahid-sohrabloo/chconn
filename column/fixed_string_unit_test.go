@@ -209,3 +209,134 @@ func TestFixedStringNeverWritesIntoReadFromBytesBuffer(t *testing.T) {
 		})
 	}
 }
+
+func TestFixedStringWrappersTakeSizedByteArraysInVariant(t *testing.T) {
+	abcd := [4]byte{'a', 'b', 'c', 'd'}
+	for _, tc := range []struct {
+		chType string
+		value  any
+	}{
+		{"Variant(Array(FixedString(4)), Int64)", [][4]byte{abcd}},
+		{"Variant(Array(FixedString(4)), Int64)", [][4]byte{}},
+		{"Variant(LowCardinality(FixedString(4)), String)", abcd},
+		{"Variant(Array(Nullable(FixedString(4))), Int64)", []*[4]byte{&abcd, nil}},
+		{"Variant(Array(LowCardinality(FixedString(4))), Int64)", [][4]byte{abcd}},
+		{"Variant(Array(LowCardinality(Nullable(FixedString(4)))), Int64)", []*[4]byte{&abcd, nil}},
+		{"Variant(Array(Array(Array(FixedString(4)))), Int64)", [][][][4]byte{{{abcd}}}},
+		{"Variant(Array(Array(Nullable(FixedString(4)))), Int64)", [][]*[4]byte{{&abcd, nil}}},
+		{"Variant(Array(Array(Array(Nullable(FixedString(4))))), Int64)", [][][]*[4]byte{{{&abcd}}}},
+	} {
+		t.Run(tc.chType, func(t *testing.T) {
+			col, err := ColumnByType([]byte(tc.chType), 0, false, false, "UTC")
+			require.NoError(t, err)
+			v := col.(*Variant)
+			require.NoError(t, v.AppendAny(tc.value))
+			members := v.Columns()
+			require.Len(t, members, 2)
+			for _, m := range members {
+				want := 1
+				if m.FullType() == "Int64" || m.FullType() == "String" {
+					want = 0
+				}
+				assert.Equal(t, want, m.NumRow(), m.FullType())
+			}
+			require.NoError(t, v.ValidateInsert())
+		})
+	}
+}
+
+func TestFixedStringWrappersRejectOtherSlicesInVariant(t *testing.T) {
+	for _, tc := range []struct {
+		chType string
+		value  any
+	}{
+		{"Variant(Array(FixedString(4)), Int64)", []int{}},
+		{"Variant(Array(FixedString(4)), Int64)", [][2]byte{{'a', 'b'}}},
+		{"Variant(Array(Nullable(FixedString(4))), Int64)", []*[2]byte{nil}},
+		{"Variant(LowCardinality(FixedString(4)), Int64)", [2]byte{}},
+	} {
+		col, err := ColumnByType([]byte(tc.chType), 0, false, false, "UTC")
+		require.NoError(t, err)
+		require.Error(t, col.(*Variant).AppendAny(tc.value), "%s %T", tc.chType, tc.value)
+	}
+}
+
+type namedByte uint8
+
+func TestFixedStringRejectsNamedByteArrays(t *testing.T) {
+	c := NewFixedString(4)
+	assert.False(t, c.canAppend([4]namedByte{}))
+	require.Error(t, c.AppendAny([4]namedByte{1, 2, 3, 4}))
+	require.Error(t, c.AppendAny(&[4]namedByte{1, 2, 3, 4}))
+	assert.False(t, c.Nullable().canAppend(&[4]namedByte{}))
+
+	c.Append("abcd")
+	var d [4]namedByte
+	require.Error(t, c.Scan(0, &d))
+	var b []namedByte
+	require.NoError(t, c.Scan(0, &b))
+	assert.Equal(t, []namedByte{'a', 'b', 'c', 'd'}, b)
+}
+
+func TestLowCardinalityNullableFixedStringScanByteArray(t *testing.T) {
+	col, err := ColumnByType([]byte("LowCardinality(Nullable(FixedString(4)))"), 0, false, false, "UTC")
+	require.NoError(t, err)
+	lc := col.(Column[string])
+	require.NoError(t, lc.AppendAny("abcd"))
+	require.NoError(t, lc.AppendAny(nil))
+
+	var d [4]byte
+	require.NoError(t, lc.Scan(0, &d))
+	assert.Equal(t, [4]byte{'a', 'b', 'c', 'd'}, d)
+	require.NoError(t, lc.Scan(1, &d))
+	assert.Equal(t, [4]byte{}, d)
+	var p *[4]byte
+	require.NoError(t, lc.Scan(1, &p))
+	assert.Nil(t, p)
+	require.Error(t, lc.Scan(0, &[2]byte{}))
+
+	arrCol, err := ColumnByType([]byte("Array(LowCardinality(Nullable(FixedString(4))))"), 0, false, false, "UTC")
+	require.NoError(t, err)
+	arr := arrCol.(Column[[]string])
+	require.NoError(t, arr.AppendAny([]*[4]byte{{'w', 'x', 'y', 'z'}, nil}))
+	// Row reads readDict, which only a block read fills for LowCardinality(Nullable(T)).
+	inner := arrCol.(*ArrayNullable[string]).dataColumn.(*LowCardinalityNullable[string])
+	inner.readDict = inner.dictColumn.Data()
+	var got [][4]byte
+	require.NoError(t, arr.Scan(0, &got))
+	assert.Equal(t, [][4]byte{{'w', 'x', 'y', 'z'}, {}}, got)
+
+	plain := NewFixedString(4).LowCardinality()
+	plain.Append("abcd")
+	require.NoError(t, plain.Scan(0, &d))
+	assert.Equal(t, [4]byte{'a', 'b', 'c', 'd'}, d)
+}
+
+func TestFixedStringWrappersRouteGoStringsToStringMember(t *testing.T) {
+	for _, tc := range []struct {
+		chType string
+		value  any
+		want   string
+	}{
+		{"Variant(Array(FixedString(4)), Array(String))", []string{"abcd"}, "Array(String)"},
+		{"Variant(Array(FixedString(4)), Array(String))", []string{}, "Array(String)"},
+		{"Variant(Array(FixedString(4)), Array(String))", []any{"abcd"}, "Array(String)"},
+		{"Variant(Array(Array(FixedString(4))), Array(Array(String)))", [][]string{}, "Array(Array(String))"},
+		{"Variant(LowCardinality(FixedString(4)), String)", "abcd", "String"},
+	} {
+		t.Run(tc.chType, func(t *testing.T) {
+			col, err := ColumnByType([]byte(tc.chType), 0, false, false, "UTC")
+			require.NoError(t, err)
+			v := col.(*Variant)
+			require.NoError(t, v.AppendAny(tc.value))
+			for _, m := range v.Columns() {
+				want := 0
+				if m.FullType() == tc.want {
+					want = 1
+				}
+				assert.Equal(t, want, m.NumRow(), m.FullType())
+			}
+			require.NoError(t, v.ValidateInsert())
+		})
+	}
+}

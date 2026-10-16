@@ -415,9 +415,17 @@ func (c *Tuple) Delete(start, end int) {
 }
 
 func (c *Tuple) DeleteFunc(del func(row int) bool) {
-	for _, col := range c.columns {
-		col.DeleteFunc(del)
+	n := c.NumRow()
+	if n == 0 {
+		return
 	}
+	c.startBatchDelete()
+	for i := range n {
+		if !del(i) {
+			c.batchDeleteKeep(i, i+1)
+		}
+	}
+	c.endBatchDelete()
 }
 
 func (c *Tuple) startBatchDelete() {

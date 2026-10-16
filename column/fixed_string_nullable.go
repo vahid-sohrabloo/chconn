@@ -145,7 +145,7 @@ func (c *FixedStringNullable) canAppend(value any) bool {
 	}
 	v := reflect.ValueOf(value)
 	if v.Kind() == reflect.Pointer && v.Type().Elem().Kind() == reflect.Array {
-		return v.IsNil() || c.dataColumn.isSizedArray(v.Elem())
+		return c.dataColumn.isSizedArray(reflect.Zero(v.Type().Elem()))
 	}
 	return c.dataColumn.isSizedArray(v)
 }
@@ -220,18 +220,17 @@ func (c *FixedStringNullable) Delete(start, end int) {
 
 // DeleteFunc removes every row for which del returns true.
 func (c *FixedStringNullable) DeleteFunc(del func(row int) bool) {
-	if c.NumRow() == 0 {
+	n := c.NumRow()
+	if n == 0 {
 		return
 	}
-	i := 0
-	for j := 0; j < len(c.values); j++ {
-		if !del(j) {
-			c.values[i] = c.values[j]
-			i++
+	c.startBatchDelete()
+	for i := range n {
+		if !del(i) {
+			c.batchDeleteKeep(i, i+1)
 		}
 	}
-	c.values = c.values[:i]
-	c.dataColumn.DeleteFunc(del)
+	c.endBatchDelete()
 }
 
 func (c *FixedStringNullable) startBatchDelete() {

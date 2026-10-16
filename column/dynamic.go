@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/kelindar/bitmap"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/helper"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
@@ -21,7 +22,8 @@ type Dynamic struct {
 	discriminatorsAppend []ColumnCore
 	columnsType          [][]byte
 	// columnsRead          map[string]ColumnCore
-	sharedVariant *SharedVariant
+	sharedVariant    *SharedVariant
+	bitmapDeleteKeep bitmap.Bitmap
 }
 
 // NewDynamic creates a new Dynamic column that can hold values of different types at runtime.
@@ -426,6 +428,7 @@ func (c *Dynamic) dynamicDeleteRows(del func(row int) bool) {
 
 func (c *Dynamic) startBatchDelete() {
 	if c.withDynamicColumn {
+		clear(c.bitmapDeleteKeep)
 		return
 	}
 	c.variant.startBatchDelete()
@@ -433,6 +436,9 @@ func (c *Dynamic) startBatchDelete() {
 
 func (c *Dynamic) batchDeleteKeep(start, end int) {
 	if c.withDynamicColumn {
+		for i := start; i < end; i++ {
+			c.bitmapDeleteKeep.Set(uint32(i))
+		}
 		return
 	}
 	c.variant.batchDeleteKeep(start, end)
@@ -440,6 +446,7 @@ func (c *Dynamic) batchDeleteKeep(start, end int) {
 
 func (c *Dynamic) endBatchDelete() {
 	if c.withDynamicColumn {
+		c.dynamicDeleteRows(func(row int) bool { return !c.bitmapDeleteKeep.Contains(uint32(row)) })
 		return
 	}
 	c.variant.endBatchDelete()

@@ -117,14 +117,7 @@ func (c *Array[T]) canAppend(value any) bool {
 		}
 		return c.dataColumn.canAppend(v[0])
 	}
-	if v, ok := value.([]any); ok {
-		for _, val := range v {
-			if !c.dataColumn.(Column[T]).canAppend(val) {
-				return false
-			}
-		}
-	}
-	return false
+	return c.ArrayBase.canAppend(value)
 }
 
 func (c *Array[T]) AppendAny(value any) error {
