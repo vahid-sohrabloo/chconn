@@ -421,23 +421,23 @@ func (c *StringBase[T]) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *StringBase[T]) Array() *Array[T] {
-	return NewArray[T](c)
+func (c *StringBase[T]) Array[R interface{ *Array[T] }]() R {
+	return R(NewArray[T](c))
 }
 
 // Nullable return a nullable type for this column
-func (c *StringBase[T]) Nullable() *StringNullable[T] {
-	return NewStringNullable(c)
+func (c *StringBase[T]) Nullable[R interface{ *StringNullable[T] }]() R {
+	return R(NewStringNullable(c))
 }
 
 // LC return a low cardinality type for this column
-func (c *StringBase[T]) LC() *LowCardinality[T] {
-	return NewLC[T](c)
+func (c *StringBase[T]) LC[R interface{ *LowCardinality[T] }]() R {
+	return R(NewLC[T](c))
 }
 
 // LowCardinality return a low cardinality type for this column
-func (c *StringBase[T]) LowCardinality() *LowCardinality[T] {
-	return NewLC[T](c)
+func (c *StringBase[T]) LowCardinality[R interface{ *LowCardinality[T] }]() R {
+	return R(NewLC[T](c))
 }
 
 // Reset all status and buffer data
@@ -553,19 +553,6 @@ func (c *StringBase[T]) appendEmpty() {
 	c.vals = append(c.vals, 0)
 	c.pos = append(c.pos, stringPos{start: len(c.vals), end: len(c.vals)})
 	c.numRow++
-}
-
-func (c *StringBase[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
-	if lc {
-		return c.LowCardinality().elem(arrayLevel, nullable)
-	}
-	if nullable {
-		return c.Nullable().elem(arrayLevel)
-	}
-	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
-	}
-	return c
 }
 
 func (c *StringBase[T]) FullType() string {

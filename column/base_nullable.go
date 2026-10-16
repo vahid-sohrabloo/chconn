@@ -308,8 +308,8 @@ func (c *BaseNullable[T]) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *BaseNullable[T]) Array() *ArrayNullable[T] {
-	return NewArrayNullable[T](c)
+func (c *BaseNullable[T]) Array[R interface{ *ArrayNullable[T] }]() R {
+	return R(NewArrayNullable[T](c))
 }
 
 // Reset all statuses and buffered data
@@ -421,9 +421,9 @@ func (c *BaseNullable[T]) WriteTo(w io.Writer) (int64, error) {
 func (c *BaseNullable[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *BaseNullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfBaseNullable[T BaseType](c *BaseNullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArrayNullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }

@@ -204,34 +204,34 @@ func (c *Date[T]) AppendMulti(v ...time.Time) {
 }
 
 // Array return a Array type for this column
-func (c *Date[T]) Array() *Array[time.Time] {
-	return NewArray[time.Time](c)
+func (c *Date[T]) Array[R interface{ *Array[time.Time] }]() R {
+	return R(NewArray[time.Time](c))
 }
 
 // Nullable return a nullable type for this column
-func (c *Date[T]) Nullable() *DateNullable[T] {
-	return NewDateNullable(c)
+func (c *Date[T]) Nullable[R interface{ *DateNullable[T] }]() R {
+	return R(NewDateNullable(c))
 }
 
 // LC return a low cardinality type for this column
-func (c *Date[T]) LC() *LowCardinality[time.Time] {
-	return NewLC[time.Time](c)
+func (c *Date[T]) LC[R interface{ *LowCardinality[time.Time] }]() R {
+	return R(NewLC[time.Time](c))
 }
 
 // LowCardinality return a low cardinality type for this column
-func (c *Date[T]) LowCardinality() *LowCardinality[time.Time] {
-	return NewLC[time.Time](c)
+func (c *Date[T]) LowCardinality[R interface{ *LowCardinality[time.Time] }]() R {
+	return R(NewLC[time.Time](c))
 }
 
-func (c *Date[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
+func elemOfDate[T DateType[T]](c *Date[T], arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
-		return c.LowCardinality().elem(arrayLevel, nullable)
+		return elemOfLowCardinality(c.LowCardinality(), arrayLevel, nullable)
 	}
 	if nullable {
-		return c.Nullable().elem(arrayLevel)
+		return elemOfDateNullable(c.Nullable(), arrayLevel)
 	}
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

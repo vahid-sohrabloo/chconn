@@ -157,8 +157,8 @@ func (c *Array[T]) AppendItem(v T) {
 }
 
 // Array return a Array type for this column
-func (c *Array[T]) Array() *Array2[T] {
-	return NewArray2(c)
+func (c *Array[T]) Array[R interface{ *Array2[T] }]() R {
+	return R(NewArray2(c))
 }
 
 func (c *Array[T]) getColumnData() []T {
@@ -168,9 +168,9 @@ func (c *Array[T]) getColumnData() []T {
 	return c.columnData
 }
 
-func (c *Array[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArray[T any](c *Array[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray2(c.Array(), arrayLevel-1)
 	}
 	return c
 }

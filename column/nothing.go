@@ -104,7 +104,7 @@ func (c *Nothing) Elem(arrayLevel int, nullable bool) ColumnCore {
 		return c.Nullable().elem(arrayLevel)
 	}
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

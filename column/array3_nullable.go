@@ -146,7 +146,7 @@ func (c *Array3Nullable[T]) getColumnData() [][][]*T {
 	return c.columnData
 }
 
-func (c *Array3Nullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArray3Nullable[T any](c *Array3Nullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		panic("array level is too deep")
 	}

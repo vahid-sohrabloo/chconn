@@ -321,8 +321,8 @@ func (c *DateNullable[T]) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *DateNullable[T]) Array() *ArrayNullable[time.Time] {
-	return NewArrayNullable[time.Time](c)
+func (c *DateNullable[T]) Array[R interface{ *ArrayNullable[time.Time] }]() R {
+	return R(NewArrayNullable[time.Time](c))
 }
 
 // Reset all statuses and buffered data
@@ -434,9 +434,9 @@ func (c *DateNullable[T]) WriteTo(w io.Writer) (int64, error) {
 func (c *DateNullable[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *DateNullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfDateNullable[T DateType[T]](c *DateNullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArrayNullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }

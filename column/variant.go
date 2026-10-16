@@ -363,7 +363,7 @@ func (c *Variant) HeaderWriter(w *readerwriter.Writer) {
 
 func (c *Variant) Elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

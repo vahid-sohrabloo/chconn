@@ -463,7 +463,7 @@ func (c *Dynamic) Array() *Array[any] {
 
 func (c *Dynamic) Elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

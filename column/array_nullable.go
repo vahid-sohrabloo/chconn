@@ -154,8 +154,8 @@ func (c *ArrayNullable[T]) AppendItemP(v *T) {
 }
 
 // ArrayOf return a Array type for this column
-func (c *ArrayNullable[T]) Array() *Array2Nullable[T] {
-	return NewArray2Nullable(c)
+func (c *ArrayNullable[T]) Array[R interface{ *Array2Nullable[T] }]() R {
+	return R(NewArray2Nullable(c))
 }
 
 // ReadRaw read raw data from the reader. it runs automatically
@@ -175,9 +175,9 @@ func (c *ArrayNullable[T]) getColumnData() []*T {
 	return c.columnData
 }
 
-func (c *ArrayNullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArrayNullable[T any](c *ArrayNullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray2Nullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }

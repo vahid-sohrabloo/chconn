@@ -184,27 +184,27 @@ func (c *column) readSparse() (int, error) {
 func type2Column(rtype reflect.Type, arrayLevel int, nullable bool) (ColumnCore, error) {
 	switch rtype.Kind() {
 	case reflect.Bool:
-		return New[bool]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[bool](), arrayLevel, nullable, false), nil
 	case reflect.Int8:
-		return New[int8]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[int8](), arrayLevel, nullable, false), nil
 	case reflect.Int16:
-		return New[int16]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[int16](), arrayLevel, nullable, false), nil
 	case reflect.Int32:
-		return New[int32]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[int32](), arrayLevel, nullable, false), nil
 	case reflect.Int64:
-		return New[int64]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[int64](), arrayLevel, nullable, false), nil
 	case reflect.Uint8:
-		return New[uint8]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[uint8](), arrayLevel, nullable, false), nil
 	case reflect.Uint16:
-		return New[uint16]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[uint16](), arrayLevel, nullable, false), nil
 	case reflect.Uint32:
-		return New[uint32]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[uint32](), arrayLevel, nullable, false), nil
 	case reflect.Uint64:
-		return New[uint64]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[uint64](), arrayLevel, nullable, false), nil
 	case reflect.Float32:
-		return New[float32]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[float32](), arrayLevel, nullable, false), nil
 	case reflect.Float64:
-		return New[float64]().Elem(arrayLevel, nullable, false), nil
+		return elemOfBase(New[float64](), arrayLevel, nullable, false), nil
 	case reflect.String:
 		return NewString().Elem(arrayLevel, nullable, false), nil
 	case reflect.Slice:
@@ -224,63 +224,63 @@ func type2Column(rtype reflect.Type, arrayLevel int, nullable bool) (ColumnCore,
 func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZone string) (ColumnCore, error) {
 	switch {
 	case string(chType) == "Bool":
-		c := New[bool]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[bool](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int8" || helper.IsEnum8(chType):
-		c := New[int8]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[int8](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int16" || helper.IsEnum16(chType):
-		c := New[int16]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[int16](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int32":
-		c := New[int32]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[int32](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int64":
-		c := New[int64]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[int64](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int128":
-		c := New[types.Int128]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.Int128](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Int256":
-		c := New[types.Int256]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.Int256](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt8":
-		c := New[uint8]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[uint8](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt16":
-		c := New[uint16]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[uint16](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt32":
-		c := New[uint32]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[uint32](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt64":
-		c := New[uint64]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[uint64](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt128":
-		c := New[types.Uint128]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.Uint128](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "UInt256":
-		c := New[types.Uint256]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.Uint256](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Float32":
-		c := New[float32]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[float32](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Float64":
-		c := New[float64]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[float64](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "String":
@@ -306,11 +306,11 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Date":
-		c := NewDate[types.Date]().Elem(arrayLevel, nullable, lc)
+		c := elemOfDate(NewDate[types.Date](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Date32":
-		c := NewDate[types.Date32]().Elem(arrayLevel, nullable, lc)
+		c := elemOfDate(NewDate[types.Date32](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "DateTime" || helper.IsDateTimeWithParam(chType):
@@ -329,7 +329,7 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 			col.SetLocation(loc)
 		}
 		col.SetType(chType)
-		return col.Elem(arrayLevel, nullable, lc), nil
+		return elemOfDate(col, arrayLevel, nullable, lc), nil
 	case helper.IsDateTime64(chType):
 		params := bytes.Split(chType[helper.DateTime64StrLen:len(chType)-1], []byte(", "))
 		if len(params) == 0 || len(params[0]) == 0 {
@@ -349,56 +349,56 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 			}
 		}
 		col.SetType(chType)
-		return col.Elem(arrayLevel, nullable, lc), nil
+		return elemOfDate(col, arrayLevel, nullable, lc), nil
 
 	case helper.IsDecimal(chType):
 		params := bytes.Split(chType[helper.DecimalStrLen:len(chType)-1], []byte(", "))
 		precision, _ := strconv.Atoi(string(params[0]))
 
 		if precision <= 9 {
-			c := New[types.Decimal32]().Elem(arrayLevel, nullable, lc)
+			c := elemOfBase(New[types.Decimal32](), arrayLevel, nullable, lc)
 			c.SetType(chType)
 			return c, nil
 		}
 		if precision <= 18 {
-			c := New[types.Decimal64]().Elem(arrayLevel, nullable, lc)
+			c := elemOfBase(New[types.Decimal64](), arrayLevel, nullable, lc)
 			c.SetType(chType)
 			return c, nil
 		}
 		if precision <= 38 {
-			c := New[types.Decimal128]().Elem(arrayLevel, nullable, lc)
+			c := elemOfBase(New[types.Decimal128](), arrayLevel, nullable, lc)
 			c.SetType(chType)
 			return c, nil
 		}
 		if precision <= 76 {
-			c := New[types.Decimal256]().Elem(arrayLevel, nullable, lc)
+			c := elemOfBase(New[types.Decimal256](), arrayLevel, nullable, lc)
 			c.SetType(chType)
 			return c, nil
 		}
 		return nil, fmt.Errorf("max precision is 76 but got %d: %s", precision, string(chType))
 
 	case string(chType) == "UUID":
-		c := New[types.UUID]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.UUID](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "IPv4":
-		c := New[types.IPv4]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.IPv4](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "IPv6":
-		c := New[types.IPv6]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.IPv6](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "BFloat16":
-		c := New[types.BFloat16]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.BFloat16](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Time":
-		c := New[types.ChTime]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.ChTime](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case helper.IsTime64(chType):
-		c := New[types.ChTime64]().Elem(arrayLevel, nullable, lc)
+		c := elemOfBase(New[types.ChTime64](), arrayLevel, nullable, lc)
 		c.SetType(chType)
 		return c, nil
 	case string(chType) == "Point":
@@ -562,145 +562,145 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 func getFixedType(fixedLen, arrayLevel int, nullable, lc bool) (ColumnCore, error) {
 	switch fixedLen {
 	case 1:
-		return New[[1]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[1]byte](), arrayLevel, nullable, lc), nil
 	case 2:
-		return New[[2]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[2]byte](), arrayLevel, nullable, lc), nil
 	case 3:
-		return New[[3]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[3]byte](), arrayLevel, nullable, lc), nil
 	case 4:
-		return New[[4]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[4]byte](), arrayLevel, nullable, lc), nil
 	case 5:
-		return New[[5]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[5]byte](), arrayLevel, nullable, lc), nil
 	case 6:
-		return New[[6]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[6]byte](), arrayLevel, nullable, lc), nil
 	case 7:
-		return New[[7]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[7]byte](), arrayLevel, nullable, lc), nil
 	case 8:
-		return New[[8]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[8]byte](), arrayLevel, nullable, lc), nil
 	case 9:
-		return New[[9]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[9]byte](), arrayLevel, nullable, lc), nil
 	case 10:
-		return New[[10]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[10]byte](), arrayLevel, nullable, lc), nil
 	case 11:
-		return New[[11]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[11]byte](), arrayLevel, nullable, lc), nil
 	case 12:
-		return New[[12]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[12]byte](), arrayLevel, nullable, lc), nil
 	case 13:
-		return New[[13]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[13]byte](), arrayLevel, nullable, lc), nil
 	case 14:
-		return New[[14]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[14]byte](), arrayLevel, nullable, lc), nil
 	case 15:
-		return New[[15]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[15]byte](), arrayLevel, nullable, lc), nil
 	case 16:
-		return New[[16]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[16]byte](), arrayLevel, nullable, lc), nil
 	case 17:
-		return New[[17]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[17]byte](), arrayLevel, nullable, lc), nil
 	case 18:
-		return New[[18]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[18]byte](), arrayLevel, nullable, lc), nil
 	case 19:
-		return New[[19]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[19]byte](), arrayLevel, nullable, lc), nil
 	case 20:
-		return New[[20]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[20]byte](), arrayLevel, nullable, lc), nil
 	case 21:
-		return New[[21]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[21]byte](), arrayLevel, nullable, lc), nil
 	case 22:
-		return New[[22]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[22]byte](), arrayLevel, nullable, lc), nil
 	case 23:
-		return New[[23]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[23]byte](), arrayLevel, nullable, lc), nil
 	case 24:
-		return New[[24]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[24]byte](), arrayLevel, nullable, lc), nil
 	case 25:
-		return New[[25]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[25]byte](), arrayLevel, nullable, lc), nil
 	case 26:
-		return New[[26]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[26]byte](), arrayLevel, nullable, lc), nil
 	case 27:
-		return New[[27]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[27]byte](), arrayLevel, nullable, lc), nil
 	case 28:
-		return New[[28]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[28]byte](), arrayLevel, nullable, lc), nil
 	case 29:
-		return New[[29]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[29]byte](), arrayLevel, nullable, lc), nil
 	case 30:
-		return New[[30]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[30]byte](), arrayLevel, nullable, lc), nil
 	case 31:
-		return New[[31]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[31]byte](), arrayLevel, nullable, lc), nil
 	case 32:
-		return New[[32]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[32]byte](), arrayLevel, nullable, lc), nil
 	case 33:
-		return New[[33]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[33]byte](), arrayLevel, nullable, lc), nil
 	case 34:
-		return New[[34]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[34]byte](), arrayLevel, nullable, lc), nil
 	case 35:
-		return New[[35]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[35]byte](), arrayLevel, nullable, lc), nil
 	case 36:
-		return New[[36]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[36]byte](), arrayLevel, nullable, lc), nil
 	case 37:
-		return New[[37]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[37]byte](), arrayLevel, nullable, lc), nil
 	case 38:
-		return New[[38]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[38]byte](), arrayLevel, nullable, lc), nil
 	case 39:
-		return New[[39]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[39]byte](), arrayLevel, nullable, lc), nil
 	case 40:
-		return New[[40]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[40]byte](), arrayLevel, nullable, lc), nil
 	case 41:
-		return New[[41]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[41]byte](), arrayLevel, nullable, lc), nil
 	case 42:
-		return New[[42]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[42]byte](), arrayLevel, nullable, lc), nil
 	case 43:
-		return New[[43]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[43]byte](), arrayLevel, nullable, lc), nil
 	case 44:
-		return New[[44]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[44]byte](), arrayLevel, nullable, lc), nil
 	case 45:
-		return New[[45]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[45]byte](), arrayLevel, nullable, lc), nil
 	case 46:
-		return New[[46]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[46]byte](), arrayLevel, nullable, lc), nil
 	case 47:
-		return New[[47]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[47]byte](), arrayLevel, nullable, lc), nil
 	case 48:
-		return New[[48]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[48]byte](), arrayLevel, nullable, lc), nil
 	case 49:
-		return New[[49]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[49]byte](), arrayLevel, nullable, lc), nil
 	case 50:
-		return New[[50]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[50]byte](), arrayLevel, nullable, lc), nil
 	case 51:
-		return New[[51]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[51]byte](), arrayLevel, nullable, lc), nil
 	case 52:
-		return New[[52]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[52]byte](), arrayLevel, nullable, lc), nil
 	case 53:
-		return New[[53]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[53]byte](), arrayLevel, nullable, lc), nil
 	case 54:
-		return New[[54]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[54]byte](), arrayLevel, nullable, lc), nil
 	case 55:
-		return New[[55]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[55]byte](), arrayLevel, nullable, lc), nil
 	case 56:
-		return New[[56]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[56]byte](), arrayLevel, nullable, lc), nil
 	case 57:
-		return New[[57]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[57]byte](), arrayLevel, nullable, lc), nil
 	case 58:
-		return New[[58]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[58]byte](), arrayLevel, nullable, lc), nil
 	case 59:
-		return New[[59]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[59]byte](), arrayLevel, nullable, lc), nil
 	case 60:
-		return New[[60]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[60]byte](), arrayLevel, nullable, lc), nil
 	case 61:
-		return New[[61]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[61]byte](), arrayLevel, nullable, lc), nil
 	case 62:
-		return New[[62]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[62]byte](), arrayLevel, nullable, lc), nil
 	case 63:
-		return New[[63]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[63]byte](), arrayLevel, nullable, lc), nil
 	case 64:
-		return New[[64]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[64]byte](), arrayLevel, nullable, lc), nil
 	case 65:
-		return New[[65]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[65]byte](), arrayLevel, nullable, lc), nil
 	case 66:
-		return New[[66]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[66]byte](), arrayLevel, nullable, lc), nil
 	case 67:
-		return New[[67]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[67]byte](), arrayLevel, nullable, lc), nil
 	case 68:
-		return New[[68]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[68]byte](), arrayLevel, nullable, lc), nil
 	case 69:
-		return New[[69]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[69]byte](), arrayLevel, nullable, lc), nil
 	case 70:
-		return New[[70]byte]().Elem(arrayLevel, nullable, lc), nil
+		return elemOfBase(New[[70]byte](), arrayLevel, nullable, lc), nil
 	}
 
 	return nil, fmt.Errorf("fixed length %d is not supported", fixedLen)

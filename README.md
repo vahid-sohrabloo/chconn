@@ -16,7 +16,7 @@ If you have any suggestion or comment, please feel free to open an issue.
 go get github.com/vahid-sohrabloo/chconn/v3
 ```
 
-Requires the latest two stable Go releases.
+Requires Go 1.27 or newer.
 
 ## Quick Start
 
@@ -284,6 +284,8 @@ The pool implements the same `Select`, `Insert`, `Query`, `Exec` methods as a si
 | Dynamic | `column.NewDynamic(cols...)` |
 | Point, Ring, Polygon, MultiPolygon | `column.NewPoint()` |
 | Nothing | `column.NewNothing()` |
+
+`Array()`, `Nullable()`, `LC()` and `LowCardinality()` are generic methods. Call them without type arguments, for example `column.NewString().LowCardinality().Array()`. Go builds a wrapper type only in the packages that call these methods, so a package that uses `column.New[uint64]()` does not also compile the nullable, array and low-cardinality types of `uint64`.
 
 ### Compression
 

@@ -109,9 +109,9 @@ func (c *Array2[T]) AppendMulti(v ...[][]T) {
 	}
 }
 
-func (c *Array2[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArray2[T any](c *Array2[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray3(c.Array(), arrayLevel-1)
 	}
 	return c
 }

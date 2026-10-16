@@ -208,6 +208,6 @@ func (c *Map[K, V]) ValueColumn() Column[V] {
 }
 
 // Array return a Array type for this column
-func (c *Map[K, V]) Array() *Array[map[K]V] {
-	return NewArray[map[K]V](c)
+func (c *Map[K, V]) Array[R interface{ *Array[map[K]V] }]() R {
+	return R(NewArray[map[K]V](c))
 }

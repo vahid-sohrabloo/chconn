@@ -12,13 +12,13 @@ func NewString() *String {
 
 func (c *String) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
-		return c.LowCardinality().elem(arrayLevel, nullable)
+		return elemOfLowCardinality(c.LowCardinality(), arrayLevel, nullable)
 	}
 	if nullable {
-		return c.Nullable().elem(arrayLevel)
+		return elemOfStringNullable(c.Nullable(), arrayLevel)
 	}
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

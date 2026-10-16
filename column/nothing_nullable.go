@@ -264,7 +264,7 @@ func (c *NothingNullable) HeaderWriter(w *readerwriter.Writer) {
 
 func (c *NothingNullable) elem(arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArrayNullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }

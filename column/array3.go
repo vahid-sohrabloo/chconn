@@ -118,11 +118,11 @@ func (c *Array3[T]) AppendMulti(v ...[][][]T) {
 }
 
 // Array return a Array type for this column
-func (c *Array2[T]) Array() *Array3[T] {
-	return NewArray3(c)
+func (c *Array2[T]) Array[R interface{ *Array3[T] }]() R {
+	return R(NewArray3(c))
 }
 
-func (c *Array3[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArray3[T any](c *Array3[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
 		panic("array level is too deep")
 	}

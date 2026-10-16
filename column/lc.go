@@ -237,13 +237,13 @@ func (c *LowCardinality[T]) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *LowCardinality[T]) Array() *Array[T] {
-	return NewArray[T](c)
+func (c *LowCardinality[T]) Array[R interface{ *Array[T] }]() R {
+	return R(NewArray[T](c))
 }
 
 // Nullable return a Nullable type for this column
-func (c *LowCardinality[T]) Nullable() *LowCardinalityNullable[T] {
-	return NewLowCardinalityNullable(c.dictColumn)
+func (c *LowCardinality[T]) Nullable[R interface{ *LowCardinalityNullable[T] }]() R {
+	return R(NewLowCardinalityNullable(c.dictColumn))
 }
 
 // Reset all statuses and buffered data
@@ -492,12 +492,12 @@ func (c *LowCardinality[T]) writeUint64(w io.Writer, v uint64) (int, error) {
 	return w.Write(c.scratch[:8])
 }
 
-func (c *LowCardinality[T]) elem(arrayLevel int, nullable bool) ColumnCore {
+func elemOfLowCardinality[T comparable](c *LowCardinality[T], arrayLevel int, nullable bool) ColumnCore {
 	if nullable {
-		return c.Nullable().elem(arrayLevel)
+		return elemOfLowCardinalityNullable(c.Nullable(), arrayLevel)
 	}
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

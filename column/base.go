@@ -209,23 +209,23 @@ func (c *Base[T]) NumRow() int {
 }
 
 // Array return a Array type for this column
-func (c *Base[T]) Array() *Array[T] {
-	return NewArray[T](c)
+func (c *Base[T]) Array[R interface{ *Array[T] }]() R {
+	return R(NewArray[T](c))
 }
 
 // Nullable return a nullable type for this column
-func (c *Base[T]) Nullable() *BaseNullable[T] {
-	return NewBaseNullable(c)
+func (c *Base[T]) Nullable[R interface{ *BaseNullable[T] }]() R {
+	return R(NewBaseNullable(c))
 }
 
 // LC return a low cardinality type for this column
-func (c *Base[T]) LC() *LowCardinality[T] {
-	return NewLC[T](c)
+func (c *Base[T]) LC[R interface{ *LowCardinality[T] }]() R {
+	return R(NewLC[T](c))
 }
 
 // LowCardinality return a low cardinality type for this column
-func (c *Base[T]) LowCardinality() *LowCardinality[T] {
-	return NewLowCardinality[T](c)
+func (c *Base[T]) LowCardinality[R interface{ *LowCardinality[T] }]() R {
+	return R(NewLowCardinality[T](c))
 }
 
 // Reset all statuses and buffered data
@@ -306,15 +306,15 @@ func (c *Base[T]) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerIn
 func (c *Base[T]) HeaderWriter(w *readerwriter.Writer) {
 }
 
-func (c *Base[T]) Elem(arrayLevel int, nullable, lc bool) ColumnCore {
+func elemOfBase[T BaseType](c *Base[T], arrayLevel int, nullable, lc bool) ColumnCore {
 	if lc {
-		return c.LowCardinality().elem(arrayLevel, nullable)
+		return elemOfLowCardinality(c.LowCardinality(), arrayLevel, nullable)
 	}
 	if nullable {
-		return c.Nullable().elem(arrayLevel)
+		return elemOfBaseNullable(c.Nullable(), arrayLevel)
 	}
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray(c.Array(), arrayLevel-1)
 	}
 	return c
 }

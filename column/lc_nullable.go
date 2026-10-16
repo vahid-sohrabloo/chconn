@@ -230,8 +230,8 @@ func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
 }
 
 // Array return a Array type for this column
-func (c *LowCardinalityNullable[T]) Array() *ArrayNullable[T] {
-	return NewArrayNullable[T](c)
+func (c *LowCardinalityNullable[T]) Array[R interface{ *ArrayNullable[T] }]() R {
+	return R(NewArrayNullable[T](c))
 }
 
 // Reset all statuses and buffered data
@@ -246,9 +246,9 @@ func (c *LowCardinalityNullable[T]) Reset() {
 	c.dictColumn.Append(empty)
 }
 
-func (c *LowCardinalityNullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfLowCardinalityNullable[T comparable](c *LowCardinalityNullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArrayNullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }

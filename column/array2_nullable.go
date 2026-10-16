@@ -143,8 +143,8 @@ func (c *Array2Nullable[T]) ReadRaw(num int) error {
 }
 
 // Array return a Array type for this column
-func (c *Array2Nullable[T]) Array() *Array3Nullable[T] {
-	return NewArray3Nullable(c)
+func (c *Array2Nullable[T]) Array[R interface{ *Array3Nullable[T] }]() R {
+	return R(NewArray3Nullable(c))
 }
 
 func (c *Array2Nullable[T]) getColumnData() [][]*T {
@@ -154,9 +154,9 @@ func (c *Array2Nullable[T]) getColumnData() [][]*T {
 	return c.columnData
 }
 
-func (c *Array2Nullable[T]) elem(arrayLevel int) ColumnCore {
+func elemOfArray2Nullable[T any](c *Array2Nullable[T], arrayLevel int) ColumnCore {
 	if arrayLevel > 0 {
-		return c.Array().elem(arrayLevel - 1)
+		return elemOfArray3Nullable(c.Array(), arrayLevel-1)
 	}
 	return c
 }
