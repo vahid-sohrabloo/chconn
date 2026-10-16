@@ -114,7 +114,8 @@ func (c *Base[T]) canAppend(value any) bool {
 	if _, ok := value.(T); ok {
 		return true
 	}
-	return reflect.ValueOf(value).Kind() == c.kind
+	v := reflect.ValueOf(value)
+	return v.Kind() == c.kind && v.Type().ConvertibleTo(c.rtype)
 }
 
 // AppendAny appends a value of any type to the column, using reflection if needed.
@@ -126,7 +127,7 @@ func (c *Base[T]) AppendAny(value any) error {
 	}
 
 	val := reflect.ValueOf(value)
-	if val.Kind() == c.kind {
+	if val.Kind() == c.kind && val.Type().ConvertibleTo(c.rtype) {
 		c.Append(val.Convert(c.rtype).Interface().(T))
 		return nil
 	}

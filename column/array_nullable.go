@@ -98,6 +98,10 @@ func (c *ArrayNullable[T]) Scan(row int, dest any) error {
 		return nil
 	}
 
+	if err := c.ScanValue(row, reflect.ValueOf(dest)); err == nil {
+		return nil
+	}
+
 	return ErrScanType{
 		destType:   reflect.TypeOf(dest).String(),
 		columnType: c.rtype.String(),
@@ -119,11 +123,20 @@ func (c *ArrayNullable[T]) AppendMultiP(v [][]*T) {
 }
 
 func (c *ArrayNullable[T]) canAppend(value any) bool {
-	switch value.(type) {
+	var zero T
+	switch v := value.(type) {
 	case []T:
-		return true
+		if len(v) == 0 {
+			return c.dataColumn.canAppend(zero)
+		}
+		return c.dataColumn.canAppend(v[0])
 	case []*T:
-		return true
+		for _, p := range v {
+			if p != nil {
+				return c.dataColumn.canAppend(*p)
+			}
+		}
+		return c.dataColumn.canAppend(zero)
 	}
 	return false
 }
@@ -136,6 +149,9 @@ func (c *ArrayNullable[T]) AppendAny(value any) error {
 	case []*T:
 		c.AppendP(v)
 		return nil
+	}
+	if reflect.ValueOf(value).Kind() == reflect.Slice {
+		return c.ArrayBase.AppendAny(value)
 	}
 	return fmt.Errorf("AppendAny error: expected *[]%[1]s or []%[1]s, got %[2]T", c.rtype.String(), value)
 }

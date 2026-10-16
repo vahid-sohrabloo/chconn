@@ -82,6 +82,10 @@ func (c *Array3[T]) Scan(row int, dest any) error {
 		return v.Scan(c.Row(row))
 	}
 
+	if err := c.ScanValue(row, reflect.ValueOf(dest)); err == nil {
+		return nil
+	}
+
 	return ErrScanType{
 		destType:   reflect.TypeOf(dest).String(),
 		columnType: "*[][][]" + c.rtype.String(),
@@ -95,8 +99,11 @@ func (c *Array3[T]) Append(v [][][]T) {
 }
 
 func (c *Array3[T]) canAppend(value any) bool {
-	if _, ok := value.([][][]T); ok {
-		return true
+	if v, ok := value.([][][]T); ok {
+		if len(v) == 0 {
+			return c.dataColumn.canAppend([][]T{})
+		}
+		return c.dataColumn.canAppend(v[0])
 	}
 	return false
 }
@@ -105,6 +112,9 @@ func (c *Array3[T]) AppendAny(value any) error {
 	if v, ok := value.([][][]T); ok {
 		c.Append(v)
 		return nil
+	}
+	if reflect.ValueOf(value).Kind() == reflect.Slice {
+		return c.ArrayBase.AppendAny(value)
 	}
 	return fmt.Errorf("AppendAny error: expected [][][]%[1]s, got %[2]T", c.rtype.String(), value)
 }

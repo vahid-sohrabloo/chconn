@@ -63,10 +63,12 @@ func (c *ArrayBase) AppendAny(value any) error {
 		return fmt.Errorf("value is not a slice")
 	}
 
+	start := c.dataColumn.NumRow()
 	for i := 0; i < sliceVal.Len(); i++ {
 		item := sliceVal.Index(i).Interface()
 		err := c.dataColumn.AppendAny(item)
 		if err != nil {
+			c.dataColumn.Remove(start)
 			return fmt.Errorf("cannot append array item %v: %w", item, err)
 		}
 	}
@@ -355,6 +357,9 @@ func (c *ArrayBase) SetColumnHeader(ch ColumnHeader) error {
 }
 
 func (c *ArrayBase) ValidateInsert() error {
+	if err := c.dataColumn.ValidateInsert(); err != nil {
+		return fmt.Errorf("%s: %w", c.FullType(), err)
+	}
 	var offset uint64
 	if len(c.offsetColumn.values) > 0 {
 		offset = c.offsetColumn.values[len(c.offsetColumn.values)-1]

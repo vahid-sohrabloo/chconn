@@ -558,150 +558,37 @@ func ColumnByType(chType []byte, arrayLevel int, nullable, lc bool, serverTimeZo
 	return nil, fmt.Errorf("unknown type: %s", chType)
 }
 
-//nolint:funlen,gocyclo
 func getFixedType(fixedLen, arrayLevel int, nullable, lc bool) (ColumnCore, error) {
-	switch fixedLen {
-	case 1:
-		return elemOfBase(New[[1]byte](), arrayLevel, nullable, lc), nil
-	case 2:
-		return elemOfBase(New[[2]byte](), arrayLevel, nullable, lc), nil
-	case 3:
-		return elemOfBase(New[[3]byte](), arrayLevel, nullable, lc), nil
-	case 4:
-		return elemOfBase(New[[4]byte](), arrayLevel, nullable, lc), nil
-	case 5:
-		return elemOfBase(New[[5]byte](), arrayLevel, nullable, lc), nil
-	case 6:
-		return elemOfBase(New[[6]byte](), arrayLevel, nullable, lc), nil
-	case 7:
-		return elemOfBase(New[[7]byte](), arrayLevel, nullable, lc), nil
-	case 8:
-		return elemOfBase(New[[8]byte](), arrayLevel, nullable, lc), nil
-	case 9:
-		return elemOfBase(New[[9]byte](), arrayLevel, nullable, lc), nil
-	case 10:
-		return elemOfBase(New[[10]byte](), arrayLevel, nullable, lc), nil
-	case 11:
-		return elemOfBase(New[[11]byte](), arrayLevel, nullable, lc), nil
-	case 12:
-		return elemOfBase(New[[12]byte](), arrayLevel, nullable, lc), nil
-	case 13:
-		return elemOfBase(New[[13]byte](), arrayLevel, nullable, lc), nil
-	case 14:
-		return elemOfBase(New[[14]byte](), arrayLevel, nullable, lc), nil
-	case 15:
-		return elemOfBase(New[[15]byte](), arrayLevel, nullable, lc), nil
-	case 16:
-		return elemOfBase(New[[16]byte](), arrayLevel, nullable, lc), nil
-	case 17:
-		return elemOfBase(New[[17]byte](), arrayLevel, nullable, lc), nil
-	case 18:
-		return elemOfBase(New[[18]byte](), arrayLevel, nullable, lc), nil
-	case 19:
-		return elemOfBase(New[[19]byte](), arrayLevel, nullable, lc), nil
-	case 20:
-		return elemOfBase(New[[20]byte](), arrayLevel, nullable, lc), nil
-	case 21:
-		return elemOfBase(New[[21]byte](), arrayLevel, nullable, lc), nil
-	case 22:
-		return elemOfBase(New[[22]byte](), arrayLevel, nullable, lc), nil
-	case 23:
-		return elemOfBase(New[[23]byte](), arrayLevel, nullable, lc), nil
-	case 24:
-		return elemOfBase(New[[24]byte](), arrayLevel, nullable, lc), nil
-	case 25:
-		return elemOfBase(New[[25]byte](), arrayLevel, nullable, lc), nil
-	case 26:
-		return elemOfBase(New[[26]byte](), arrayLevel, nullable, lc), nil
-	case 27:
-		return elemOfBase(New[[27]byte](), arrayLevel, nullable, lc), nil
-	case 28:
-		return elemOfBase(New[[28]byte](), arrayLevel, nullable, lc), nil
-	case 29:
-		return elemOfBase(New[[29]byte](), arrayLevel, nullable, lc), nil
-	case 30:
-		return elemOfBase(New[[30]byte](), arrayLevel, nullable, lc), nil
-	case 31:
-		return elemOfBase(New[[31]byte](), arrayLevel, nullable, lc), nil
-	case 32:
-		return elemOfBase(New[[32]byte](), arrayLevel, nullable, lc), nil
-	case 33:
-		return elemOfBase(New[[33]byte](), arrayLevel, nullable, lc), nil
-	case 34:
-		return elemOfBase(New[[34]byte](), arrayLevel, nullable, lc), nil
-	case 35:
-		return elemOfBase(New[[35]byte](), arrayLevel, nullable, lc), nil
-	case 36:
-		return elemOfBase(New[[36]byte](), arrayLevel, nullable, lc), nil
-	case 37:
-		return elemOfBase(New[[37]byte](), arrayLevel, nullable, lc), nil
-	case 38:
-		return elemOfBase(New[[38]byte](), arrayLevel, nullable, lc), nil
-	case 39:
-		return elemOfBase(New[[39]byte](), arrayLevel, nullable, lc), nil
-	case 40:
-		return elemOfBase(New[[40]byte](), arrayLevel, nullable, lc), nil
-	case 41:
-		return elemOfBase(New[[41]byte](), arrayLevel, nullable, lc), nil
-	case 42:
-		return elemOfBase(New[[42]byte](), arrayLevel, nullable, lc), nil
-	case 43:
-		return elemOfBase(New[[43]byte](), arrayLevel, nullable, lc), nil
-	case 44:
-		return elemOfBase(New[[44]byte](), arrayLevel, nullable, lc), nil
-	case 45:
-		return elemOfBase(New[[45]byte](), arrayLevel, nullable, lc), nil
-	case 46:
-		return elemOfBase(New[[46]byte](), arrayLevel, nullable, lc), nil
-	case 47:
-		return elemOfBase(New[[47]byte](), arrayLevel, nullable, lc), nil
-	case 48:
-		return elemOfBase(New[[48]byte](), arrayLevel, nullable, lc), nil
-	case 49:
-		return elemOfBase(New[[49]byte](), arrayLevel, nullable, lc), nil
-	case 50:
-		return elemOfBase(New[[50]byte](), arrayLevel, nullable, lc), nil
-	case 51:
-		return elemOfBase(New[[51]byte](), arrayLevel, nullable, lc), nil
-	case 52:
-		return elemOfBase(New[[52]byte](), arrayLevel, nullable, lc), nil
-	case 53:
-		return elemOfBase(New[[53]byte](), arrayLevel, nullable, lc), nil
-	case 54:
-		return elemOfBase(New[[54]byte](), arrayLevel, nullable, lc), nil
-	case 55:
-		return elemOfBase(New[[55]byte](), arrayLevel, nullable, lc), nil
-	case 56:
-		return elemOfBase(New[[56]byte](), arrayLevel, nullable, lc), nil
-	case 57:
-		return elemOfBase(New[[57]byte](), arrayLevel, nullable, lc), nil
-	case 58:
-		return elemOfBase(New[[58]byte](), arrayLevel, nullable, lc), nil
-	case 59:
-		return elemOfBase(New[[59]byte](), arrayLevel, nullable, lc), nil
-	case 60:
-		return elemOfBase(New[[60]byte](), arrayLevel, nullable, lc), nil
-	case 61:
-		return elemOfBase(New[[61]byte](), arrayLevel, nullable, lc), nil
-	case 62:
-		return elemOfBase(New[[62]byte](), arrayLevel, nullable, lc), nil
-	case 63:
-		return elemOfBase(New[[63]byte](), arrayLevel, nullable, lc), nil
-	case 64:
-		return elemOfBase(New[[64]byte](), arrayLevel, nullable, lc), nil
-	case 65:
-		return elemOfBase(New[[65]byte](), arrayLevel, nullable, lc), nil
-	case 66:
-		return elemOfBase(New[[66]byte](), arrayLevel, nullable, lc), nil
-	case 67:
-		return elemOfBase(New[[67]byte](), arrayLevel, nullable, lc), nil
-	case 68:
-		return elemOfBase(New[[68]byte](), arrayLevel, nullable, lc), nil
-	case 69:
-		return elemOfBase(New[[69]byte](), arrayLevel, nullable, lc), nil
-	case 70:
-		return elemOfBase(New[[70]byte](), arrayLevel, nullable, lc), nil
+	if fixedLen < 1 {
+		return nil, fmt.Errorf("invalid fixed string length: %d", fixedLen)
 	}
+	return elemOfFixedString(NewFixedString(fixedLen), arrayLevel, nullable, lc), nil
+}
 
-	return nil, fmt.Errorf("fixed length %d is not supported", fixedLen)
+// isNilPointer reports whether value is nil or a nil pointer of any type.
+func isNilPointer(value any) bool {
+	if value == nil {
+		return true
+	}
+	v := reflect.ValueOf(value)
+	return v.Kind() == reflect.Pointer && v.IsNil()
+}
+
+// scanIntoPointer handles a nullable scan into dest of the form **X: nil for a null row,
+// otherwise a new X filled by scan. It returns false if dest has another form.
+func scanIntoPointer(dest any, isNil bool, scan func(dest any) error) (bool, error) {
+	rv := reflect.ValueOf(dest)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() || rv.Elem().Kind() != reflect.Pointer {
+		return false, nil
+	}
+	if isNil {
+		rv.Elem().Set(reflect.Zero(rv.Elem().Type()))
+		return true, nil
+	}
+	p := reflect.New(rv.Elem().Type().Elem())
+	if err := scan(p.Interface()); err != nil {
+		return true, err
+	}
+	rv.Elem().Set(p)
+	return true, nil
 }

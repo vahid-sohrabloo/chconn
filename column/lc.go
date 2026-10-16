@@ -94,16 +94,47 @@ func (c *LowCardinality[T]) Scan(row int, dest any) error {
 // Append value for insert
 func (c *LowCardinality[T]) Append(v T) {
 	c.preHookAppend()
-	key, ok := c.dict[v]
-	if !ok {
-		key = uint32(len(c.dict))
-		c.dictColumn.Append(v)
-		c.readDict = append(c.readDict, v)
-		// we are not using the main input as a map key. possible its using some unsafe strings
-		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-	}
+	key := c.dictKey(v)
 	c.keys = append(c.keys, key)
 	c.numRow++
+}
+
+// dictKey returns the dictionary key of v, adding v to the dictionary if needed.
+// The dictionary column can store v in a normalized form (FixedString pads it),
+// so keys are by the stored form and a value never gets two dictionary entries.
+func (c *LowCardinality[T]) dictKey(v T) uint32 {
+	if key, ok := c.dict[v]; ok {
+		return key
+	}
+	c.dictColumn.Append(v)
+	return c.addLastDictRow()
+}
+
+// dictKeyAny is dictKey for a value the dictionary column accepts through AppendAny,
+// such as a [N]byte array for a FixedString dictionary.
+func (c *LowCardinality[T]) dictKeyAny(value any) (uint32, error) {
+	if err := c.dictColumn.AppendAny(value); err != nil {
+		return 0, err
+	}
+	return c.addLastDictRow(), nil
+}
+
+// addLastDictRow returns the key of the value just appended to the dictionary column,
+// and removes that row again if its stored form already has a key.
+func (c *LowCardinality[T]) addLastDictRow() uint32 {
+	last := c.dictColumn.NumRow() - 1
+	// The map key is the stored value, not the input: the input can alias a caller buffer.
+	stored := c.dictColumn.Row(last)
+	if key, ok := c.dict[stored]; ok {
+		c.dictColumn.Remove(last)
+		return key
+	}
+	key := uint32(len(c.dict))
+	if !c.nullable {
+		c.readDict = append(c.readDict, stored)
+	}
+	c.dict[stored] = key
+	return key
 }
 
 // Set value at given row
@@ -114,20 +145,13 @@ func (c *LowCardinality[T]) SetAt(row int, v T) {
 		return
 	}
 
-	key, ok := c.dict[v]
-	if !ok {
-		key = uint32(len(c.dict))
-		c.dictColumn.Append(v)
-		c.readDict = append(c.readDict, v)
-		// we are not using the main input as a map key. possible its using some unsafe strings
-		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-	}
+	key := c.dictKey(v)
 	c.keys[row] = key
 }
 
 func (c *LowCardinality[T]) canAppend(value any) bool {
-	if _, ok := value.(T); ok {
-		return true
+	if v, ok := value.(T); ok {
+		return c.dictColumn.canAppend(v)
 	}
 	return false
 }
@@ -137,22 +161,21 @@ func (c *LowCardinality[T]) AppendAny(value any) error {
 		c.Append(v)
 		return nil
 	}
+	if key, err := c.dictKeyAny(value); err == nil {
+		c.preHookAppend()
+		c.keys = append(c.keys, key)
+		c.numRow++
+		return nil
+	}
 
-	return fmt.Errorf("could not convert %v of type %T to type %T", value, value, value)
+	return fmt.Errorf("could not convert %v of type %T to %s", value, value, c.chconnType())
 }
 
 // AppendMulti value for insert
 func (c *LowCardinality[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))
 	for _, v := range v {
-		key, ok := c.dict[v]
-		if !ok {
-			key = uint32(len(c.dict))
-			c.dictColumn.Append(v)
-			c.readDict = append(c.readDict, v)
-			// we are not using the main input as a map key. possible its using some unsafe strings
-			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-		}
+		key := c.dictKey(v)
 		c.keys = append(c.keys, key)
 	}
 	c.numRow += len(v)

@@ -112,6 +112,9 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 	case sql.Scanner:
 		return d.Scan(c.Row(row))
 	}
+	if ok, err := scanIntoPointer(dest, c.RowIsNil(row), func(d any) error { return c.dictColumn.Scan(int(c.keys[row]), d) }); ok {
+		return err
+	}
 
 	return ErrScanType{
 		destType:   reflect.TypeOf(dest).String(),
@@ -122,21 +125,19 @@ func (c *LowCardinalityNullable[T]) Scan(row int, dest any) error {
 // Append value for insert
 func (c *LowCardinalityNullable[T]) Append(v T) {
 	c.preHookAppend()
-	key, ok := c.dict[v]
-	if !ok {
-		key = uint32(len(c.dict))
-		c.dictColumn.Append(v)
-		// we are not using the main input as a map key. possible its using some unsafe strings
-		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-	}
+	key := c.dictKey(v)
 	c.keys = append(c.keys, key+1)
 	c.numRow++
 }
 
 func (c *LowCardinalityNullable[T]) canAppend(value any) bool {
-	switch value.(type) {
-	case *T, T, nil:
+	switch v := value.(type) {
+	case nil:
 		return true
+	case *T:
+		return v == nil || c.dictColumn.canAppend(*v)
+	case T:
+		return c.dictColumn.canAppend(v)
 	}
 	return false
 }
@@ -156,6 +157,16 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 		c.AppendP(v)
 		return nil
 	}
+	if isNilPointer(value) {
+		c.AppendNil()
+		return nil
+	}
+	if key, err := c.dictKeyAny(value); err == nil {
+		c.preHookAppend()
+		c.keys = append(c.keys, key+1)
+		c.numRow++
+		return nil
+	}
 
 	return fmt.Errorf("can't convert %T to %T", value, c)
 }
@@ -164,13 +175,7 @@ func (c *LowCardinalityNullable[T]) AppendAny(value any) error {
 func (c *LowCardinalityNullable[T]) AppendMulti(v ...T) {
 	c.preHookAppendMulti(len(v))
 	for _, v := range v {
-		key, ok := c.dict[v]
-		if !ok {
-			key = uint32(len(c.dict))
-			c.dictColumn.Append(v)
-			// we are not using the main input as a map key. possible its using some unsafe strings
-			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-		}
+		key := c.dictKey(v)
 		c.keys = append(c.keys, key+1)
 	}
 
@@ -194,13 +199,7 @@ func (c *LowCardinalityNullable[T]) AppendP(v *T) {
 		c.numRow++
 		return
 	}
-	key, ok := c.dict[*v]
-	if !ok {
-		key = uint32(len(c.dict))
-		c.dictColumn.Append(*v)
-		// we are not using the main input as a map key. possible its using some unsafe strings
-		c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-	}
+	key := c.dictKey(*v)
 	c.keys = append(c.keys, key+1)
 
 	c.numRow++
@@ -216,13 +215,7 @@ func (c *LowCardinalityNullable[T]) AppendMultiP(v ...*T) {
 			c.keys = append(c.keys, 0)
 			continue
 		}
-		key, ok := c.dict[*v]
-		if !ok {
-			key = uint32(len(c.dict))
-			c.dictColumn.Append(*v)
-			// we are not using the main input as a map key. possible its using some unsafe strings
-			c.dict[c.dictColumn.Row(c.dictColumn.NumRow()-1)] = key
-		}
+		key := c.dictKey(*v)
 		c.keys = append(c.keys, key+1)
 	}
 

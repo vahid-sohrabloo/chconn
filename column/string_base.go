@@ -228,8 +228,14 @@ func (c *StringBase[T]) AppendAny(value any) error {
 	case []byte:
 		c.AppendBytes(v)
 	case *string:
+		if v == nil {
+			return fmt.Errorf("cannot append a nil %T to a non-nullable column", value)
+		}
 		c.Append(T(*v))
 	case *[]byte:
+		if v == nil {
+			return fmt.Errorf("cannot append a nil %T to a non-nullable column", value)
+		}
 		c.AppendBytes(*v)
 	default:
 		return fmt.Errorf("cannot convert %T to string", value)
