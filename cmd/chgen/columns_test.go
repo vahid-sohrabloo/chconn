@@ -90,6 +90,8 @@ func TestColumnsGenerate_Errors(t *testing.T) {
 		{"sub_dup.go", `SubDup.T: DupElem.Y: db name "x" is used by another field`},
 		{"arrlen_not_array.go", "ArrLenNotArray.V: charrlen needs an Array column, not *column.String"},
 		{"arrlen_bad.go", `ArrLenBad.V: charrlen "0" is not a positive integer`},
+		{"arrlen_empty.go", "ArrLenEmpty.V: charrlen needs an Array column, not *column.String"},
+		{"arrlen_empty_array.go", `ArrLenEmptyArray.V: charrlen "" is not a positive integer`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {
@@ -99,6 +101,19 @@ func TestColumnsGenerate_Errors(t *testing.T) {
 			require.NoFileExists(t, outFile)
 		})
 	}
+}
+
+func TestColumnsGenerate_ImportAlias(t *testing.T) {
+	outFile := filepath.Join(t.TempDir(), "out.go")
+	err := generateColumns("testdata/alias_model.go", outFile, false)
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "Day32:    column.New[types.Date32](),")
+	require.Contains(t, string(got), "At:       column.New[types.DateTime](),")
+	require.Contains(t, string(got), "NullDay:  column.New[types.Date]().Nullable(),")
+	require.Contains(t, string(got), "ArrayDay: column.New[types.Date]().Array(),")
 }
 
 func TestColumnsGenerate_WriteOverride(t *testing.T) {

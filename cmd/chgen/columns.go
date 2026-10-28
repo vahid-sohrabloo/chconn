@@ -135,6 +135,7 @@ type SubColumn struct {
 // fieldTags holds the chgen tags of one struct field.
 type fieldTags struct {
 	db, chType, conv, arrLen string
+	hasArrLen                bool
 }
 
 // columnTags returns the tags of a struct field, or ok=false when the field
@@ -144,7 +145,8 @@ func columnTags(field *ast.Field) (fieldTags, bool) {
 		return fieldTags{}, false
 	}
 	tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
-	ft := fieldTags{db: tag.Get("db"), chType: tag.Get("chtype"), conv: tag.Get("chconv"), arrLen: tag.Get("charrlen")}
+	ft := fieldTags{db: tag.Get("db"), chType: tag.Get("chtype"), conv: tag.Get("chconv")}
+	ft.arrLen, ft.hasArrLen = tag.Lookup("charrlen")
 	if ft.db == "" || ft.db == "-" || ft.chType == "" {
 		return fieldTags{}, false
 	}
@@ -240,13 +242,32 @@ func (r *resolver) mapField(field *ast.Field, tags fieldTags) (mapped, error) {
 	return r.mapType(t, goType, tags.chType)
 }
 
-// mapType maps a Go type to a column. Order: direct mapping, the canonical
-// name of a basic type (byte, aliases), then a cast through a named type's
-// underlying type.
+const chconnTypesPath = "github.com/vahid-sohrabloo/chconn/v3/types"
+
+// pathQual qualifies a type by its package path, and chconn's types package
+// by the name the mappings use.
+func pathQual(p *types.Package) string {
+	if p.Path() == chconnTypesPath {
+		return "types"
+	}
+	return p.Path()
+}
+
+// mapType maps a Go type to a column. Order: direct mapping, the type
+// spelled by package path (import aliases), the canonical name of a basic
+// type (byte, aliases), then a cast through a named type's underlying type.
 func (r *resolver) mapType(t types.Type, goType, chType string) (mapped, error) {
 	ci, err := colMapping(goType, chType)
 	if err == nil {
 		return mapped{col: ci, writeFmt: "%s", readFmt: "%s"}, nil
+	}
+
+	// The same type spelled by package path, so an import alias such as
+	// chtypes.Date32 still maps.
+	if canon := types.TypeString(t, pathQual); canon != goType {
+		if ci, cErr := colMapping(canon, chType); cErr == nil {
+			return mapped{col: ci, writeFmt: "%s", readFmt: "%s"}, nil
+		}
 	}
 
 	switch u := types.Unalias(t).(type) {
@@ -421,7 +442,7 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", f.TupleType, err)
 		}
-		if tags.arrLen != "" {
+		if tags.hasArrLen {
 			return fmt.Errorf("%s.%s: charrlen is not supported on Tuple/Nested elements", f.TupleType, name)
 		}
 		if seen[tags.db] {
@@ -505,7 +526,7 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 			return nil, fmt.Errorf("%s.%s: %w", name, fieldName, err)
 		}
 		var arrLen int
-		if tags.arrLen != "" {
+		if tags.hasArrLen {
 			if !strings.HasPrefix(m.col.fieldType, "*column.Array") {
 				return nil, fmt.Errorf("%s.%s: charrlen needs an Array column, not %s", name, fieldName, m.col.fieldType)
 			}
