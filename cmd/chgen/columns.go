@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 	"text/template/parse"
@@ -111,6 +112,7 @@ type Field struct {
 	WriteExpr        string // value passed to AppendMethod, e.g. m.ID or int8(m.Status)
 	ReadExpr         string // value read back for row; empty when it cannot be inverted
 	NeedsStrictFalse bool
+	ArrLen           int // charrlen: expected elements per row, presizes an Array's inner column
 	IsTuple          bool
 	IsNested         bool
 	TupleType        string // Go struct type of Tuple/Nested elements
@@ -132,21 +134,37 @@ type SubColumn struct {
 
 // fieldTags holds the chgen tags of one struct field.
 type fieldTags struct {
-	db, chType, conv string
+	db, chType, conv, arrLen string
 }
 
 // columnTags returns the tags of a struct field, or ok=false when the field
 // is not a column (no db tag, db:"-", or no chtype).
 func columnTags(field *ast.Field) (fieldTags, bool) {
-	if field.Tag == nil || len(field.Names) == 0 {
+	if field.Tag == nil {
 		return fieldTags{}, false
 	}
 	tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
-	ft := fieldTags{db: tag.Get("db"), chType: tag.Get("chtype"), conv: tag.Get("chconv")}
+	ft := fieldTags{db: tag.Get("db"), chType: tag.Get("chtype"), conv: tag.Get("chconv"), arrLen: tag.Get("charrlen")}
 	if ft.db == "" || ft.db == "-" || ft.chType == "" {
 		return fieldTags{}, false
 	}
 	return ft, true
+}
+
+// columnFieldName returns the name of a column field. An embedded field, or
+// several names sharing one tag, would silently lose columns, so both are errors.
+func columnFieldName(field *ast.Field) (string, error) {
+	switch len(field.Names) {
+	case 0:
+		return "", fmt.Errorf("embedded field %s cannot be a column; give it a name", typeString(field.Type))
+	case 1:
+		return field.Names[0].Name, nil
+	}
+	names := make([]string, len(field.Names))
+	for i, n := range field.Names {
+		names[i] = n.Name
+	}
+	return "", fmt.Errorf("fields %s share one tag; declare each on its own line", strings.Join(names, ", "))
 }
 
 // typeString converts an AST type expression to a Go type string.
@@ -399,7 +417,16 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 		if !ok {
 			continue
 		}
-		name := field.Names[0].Name
+		name, err := columnFieldName(field)
+		if err != nil {
+			return fmt.Errorf("%s: %w", f.TupleType, err)
+		}
+		if tags.arrLen != "" {
+			return fmt.Errorf("%s.%s: charrlen is not supported on Tuple/Nested elements", f.TupleType, name)
+		}
+		if seen[tags.db] {
+			return fmt.Errorf("%s.%s: db name %q is used by another field", f.TupleType, name, tags.db)
+		}
 		argType, ok := chArgs[tags.db]
 		if !ok {
 			return fmt.Errorf("%s.%s: db name %q is not in chtype %q", f.TupleType, name, tags.db, f.ChType)
@@ -455,12 +482,20 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 // column fields.
 func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error) {
 	s := &Struct{Name: name, ColsName: name + "Columns"}
+	dbNames := make(map[string]string)
 	for _, field := range st.Fields.List {
 		tags, ok := columnTags(field)
 		if !ok {
 			continue
 		}
-		fieldName := field.Names[0].Name
+		fieldName, err := columnFieldName(field)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if prev, ok := dbNames[tags.db]; ok {
+			return nil, fmt.Errorf("%s.%s: db name %q is already used by %s", name, fieldName, tags.db, prev)
+		}
+		dbNames[tags.db] = fieldName
 		if isAnyPlaceholder(r.pkg.TypesInfo.TypeOf(field.Type)) {
 			fmt.Fprintf(os.Stderr, "warning: skipping field %s.%s: type any needs a hand-written struct\n", name, fieldName)
 			continue
@@ -468,6 +503,16 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 		m, err := r.mapField(field, tags)
 		if err != nil {
 			return nil, fmt.Errorf("%s.%s: %w", name, fieldName, err)
+		}
+		var arrLen int
+		if tags.arrLen != "" {
+			if !strings.HasPrefix(m.col.fieldType, "*column.Array") {
+				return nil, fmt.Errorf("%s.%s: charrlen needs an Array column, not %s", name, fieldName, m.col.fieldType)
+			}
+			arrLen, err = strconv.Atoi(tags.arrLen)
+			if err != nil || arrLen < 1 {
+				return nil, fmt.Errorf("%s.%s: charrlen %q is not a positive integer", name, fieldName, tags.arrLen)
+			}
 		}
 		f := &Field{
 			Name:             fieldName,
@@ -478,6 +523,7 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 			Constructor:      m.col.constructor,
 			AppendMethod:     m.col.appendMethod,
 			NeedsStrictFalse: m.col.needsStrictFalse,
+			ArrLen:           arrLen,
 			IsTuple:          m.col.isTuple,
 			IsNested:         m.col.isNested,
 		}

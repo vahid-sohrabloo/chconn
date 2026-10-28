@@ -47,6 +47,11 @@ type AllTypes struct {
 	ColDateUint     uint16 `db:"col_date_uint" chtype:"Date"`
 	ColDateTimeUint uint32 `db:"col_datetime_uint" chtype:"DateTime"`
 
+	// chconn date types and bool on UInt8
+	ColDateTimeRaw types.DateTime `db:"col_datetime_raw" chtype:"DateTime"`
+	ColDateRaw     types.Date     `db:"col_date_raw" chtype:"Date"`
+	ColBoolUInt8   bool           `db:"col_bool_uint8" chtype:"UInt8"`
+
 	// UUID, IPv4, IPv6
 	ColUUID types.UUID `db:"col_uuid" chtype:"UUID"`
 	ColIPv4 types.IPv4 `db:"col_ipv4" chtype:"IPv4"`
@@ -72,7 +77,7 @@ type AllTypes struct {
 	// Arrays
 	ColArrayUint16 []uint16 `db:"col_array_uint16" chtype:"Array(UInt16)"`
 	ColArrayString []string `db:"col_array_string" chtype:"Array(String)"`
-	ColArrayLCStr  []string `db:"col_array_lc_str" chtype:"Array(LowCardinality(String))"`
+	ColArrayLCStr  []string `db:"col_array_lc_str" chtype:"Array(LowCardinality(String))" charrlen:"2"`
 	ColArrayInt64  []int64  `db:"col_array_int64" chtype:"Array(Int64)"`
 
 	// Map

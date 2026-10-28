@@ -394,6 +394,29 @@ func baseColMapping(goType string, chType string) (colInfo, error) { //nolint:go
 		}, nil
 	}
 
+	// Special case: bool on a UInt8 column, written as 0/1 (needsStrictFalse)
+	if goType == "bool" && chType == "UInt8" {
+		return colInfo{
+			fieldType:        "*column.Base[bool]",
+			constructor:      "column.New[bool]()",
+			needsStrictFalse: true,
+			appendMethod:     "Append",
+			rowMethod:        "Row",
+		}, nil
+	}
+
+	// Special case: chconn's raw date types on their own chtype
+	if goType == "types.DateTime" && (chType == "DateTime" || strings.HasPrefix(chType, "DateTime(")) ||
+		goType == "types.Date" && chType == "Date" ||
+		goType == "types.Date32" && chType == "Date32" {
+		return colInfo{
+			fieldType:    fmt.Sprintf("*column.Base[%s]", goType),
+			constructor:  fmt.Sprintf("column.New[%s]()", goType),
+			appendMethod: "Append",
+			rowMethod:    "Row",
+		}, nil
+	}
+
 	// Tuple/Nested: mapped to any — not directly constructible by chgen.
 	// Users must define the column manually.
 	if goType == "any" {

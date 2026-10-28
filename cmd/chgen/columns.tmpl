@@ -131,6 +131,9 @@ func (t *{{.ColsName}}) Read(row int) {{.Name}} {
 func (t *{{.ColsName}}) SetWriteBufferSize(n int) {
 {{- range .Fields}}
 	t.{{.Name}}.SetWriteBufferSize(n)
+{{- if .ArrLen}}
+	t.{{.Name}}.Column().SetWriteBufferSize(n * {{.ArrLen}})
+{{- end}}
 {{- end}}
 }
 {{- end}}

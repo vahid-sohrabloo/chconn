@@ -84,6 +84,12 @@ func TestColumnsGenerate_Errors(t *testing.T) {
 		{"named_pointer.go", "NamedPointer.V: incompatible"},
 		{"conv_mismatch.go", "ConvMismatch.V: chconv: toString returns string: incompatible"},
 		{"conv_no_method.go", "ConvNoMethod.V: chconv: int8 has no method Nope"},
+		{"embedded.go", "Embedded: embedded field OneElem cannot be a column"},
+		{"multi_name.go", "MultiName: fields A, B share one tag"},
+		{"dup_db.go", `DupDB.B: db name "a" is already used by A`},
+		{"sub_dup.go", `SubDup.T: DupElem.Y: db name "x" is used by another field`},
+		{"arrlen_not_array.go", "ArrLenNotArray.V: charrlen needs an Array column, not *column.String"},
+		{"arrlen_bad.go", `ArrLenBad.V: charrlen "0" is not a positive integer`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {

@@ -352,11 +352,14 @@ chgen columns -input models/user.go
 (or with `db:"-"`) are ignored. Fields of type `any` or `[]any` (what `chgen model`
 emits for Tuple/Nested) are skipped with a warning until you give them a struct type.
 The fields of a Tuple/Nested element struct must match the `chtype` elements by name,
-type and order.
+type and order. An embedded column field, several names under one tag (`A, B int8`)
+and two fields with the same `db` name are errors.
 
 A field type maps to a column when:
 
-- it matches the `chtype` directly (`uint64` → `UInt64`, `*string` → `Nullable(String)`, ...), or
+- it matches the `chtype` directly (`uint64` → `UInt64`, `*string` → `Nullable(String)`, ...).
+  This includes `bool` on `UInt8` (written as 0/1) and chconn's own `types.DateTime`,
+  `types.Date` and `types.Date32` on their chtype, or
 - it is a named type whose underlying type matches. chgen then casts in both
   directions: `type Flag int8` with `chtype:"Int8"` writes `int8(m.Flag)` and reads
   `Flag(...)`. Pointers and slices of named types (`*Flag`, `[]Flag`) are not cast;
@@ -365,6 +368,9 @@ A field type maps to a column when:
   func that takes one argument; `chconv:".Method"` writes `m.X.Method()`. The
   result type must match the `chtype`. `Read` cannot invert a conversion, so it
   leaves these fields zero.
+
+`charrlen:"N"` on an Array field is the expected number of elements per row:
+`SetWriteBufferSize(n)` also presizes the inner column to `n * N`.
 
 #### Custom templates
 
@@ -388,7 +394,7 @@ struct with:
 - `Name`, `ColsName`, `Fields`, `HasTupleOrNested`, `ColumnNames`
 - per field: `Name`, `GoType`, `DBName`, `ChType`, `FieldType`, `Constructor`,
   `AppendMethod`, `WriteExpr`, `ReadExpr` (empty when it cannot be read back),
-  `NeedsStrictFalse`, `IsTuple`, `IsNested`, `TupleType`, `SubColumns`
+  `NeedsStrictFalse`, `ArrLen`, `IsTuple`, `IsNested`, `TupleType`, `SubColumns`
 - per sub-column: `FieldName`, `ColVar`, `DBName`, `ChType`, `FieldType`,
   `Constructor`, `AppendMethod`, `WriteExpr`, `ReadExpr`
 
