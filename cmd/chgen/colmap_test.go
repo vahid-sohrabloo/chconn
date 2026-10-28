@@ -71,8 +71,24 @@ func TestColMapping_BoolUInt8(t *testing.T) {
 		info, err := colMapping("bool", chType)
 		require.NoError(t, err)
 		assert.Equal(t, "*column.Base[bool]", info.fieldType)
-		assert.Equal(t, "column.New[bool]()", info.constructor)
+		assert.Equal(t, "column.New[bool]().SetStrict(false)", info.constructor)
 		assert.True(t, info.needsStrictFalse)
+	}
+}
+
+// TestColMapping_StrictFalseWrapped checks that SetStrict(false) is applied to
+// the scalar before it is wrapped: only Base has SetStrict.
+func TestColMapping_StrictFalseWrapped(t *testing.T) {
+	cases := []struct{ goType, chType, wantField, wantCtor string }{
+		{"*bool", "Nullable(UInt8)", "*column.BaseNullable[bool]", "column.New[bool]().SetStrict(false).Nullable()"},
+		{"[]bool", "Array(UInt8)", "*column.Array[bool]", "column.New[bool]().SetStrict(false).Array()"},
+		{"*uint32", "Nullable(DateTime)", "*column.BaseNullable[uint32]", "column.New[uint32]().SetStrict(false).Nullable()"},
+	}
+	for _, tc := range cases {
+		info, err := colMapping(tc.goType, tc.chType)
+		require.NoError(t, err)
+		assert.Equal(t, tc.wantField, info.fieldType)
+		assert.Equal(t, tc.wantCtor, info.constructor)
 	}
 }
 
@@ -131,7 +147,7 @@ func TestColMapping_DateTime(t *testing.T) {
 		info, err := colMapping("uint32", "DateTime")
 		require.NoError(t, err)
 		assert.Equal(t, "*column.Base[uint32]", info.fieldType)
-		assert.Equal(t, "column.New[uint32]()", info.constructor)
+		assert.Equal(t, "column.New[uint32]().SetStrict(false)", info.constructor)
 		assert.True(t, info.needsStrictFalse)
 	})
 
@@ -139,7 +155,7 @@ func TestColMapping_DateTime(t *testing.T) {
 		info, err := colMapping("uint16", "Date")
 		require.NoError(t, err)
 		assert.Equal(t, "*column.Base[uint16]", info.fieldType)
-		assert.Equal(t, "column.New[uint16]()", info.constructor)
+		assert.Equal(t, "column.New[uint16]().SetStrict(false)", info.constructor)
 		assert.True(t, info.needsStrictFalse)
 	})
 }

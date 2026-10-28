@@ -98,11 +98,11 @@ func NewAllTypesColumns() *AllTypesColumns {
 		ColDate32:          column.NewDate[types.Date32](),
 		ColDateTime:        column.NewDate[types.DateTime](),
 		ColDateTime64:      column.NewDate[types.DateTime64](),
-		ColDateUint:        column.New[uint16](),
-		ColDateTimeUint:    column.New[uint32](),
+		ColDateUint:        column.New[uint16]().SetStrict(false),
+		ColDateTimeUint:    column.New[uint32]().SetStrict(false),
 		ColDateTimeRaw:     column.New[types.DateTime](),
 		ColDateRaw:         column.New[types.Date](),
-		ColBoolUInt8:       column.New[bool](),
+		ColBoolUInt8:       column.New[bool]().SetStrict(false),
 		ColUUID:            column.New[types.UUID](),
 		ColIPv4:            column.New[types.IPv4](),
 		ColIPv6:            column.New[types.IPv6](),
@@ -287,9 +287,6 @@ func NewAllTypesColumns() *AllTypesColumns {
 	t.ColLCNullString.SetType([]byte("LowCardinality(Nullable(String))"))
 	t.ColMapNullVal.SetName([]byte("col_map_null_val"))
 	t.ColMapNullVal.SetType([]byte("Map(String, Nullable(Int64))"))
-	t.ColDateUint.SetStrict(false)
-	t.ColDateTimeUint.SetStrict(false)
-	t.ColBoolUInt8.SetStrict(false)
 	return t
 }
 

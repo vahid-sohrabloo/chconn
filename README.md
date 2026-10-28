@@ -394,7 +394,8 @@ struct with:
 - `Name`, `ColsName`, `Fields`, `HasTupleOrNested`, `ColumnNames`
 - per field: `Name`, `GoType`, `DBName`, `ChType`, `FieldType`, `Constructor`,
   `AppendMethod`, `WriteExpr`, `ReadExpr` (empty when it cannot be read back),
-  `NeedsStrictFalse`, `ArrLen`, `IsTuple`, `IsNested`, `TupleType`, `SubColumns`
+  `NeedsStrictFalse` (`Constructor` already calls `SetStrict(false)`), `ArrLen`, `IsTuple`,
+  `IsNested`, `TupleType`, `SubColumns`
 - per sub-column: `FieldName`, `ColVar`, `DBName`, `ChType`, `FieldType`,
   `Constructor`, `AppendMethod`, `WriteExpr`, `ReadExpr`
 
