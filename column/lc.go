@@ -303,7 +303,7 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 		if c.nullable {
 			var empty T
 			c.dictColumn.Append(empty)
-			c.readDict = append(c.readDict, c.dictColumn.Row(0))
+			c.readDict = append(c.readDict, empty)
 		}
 		return nil
 	}

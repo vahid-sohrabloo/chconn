@@ -3,10 +3,12 @@ package column
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func issue128Roundtrip(t *testing.T, src, dst ColumnCore) {
@@ -110,6 +112,25 @@ func TestIssue128LCNullableOnlyNullRoundtrip(t *testing.T) {
 	assert.Equal(t, uint32(1), dst.Keys()[2])
 	issue128Roundtrip(t, dst, src)
 	assert.Equal(t, dst.DataP(), src.DataP())
+}
+
+func TestIssue128LCNullableDefersDateLocation(t *testing.T) {
+	date := NewDate[types.DateTime]()
+	c := NewLCNullable[time.Time](date)
+	assert.Nil(t, date.loc, "reserved NULL must not resolve location before the header")
+	c.SetWriteBufferSize(2)
+	assert.Nil(t, date.loc)
+	c.Reset()
+	assert.Nil(t, date.loc)
+	require.NoError(t, c.SetColumnHeader(ColumnHeader{
+		ChType: []byte("LowCardinality(Nullable(DateTime('America/New_York')))"),
+	}))
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+	value := time.Date(2020, time.January, 1, 0, 0, 0, 0, loc)
+	c.Append(value)
+	assert.Equal(t, "America/New_York", c.Row(0).Location().String())
+	assert.True(t, c.Row(0).Equal(value))
 }
 
 func TestIssue128LCReadEmptyThenWideIndices(t *testing.T) {

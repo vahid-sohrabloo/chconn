@@ -28,7 +28,7 @@ func NewLCNullable[T comparable](dictColumn Column[T]) *LowCardinalityNullable[T
 			nullable:   true,
 			dict:       make(map[T]uint32),
 			dictColumn: dictColumn,
-			readDict:   []T{dictColumn.Row(0)},
+			readDict:   []T{empty},
 			rtype:      reflect.TypeFor[T](),
 		},
 	}
@@ -46,7 +46,7 @@ func (c *LowCardinalityNullable[T]) SetWriteBufferSize(row int) {
 	c.dictColumn.Reset()
 	var empty T
 	c.dictColumn.Append(empty)
-	c.readDict = c.dictColumn.Read(c.readDict[:0])
+	c.readDict = append(c.readDict[:0], empty)
 }
 
 // Data get all nullable data in current block as a slice.
@@ -243,7 +243,7 @@ func (c *LowCardinalityNullable[T]) Reset() {
 	c.LowCardinality.Reset()
 	var empty T
 	c.dictColumn.Append(empty)
-	c.readDict = append(c.readDict, c.dictColumn.Row(0))
+	c.readDict = append(c.readDict, empty)
 }
 
 func elemOfLowCardinalityNullable[T comparable](c *LowCardinalityNullable[T], arrayLevel int) ColumnCore {
