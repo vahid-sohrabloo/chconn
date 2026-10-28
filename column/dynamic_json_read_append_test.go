@@ -249,3 +249,15 @@ func TestJSONReadTypedPathAppend(t *testing.T) {
 		map[string]any{"a": int64(9), "b": "last"},
 	}, out.Data())
 }
+
+func TestJSONReadTypedHeaderMismatch(t *testing.T) {
+	col := NewJSON()
+	header := ColumnHeader{ChType: []byte("JSON(a Int64)")}
+	require.NoError(t, col.SetColumnHeader(header))
+	require.NoError(t, col.SetColumnHeader(header))
+	require.Len(t, col.typedPaths, 1, "reapplying a header must not duplicate typed paths")
+	require.ErrorContains(t,
+		col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(a String)")}), "cannot change type")
+	assert.Equal(t, header.ChType, col.Type())
+	require.NoError(t, col.SetColumnHeader(header))
+}

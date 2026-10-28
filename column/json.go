@@ -67,15 +67,19 @@ func NewJSON() *JSON {
 }
 
 func (c *JSON) SetColumnHeader(ch ColumnHeader) error {
-	c.columnHeader = ch
-	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
+	chType := helper.FilterSimpleAggregate(ch.ChType)
 	if !helper.IsJSON(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.columnHeader.ChType),
+			chType:     string(ch.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
+	if len(c.typedPaths) > 0 && len(c.columnHeader.ChType) > 0 &&
+		!bytes.Equal(helper.FilterSimpleAggregate(c.columnHeader.ChType), chType) {
+		return fmt.Errorf("json: cannot change type from %s to %s with typed paths", c.columnHeader.ChType, chType)
+	}
+	c.columnHeader = ch
 
 	// prepare backing string column for string serialization
 	if err := c.jsonStrings.SetColumnHeader(ColumnHeader{ChType: []byte("String")}); err != nil {
