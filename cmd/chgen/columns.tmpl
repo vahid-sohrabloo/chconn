@@ -57,11 +57,6 @@ func New{{.ColsName}}() *{{.ColsName}} {
 	t.{{.Name}}.SetName([]byte({{printf "%q" .DBName}}))
 	t.{{.Name}}.SetType([]byte({{printf "%q" .ChType}}))
 {{- end}}
-{{- range .Fields}}
-{{- if .NeedsStrictFalse}}
-	t.{{.Name}}.SetStrict(false)
-{{- end}}
-{{- end}}
 	return t
 }
 {{- end}}
@@ -131,6 +126,9 @@ func (t *{{.ColsName}}) Read(row int) {{.Name}} {
 func (t *{{.ColsName}}) SetWriteBufferSize(n int) {
 {{- range .Fields}}
 	t.{{.Name}}.SetWriteBufferSize(n)
+{{- if .ArrLen}}
+	t.{{.Name}}.Column().SetWriteBufferSize(n * {{.ArrLen}})
+{{- end}}
 {{- end}}
 }
 {{- end}}

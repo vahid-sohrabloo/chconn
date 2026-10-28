@@ -27,6 +27,9 @@ type AllTypesColumns struct {
 	ColDateTime64      *column.Date[types.DateTime64]
 	ColDateUint        *column.Base[uint16]
 	ColDateTimeUint    *column.Base[uint32]
+	ColDateTimeRaw     *column.Base[types.DateTime]
+	ColDateRaw         *column.Base[types.Date]
+	ColBoolUInt8       *column.Base[bool]
 	ColUUID            *column.Base[types.UUID]
 	ColIPv4            *column.Base[types.IPv4]
 	ColIPv6            *column.Base[types.IPv6]
@@ -95,8 +98,11 @@ func NewAllTypesColumns() *AllTypesColumns {
 		ColDate32:          column.NewDate[types.Date32](),
 		ColDateTime:        column.NewDate[types.DateTime](),
 		ColDateTime64:      column.NewDate[types.DateTime64](),
-		ColDateUint:        column.New[uint16](),
-		ColDateTimeUint:    column.New[uint32](),
+		ColDateUint:        column.New[uint16]().SetStrict(false),
+		ColDateTimeUint:    column.New[uint32]().SetStrict(false),
+		ColDateTimeRaw:     column.New[types.DateTime](),
+		ColDateRaw:         column.New[types.Date](),
+		ColBoolUInt8:       column.New[bool]().SetStrict(false),
 		ColUUID:            column.New[types.UUID](),
 		ColIPv4:            column.New[types.IPv4](),
 		ColIPv6:            column.New[types.IPv6](),
@@ -181,6 +187,12 @@ func NewAllTypesColumns() *AllTypesColumns {
 	t.ColDateUint.SetType([]byte("Date"))
 	t.ColDateTimeUint.SetName([]byte("col_datetime_uint"))
 	t.ColDateTimeUint.SetType([]byte("DateTime"))
+	t.ColDateTimeRaw.SetName([]byte("col_datetime_raw"))
+	t.ColDateTimeRaw.SetType([]byte("DateTime"))
+	t.ColDateRaw.SetName([]byte("col_date_raw"))
+	t.ColDateRaw.SetType([]byte("Date"))
+	t.ColBoolUInt8.SetName([]byte("col_bool_uint8"))
+	t.ColBoolUInt8.SetType([]byte("UInt8"))
 	t.ColUUID.SetName([]byte("col_uuid"))
 	t.ColUUID.SetType([]byte("UUID"))
 	t.ColIPv4.SetName([]byte("col_ipv4"))
@@ -275,8 +287,6 @@ func NewAllTypesColumns() *AllTypesColumns {
 	t.ColLCNullString.SetType([]byte("LowCardinality(Nullable(String))"))
 	t.ColMapNullVal.SetName([]byte("col_map_null_val"))
 	t.ColMapNullVal.SetType([]byte("Map(String, Nullable(Int64))"))
-	t.ColDateUint.SetStrict(false)
-	t.ColDateTimeUint.SetStrict(false)
 	return t
 }
 
@@ -301,6 +311,9 @@ func (t *AllTypesColumns) Columns() []column.ColumnCore {
 		t.ColDateTime64,
 		t.ColDateUint,
 		t.ColDateTimeUint,
+		t.ColDateTimeRaw,
+		t.ColDateRaw,
+		t.ColBoolUInt8,
 		t.ColUUID,
 		t.ColIPv4,
 		t.ColIPv6,
@@ -371,6 +384,9 @@ func (t *AllTypesColumns) Write(m *AllTypes) {
 	t.ColDateTime64.Append(m.ColDateTime64)
 	t.ColDateUint.Append(m.ColDateUint)
 	t.ColDateTimeUint.Append(m.ColDateTimeUint)
+	t.ColDateTimeRaw.Append(m.ColDateTimeRaw)
+	t.ColDateRaw.Append(m.ColDateRaw)
+	t.ColBoolUInt8.Append(m.ColBoolUInt8)
 	t.ColUUID.Append(m.ColUUID)
 	t.ColIPv4.Append(m.ColIPv4)
 	t.ColIPv6.Append(m.ColIPv6)
@@ -441,6 +457,9 @@ func (t *AllTypesColumns) Read(row int) AllTypes {
 		ColDateTime64:      t.ColDateTime64.Row(row),
 		ColDateUint:        t.ColDateUint.Row(row),
 		ColDateTimeUint:    t.ColDateTimeUint.Row(row),
+		ColDateTimeRaw:     t.ColDateTimeRaw.Row(row),
+		ColDateRaw:         t.ColDateRaw.Row(row),
+		ColBoolUInt8:       t.ColBoolUInt8.Row(row),
 		ColUUID:            t.ColUUID.Row(row),
 		ColIPv4:            t.ColIPv4.Row(row),
 		ColIPv6:            t.ColIPv6.Row(row),
@@ -511,6 +530,9 @@ func (t *AllTypesColumns) SetWriteBufferSize(n int) {
 	t.ColDateTime64.SetWriteBufferSize(n)
 	t.ColDateUint.SetWriteBufferSize(n)
 	t.ColDateTimeUint.SetWriteBufferSize(n)
+	t.ColDateTimeRaw.SetWriteBufferSize(n)
+	t.ColDateRaw.SetWriteBufferSize(n)
+	t.ColBoolUInt8.SetWriteBufferSize(n)
 	t.ColUUID.SetWriteBufferSize(n)
 	t.ColIPv4.SetWriteBufferSize(n)
 	t.ColIPv6.SetWriteBufferSize(n)
@@ -526,6 +548,7 @@ func (t *AllTypesColumns) SetWriteBufferSize(n int) {
 	t.ColArrayUint16.SetWriteBufferSize(n)
 	t.ColArrayString.SetWriteBufferSize(n)
 	t.ColArrayLCStr.SetWriteBufferSize(n)
+	t.ColArrayLCStr.Column().SetWriteBufferSize(n * 2)
 	t.ColArrayInt64.SetWriteBufferSize(n)
 	t.ColMapStrStr.SetWriteBufferSize(n)
 	t.ColMapLCStr.SetWriteBufferSize(n)
@@ -580,6 +603,9 @@ func (t *AllTypesColumns) Reset() {
 	t.ColDateTime64.Reset()
 	t.ColDateUint.Reset()
 	t.ColDateTimeUint.Reset()
+	t.ColDateTimeRaw.Reset()
+	t.ColDateRaw.Reset()
+	t.ColBoolUInt8.Reset()
 	t.ColUUID.Reset()
 	t.ColIPv4.Reset()
 	t.ColIPv6.Reset()
@@ -631,10 +657,10 @@ func (t *AllTypesColumns) Reset() {
 
 // ColumnNames returns a comma-separated list of column names for use in SELECT queries.
 func (t *AllTypesColumns) ColumnNames() string {
-	return "col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_bfloat16, col_time, col_time64, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val"
+	return "col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_datetime_raw, col_date_raw, col_bool_uint8, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_bfloat16, col_time, col_time64, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val"
 }
 
 // InsertQuery returns the INSERT INTO query for the given table.
 func (t *AllTypesColumns) InsertQuery(table string) string {
-	return "INSERT INTO " + table + " (col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_bfloat16, col_time, col_time64, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val) VALUES"
+	return "INSERT INTO " + table + " (col_int8, col_int16, col_int32, col_int64, col_uint8, col_uint16, col_uint32, col_uint64, col_float32, col_float64, col_bool, col_string, col_date, col_date32, col_datetime, col_datetime64, col_date_uint, col_datetime_uint, col_datetime_raw, col_date_raw, col_bool_uint8, col_uuid, col_ipv4, col_ipv6, col_fixed2, col_fixed16, col_lc_string, col_lc_fixed, col_null_int64, col_null_string, col_null_float32, col_saf_max, col_saf_nullable, col_array_uint16, col_array_string, col_array_lc_str, col_array_int64, col_map_str_str, col_map_lc_str, col_enum8, col_enum16, col_decimal32, col_decimal64, col_decimal128, col_decimal256, col_decimal_ps, col_json, col_bfloat16, col_time, col_time64, col_int128, col_int256, col_uint128, col_uint256, col_point, col_ring, col_polygon, col_multi_polygon, col_null_datetime, col_null_date, col_null_date32, col_null_datetime64, col_array_null_int64, col_array_null_string, col_array2_str, col_array2_int, col_lc_null_string, col_map_null_val) VALUES"
 }

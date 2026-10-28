@@ -45,7 +45,7 @@ func NewTestModelColumns() *TestModelColumns {
 		NullScore:      column.New[int64]().Nullable(),
 		NullName:       column.NewString().Nullable(),
 		CreatedAt:      column.NewDate[types.DateTime](),
-		UpdatedAt:      column.New[uint32](),
+		UpdatedAt:      column.New[uint32]().SetStrict(false),
 		CountryCode:    column.New[[2]byte](),
 		LangCode:       column.New[[2]byte]().LowCardinality(),
 		Tags:           column.NewString().Array(),
@@ -103,7 +103,6 @@ func NewTestModelColumns() *TestModelColumns {
 	t.NullCategory.SetType([]byte("LowCardinality(Nullable(String))"))
 	t.OptionalMeta.SetName([]byte("optional_meta"))
 	t.OptionalMeta.SetType([]byte("Map(String, Nullable(Int64))"))
-	t.UpdatedAt.SetStrict(false)
 	return t
 }
 

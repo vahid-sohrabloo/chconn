@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestColMapping_Primitives covers uint64/UInt64, int32/Int32, float32/Float32, bool/UInt8, int8/Int8.
+// TestColMapping_Primitives covers uint64/UInt64, int32/Int32, float32/Float32, bool/Int8, int8/Int8.
 func TestColMapping_Primitives(t *testing.T) {
 	cases := []struct {
 		goType    string
@@ -19,7 +19,7 @@ func TestColMapping_Primitives(t *testing.T) {
 		{"uint64", "UInt64", "*column.Base[uint64]", "column.New[uint64]()"},
 		{"int32", "Int32", "*column.Base[int32]", "column.New[int32]()"},
 		{"float32", "Float32", "*column.Base[float32]", "column.New[float32]()"},
-		{"bool", "UInt8", "", ""}, // bool maps to Bool, not UInt8 — expect error
+		{"bool", "Int8", "", ""}, // only Bool and UInt8 take a bool — expect error
 		{"int8", "Int8", "*column.Base[int8]", "column.New[int8]()"},
 		{"uint8", "UInt8", "*column.Base[uint8]", "column.New[uint8]()"},
 		{"bool", "Bool", "*column.Base[bool]", "column.New[bool]()"},
@@ -65,8 +65,55 @@ func TestColMapping_String(t *testing.T) {
 	})
 }
 
-// TestColMapping_DateTime covers time.Time/DateTime and uint32/DateTime.
+// TestColMapping_BoolUInt8 covers a bool written to a UInt8 column as 0/1.
+func TestColMapping_BoolUInt8(t *testing.T) {
+	for _, chType := range []string{"UInt8", "SimpleAggregateFunction(max, UInt8)"} {
+		info, err := colMapping("bool", chType)
+		require.NoError(t, err)
+		assert.Equal(t, "*column.Base[bool]", info.fieldType)
+		assert.Equal(t, "column.New[bool]().SetStrict(false)", info.constructor)
+		assert.True(t, info.needsStrictFalse)
+	}
+}
+
+// TestColMapping_StrictFalseWrapped checks that SetStrict(false) is applied to
+// the scalar before it is wrapped: only Base has SetStrict.
+func TestColMapping_StrictFalseWrapped(t *testing.T) {
+	cases := []struct{ goType, chType, wantField, wantCtor string }{
+		{"*bool", "Nullable(UInt8)", "*column.BaseNullable[bool]", "column.New[bool]().SetStrict(false).Nullable()"},
+		{"[]bool", "Array(UInt8)", "*column.Array[bool]", "column.New[bool]().SetStrict(false).Array()"},
+		{"*uint32", "Nullable(DateTime)", "*column.BaseNullable[uint32]", "column.New[uint32]().SetStrict(false).Nullable()"},
+	}
+	for _, tc := range cases {
+		info, err := colMapping(tc.goType, tc.chType)
+		require.NoError(t, err)
+		assert.Equal(t, tc.wantField, info.fieldType)
+		assert.Equal(t, tc.wantCtor, info.constructor)
+	}
+}
+
+// TestColMapping_DateTime covers time.Time/DateTime, uint32/DateTime and chconn's date types.
 func TestColMapping_DateTime(t *testing.T) {
+	for _, tc := range []struct{ goType, chType string }{
+		{"types.DateTime", "DateTime"},
+		{"types.DateTime", "DateTime('UTC')"},
+		{"types.Date", "Date"},
+		{"types.Date32", "Date32"},
+	} {
+		t.Run(tc.goType+"/"+tc.chType, func(t *testing.T) {
+			info, err := colMapping(tc.goType, tc.chType)
+			require.NoError(t, err)
+			assert.Equal(t, "*column.Base["+tc.goType+"]", info.fieldType)
+			assert.Equal(t, "column.New["+tc.goType+"]()", info.constructor)
+			assert.False(t, info.needsStrictFalse)
+		})
+	}
+
+	t.Run("types.Date/DateTime", func(t *testing.T) {
+		_, err := colMapping("types.Date", "DateTime")
+		require.Error(t, err)
+	})
+
 	t.Run("time.Time/DateTime", func(t *testing.T) {
 		info, err := colMapping("time.Time", "DateTime")
 		require.NoError(t, err)
@@ -100,7 +147,7 @@ func TestColMapping_DateTime(t *testing.T) {
 		info, err := colMapping("uint32", "DateTime")
 		require.NoError(t, err)
 		assert.Equal(t, "*column.Base[uint32]", info.fieldType)
-		assert.Equal(t, "column.New[uint32]()", info.constructor)
+		assert.Equal(t, "column.New[uint32]().SetStrict(false)", info.constructor)
 		assert.True(t, info.needsStrictFalse)
 	})
 
@@ -108,7 +155,7 @@ func TestColMapping_DateTime(t *testing.T) {
 		info, err := colMapping("uint16", "Date")
 		require.NoError(t, err)
 		assert.Equal(t, "*column.Base[uint16]", info.fieldType)
-		assert.Equal(t, "column.New[uint16]()", info.constructor)
+		assert.Equal(t, "column.New[uint16]().SetStrict(false)", info.constructor)
 		assert.True(t, info.needsStrictFalse)
 	})
 }

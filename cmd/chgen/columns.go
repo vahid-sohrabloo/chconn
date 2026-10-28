@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 	"text/template/parse"
@@ -111,6 +112,7 @@ type Field struct {
 	WriteExpr        string // value passed to AppendMethod, e.g. m.ID or int8(m.Status)
 	ReadExpr         string // value read back for row; empty when it cannot be inverted
 	NeedsStrictFalse bool
+	ArrLen           int // charrlen: expected elements per row, presizes an Array's inner column
 	IsTuple          bool
 	IsNested         bool
 	TupleType        string // Go struct type of Tuple/Nested elements
@@ -132,21 +134,39 @@ type SubColumn struct {
 
 // fieldTags holds the chgen tags of one struct field.
 type fieldTags struct {
-	db, chType, conv string
+	db, chType, conv, arrLen string
+	hasArrLen                bool
 }
 
 // columnTags returns the tags of a struct field, or ok=false when the field
 // is not a column (no db tag, db:"-", or no chtype).
 func columnTags(field *ast.Field) (fieldTags, bool) {
-	if field.Tag == nil || len(field.Names) == 0 {
+	if field.Tag == nil {
 		return fieldTags{}, false
 	}
 	tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
 	ft := fieldTags{db: tag.Get("db"), chType: tag.Get("chtype"), conv: tag.Get("chconv")}
+	ft.arrLen, ft.hasArrLen = tag.Lookup("charrlen")
 	if ft.db == "" || ft.db == "-" || ft.chType == "" {
 		return fieldTags{}, false
 	}
 	return ft, true
+}
+
+// columnFieldName returns the name of a column field. An embedded field, or
+// several names sharing one tag, would silently lose columns, so both are errors.
+func columnFieldName(field *ast.Field) (string, error) {
+	switch len(field.Names) {
+	case 0:
+		return "", fmt.Errorf("embedded field %s cannot be a column; give it a name", typeString(field.Type))
+	case 1:
+		return field.Names[0].Name, nil
+	}
+	names := make([]string, len(field.Names))
+	for i, n := range field.Names {
+		names[i] = n.Name
+	}
+	return "", fmt.Errorf("fields %s share one tag; declare each on its own line", strings.Join(names, ", "))
 }
 
 // typeString converts an AST type expression to a Go type string.
@@ -222,13 +242,32 @@ func (r *resolver) mapField(field *ast.Field, tags fieldTags) (mapped, error) {
 	return r.mapType(t, goType, tags.chType)
 }
 
-// mapType maps a Go type to a column. Order: direct mapping, the canonical
-// name of a basic type (byte, aliases), then a cast through a named type's
-// underlying type.
+const chconnTypesPath = "github.com/vahid-sohrabloo/chconn/v3/types"
+
+// pathQual qualifies a type by its package path, and chconn's types package
+// by the name the mappings use.
+func pathQual(p *types.Package) string {
+	if p.Path() == chconnTypesPath {
+		return "types"
+	}
+	return p.Path()
+}
+
+// mapType maps a Go type to a column. Order: direct mapping, the type
+// spelled by package path (import aliases), the canonical name of a basic
+// type (byte, aliases), then a cast through a named type's underlying type.
 func (r *resolver) mapType(t types.Type, goType, chType string) (mapped, error) {
 	ci, err := colMapping(goType, chType)
 	if err == nil {
 		return mapped{col: ci, writeFmt: "%s", readFmt: "%s"}, nil
+	}
+
+	// The same type spelled by package path, so an import alias such as
+	// chtypes.Date32 still maps.
+	if canon := types.TypeString(t, pathQual); canon != goType {
+		if ci, cErr := colMapping(canon, chType); cErr == nil {
+			return mapped{col: ci, writeFmt: "%s", readFmt: "%s"}, nil
+		}
 	}
 
 	switch u := types.Unalias(t).(type) {
@@ -399,7 +438,16 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 		if !ok {
 			continue
 		}
-		name := field.Names[0].Name
+		name, err := columnFieldName(field)
+		if err != nil {
+			return fmt.Errorf("%s: %w", f.TupleType, err)
+		}
+		if tags.hasArrLen {
+			return fmt.Errorf("%s.%s: charrlen is not supported on Tuple/Nested elements", f.TupleType, name)
+		}
+		if seen[tags.db] {
+			return fmt.Errorf("%s.%s: db name %q is used by another field", f.TupleType, name, tags.db)
+		}
 		argType, ok := chArgs[tags.db]
 		if !ok {
 			return fmt.Errorf("%s.%s: db name %q is not in chtype %q", f.TupleType, name, tags.db, f.ChType)
@@ -455,12 +503,20 @@ func (r *resolver) resolveSubColumns(f *Field) error {
 // column fields.
 func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error) {
 	s := &Struct{Name: name, ColsName: name + "Columns"}
+	dbNames := make(map[string]string)
 	for _, field := range st.Fields.List {
 		tags, ok := columnTags(field)
 		if !ok {
 			continue
 		}
-		fieldName := field.Names[0].Name
+		fieldName, err := columnFieldName(field)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if prev, ok := dbNames[tags.db]; ok {
+			return nil, fmt.Errorf("%s.%s: db name %q is already used by %s", name, fieldName, tags.db, prev)
+		}
+		dbNames[tags.db] = fieldName
 		if isAnyPlaceholder(r.pkg.TypesInfo.TypeOf(field.Type)) {
 			fmt.Fprintf(os.Stderr, "warning: skipping field %s.%s: type any needs a hand-written struct\n", name, fieldName)
 			continue
@@ -468,6 +524,16 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 		m, err := r.mapField(field, tags)
 		if err != nil {
 			return nil, fmt.Errorf("%s.%s: %w", name, fieldName, err)
+		}
+		var arrLen int
+		if tags.hasArrLen {
+			if !strings.HasPrefix(m.col.fieldType, "*column.Array") {
+				return nil, fmt.Errorf("%s.%s: charrlen needs an Array column, not %s", name, fieldName, m.col.fieldType)
+			}
+			arrLen, err = strconv.Atoi(tags.arrLen)
+			if err != nil || arrLen < 1 {
+				return nil, fmt.Errorf("%s.%s: charrlen %q is not a positive integer", name, fieldName, tags.arrLen)
+			}
 		}
 		f := &Field{
 			Name:             fieldName,
@@ -478,6 +544,7 @@ func (r *resolver) buildStruct(name string, st *ast.StructType) (*Struct, error)
 			Constructor:      m.col.constructor,
 			AppendMethod:     m.col.appendMethod,
 			NeedsStrictFalse: m.col.needsStrictFalse,
+			ArrLen:           arrLen,
 			IsTuple:          m.col.isTuple,
 			IsNested:         m.col.isNested,
 		}

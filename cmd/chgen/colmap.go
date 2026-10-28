@@ -12,7 +12,7 @@ type colInfo struct {
 	fieldType        string // e.g. "*column.Base[uint64]"
 	constructor      string // e.g. "column.New[uint64]()"
 	isNullable       bool
-	needsStrictFalse bool
+	needsStrictFalse bool   // constructor calls SetStrict(false) before any Nullable/Array wrapping
 	appendMethod     string // "Append" or "AppendP"
 	rowMethod        string // "Row" or "RowP"
 	isTuple          bool
@@ -376,7 +376,7 @@ func baseColMapping(goType string, chType string) (colInfo, error) { //nolint:go
 	if goType == "uint32" && (chType == "DateTime" || strings.HasPrefix(chType, "DateTime(")) {
 		return colInfo{
 			fieldType:        "*column.Base[uint32]",
-			constructor:      "column.New[uint32]()",
+			constructor:      "column.New[uint32]().SetStrict(false)",
 			needsStrictFalse: true,
 			appendMethod:     "Append",
 			rowMethod:        "Row",
@@ -387,10 +387,33 @@ func baseColMapping(goType string, chType string) (colInfo, error) { //nolint:go
 	if goType == "uint16" && chType == "Date" {
 		return colInfo{
 			fieldType:        "*column.Base[uint16]",
-			constructor:      "column.New[uint16]()",
+			constructor:      "column.New[uint16]().SetStrict(false)",
 			needsStrictFalse: true,
 			appendMethod:     "Append",
 			rowMethod:        "Row",
+		}, nil
+	}
+
+	// Special case: bool on a UInt8 column, written as 0/1 (needsStrictFalse)
+	if goType == "bool" && chType == "UInt8" {
+		return colInfo{
+			fieldType:        "*column.Base[bool]",
+			constructor:      "column.New[bool]().SetStrict(false)",
+			needsStrictFalse: true,
+			appendMethod:     "Append",
+			rowMethod:        "Row",
+		}, nil
+	}
+
+	// Special case: chconn's raw date types on their own chtype
+	if goType == "types.DateTime" && (chType == "DateTime" || strings.HasPrefix(chType, "DateTime(")) ||
+		goType == "types.Date" && chType == "Date" ||
+		goType == "types.Date32" && chType == "Date32" {
+		return colInfo{
+			fieldType:    fmt.Sprintf("*column.Base[%s]", goType),
+			constructor:  fmt.Sprintf("column.New[%s]()", goType),
+			appendMethod: "Append",
+			rowMethod:    "Row",
 		}, nil
 	}
 
