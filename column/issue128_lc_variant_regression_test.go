@@ -128,9 +128,16 @@ func TestIssue128LCNullableDefersDateLocation(t *testing.T) {
 	loc, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
 	value := time.Date(2020, time.January, 1, 0, 0, 0, 0, loc)
-	c.Append(value)
+	assert.Nil(t, date.loc)
+	src := NewLCNullable[time.Time](NewDate[types.DateTime]().SetLocation(loc))
+	src.Append(value)
+	src.AppendNil()
+	issue128Roundtrip(t, src, c)
 	assert.Equal(t, "America/New_York", c.Row(0).Location().String())
 	assert.True(t, c.Row(0).Equal(value))
+	assert.Nil(t, c.RowP(1))
+	c.Append(value)
+	assert.True(t, c.Row(2).Equal(value))
 }
 
 func TestIssue128LCReadEmptyThenWideIndices(t *testing.T) {
