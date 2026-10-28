@@ -18,6 +18,7 @@ type Dynamic struct {
 	column
 	variant              *Variant
 	withDynamicColumn    bool
+	readMode             bool
 	columnsAppend        map[reflect.Type]ColumnCore
 	discriminatorsAppend []ColumnCore
 	columnsType          [][]byte
@@ -71,7 +72,7 @@ func NewDynamic(columns ...ColumnCore) *Dynamic {
 
 // NumRow return number of row for this block
 func (c *Dynamic) NumRow() int {
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		return len(c.discriminatorsAppend)
 	}
 	return c.variant.NumRow()
@@ -97,6 +98,10 @@ func (c *Dynamic) Reset() {
 	if c.variant != nil {
 		c.variant.Reset()
 	}
+	if c.readMode {
+		clear(c.columnsAppend)
+		c.readMode = false
+	}
 }
 
 // SetWriteBufferSize set write buffer (number of rows)
@@ -109,10 +114,15 @@ func (c *Dynamic) SetWriteBufferSize(row int) {
 // ReadRaw read raw data from the reader. it runs automatically
 func (c *Dynamic) ReadRaw(num int) error {
 	err := c.variant.ReadRaw(num)
+	if err == nil {
+		c.readMode = true
+	}
 	return err
 }
 
 func (c *Dynamic) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	clear(c.columnsAppend)
+	c.discriminatorsAppend = c.discriminatorsAppend[:0]
 	err := c.column.ReadHeader(r, serverInfo)
 	if err != nil {
 		return err
@@ -155,7 +165,7 @@ func (c *Dynamic) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerIn
 		if len(c.columnsType) <= int(i) {
 			c.columnsType = append(c.columnsType, make([]byte, strLen))
 		} else {
-			helper.ResetSlice(c.columnsType[i], int(strLen), false)
+			c.columnsType[i] = helper.ResetSlice(c.columnsType[i], int(strLen), false)
 		}
 		_, err = r.Read(c.columnsType[i])
 		if err != nil {
@@ -201,6 +211,9 @@ func (c *Dynamic) AppendAny(value any) error {
 	if !c.withDynamicColumn {
 		return c.variant.AppendAny(value)
 	}
+	if c.readMode {
+		return c.appendRead(value)
+	}
 	if value == nil {
 		c.discriminatorsAppend = append(c.discriminatorsAppend, nil)
 		return nil
@@ -220,6 +233,45 @@ func (c *Dynamic) AppendAny(value any) error {
 	}
 	c.discriminatorsAppend = append(c.discriminatorsAppend, column)
 	return column.AppendAny(value)
+}
+
+// appendRead preserves the decoded member columns, including shared values, and
+// remaps existing discriminators if a new type changes the member ordering.
+func (c *Dynamic) appendRead(value any) error {
+	if value == nil {
+		c.variant.AppendNil()
+		return nil
+	}
+	rtype := reflect.TypeOf(value)
+	if rtype.Kind() == reflect.Pointer {
+		rtype = rtype.Elem()
+	}
+	col, ok := c.columnsAppend[rtype]
+	if !ok {
+		var err error
+		col, err = type2Column(rtype, 0, false)
+		if err != nil {
+			return err
+		}
+		existing := slices.IndexFunc(c.variant.columns, func(member ColumnCore) bool {
+			return member.FullType() == col.FullType()
+		})
+		if existing >= 0 {
+			col = c.variant.columns[existing]
+		} else {
+			oldColumns := slices.Clone(c.variant.columns)
+			c.variant.columns = append(c.variant.columns, col)
+			c.variant.reorderColumn()
+			for i, disc := range c.variant.discriminators.values {
+				if disc != 255 {
+					c.variant.discriminators.values[i] = oldColumns[disc].getLocationInParent()
+				}
+			}
+			c.variant.rebuildPositions()
+		}
+		c.columnsAppend[rtype] = col
+	}
+	return col.AppendAny(value)
 }
 
 // AppendMulti append multiple value to the column
@@ -251,7 +303,7 @@ func (c *Dynamic) RowAny(row int) any {
 
 // RowIsNil returns true if the row is nil
 func (c *Dynamic) RowIsNil(row int) bool {
-	if !c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		return c.discriminatorsAppend[row] == nil
 	}
 	return c.variant.RowIsNil(row)
@@ -261,7 +313,7 @@ func (c *Dynamic) RowIsNil(row int) bool {
 //
 // will return 0, 0 if its for insert with empty column
 func (c *Dynamic) RowPos(row int) (columnIndex uint8, columnRow int) {
-	if !c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		return 0, 0
 	}
 	return c.variant.RowPos(row)
@@ -307,7 +359,7 @@ func (c *Dynamic) WriteTo(w io.Writer) (int64, error) {
 // HeaderWriter writes header data to writer
 // it uses internally
 func (c *Dynamic) HeaderWriter(w *readerwriter.Writer) {
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		columns := make([]ColumnCore, 0, len(c.columnsAppend))
 		for _, col := range c.columnsAppend {
 			columns = append(columns, col)
@@ -342,7 +394,10 @@ func (c *Dynamic) HeaderWriter(w *readerwriter.Writer) {
 //
 // its equal to data = data[:n]
 func (c *Dynamic) Remove(n int) {
-	if c.withDynamicColumn {
+	if c.NumRow() == 0 || c.NumRow() <= n {
+		return
+	}
+	if c.withDynamicColumn && !c.readMode {
 		// Count how many rows to keep per sub-column (entries before index n)
 		keepCount := make(map[ColumnCore]int, len(c.columnsAppend))
 		for _, d := range c.discriminatorsAppend[:n] {
@@ -370,7 +425,7 @@ func (c *Dynamic) Delete(start, end int) {
 		return
 	}
 
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		c.dynamicDeleteRows(func(row int) bool {
 			return row >= start && row < end
 		})
@@ -383,7 +438,7 @@ func (c *Dynamic) DeleteFunc(del func(row int) bool) {
 	if c.NumRow() == 0 {
 		return
 	}
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		c.dynamicDeleteRows(del)
 		return
 	}
@@ -427,7 +482,7 @@ func (c *Dynamic) dynamicDeleteRows(del func(row int) bool) {
 }
 
 func (c *Dynamic) startBatchDelete() {
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		clear(c.bitmapDeleteKeep)
 		return
 	}
@@ -435,7 +490,7 @@ func (c *Dynamic) startBatchDelete() {
 }
 
 func (c *Dynamic) batchDeleteKeep(start, end int) {
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		for i := start; i < end; i++ {
 			c.bitmapDeleteKeep.Set(uint32(i))
 		}
@@ -445,7 +500,7 @@ func (c *Dynamic) batchDeleteKeep(start, end int) {
 }
 
 func (c *Dynamic) endBatchDelete() {
-	if c.withDynamicColumn {
+	if c.withDynamicColumn && !c.readMode {
 		c.dynamicDeleteRows(func(row int) bool { return !c.bitmapDeleteKeep.Contains(uint32(row)) })
 		return
 	}
