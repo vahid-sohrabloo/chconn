@@ -19,6 +19,7 @@ type Variant struct {
 	discriminatorsIndexPos []int
 	columns                []ColumnCore
 	totalNils              int
+	discriminatorCounts    [256]int
 	// batchSubRow[i] is the row of parent row i inside its member column, during a batch delete.
 	batchSubRow []int
 }
@@ -38,8 +39,11 @@ func NewVariant(columns ...ColumnCore) *Variant {
 }
 
 func (c *Variant) reorderColumn() {
+	oldColumns := slices.Clone(c.columns)
+	oldCounts := c.discriminatorCounts
 	sort.Slice(c.columns, func(i, j int) bool { return c.columns[i].FullType() < c.columns[j].FullType() })
 	for i, col := range c.columns {
+		c.discriminatorCounts[i] = oldCounts[slices.Index(oldColumns, col)]
 		col.setLocationInParent(i)
 		col.setVariantParent(c)
 	}
@@ -63,6 +67,8 @@ func (c *Variant) Array() *Array[any] {
 // If an error occurs, you can safely call insert again.
 func (c *Variant) Reset() {
 	c.discriminators.Reset()
+	c.discriminatorsIndexPos = c.discriminatorsIndexPos[:0]
+	clear(c.discriminatorCounts[:])
 	c.totalNils = 0
 	for _, col := range c.columns {
 		col.Reset()
@@ -85,18 +91,9 @@ func (c *Variant) ReadRaw(num int) error {
 	if err != nil {
 		return fmt.Errorf("Variant: read discriminators column: %w", err)
 	}
-	if cap(c.discriminatorsIndexPos) < num {
-		c.discriminatorsIndexPos = make([]int, num)
-	} else {
-		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:num]
-	}
-	var dataLen [256]int
-	for i, n := range c.discriminators.values {
-		c.discriminatorsIndexPos[i] = dataLen[n]
-		dataLen[n]++
-	}
+	c.rebuildPositions()
 	for i, col := range c.columns {
-		err := col.ReadRaw(dataLen[i])
+		err := col.ReadRaw(c.discriminatorCounts[i])
 		if err != nil {
 			return fmt.Errorf("Variant: read column index %d: %w", i, err)
 		}
@@ -130,18 +127,24 @@ func (c *Variant) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerIn
 // AppendDiscriminators append discriminators to the column
 // you can get use column.LocationInParent to get the index of the column
 func (c *Variant) AppendDiscriminators(discriminators uint8) {
+	c.discriminatorsIndexPos = append(c.discriminatorsIndexPos, c.discriminatorCounts[discriminators])
+	c.discriminatorCounts[discriminators]++
+	if discriminators == 255 {
+		c.totalNils++
+	}
 	c.discriminators.Append(discriminators)
 }
 
 // AppendDiscriminatorsMulti append multiple discriminators to the column
 func (c *Variant) AppendDiscriminatorsMulti(discriminators ...uint8) {
-	c.discriminators.AppendMulti(discriminators...)
+	for _, discriminator := range discriminators {
+		c.AppendDiscriminators(discriminator)
+	}
 }
 
 // AppendNil append nil to the column
 func (c *Variant) AppendNil() {
-	c.totalNils++
-	c.discriminators.Append(255)
+	c.AppendDiscriminators(255)
 }
 
 // Append append value to the column
@@ -396,6 +399,7 @@ func (c *Variant) Remove(n int) {
 		dd += removes[i]
 	}
 	c.discriminators.Remove(n)
+	c.rebuildPositions()
 }
 
 func (c *Variant) Delete(start, end int) {
@@ -461,20 +465,17 @@ func (c *Variant) deleteRows(del func(row int) bool) {
 		})
 	}
 
-	// Rebuild discriminatorsIndexPos
-	if cap(c.discriminatorsIndexPos) < keepIndex {
-		c.discriminatorsIndexPos = make([]int, keepIndex)
-	} else {
-		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:keepIndex]
+	c.rebuildPositions()
+}
+
+func (c *Variant) rebuildPositions() {
+	c.discriminatorsIndexPos = slices.Grow(c.discriminatorsIndexPos[:0], c.NumRow())[:c.NumRow()]
+	clear(c.discriminatorCounts[:])
+	for i, disc := range c.discriminators.values {
+		c.discriminatorsIndexPos[i] = c.discriminatorCounts[disc]
+		c.discriminatorCounts[disc]++
 	}
-	var subRowCount [256]int
-	for i := 0; i < keepIndex; i++ {
-		disc := c.discriminators.values[i]
-		if disc != 255 {
-			c.discriminatorsIndexPos[i] = subRowCount[disc]
-			subRowCount[disc]++
-		}
-	}
+	c.totalNils = c.discriminatorCounts[255]
 }
 
 func (c *Variant) startBatchDelete() {
@@ -505,25 +506,7 @@ func (c *Variant) batchDeleteKeep(start, end int) {
 func (c *Variant) endBatchDelete() {
 	c.discriminators.endBatchDelete()
 
-	// After discriminators are compacted, rebuild sub-column data and index positions.
-	// Since the batch delete API only tracks which parent rows to keep,
-	// we need to rebuild using deleteRows pattern on the compacted discriminators.
-	var subRowCount [256]int
-	if cap(c.discriminatorsIndexPos) < c.discriminators.numRow {
-		c.discriminatorsIndexPos = make([]int, c.discriminators.numRow)
-	} else {
-		c.discriminatorsIndexPos = c.discriminatorsIndexPos[:c.discriminators.numRow]
-	}
-	c.totalNils = 0
-	for i := 0; i < c.discriminators.numRow; i++ {
-		disc := c.discriminators.values[i]
-		if disc != 255 {
-			c.discriminatorsIndexPos[i] = subRowCount[disc]
-			subRowCount[disc]++
-		} else {
-			c.totalNils++
-		}
-	}
+	c.rebuildPositions()
 
 	for _, col := range c.columns {
 		col.endBatchDelete()

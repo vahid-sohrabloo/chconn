@@ -67,24 +67,30 @@ func NewJSON() *JSON {
 }
 
 func (c *JSON) SetColumnHeader(ch ColumnHeader) error {
-	c.columnHeader = ch
-	chType := helper.FilterSimpleAggregate(c.columnHeader.ChType)
+	chType := helper.FilterSimpleAggregate(ch.ChType)
 	if !helper.IsJSON(chType) {
 		return &ErrInvalidType{
-			chType:     string(c.columnHeader.ChType),
+			chType:     string(ch.ChType),
 			chconnType: c.chconnType(),
 			goToChType: c.structType(),
 		}
 	}
+	if len(c.typedPaths) > 0 && len(c.columnHeader.ChType) > 0 &&
+		!bytes.Equal(helper.FilterSimpleAggregate(c.columnHeader.ChType), chType) {
+		return fmt.Errorf("json: cannot change type from %s to %s with typed paths", c.columnHeader.ChType, chType)
+	}
+	c.columnHeader = ch
 
 	// prepare backing string column for string serialization
 	if err := c.jsonStrings.SetColumnHeader(ColumnHeader{ChType: []byte("String")}); err != nil {
 		return fmt.Errorf("json: set inner string header: %w", err)
 	}
-	c.serializationVersion = jsonStringSerializationVersion
+	if c.serializationVersion == jsonUnsetSerializationVersion {
+		c.serializationVersion = jsonStringSerializationVersion
+	}
 
 	// parse typed path definitions from JSON(a String, b.c Int64, max_dynamic_paths=N)
-	if len(chType) > helper.LenJSONStr+1 {
+	if len(c.typedPaths) == 0 && len(chType) > helper.LenJSONStr+1 {
 		inner := chType[helper.LenJSONStr+1 : len(chType)-1] // strip "JSON(" and ")"
 		if err := c.parseTypedDefinitions(inner); err != nil {
 			return fmt.Errorf("json: parse typed definitions: %w", err)
@@ -192,6 +198,7 @@ func (c *JSON) decodeObjectHeader(r *readerwriter.Reader, serverInfo *shared.Ser
 	for _, col := range c.dynamicColumns {
 		col.Reset()
 	}
+	c.sharedData = nil
 	c.dynamicColumns = c.dynamicColumns[:0]
 
 	// Read dynamic path names
@@ -294,6 +301,9 @@ func (c *JSON) Reset() {
 	for _, col := range c.dynamicColumns {
 		col.Reset()
 	}
+	if c.sharedData != nil {
+		c.sharedData.Reset()
+	}
 }
 
 func (c *JSON) SetWriteBufferSize(row int) {
@@ -377,6 +387,11 @@ func (c *JSON) appendJSONValue(jv *JSONValue) error {
 		if col.NumRow() < c.rows {
 			col.Append(nil)
 			_ = i
+		}
+	}
+	if c.sharedData != nil && c.serializationVersion != jsonObjectV1SerializationVersion {
+		if err := c.sharedData.AppendAny(map[string]string{}); err != nil {
+			return fmt.Errorf("json: append shared data: %w", err)
 		}
 	}
 
@@ -573,6 +588,12 @@ func (c *JSON) WriteTo(w io.Writer) (int64, error) {
 			return n, fmt.Errorf("json: write shared data: %w", err)
 		}
 		n += int64(nw)
+	} else if c.sharedData != nil && c.serializationVersion != jsonObjectV1SerializationVersion {
+		nw, err := c.sharedData.WriteTo(w)
+		n += nw
+		if err != nil {
+			return n, fmt.Errorf("json: write shared data: %w", err)
+		}
 	}
 	return n, nil
 }
@@ -583,6 +604,10 @@ func (c *JSON) HeaderWriter(w *readerwriter.Writer) {
 		if c.serializationVersion == jsonObjectV1SerializationVersion {
 			w.Uvarint(c.maxDynamicPaths)
 		}
+		if c.serializationVersion == jsonObjectV3SerializationVersion {
+			w.Uint64(0)
+			w.Uint8(0)
+		}
 		w.Uvarint(uint64(len(c.dynamicPaths)))
 		for _, path := range c.dynamicPaths {
 			w.ByteString([]byte(path))
@@ -592,6 +617,9 @@ func (c *JSON) HeaderWriter(w *readerwriter.Writer) {
 		}
 		for _, col := range c.dynamicColumns {
 			col.HeaderWriter(w)
+		}
+		if c.sharedData != nil && c.serializationVersion != jsonObjectV1SerializationVersion {
+			c.sharedData.HeaderWriter(w)
 		}
 		return
 	}
@@ -616,12 +644,21 @@ func (c *JSON) Remove(n int) {
 	for _, col := range c.dynamicColumns {
 		col.Remove(n)
 	}
+	if c.sharedData != nil {
+		c.sharedData.Remove(n)
+	}
 	if n < c.rows {
 		c.rows = n
 	}
 }
 
 func (c *JSON) Delete(start, end int) {
+	if c.NumRow() == 0 || start >= c.NumRow() || start >= end {
+		return
+	}
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
 	if c.isStringSerialization() {
 		c.jsonStrings.Delete(start, end)
 		return
@@ -631,6 +668,9 @@ func (c *JSON) Delete(start, end int) {
 	}
 	for _, col := range c.dynamicColumns {
 		col.Delete(start, end)
+	}
+	if c.sharedData != nil {
+		c.sharedData.Delete(start, end)
 	}
 	c.rows -= end - start
 }
@@ -661,6 +701,9 @@ func (c *JSON) startBatchDelete() {
 	for _, col := range c.dynamicColumns {
 		col.startBatchDelete()
 	}
+	if c.sharedData != nil {
+		c.sharedData.startBatchDelete()
+	}
 }
 
 func (c *JSON) batchDeleteKeep(start, end int) {
@@ -675,6 +718,9 @@ func (c *JSON) batchDeleteKeep(start, end int) {
 	for _, col := range c.dynamicColumns {
 		col.batchDeleteKeep(start, end)
 	}
+	if c.sharedData != nil {
+		c.sharedData.batchDeleteKeep(start, end)
+	}
 }
 
 func (c *JSON) endBatchDelete() {
@@ -687,6 +733,9 @@ func (c *JSON) endBatchDelete() {
 	}
 	for _, col := range c.dynamicColumns {
 		col.endBatchDelete()
+	}
+	if c.sharedData != nil {
+		c.sharedData.endBatchDelete()
 	}
 	c.rows = c.rowsKept
 }

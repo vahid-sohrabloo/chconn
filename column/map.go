@@ -8,8 +8,6 @@ import (
 // Map in clickhouse actually is a array of pair(K,V)
 type Map[K comparable, V any] struct {
 	MapBase
-	keyColumnData   []K
-	valueColumnData []V
 }
 
 // NewMap create a new map column of Map(K,V) ClickHouse data type
@@ -25,10 +23,6 @@ func NewMap[K comparable, V any](
 			mapChconnType: "column.Map[" + reflect.TypeFor[K]().String() + ", " + reflect.TypeFor[V]().String() + "]",
 		},
 	}
-	a.resetHook = func() {
-		a.keyColumnData = a.keyColumnData[:0]
-		a.valueColumnData = a.valueColumnData[:0]
-	}
 	return a
 }
 
@@ -39,8 +33,8 @@ func (c *Map[K, V]) Data() []map[K]V {
 	if len(offsets) == 0 {
 		return values
 	}
-	keyColumnData := c.getKeyColumnData()
-	valueColumnData := c.getValueColumnData()
+	keyColumnData := c.keyColumn.(Column[K]).Data()
+	valueColumnData := c.valueColumn.(Column[V]).Data()
 	var lastOffset uint64
 	for i, offset := range offsets {
 		val := make(map[K]V)
@@ -78,13 +72,13 @@ func (c *Map[K, V]) Row(row int) map[K]V {
 	if row != 0 {
 		lastOffset = c.offsetColumn.Row(row - 1)
 	}
-	keyColumnData := c.getKeyColumnData()
-	valueColumnData := c.getValueColumnData()
+	keyColumn := c.keyColumn.(Column[K])
+	valueColumn := c.valueColumn.(Column[V])
 
 	val := make(map[K]V)
 	offset := c.offsetColumn.Row(row)
-	for ki, key := range keyColumnData[lastOffset:offset] {
-		val[key] = valueColumnData[lastOffset:offset][ki]
+	for i := lastOffset; i < offset; i++ {
+		val[keyColumn.Row(int(i))] = valueColumn.Row(int(i))
 	}
 	return val
 }
@@ -130,19 +124,6 @@ func (c *Map[K, V]) AppendMulti(val ...map[K]V) {
 			c.valueColumn.(Column[V]).Append(d)
 		}
 	}
-}
-
-func (c *Map[K, V]) getKeyColumnData() []K {
-	if len(c.keyColumnData) == 0 {
-		c.keyColumnData = c.keyColumn.(Column[K]).Data()
-	}
-	return c.keyColumnData
-}
-func (c *Map[K, V]) getValueColumnData() []V {
-	if len(c.valueColumnData) == 0 {
-		c.valueColumnData = c.valueColumn.(Column[V]).Data()
-	}
-	return c.valueColumnData
 }
 
 // KeyColumn return the key column

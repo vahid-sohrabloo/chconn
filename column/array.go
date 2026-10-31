@@ -9,8 +9,7 @@ import (
 // Array is a column of Array(T) ClickHouse data type
 type Array[T any] struct {
 	ArrayBase
-	columnData []T
-	rtype      reflect.Type
+	rtype reflect.Type
 }
 
 // NewArray create a new array column of Array(T) ClickHouse data type
@@ -24,9 +23,6 @@ func NewArray[T any](dataColumn Column[T]) *Array[T] {
 			arrayChconnType: "column.Array[" + rtype.String() + "]",
 		},
 	}
-	a.resetHook = func() {
-		a.columnData = a.columnData[:0]
-	}
 	return a
 }
 
@@ -35,7 +31,7 @@ func (c *Array[T]) Data() [][]T {
 	values := make([][]T, c.offsetColumn.numRow)
 	offsets := c.Offsets()
 	var lastOffset uint64
-	columnData := c.getColumnData()
+	columnData := c.dataColumn.(Column[T]).Data()
 	for i, offset := range offsets {
 		val := make([]T, offset-lastOffset)
 		copy(val, columnData[lastOffset:offset])
@@ -49,7 +45,7 @@ func (c *Array[T]) Data() [][]T {
 func (c *Array[T]) Read(value [][]T) [][]T {
 	offsets := c.Offsets()
 	var lastOffset uint64
-	columnData := c.getColumnData()
+	columnData := c.dataColumn.(Column[T]).Data()
 	for _, offset := range offsets {
 		val := make([]T, offset-lastOffset)
 		copy(val, columnData[lastOffset:offset])
@@ -67,7 +63,14 @@ func (c *Array[T]) Row(row int) []T {
 		lastOffset = c.offsetColumn.Row(row - 1)
 	}
 	var val []T
-	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
+	offset := c.offsetColumn.Row(row)
+	if offset > lastOffset {
+		val = make([]T, 0, offset-lastOffset)
+	}
+	dataColumn := c.dataColumn.(Column[T])
+	for i := lastOffset; i < offset; i++ {
+		val = append(val, dataColumn.Row(int(i)))
+	}
 	return val
 }
 
@@ -156,13 +159,6 @@ func (c *Array[T]) AppendItem(v T) {
 // Array return a Array type for this column
 func (c *Array[T]) Array[R interface{ *Array2[T] }]() R {
 	return R(NewArray2(c))
-}
-
-func (c *Array[T]) getColumnData() []T {
-	if len(c.columnData) == 0 {
-		c.columnData = c.dataColumn.(Column[T]).Data()
-	}
-	return c.columnData
 }
 
 func elemOfArray[T any](c *Array[T], arrayLevel int) ColumnCore {
