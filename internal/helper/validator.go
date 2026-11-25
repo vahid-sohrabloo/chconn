@@ -211,7 +211,7 @@ func SplitNameType(b []byte) (ColumnData, error) {
 		for i, char := range b {
 			if char == '`' && b[i-1] != '\\' {
 				return ColumnData{
-					Name:   b[1 : i+1],
+					Name:   b[:i],
 					ChType: b[i+2:],
 				}, nil
 			}
@@ -224,7 +224,7 @@ func SplitNameType(b []byte) (ColumnData, error) {
 		}
 		if char == ' ' {
 			return ColumnData{
-				Name:   b[1 : i+1],
+				Name:   b[:i],
 				ChType: b[i+1:],
 			}, nil
 		}

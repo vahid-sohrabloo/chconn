@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vahid-sohrabloo/chconn/v3/internal/readerwriter"
 	"github.com/vahid-sohrabloo/chconn/v3/shared"
+	"github.com/vahid-sohrabloo/chconn/v3/types"
 )
 
 func TestLCNullableSetWriteBufferSizeAfterRead(t *testing.T) {
@@ -43,17 +45,17 @@ func TestDynamicReadFailedAppendKeepsTypes(t *testing.T) {
 	src.AppendMulti(int64(1), "two")
 	dst := NewDynamic()
 	roundTripDynamicJSON(t, src, dst)
-	types := func() []string {
+	memberTypes := func() []string {
 		var out []string
 		for _, col := range dst.variant.columns {
 			out = append(out, col.FullType())
 		}
 		return out
 	}
-	before := types()
+	before := memberTypes()
 
 	require.Error(t, dst.AppendAny((*float64)(nil)))
-	assert.Equal(t, before, types())
+	assert.Equal(t, before, memberTypes())
 	assert.Equal(t, 2, dst.NumRow())
 
 	require.NoError(t, dst.AppendAny(float64(2.5)))
@@ -158,4 +160,39 @@ func TestVariantRemoveKeepsPositions(t *testing.T) {
 	}
 	require.NoError(t, v.AppendAny("d"))
 	assert.Equal(t, []any{"d"}, v.Data())
+}
+
+func TestNullableReadAppendDataP(t *testing.T) {
+	one, two := int64(1), int64(2)
+	src, dst := New[int64]().Nullable(), New[int64]().Nullable()
+	src.AppendP(&one)
+	src.AppendP(nil)
+	issue128Roundtrip(t, src, dst)
+	dst.AppendP(&two)
+	assert.Equal(t, []*int64{&one, nil, &two}, dst.DataP())
+	assert.Equal(t, []*int64{&one, nil, &two}, dst.ReadP(nil))
+
+	arrSrc, arrDst := New[int64]().Nullable().Array(), New[int64]().Nullable().Array()
+	arrSrc.AppendP([]*int64{&one})
+	issue128Roundtrip(t, arrSrc, arrDst)
+	arrDst.AppendP([]*int64{&two})
+	assert.Equal(t, [][]*int64{{&one}, {&two}}, arrDst.DataP())
+
+	day := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	next := day.AddDate(0, 0, 1)
+	dateSrc, dateDst := NewDate[types.Date]().Nullable(), NewDate[types.Date]().Nullable()
+	dateSrc.AppendP(&day)
+	dateSrc.AppendP(nil)
+	issue128Roundtrip(t, dateSrc, dateDst)
+	dateDst.AppendP(&next)
+	assert.Equal(t, []*time.Time{&day, nil, &next}, dateDst.DataP())
+	assert.Equal(t, []*time.Time{&day, nil, &next}, dateDst.ReadP(nil))
+}
+
+func TestJSONTypedHeaderRejectsPathRename(t *testing.T) {
+	col := NewJSON()
+	require.NoError(t, col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(a Int64)")}))
+	assert.Equal(t, []string{"a"}, col.typedPaths)
+	require.ErrorContains(t,
+		col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(b Int64)")}), "cannot change type")
 }
