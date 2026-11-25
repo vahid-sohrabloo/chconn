@@ -14,7 +14,6 @@ type arrayAlias[T any] struct {
 type ArrayNullable[T any] struct {
 	arrayAlias[T]
 	dataColumn NullableColumn[T]
-	columnData []*T
 }
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
@@ -33,9 +32,6 @@ func NewArrayNullable[T any](dataColumn NullableColumn[T]) *ArrayNullable[T] {
 				},
 			},
 		},
-	}
-	a.resetHook = func() {
-		a.columnData = a.columnData[:0]
 	}
 	return a
 }
@@ -70,8 +66,14 @@ func (c *ArrayNullable[T]) RowP(row int) []*T {
 	if row != 0 {
 		lastOffset = c.offsetColumn.Row(row - 1)
 	}
+	offset := c.offsetColumn.Row(row)
 	var val []*T
-	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
+	if offset > lastOffset {
+		val = make([]*T, 0, offset-lastOffset)
+	}
+	for i := lastOffset; i < offset; i++ {
+		val = append(val, c.dataColumn.RowP(int(i)))
+	}
 	return val
 }
 
@@ -174,21 +176,8 @@ func (c *ArrayNullable[T]) Array[R interface{ *Array2Nullable[T] }]() R {
 	return R(NewArray2Nullable(c))
 }
 
-// ReadRaw read raw data from the reader. it runs automatically
-func (c *ArrayNullable[T]) ReadRaw(num int) error {
-	err := c.arrayAlias.ReadRaw(num)
-	if err != nil {
-		return err
-	}
-	c.columnData = c.dataColumn.DataP()
-	return nil
-}
-
 func (c *ArrayNullable[T]) getColumnData() []*T {
-	if len(c.columnData) == 0 {
-		c.columnData = c.dataColumn.DataP()
-	}
-	return c.columnData
+	return c.dataColumn.DataP()
 }
 
 func elemOfArrayNullable[T any](c *ArrayNullable[T], arrayLevel int) ColumnCore {

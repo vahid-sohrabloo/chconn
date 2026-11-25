@@ -44,6 +44,7 @@ func (c *LowCardinalityNullable[T]) SetWriteBufferSize(row int) {
 	}
 	c.dictColumn.SetWriteBufferSize(row)
 	c.dictColumn.Reset()
+	clear(c.dict)
 	var empty T
 	c.dictColumn.Append(empty)
 	c.readDict = append(c.readDict[:0], empty)

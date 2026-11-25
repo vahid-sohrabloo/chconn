@@ -121,6 +121,7 @@ func (c *Dynamic) ReadRaw(num int) error {
 }
 
 func (c *Dynamic) ReadHeader(r *readerwriter.Reader, serverInfo *shared.ServerInfo) error {
+	c.readMode = false
 	clear(c.columnsAppend)
 	c.discriminatorsAppend = c.discriminatorsAppend[:0]
 	err := c.column.ReadHeader(r, serverInfo)
@@ -256,9 +257,11 @@ func (c *Dynamic) appendRead(value any) error {
 		existing := slices.IndexFunc(c.variant.columns, func(member ColumnCore) bool {
 			return member.FullType() == col.FullType()
 		})
-		if existing >= 0 {
-			col = c.variant.columns[existing]
-		} else {
+		if existing < 0 {
+			// Append before attaching, so a value the column rejects adds no member type.
+			if err := col.AppendAny(value); err != nil {
+				return err
+			}
 			oldColumns := slices.Clone(c.variant.columns)
 			c.variant.columns = append(c.variant.columns, col)
 			c.variant.reorderColumn()
@@ -268,7 +271,11 @@ func (c *Dynamic) appendRead(value any) error {
 				}
 			}
 			c.variant.rebuildPositions()
+			c.variant.AppendDiscriminators(col.getLocationInParent())
+			c.columnsAppend[rtype] = col
+			return nil
 		}
+		col = c.variant.columns[existing]
 		c.columnsAppend[rtype] = col
 	}
 	return col.AppendAny(value)

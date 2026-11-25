@@ -10,7 +10,6 @@ import (
 type Array2Nullable[T any] struct {
 	Array2[T]
 	dataColumn *ArrayNullable[T]
-	columnData [][]*T
 }
 
 // NewArrayNullable create a new array column of Array(Nullable(T)) ClickHouse data type
@@ -26,9 +25,6 @@ func NewArray2Nullable[T any](dataColumn *ArrayNullable[T]) *Array2Nullable[T] {
 				arrayChconnType: "column.Array2Nullable[" + rtype.String() + "]",
 			},
 		},
-	}
-	a.resetHook = func() {
-		a.columnData = a.columnData[:0]
 	}
 	return a
 }
@@ -63,8 +59,14 @@ func (c *Array2Nullable[T]) RowP(row int) [][]*T {
 	if row != 0 {
 		lastOffset = c.offsetColumn.Row(row - 1)
 	}
+	offset := c.offsetColumn.Row(row)
 	var val [][]*T
-	val = append(val, c.getColumnData()[lastOffset:c.offsetColumn.Row(row)]...)
+	if offset > lastOffset {
+		val = make([][]*T, 0, offset-lastOffset)
+	}
+	for i := lastOffset; i < offset; i++ {
+		val = append(val, c.dataColumn.RowP(int(i)))
+	}
 	return val
 }
 
@@ -145,26 +147,13 @@ func (c *Array2Nullable[T]) AppendAny(value any) error {
 	return fmt.Errorf("AppendAny error: expected *[][]%[1]s or [][]%[1]s, got %[2]T", c.rtype.String(), value)
 }
 
-// ReadRaw read raw data from the reader. it runs automatically
-func (c *Array2Nullable[T]) ReadRaw(num int) error {
-	err := c.Array2.ReadRaw(num)
-	if err != nil {
-		return err
-	}
-	c.columnData = c.dataColumn.DataP()
-	return nil
-}
-
 // Array return a Array type for this column
 func (c *Array2Nullable[T]) Array[R interface{ *Array3Nullable[T] }]() R {
 	return R(NewArray3Nullable(c))
 }
 
 func (c *Array2Nullable[T]) getColumnData() [][]*T {
-	if len(c.columnData) == 0 {
-		c.columnData = c.dataColumn.DataP()
-	}
-	return c.columnData
+	return c.dataColumn.DataP()
 }
 
 func elemOfArray2Nullable[T any](c *Array2Nullable[T], arrayLevel int) ColumnCore {
