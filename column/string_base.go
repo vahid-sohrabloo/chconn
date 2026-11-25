@@ -211,9 +211,13 @@ func (c *StringBase[T]) Append(v T) {
 }
 
 func (c *StringBase[T]) canAppend(value any) bool {
-	switch value.(type) {
-	case string, T, []byte, *string, *[]byte:
+	switch v := value.(type) {
+	case string, T, []byte:
 		return true
+	case *string:
+		return v != nil
+	case *[]byte:
+		return v != nil
 	}
 	return false
 }
@@ -290,7 +294,12 @@ func (c *StringBase[T]) Remove(n int) {
 }
 
 func (c *StringBase[T]) Delete(start, end int) {
-	// Current validation checks...
+	if start >= c.NumRow() || start >= end {
+		return
+	}
+	if end > c.NumRow() {
+		end = c.NumRow()
+	}
 
 	// Calculate byte range to remove
 	startByteRemove := c.pos[start].start

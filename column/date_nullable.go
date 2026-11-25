@@ -43,7 +43,7 @@ func (c *DateNullable[T]) Data() []time.Time {
 // As an alternative (for better performance).
 // You can use `Data` and one of `RowIsNil` and `ReadNil` and `DataNil`  to detect if value is null or not.
 func (c *DateNullable[T]) DataP() []*time.Time {
-	val := make([]*time.Time, c.numRow)
+	val := make([]*time.Time, c.NumRow())
 	for i, d := range c.dataColumn.Data() {
 		if c.RowIsNil(i) {
 			val[i] = nil
@@ -66,7 +66,7 @@ func (c *DateNullable[T]) Read(value []time.Time) []time.Time {
 // As an alternative (for better performance), You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`
 // to detect if value is null or not.
 func (c *DateNullable[T]) ReadP(value []*time.Time) []*time.Time {
-	for i := 0; i < c.numRow; i++ {
+	for i := 0; i < c.NumRow(); i++ {
 		value = append(value, c.RowP(i))
 	}
 	return value

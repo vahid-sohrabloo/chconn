@@ -151,10 +151,10 @@ func TestNestedNoFlattened(t *testing.T) {
 
 	assert.Len(t, autoColumns, 2)
 
-	assert.Equal(t, "col1 Array(Tuple(ol1_n1  Int64, ol2_n1  String))",
+	assert.Equal(t, "col1 Array(Tuple(col1_n1 Int64, col2_n1 String))",
 		autoColumns[0].FullType())
 	assert.Equal(t,
-		"col2 Array(Tuple(ol1_n2  Int64, ol2_n2  Array(Tuple(ol1_n2_n1  Int64, ol2_n2_n2  String))))",
+		"col2 Array(Tuple(col1_n2 Int64, col2_n2 Array(Tuple(col1_n2_n1 Int64, col2_n2_n2 String))))",
 		autoColumns[1].FullType())
 
 	for selectStmt.Next() {

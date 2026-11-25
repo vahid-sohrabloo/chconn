@@ -41,7 +41,7 @@ func (c *StringNullable[T]) Data() []T {
 // As an alternative (for better performance).
 // You can use `Data` and one of `RowIsNil` and `ReadNil` and `DataNil`  to detect if value is null or not.
 func (c *StringNullable[T]) DataP() []*T {
-	val := make([]*T, c.numRow)
+	val := make([]*T, c.NumRow())
 	for i, d := range c.dataColumn.Data() {
 		if c.RowIsNil(i) {
 			val[i] = nil
@@ -64,7 +64,7 @@ func (c *StringNullable[T]) Read(value []T) []T {
 // As an alternative (for better performance), You can use `Read` and one of `RowIsNil` and `ReadNil` and `DataNil`
 // to detect if value is null or not.
 func (c *StringNullable[T]) ReadP(value []*T) []*T {
-	for i := 0; i < c.numRow; i++ {
+	for i := 0; i < c.NumRow(); i++ {
 		value = append(value, c.RowP(i))
 	}
 	return value

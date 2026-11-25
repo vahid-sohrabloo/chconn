@@ -109,6 +109,10 @@ func canAppendZero(c ColumnCore, t reflect.Type) bool {
 	if _, ok := c.(*Tuple); ok || inner.Kind() == reflect.Interface {
 		return true
 	}
+	if t.Kind() == reflect.Pointer {
+		// A nil pointer reads as NULL, which non-nullable columns reject; probe with a value.
+		return c.canAppend(reflect.New(t.Elem()).Interface())
+	}
 	return c.canAppend(reflect.Zero(t).Interface())
 }
 

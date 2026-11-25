@@ -129,10 +129,11 @@ func (c *LowCardinality[T]) addLastDictRow() uint32 {
 		c.dictColumn.Remove(last)
 		return key
 	}
-	key := uint32(len(c.dict))
-	if !c.nullable {
-		c.readDict = append(c.readDict, stored)
+	key := uint32(last)
+	if c.nullable {
+		key--
 	}
+	c.readDict = append(c.readDict, stored)
 	c.dict[stored] = key
 	return key
 }
@@ -289,13 +290,22 @@ func (c *LowCardinality[T]) SetWriteBufferSize(row int) {
 
 // ReadRaw read raw data from the reader. it runs automatically
 func (c *LowCardinality[T]) ReadRaw(num int) error {
+	clear(c.dict)
 	c.numRow = num
 	if c.numRow == 0 {
 		c.indices = newIndicesColumn[uint8](c.r)
+		c.oldIndicesType = 0
 		c.readDict = c.readDict[:0]
 		c.keys = c.keys[:0]
-		// to reset nullable dictionary
-		return c.dictColumn.ReadRaw(0)
+		if err := c.dictColumn.ReadRaw(0); err != nil {
+			return err
+		}
+		if c.nullable {
+			var empty T
+			c.dictColumn.Append(empty)
+			c.readDict = append(c.readDict, empty)
+		}
+		return nil
 	}
 
 	serializationType, err := c.r.Uint64()
@@ -341,6 +351,17 @@ func (c *LowCardinality[T]) ReadRaw(num int) error {
 		c.keys = c.keys[:0]
 	}
 	c.readDict = c.dictColumn.Read(c.readDict)
+	for i, value := range c.readDict {
+		if c.nullable {
+			// Key 0 is NULL; non-null map keys are offset by Append.
+			if i == 0 {
+				continue
+			}
+			c.dict[value] = uint32(i - 1)
+		} else {
+			c.dict[value] = uint32(i)
+		}
+	}
 	c.indices.readInt(&c.keys)
 	return nil
 }
@@ -433,7 +454,7 @@ func (c *LowCardinality[T]) WriteTo(w io.Writer) (int64, error) {
 	dictionarySize := c.dictColumn.NumRow()
 	// Do not write anything for empty column.
 	// May happen while writing empty arrays.
-	if dictionarySize == 0 || (c.nullable && dictionarySize == 1) {
+	if c.numRow == 0 {
 		return 0, nil
 	}
 	var n int64
