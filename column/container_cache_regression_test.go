@@ -27,7 +27,9 @@ func testArrayCacheMutations[T any](t *testing.T, newColumn func() Column[T], on
 		{"append", func(a *Array[T]) { a.Append([]T{three}) }, [][]T{{one}, {two, three}, {}, {three}}},
 		{"append-multi", func(a *Array[T]) { a.AppendMulti([]T{three}, []T{one}) }, [][]T{{one}, {two, three}, {}, {three}, {one}}},
 		{"append-any", func(a *Array[T]) { require.NoError(t, a.AppendAny([]T{three})) }, [][]T{{one}, {two, three}, {}, {three}}},
-		{"base-append-any", func(a *Array[T]) { require.NoError(t, a.ArrayBase.AppendAny([]any{three})) }, [][]T{{one}, {two, three}, {}, {three}}},
+		{"base-append-any", func(a *Array[T]) {
+			require.NoError(t, a.ArrayBase.AppendAny([]any{three}))
+		}, [][]T{{one}, {two, three}, {}, {three}}},
 		{"append-item", func(a *Array[T]) {
 			a.AppendLen(1)
 			a.AppendItem(three)
@@ -117,9 +119,15 @@ func testMapCacheMutations[T comparable](t *testing.T, newColumn func() Column[T
 		want   []map[T]T
 	}{
 		{"append", func(m *Map[T, T]) { m.Append(map[T]T{three: one}) }, []map[T]T{{one: two}, {two: three}, {}, {three: one}}},
-		{"append-multi", func(m *Map[T, T]) { m.AppendMulti(map[T]T{three: one}, map[T]T{one: three}) }, []map[T]T{{one: two}, {two: three}, {}, {three: one}, {one: three}}},
-		{"append-any", func(m *Map[T, T]) { require.NoError(t, m.AppendAny(map[T]T{three: one})) }, []map[T]T{{one: two}, {two: three}, {}, {three: one}}},
-		{"base-append-any", func(m *Map[T, T]) { require.NoError(t, m.MapBase.AppendAny(map[T]T{three: one})) }, []map[T]T{{one: two}, {two: three}, {}, {three: one}}},
+		{"append-multi", func(m *Map[T, T]) {
+			m.AppendMulti(map[T]T{three: one}, map[T]T{one: three})
+		}, []map[T]T{{one: two}, {two: three}, {}, {three: one}, {one: three}}},
+		{"append-any", func(m *Map[T, T]) {
+			require.NoError(t, m.AppendAny(map[T]T{three: one}))
+		}, []map[T]T{{one: two}, {two: three}, {}, {three: one}}},
+		{"base-append-any", func(m *Map[T, T]) {
+			require.NoError(t, m.MapBase.AppendAny(map[T]T{three: one}))
+		}, []map[T]T{{one: two}, {two: three}, {}, {three: one}}},
 		{"append-len", func(m *Map[T, T]) {
 			m.AppendLen(1)
 			m.KeyColumn().Append(three)

@@ -214,7 +214,7 @@ func TestDynamicReadReusedColumn(t *testing.T) {
 func TestDynamicReadSharedVariantAppend(t *testing.T) {
 	sharedCol := NewSharedVariant()
 	src := NewDynamic(New[int64](), sharedCol)
-	sharedCol.StringBase.Append(string([]byte{byte(helper.BinaryTypeIndexString)}) + "shared")
+	sharedCol.Append(string([]byte{byte(helper.BinaryTypeIndexString)}) + "shared")
 	src.Append(nil)
 	dst := NewDynamic()
 	roundTripDynamicJSON(t, src, dst)
