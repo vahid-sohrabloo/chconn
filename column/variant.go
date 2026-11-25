@@ -399,7 +399,12 @@ func (c *Variant) Remove(n int) {
 		dd += removes[i]
 	}
 	c.discriminators.Remove(n)
-	c.rebuildPositions()
+	// Removing a suffix leaves the kept rows' positions unchanged.
+	c.discriminatorsIndexPos = c.discriminatorsIndexPos[:min(n, len(c.discriminatorsIndexPos))]
+	for i, count := range &removes {
+		c.discriminatorCounts[i] -= count
+	}
+	c.discriminatorCounts[255] -= nDelete
 }
 
 func (c *Variant) Delete(start, end int) {

@@ -258,6 +258,10 @@ func (c *Dynamic) appendRead(value any) error {
 			return member.FullType() == col.FullType()
 		})
 		if existing < 0 {
+			// Discriminator 255 means NULL, so a Variant holds at most 255 members.
+			if len(c.variant.columns) >= 255 {
+				return fmt.Errorf("dynamic: cannot add type %s: no discriminator left", col.FullType())
+			}
 			// Append before attaching, so a value the column rejects adds no member type.
 			if err := col.AppendAny(value); err != nil {
 				return err

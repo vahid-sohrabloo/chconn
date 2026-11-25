@@ -2,6 +2,7 @@ package column
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -115,4 +116,46 @@ func TestStringNullableReadAppendDataP(t *testing.T) {
 	dst.AppendP(&b)
 	assert.Equal(t, []*string{&a, nil, &b}, dst.DataP())
 	assert.Equal(t, []*string{&a, nil, &b}, dst.ReadP(nil))
+}
+
+func TestDynamicReadAppendNoDiscriminatorLeft(t *testing.T) {
+	src := NewDynamic()
+	src.AppendMulti(int64(1), "two")
+	dst := NewDynamic()
+	roundTripDynamicJSON(t, src, dst)
+	for len(dst.variant.columns) < 255 {
+		dst.variant.columns = append(dst.variant.columns, New[int8]())
+	}
+
+	require.ErrorContains(t, dst.AppendAny(float64(2.5)), "no discriminator left")
+	assert.Len(t, dst.variant.columns, 255)
+	assert.Equal(t, []any{int64(1), "two"}, dst.Data())
+}
+
+func TestJSONTypedHeaderSettingsChange(t *testing.T) {
+	col := NewJSON()
+	require.NoError(t, col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(a Int64, b String, max_dynamic_paths=1)")}))
+	require.NoError(t, col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(b String, a Int64, max_dynamic_paths=2)")}))
+	assert.Equal(t, uint64(2), col.maxDynamicPaths)
+	require.Len(t, col.typedPaths, 2)
+	require.ErrorContains(t,
+		col.SetColumnHeader(ColumnHeader{ChType: []byte("JSON(a Int64, max_dynamic_paths=2)")}), "cannot change type")
+}
+
+func TestVariantRemoveKeepsPositions(t *testing.T) {
+	v := NewVariant(New[int64](), NewString())
+	for i, val := range []any{int64(1), "a", nil, int64(2), "b", nil, int64(3), "c"} {
+		require.NoError(t, v.AppendAny(val), i)
+	}
+	for _, n := range []int{7, 5, 3, 0} {
+		v.Remove(n)
+		pos := slices.Clone(v.discriminatorsIndexPos)
+		counts, nils := v.discriminatorCounts, v.totalNils
+		v.rebuildPositions()
+		assert.Equal(t, v.discriminatorsIndexPos, pos, "Remove(%d)", n)
+		assert.Equal(t, v.discriminatorCounts, counts, "Remove(%d)", n)
+		assert.Equal(t, v.totalNils, nils, "Remove(%d)", n)
+	}
+	require.NoError(t, v.AppendAny("d"))
+	assert.Equal(t, []any{"d"}, v.Data())
 }

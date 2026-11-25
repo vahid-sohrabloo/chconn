@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -75,9 +76,21 @@ func (c *JSON) SetColumnHeader(ch ColumnHeader) error {
 			goToChType: c.structType(),
 		}
 	}
-	if len(c.typedPaths) > 0 && len(c.columnHeader.ChType) > 0 &&
-		!bytes.Equal(helper.FilterSimpleAggregate(c.columnHeader.ChType), chType) {
-		return fmt.Errorf("json: cannot change type from %s to %s with typed paths", c.columnHeader.ChType, chType)
+	if len(c.typedPaths) > 0 && len(c.columnHeader.ChType) > 0 {
+		oldPaths, _, err := jsonTypedSchema(helper.FilterSimpleAggregate(c.columnHeader.ChType))
+		if err != nil {
+			return fmt.Errorf("json: parse typed definitions: %w", err)
+		}
+		newPaths, maxDynamicPaths, err := jsonTypedSchema(chType)
+		if err != nil {
+			return fmt.Errorf("json: parse typed definitions: %w", err)
+		}
+		if !slices.Equal(oldPaths, newPaths) {
+			return fmt.Errorf("json: cannot change type from %s to %s with typed paths", c.columnHeader.ChType, chType)
+		}
+		if maxDynamicPaths != nil {
+			c.maxDynamicPaths = *maxDynamicPaths
+		}
 	}
 	c.columnHeader = ch
 
@@ -98,6 +111,37 @@ func (c *JSON) SetColumnHeader(ch ColumnHeader) error {
 	}
 
 	return nil
+}
+
+// jsonTypedSchema returns the sorted "path type" definitions of a JSON type and
+// its max_dynamic_paths setting, if the type sets one.
+func jsonTypedSchema(chType []byte) (paths []string, maxDynamicPaths *uint64, err error) {
+	if len(chType) <= helper.LenJSONStr+1 {
+		return nil, nil, nil
+	}
+	entries, err := helper.TypesInParentheses(chType[helper.LenJSONStr+1 : len(chType)-1])
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, entry := range entries {
+		s := string(bytes.TrimSpace(entry.ChType))
+		if rawKey, rawVal, found := strings.Cut(s, "="); found {
+			if strings.TrimSpace(rawKey) == "max_dynamic_paths" {
+				n, err := strconv.ParseUint(strings.TrimSpace(rawVal), 10, 64)
+				if err != nil {
+					return nil, nil, fmt.Errorf("invalid max_dynamic_paths value %q: %w", rawVal, err)
+				}
+				maxDynamicPaths = &n
+			}
+			continue
+		}
+		if len(entry.Name) == 0 {
+			continue
+		}
+		paths = append(paths, string(entry.Name)+" "+s)
+	}
+	slices.Sort(paths)
+	return paths, maxDynamicPaths, nil
 }
 
 func (c *JSON) parseTypedDefinitions(inner []byte) error {
